@@ -1,14 +1,15 @@
 "use client"
 
 import { useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { buildingsTableConfig, lotsTableConfig, type BuildingData, type LotData } from '@/config/table-configs/patrimoine.config'
 import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
-import { DataCards } from '@/components/ui/data-table/data-cards'
 import { BuildingCardExpandable } from './building-card-expandable'
+import { LotCardUnified } from './lot-card-unified/lot-card-unified'
 import { Building2, Home, Search, Filter, LayoutGrid, List } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +28,8 @@ interface PatrimoineNavigatorProps {
     loading?: boolean
     onRefresh?: () => void
     className?: string
+    /** IDs of lots that are locked (subscription restriction). null = all accessible. */
+    lockedLotIds?: Set<string> | null
 }
 
 export function PatrimoineNavigator({
@@ -34,8 +37,10 @@ export function PatrimoineNavigator({
     lots,
     loading = false,
     onRefresh,
-    className
+    className,
+    lockedLotIds = null
 }: PatrimoineNavigatorProps) {
+    const router = useRouter()
     const [activeTab, setActiveTab] = useState<'buildings' | 'lots'>('buildings')
     const [expandedBuildings, setExpandedBuildings] = useState<string[]>([])
 
@@ -131,6 +136,15 @@ export function PatrimoineNavigator({
         )
     }
 
+    // Row click handler that respects locked status
+    const createLockedAwareRowClickHandler = (rowHref?: (item: LotData) => string) => {
+        if (!rowHref) return undefined
+        return (item: LotData) => {
+            if (lockedLotIds?.has(item.id)) return // Block navigation for locked lots
+            router.push(rowHref(item))
+        }
+    }
+
     // Render content based on view mode - Lots specific
     const renderLotsContent = () => {
         if (!mounted) {
@@ -157,21 +171,47 @@ export function PatrimoineNavigator({
                     actions={lotsTableConfig.actions}
                     loading={loading}
                     emptyMessage={emptyConfig.description}
-                    onRowClick={createRowClickHandler(lotsTableConfig.rowHref)}
+                    onRowClick={lockedLotIds
+                        ? createLockedAwareRowClickHandler(lotsTableConfig.rowHref)
+                        : createRowClickHandler(lotsTableConfig.rowHref)
+                    }
                 />
             )
         }
 
-        // Card view
+        // Card view — render directly to support isLocked per-card
+        if (loading) {
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                    {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-40 bg-gray-200 rounded-lg animate-pulse" />
+                    ))}
+                </div>
+            )
+        }
+
+        if (data.length === 0) {
+            return (
+                <div className="text-center py-12 text-slate-500">
+                    {emptyConfig.description}
+                </div>
+            )
+        }
+
         return (
-            <DataCards
-                data={data}
-                CardComponent={lotsTableConfig.views.card.component}
-                actions={lotsTableConfig.actions}
-                loading={loading}
-                emptyMessage={emptyConfig.description}
-                compact={lotsTableConfig.views.card.compact}
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                {data.map((lot) => (
+                    <LotCardUnified
+                        key={lot.id}
+                        lot={lot}
+                        variant="expandable"
+                        mode="view"
+                        showBuilding={true}
+                        customActions={{ showDropdown: true }}
+                        isLocked={lockedLotIds?.has(lot.id) ?? false}
+                    />
+                ))}
+            </div>
         )
     }
 

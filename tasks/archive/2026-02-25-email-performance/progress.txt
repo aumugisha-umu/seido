@@ -1,0 +1,64 @@
+# Progress Log — Email Module Performance Optimization
+# Started: 2026-02-25
+# Stories: 8/8 complete
+---
+
+## 2026-02-25 — US-002: Eliminate redundant fetchCounts
+- Removed `fetchCounts()` call from `fetchEmails()` callback
+- Current folder count updated from API response `total` via folderKey mapping
+- fetchCounts dependency removed from useCallback array
+- Other folder counts still sync via 60s polling
+- Files: `mail-client.tsx`
+
+## 2026-02-25 — US-001: Client-side folder cache
+- Added `folderCacheRef = useRef<Map>` with stale-while-revalidate pattern
+- Cache key: `${folder}:${source}`, TTL: 60 seconds
+- Fresh cache = skip network entirely, stale cache = show cached + background refresh
+- No loading spinner on background refresh (smooth UX)
+- Selection preserved on background refresh (avoids jarring jumps)
+- Cache seeded with SSR initial data (`inbox:all`)
+- Cache invalidated on: archive, delete, soft-delete, blacklist, mark processed/unprocessed, sync, realtime
+- Files: `mail-client.tsx`
+
+## 2026-02-25 — US-003: AbortController for request cancellation
+- Added `abortControllerRef` to cancel in-flight requests on rapid folder switching
+- Previous request aborted before new AbortController created
+- Signal passed through `EmailClientService.getEmails(signal)` to `fetch()`
+- AbortError silently caught (no toast, no console.error)
+- Files: `mail-client.tsx`, `email-client.service.ts`
+
+## 2026-02-25 — US-004: Building Map for O(1) adaptEmail
+- Created `buildingMap` + `lotMap` via `useMemo` from buildings array
+- `adaptEmail` signature changed: `(email, buildingMap, lotMap)` instead of `(email, buildings)`
+- O(1) `Map.get()` replaces O(n) `Array.find()` per email
+- Files: `mail-client.tsx`
+
+## 2026-02-25 — US-005: Count queries select('id')
+- Changed 8 `select('*', { count: 'exact', head: true })` to `select('id', ...)`
+- In: `/api/emails/counts/route.ts` (4) + `/api/emails/refresh/route.ts` (4)
+- Files: `counts/route.ts`, `refresh/route.ts`
+
+## 2026-02-25 — US-006: Connections count head-only
+- **Critical fix**: replaced bulk fetch + JS `.reduce()` with per-connection `head:true` count queries
+- Before: fetched ALL email rows (potentially thousands), counted in JS
+- After: 2 count-only queries per connection in `Promise.all`, zero row transfer
+- Files: `connections/route.ts`
+
+## 2026-02-25 — US-007: Notification reply groups RPC
+- Created `get_notification_reply_groups(p_team_id)` RPC via migration
+- SQL GROUP BY + ORDER BY count DESC + LIMIT 20 — replaces unbounded JS scan
+- SSR page.tsx tries RPC first, falls back to JS grouping if RPC not deployed
+- Files: `20260225000000_optimize_notification_reply_groups.sql`, `page.tsx`
+
+## 2026-02-25 — US-008: Sent replies exclude body_html
+- Changed `getSentRepliesForThreads()` from `select('*')` to explicit column list
+- Excluded `body_html` (heaviest field, 5-50KB per email × 200 limit)
+- All threading headers preserved: `message_id`, `in_reply_to_header`, `references`
+- `body_text` preserved for snippet display
+- Files: `email.repository.ts`
+
+## Key Learnings
+- **Stale-while-revalidate at client level**: `useRef<Map>` with timestamp TTL is simpler than SWR/React Query for single-component caching. No library needed.
+- **AbortController + cache = double protection**: Cache prevents re-fetch, abort prevents stale responses when cache misses.
+- **head:true count queries vs bulk fetch**: PostgREST `head:true` counts rows server-side, transfers zero data. Always prefer over fetch + JS count.
+- **SQL GROUP BY via RPC**: When you need aggregates, push to SQL. JS grouping of unbounded result sets is the #1 SSR perf trap.

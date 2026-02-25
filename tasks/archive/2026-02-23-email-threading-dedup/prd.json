@@ -1,0 +1,94 @@
+{
+  "project": "SEIDO",
+  "featureName": "Email Threading — Dedup, Order, Sent/Received Display",
+  "branchName": "preview",
+  "description": "Fix email thread handling: deduplicate emails during IMAP sync, fix conversation grouping for sent replies, correct thread ordering (chronological), add sent/received visual distinction in threads, and include sent replies in inbox thread view.",
+  "createdAt": "2026-02-23",
+  "prdSource": "inline",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Deduplicate emails during IMAP sync",
+      "description": "As a gestionnaire, I want duplicate emails to be prevented during sync so that my inbox doesn't show the same message twice.",
+      "acceptanceCriteria": [
+        "email-sync.service.ts checks if message_id already exists for team before inserting",
+        "Duplicate emails (same message_id + team_id) are skipped silently",
+        "DB migration adds UNIQUE constraint on (team_id, message_id) WHERE message_id IS NOT NULL",
+        "Existing duplicates are cleaned up in migration (keep oldest row per message_id+team_id)",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Store in_reply_to_header on sent emails for threading",
+      "description": "As a gestionnaire, I want my sent replies to be properly grouped into their parent conversation thread.",
+      "acceptanceCriteria": [
+        "smtp.service.ts stores in_reply_to_header (parent message_id) when saving sent email to DB",
+        "generateConversationId resolves same conversation_id for both received and sent emails in a thread",
+        "Sent replies that have References header get correct conversation_id via Priority 1 (root message_id)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Currently smtp.service.ts saves in_reply_to (UUID FK) and references, but NOT in_reply_to_header which generateConversationId depends on."
+    },
+    {
+      "id": "US-003",
+      "title": "Fix thread ordering to chronological (oldest first)",
+      "description": "As a gestionnaire, I want conversation threads to display in chronological order (oldest message at top) like Gmail, so I can follow the conversation flow naturally.",
+      "acceptanceCriteria": [
+        "getConversationEmails returns emails sorted oldest → newest (ascending received_at)",
+        "ConversationThread renders emails in this order (oldest at top, newest at bottom)",
+        "groupEmailsByConversation preserves correct thread_order assignment",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Current getConversationEmails sorts by b.thread_order - a.thread_order (reverse). Thread views in email clients universally show chronological top-to-bottom."
+    },
+    {
+      "id": "US-004",
+      "title": "Add sent/received visual distinction in thread view",
+      "description": "As a gestionnaire, I want to visually distinguish between emails I sent and emails I received within a conversation thread, so I can follow who said what.",
+      "acceptanceCriteria": [
+        "Sent emails in thread show 'Vous' or connection email as sender with a distinct visual style (e.g. right-aligned or blue tint)",
+        "Received emails show sender name with default style",
+        "Each thread item shows sender name + timestamp as a header above the email body",
+        "Direction badge or icon (arrow up = sent, arrow down = received) is visible",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Currently EmailThreadItem shows no sender header at all — just body content. Need to add sender + direction + time header."
+    },
+    {
+      "id": "US-005",
+      "title": "Include sent replies in inbox conversation threads",
+      "description": "As a gestionnaire, I want to see my sent replies alongside received emails when viewing a conversation thread, so I have the complete conversation context.",
+      "acceptanceCriteria": [
+        "When viewing inbox and selecting a conversation parent, sent emails from the same thread are included in the thread view",
+        "The page.tsx SSR and the API fetch both sent + received emails when building the initial email list for a folder",
+        "Thread count (N messages) reflects the total including sent emails",
+        "Sent folder still works independently (shows only sent emails)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Currently inbox fetches only direction='received'. Sent replies are completely absent from thread views. Need to also fetch sent emails that belong to threads present in the current view."
+    }
+  ]
+}

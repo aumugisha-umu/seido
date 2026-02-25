@@ -24,7 +24,7 @@ export default async function EditContractPage({
   params: Promise<{ id: string }>
 }) {
   // Server-side auth + team verification
-  const { team } = await getServerAuthContext('gestionnaire')
+  const { team, profile } = await getServerAuthContext('gestionnaire')
 
   const { id: contractId } = await params
 
@@ -140,6 +140,7 @@ export default async function EditContractPage({
       initialBuildingsData={buildingsData}
       initialContacts={contacts}
       existingContract={contract}
+      currentUser={{ id: profile.id, name: profile.name || profile.email || '' }}
     />
   )
 }

@@ -50,7 +50,7 @@ interface QuoteRequest {
   // Commun aux deux formats
   individual_message?: string
   deadline?: string
-  quote_status?: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
+  quote_status?: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
 }
 
 interface QuoteRequestCardProps {
@@ -102,7 +102,7 @@ export function QuoteRequestCard({
     // Mapper le status de intervention_quotes
     const amount = getQuoteAmount()
     if (request.status === 'sent' && amount && amount > 0) return 'pending'
-    if (request.status === 'accepted') return 'approved'
+    if (request.status === 'accepted') return 'accepted'
     if (request.status === 'rejected') return 'rejected'
     return undefined
   }
@@ -118,7 +118,7 @@ export function QuoteRequestCard({
     const quoteStatus = getQuoteStatusMapped()
     if (isReceivedQuote() || (request.quote_id || request.has_quote)) {
       switch (quoteStatus || request.quote_status) {
-        case 'approved':
+        case 'accepted':
           return {
             label: 'Estimation approuvée',
             variant: 'default' as const,
@@ -415,7 +415,7 @@ export function QuoteRequestCard({
                 )}
 
                 {/* Actions pour devis reçu (avec montant) */}
-                {showActions && isReceivedQuote() && getQuoteStatusMapped() !== 'approved' && getQuoteStatusMapped() !== 'rejected' && (
+                {showActions && isReceivedQuote() && getQuoteStatusMapped() !== 'accepted' && getQuoteStatusMapped() !== 'rejected' && (
                   <>
                     {onApproveQuote && (
                       <Button

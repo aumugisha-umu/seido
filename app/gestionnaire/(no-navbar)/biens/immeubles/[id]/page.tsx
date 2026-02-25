@@ -1,5 +1,6 @@
 // Server Component - loads data server-side
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import {
   createServerBuildingService,
   createServerLotService,
@@ -12,6 +13,50 @@ import BuildingDetailsClient from './building-details-client'
 import { logger } from '@/lib/logger'
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+
+type PageProps = {
+  params: Promise<{ id: string }>
+}
+
+/**
+ * ✅ Dynamic SEO Metadata for Building Detail Page
+ * - Title includes building name for better SEO
+ * - Description includes address
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params
+
+  try {
+    const supabase = await createServerSupabaseClient()
+
+    // Lightweight query just for metadata
+    const { data: building } = await supabase
+      .from('buildings')
+      .select('name, address_record:address_id(city, formatted_address)')
+      .eq('id', id)
+      .single()
+
+    if (!building) {
+      return {
+        title: 'Immeuble non trouvé | SEIDO',
+        description: 'Cet immeuble n\'existe pas ou vous n\'avez pas les permissions nécessaires.'
+      }
+    }
+
+    const address = building.address_record?.formatted_address || building.address_record?.city || ''
+    const addressSuffix = address ? ` - ${address}` : ''
+
+    return {
+      title: `${building.name}${addressSuffix} | SEIDO`,
+      description: `Détails de l'immeuble : ${building.name}. Gestion des lots, contacts et interventions.`
+    }
+  } catch {
+    return {
+      title: 'Immeuble | SEIDO',
+      description: 'Détails de l\'immeuble'
+    }
+  }
+}
 
 // Loading skeleton while data is fetched
 function BuildingDetailsLoading() {
@@ -122,47 +167,41 @@ export default async function BuildingDetailsPage({
       is_occupied: occupiedLotIds.has(lot.id)
     }))
 
-    // ✅ 2025-12-26: Load contracts for each lot to display tenants/guarantors
-    logger.info('📍 [BUILDING-PAGE-SERVER] Step 2.5: Loading contracts for lots...')
-    const lotsWithContracts = await Promise.all(
-      lots.map(async (lot: any) => {
-        try {
-          const contractsResult = await contractService.getByLot(lot.id, { includeExpired: false })
-          const contracts = contractsResult.success ? (contractsResult.data || []) : []
-          // Only keep active or upcoming contracts
-          const relevantContracts = contracts.filter((c: any) =>
-            c.status === 'actif' || c.status === 'a_venir'
-          )
-          return {
-            id: lot.id,
-            reference: lot.reference,
-            category: lot.category,
-            floor: lot.floor || 0,
-            door_number: lot.door_number || lot.apartment_number || '',
-            lot_contacts: lot.lot_contacts || [],
-            contracts: relevantContracts.map((contract: any) => ({
-              id: contract.id,
-              title: contract.title,
-              status: contract.status,
-              start_date: contract.start_date,
-              end_date: contract.end_date,
-              contacts: contract.contacts || []
-            }))
-          }
-        } catch (error) {
-          logger.warn(`⚠️ [BUILDING-PAGE-SERVER] Could not load contracts for lot ${lot.id}`)
-          return {
-            id: lot.id,
-            reference: lot.reference,
-            category: lot.category,
-            floor: lot.floor || 0,
-            door_number: lot.door_number || lot.apartment_number || '',
-            lot_contacts: lot.lot_contacts || [],
-            contracts: []
-          }
-        }
-      })
-    )
+    // ✅ 2026-02-08: Batch load contracts for ALL lots in 1 query (N+1 → 1 query)
+    // Previously: N queries for N lots. Now: 1 query with .in('lot_id', lotIds)
+    logger.info('📍 [BUILDING-PAGE-SERVER] Step 2.5: Batch loading contracts for all lots...')
+    const lotIds = lots.map((lot: any) => lot.id)
+    const contractsResult = await contractService.getByLotIds(lotIds, { includeExpired: false })
+    const allContracts = contractsResult.success ? (contractsResult.data || []) : []
+
+    // Group contracts by lot_id using Map (O(n) client-side grouping)
+    const contractsByLotId = new Map<string, any[]>()
+    for (const contract of allContracts) {
+      // Only keep active or upcoming contracts
+      if (contract.status === 'actif' || contract.status === 'a_venir') {
+        const existing = contractsByLotId.get(contract.lot_id) || []
+        existing.push({
+          id: contract.id,
+          title: contract.title,
+          status: contract.status,
+          start_date: contract.start_date,
+          end_date: contract.end_date,
+          contacts: contract.contacts || []
+        })
+        contractsByLotId.set(contract.lot_id, existing)
+      }
+    }
+
+    // Map back to lots with their contracts
+    const lotsWithContracts = lots.map((lot: any) => ({
+      id: lot.id,
+      reference: lot.reference,
+      category: lot.category,
+      floor: lot.floor || 0,
+      door_number: lot.door_number || lot.apartment_number || '',
+      lot_contacts: lot.lot_contacts || [],
+      contracts: contractsByLotId.get(lot.id) || []
+    }))
     const totalContractContacts = lotsWithContracts.reduce(
       (sum, lot) => sum + lot.contracts.reduce((s: number, c: any) => s + (c.contacts?.length || 0), 0),
       0
@@ -191,29 +230,17 @@ export default async function BuildingDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // Load interventions for all lots (parallel)
-    let interventions: unknown[] = []
-    if (lots.length > 0) {
-      logger.info('📍 [BUILDING-PAGE-SERVER] Step 3: Loading interventions...', {
-        lotCount: lots.length
-      })
+    // ✅ 2026-02-18: Fetch building-level AND lot-level interventions in 1 query
+    // Uses .or(building_id.eq.X, lot_id.in.(Y)) to capture both XOR cases
+    logger.info('📍 [BUILDING-PAGE-SERVER] Step 3: Batch loading interventions...')
 
-      const lotIds = lots.map(lot => lot.id)
-      const interventionResults = await Promise.allSettled(
-        lotIds.map(lotId => interventionService.getByLot(lotId))
-      )
+    const interventionsResult = await interventionService.getByBuildingWithLots(id, lotIds)
+    const interventions: unknown[] = interventionsResult.success ? (interventionsResult.data || []) : []
 
-      interventions = interventionResults
-        .filter((result): result is PromiseFulfilledResult<{ success: boolean; data?: unknown[] }> =>
-          result.status === 'fulfilled' && result.value.success && !!result.value.data
-        )
-        .flatMap(result => result.value.data || [])
-
-      logger.info('✅ [BUILDING-PAGE-SERVER] Interventions loaded', {
-        interventionCount: interventions.length,
-        elapsed: `${Date.now() - startTime}ms`
-      })
-    }
+    logger.info('✅ [BUILDING-PAGE-SERVER] Interventions batch loaded', {
+      interventionCount: interventions.length,
+      elapsed: `${Date.now() - startTime}ms`
+    })
 
     // Load interventions with documents (for documents tab)
     logger.info('📍 [BUILDING-PAGE-SERVER] Step 4: Loading interventions with documents...')

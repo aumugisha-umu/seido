@@ -8,10 +8,10 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import {
-    Building2, Users, Wrench, Home,
+    Building2, Wrench, Home,
     CheckCircle2, ArrowRight, Zap, Shield, BarChart3, Mail,
-    Sparkles, Globe, Smartphone, Clock, MessageSquare, TrendingUp,
-    FileText, AlertTriangle
+    Sparkles, Smartphone, Clock, MessageSquare, TrendingUp,
+    FileText, AlertTriangle, Linkedin
 } from 'lucide-react'
 import { faq } from '@/data/faq'
 import { CountUp } from '@/components/ui/count-up'
@@ -19,6 +19,8 @@ import { Slider } from '@/components/ui/slider'
 import { DemoRequestForm } from './demo-request-form'
 import { LandingHeader } from './landing-header'
 import { PricingCards } from '@/components/pricing-cards'
+import { BlogArticleCard } from '@/components/blog/blog-article-card'
+import type { ArticleMeta } from '@/lib/blog'
 
 /**
  * VERSION 2 - MODERN PREMIUM
@@ -62,7 +64,11 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
     )
 }
 
-export function LandingPage() {
+interface LandingPageProps {
+    latestArticles?: ArticleMeta[]
+}
+
+export function LandingPage({ latestArticles = [] }: LandingPageProps) {
     const [showDemoModal, setShowDemoModal] = useState(false)
     const [lotCount, setLotCount] = useState(3)
 
@@ -108,21 +114,21 @@ export function LandingPage() {
 
                         <h1 className="landing-display mb-6 md:mb-8 drop-shadow-2xl">
                             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-300">
-                                La sérénité retrouvée
+                                La gestion locative
                             </span>
                             <span className="block text-white">
-                                pour les gestionnaires immobiliers
+                                en toute sereinité
                             </span>
                         </h1>
 
                         <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                            Vos interventions sous contrôle. Vos locataires informés. Vos prestataires autonomes. <span className="font-bold">Vous, enfin libéré des relances.</span>
+                            Vos interventions centralisees, vos locataires informés, vos prestataires autonomes. <span className="font-bold">Gagnez jusqu'à 10h/semaine.</span>
                         </p>
 
-                        <div className="flex flex-col sm:flex-row gap-4 mb-8 md:mb-10 max-w-2xl">
+                        <div className="flex flex-col sm:flex-row gap-4 mb-4 md:mb-6 max-w-2xl">
                             <Link href="/auth/signup">
                                 <Button size="lg" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg bg-white text-black hover:bg-white/90 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105">
-                                    Tester gratuitement
+                                    Essayer gratuitement
                                 </Button>
                             </Link>
                             <Button
@@ -136,10 +142,14 @@ export function LandingPage() {
                             </Button>
                         </div>
 
+                        <p className="landing-caption text-white/50 mb-8 md:mb-10">
+                            
+                        </p>
+
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                <span className="landing-caption text-white/80">Setup en 10 minutes</span>
+                                <span className="landing-caption text-white/80">Import excel/csv</span>
                             </div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
@@ -147,12 +157,13 @@ export function LandingPage() {
                             </div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                <span className="landing-caption text-white/80">Locataires & prestataires inclus</span>
+                                <span className="landing-caption text-white/80">App locataires & prestataires</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
+
 
             {/* Combined Problem Section: Costs & Causes */}
             <section className="relative z-10 container mx-auto px-4 py-24">
@@ -160,7 +171,7 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="text-center mb-12">
                         <h2 className="landing-h2 text-white mb-4">
-                            Le vrai coût du mode pompier
+                            Le vrai coût d'une gestion locative sans outil adapté
                         </h2>
                     </div>
                 </FadeIn >
@@ -194,7 +205,7 @@ export function LandingPage() {
 
                 <FadeIn delay={300}>
                     <p className="text-center landing-caption text-white/40 max-w-2xl mx-auto italic mb-16">
-                        Sur base d'un gestionnaire avec 100 biens en gestion et un taux horaire brut de 45€ (moyenne belge)
+                        Sur base d'un gestionnaire avec 100 biens en gestion et un taux horaire brut de 45€ (moyenne belge, source Federia/IPI)
                     </p>
                 </FadeIn>
 
@@ -202,7 +213,7 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="max-w-4xl mx-auto text-center mb-12">
                         <h2 className="landing-h2 text-white mb-4">
-                            Là où ça se casse toujours
+                            Gestion des interventions : là où ça coince
                         </h2>
                         <p className="landing-subtitle text-white/60">
                             Trois scénarios qui reviennent en boucle.
@@ -236,7 +247,7 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
-                            Reprenez le contrôle en quelques clics.
+                            Logiciel de gestion locative tout-en-un
                         </h2>
                         <p className="landing-subtitle text-white/60">
                             Interventions pilotées en temps réel, avec historique et preuves au même endroit.
@@ -429,7 +440,7 @@ export function LandingPage() {
                             Vos données actuelles ? On s'en occupe.
                         </h3>
                         <p className="landing-body text-white/70 mb-6">
-                            Import CSV inclus. Pour les données complexes (Excel / ancien logiciel), on gère la migration.
+                            Import CSV inclus. Pour les données complexes (Excel, Smovin, Rentila, ou autre logiciel), on gère la migration. Conforme RGPD (APD belge).
                         </p>
                         <div className="grid md:grid-cols-2 gap-6">
                             <ul className="space-y-2">
@@ -534,53 +545,7 @@ export function LandingPage() {
 
 
 
-            {/* Testimonials - Glass Cards */}
-            < section className="relative z-10 container mx-auto px-4 py-24" >
-                <FadeIn>
-                    <div className="text-center max-w-3xl mx-auto mb-16">
-                        <h2 className="landing-h2 mb-6 text-white">
-                            Ils ne reviendraient pas en arrière
-                        </h2>
-                    </div>
-                </FadeIn>
-                <div className="grid md:grid-cols-3 gap-6">
-                    {[
-                        {
-                            name: "Gestionnaire indépendant",
-                            role: "120 lots à Bruxelles",
-                            content: "Avant, je passais mes lundis à rattraper les urgences du week-end. Maintenant, tout est déjà traité quand j'arrive.",
-                            rating: 5
-                        },
-                        {
-                            name: "Agence immobilière",
-                            role: "8 collaborateurs",
-                            content: "On a arrêté le groupe WhatsApp 'urgences'. Tout passe par SEIDO maintenant. Plus de perte d'info.",
-                            rating: 5
-                        },
-                        {
-                            name: "Prestataire plombier",
-                            role: "Partenaire depuis 6 mois",
-                            content: "Je reçois la demande avec les photos et l'adresse. Je sais exactement ce qui m'attend avant d'arriver.",
-                            rating: 5
-                        }
-                    ].map((t, i) => (
-                        <FadeIn key={i} delay={i * 100} className="h-full">
-                            <div className="p-8 rounded-3xl border border-white/5 bg-white/5 backdrop-blur-sm h-full hover:bg-white/10 transition-colors">
-                                <div className="flex gap-1 mb-4">
-                                    {[...Array(t.rating)].map((_, j) => (
-                                        <Sparkles key={j} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                    ))}
-                                </div>
-                                <p className="landing-body text-white/80 mb-6 italic">"{t.content}"</p>
-                                <div>
-                                    <p className="landing-body font-bold text-white">{t.name}</p>
-                                    <p className="landing-caption text-white/40">{t.role}</p>
-                                </div>
-                            </div>
-                        </FadeIn>
-                    ))}
-                </div>
-            </section >
+            {/* Testimonials section removed — will be added back with real testimonials */}
 
             {/* Pricing - Gradient Borders */}
             < section id="pricing" className="relative z-10 container mx-auto px-4 py-24" >
@@ -731,7 +696,7 @@ export function LandingPage() {
                     <FadeIn>
                         <div className="text-center mb-12">
                             <h2 className="landing-h2 text-white mb-4">
-                                Vous hésitez encore ?
+                                Questions fréquentes — Gestion locative SEIDO
                             </h2>
                             <p className="landing-subtitle text-white/60 max-w-2xl mx-auto">
                                 Normal. Voici ce qu'on nous demande le plus souvent.
@@ -778,6 +743,49 @@ export function LandingPage() {
                 </div>
             </section >
 
+            {/* Blog Section — 3 Latest Articles */}
+            {latestArticles.length > 0 && (
+                <section id="blog" className="relative z-10 container mx-auto px-4 py-24">
+                    <FadeIn>
+                        <div className="text-center mb-12">
+                            <Badge className="mb-4 bg-purple-500/10 text-purple-300 border-purple-500/20 hover:bg-purple-500/10">
+                                <FileText className="w-3.5 h-3.5 mr-1.5" />
+                                Blog
+                            </Badge>
+                            <h2 className="landing-h2 text-white mb-4">
+                                Actualites gestion immobiliere Belgique
+                            </h2>
+                            <p className="landing-body text-white/60 max-w-2xl mx-auto">
+                                Analyses, decryptages et conseils pratiques pour gestionnaires immobiliers, proprietaires et syndics.
+                            </p>
+                        </div>
+                    </FadeIn>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-10">
+                        {latestArticles.map((article, i) => (
+                            <FadeIn key={article.slug} delay={i * 100}>
+                                <BlogArticleCard article={article} className="h-full" />
+                            </FadeIn>
+                        ))}
+                    </div>
+
+                    <FadeIn delay={300}>
+                        <div className="text-center">
+                            <Link href="/blog">
+                                <Button
+                                    variant="outline"
+                                    size="lg"
+                                    className="bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white rounded-full px-8"
+                                >
+                                    Voir tous les articles
+                                    <ArrowRight className="w-4 h-4 ml-2" />
+                                </Button>
+                            </Link>
+                        </div>
+                    </FadeIn>
+                </section>
+            )}
+
             {/* CTA Section */}
             < section className="relative z-10 container mx-auto px-4 py-32 text-center" >
                 <FadeIn>
@@ -795,7 +803,7 @@ export function LandingPage() {
                         <div className="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
                             <Link href="/auth/signup">
                                 <Button size="lg" className="h-14 px-10 text-lg bg-white text-black hover:bg-white/90 rounded-full transition-all hover:scale-105 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
-                                    Commencer maintenant — c'est gratuit
+                                    Essayer gratuitement — 1 mois offert
                                 </Button>
                             </Link>
                         </div>
@@ -827,8 +835,23 @@ export function LandingPage() {
                         </div>
 
 
-                        <div> </div>
-
+                        <div>
+                            <h3 className="landing-body font-semibold text-white mb-3">Contact</h3>
+                            <ul className="space-y-2 landing-caption text-white/60">
+                                <li><a href="mailto:contact@seido-app.com" className="hover:text-white transition-colors">contact@seido-app.com</a></li>
+                                <li>Bruxelles, Belgique</li>
+                                <li className="flex items-center gap-2 pt-2">
+                                    <Shield className="w-3 h-3 text-green-400" />
+                                    <span>RGPD — Hebergement EU</span>
+                                </li>
+                                <li className="pt-2">
+                                    <a href="https://www.linkedin.com/company/seido-app" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-white transition-colors">
+                                        <Linkedin className="w-4 h-4" />
+                                        <span>Suivez-nous sur LinkedIn</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
 
                         <div>
                             <h3 className="landing-body font-semibold text-white mb-3">Produit</h3>

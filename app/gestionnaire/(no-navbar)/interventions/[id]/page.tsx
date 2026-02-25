@@ -4,16 +4,58 @@
  * ✅ Simple queries Supabase directes (pas de méthodes custom complexes)
  * ✅ RLS policies Supabase pour permissions (pas de checks custom)
  * ✅ Logging structuré à chaque étape
+ * ✅ Dynamic SEO metadata via generateMetadata
  */
 
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import { getServerAuthContext } from '@/lib/server-context'
-import { createServerInterventionRepository } from '@/lib/services'
+import { createServerInterventionRepository, createServerSupabaseClient } from '@/lib/services'
 import { InterventionDetailClient } from './components/intervention-detail-client'
 import { logger } from '@/lib/logger'
 
 type PageProps = {
   params: Promise<{ id: string }>
+}
+
+/**
+ * ✅ Dynamic SEO Metadata for Intervention Detail Page
+ * - Title includes intervention title for better SEO
+ * - Description includes status and location
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params
+
+  try {
+    const supabase = await createServerSupabaseClient()
+
+    // Lightweight query just for metadata
+    const { data: intervention } = await supabase
+      .from('interventions')
+      .select('title, status, lot:lot_id(reference), building:building_id(name)')
+      .eq('id', id)
+      .single()
+
+    if (!intervention) {
+      return {
+        title: 'Intervention non trouvée | SEIDO',
+        description: 'Cette intervention n\'existe pas ou vous n\'avez pas les permissions nécessaires.'
+      }
+    }
+
+    const location = intervention.lot?.reference || intervention.building?.name || ''
+    const locationSuffix = location ? ` - ${location}` : ''
+
+    return {
+      title: `${intervention.title}${locationSuffix} | SEIDO`,
+      description: `Détails de l'intervention : ${intervention.title}. Statut : ${intervention.status}.`
+    }
+  } catch {
+    return {
+      title: 'Intervention | SEIDO',
+      description: 'Détails de l\'intervention'
+    }
+  }
 }
 
 export default async function InterventionDetailPage({ params }: PageProps) {
@@ -69,7 +111,8 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       { data: timeSlots },
       { data: threads, allMessages: threadMessages, allParticipants: threadParticipants },
       { data: comments },
-      { data: linkedInterventions }
+      { data: linkedInterventions },
+      { data: reports }
     ] = await Promise.all([
       // Building (avec address_record pour la localisation)
       intervention.building_id
@@ -257,7 +300,15 @@ export default async function InterventionDetailPage({ params }: PageProps) {
           child:interventions!child_intervention_id(id, reference, title, status),
           provider:users!provider_id(id, first_name, last_name, avatar_url)
         `)
-        .or(`parent_intervention_id.eq.${id},child_intervention_id.eq.${id}`)
+        .or(`parent_intervention_id.eq.${id},child_intervention_id.eq.${id}`),
+
+      // Reports (closure reports from all roles)
+      supabase
+        .from('intervention_reports')
+        .select('*, creator:created_by(name)')
+        .eq('intervention_id', id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
     ])
 
     logger.info('✅ [INTERVENTION-PAGE] Step 2 complete', {
@@ -394,6 +445,7 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         }}
         assignments={assignments || []}
         documents={documents || []}
+        reports={reports || []}
         quotes={quotes || []}
         timeSlots={timeSlots || []}
         threads={threads || []}

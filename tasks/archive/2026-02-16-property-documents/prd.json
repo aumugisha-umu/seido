@@ -1,0 +1,153 @@
+{
+  "project": "SEIDO",
+  "featureName": "Property Documents — Lots & Immeubles",
+  "branchName": "preview",
+  "description": "Gestion documentaire immobilière belge pour lots et immeubles avec composants génériques, dates d'expiration et alertes visuelles",
+  "createdAt": "2026-02-16",
+  "prdSource": "tasks/prd-property-documents.md",
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Migration DB — Étendre property_document_type avec les types belges",
+      "description": "As a developer, I want to add Belgian-specific document types to the property_document_type enum so that lots and buildings can have PEB, electrical conformity, gas, smoke detectors, boiler maintenance, elevator, fuel tank, condo rules, asbestos, and energy audit document types",
+      "acceptanceCriteria": [
+        "New enum values added: certificat_peb, conformite_electrique, conformite_gaz, detecteurs_fumee, entretien_chaudiere, controle_ascenseur, citerne_mazout, inventaire_amiante, audit_energetique",
+        "Migration runs without error on linked DB",
+        "npm run supabase:types regenerates database.types.ts with new enum values",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Migration pushed, types regenerated, lint passes. tsc OOM documented in MEMORY.md."
+    },
+    {
+      "id": "US-002",
+      "title": "Généraliser DocumentSlot et DocumentChecklist — composants agnostiques",
+      "description": "As a developer, I want generic document components that work with any document type (contract, property) so that the same UI code is reused for leases, lots, and buildings. Move core logic into components/documents/ with generic types. Lease components become thin wrappers.",
+      "acceptanceCriteria": [
+        "New generic components: components/documents/document-slot-generic.tsx and document-checklist-generic.tsx",
+        "DocumentSlotGeneric props accept string-based document types instead of ContractDocumentType",
+        "DocumentChecklistGeneric accepts slot configs + file state as props, renders recommended/autre sections",
+        "Existing lease DocumentChecklist/DocumentSlot refactored to use generic components (thin wrappers)",
+        "Lease document flow works identically as before (no visual regression)",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Created components/documents/ with types.ts, document-slot-generic.tsx, document-checklist-generic.tsx, index.ts. Lease components refactored to thin wrappers. Also added optional section in generic checklist. Lint passes."
+    },
+    {
+      "id": "US-003",
+      "title": "Hook usePropertyDocumentUpload — upload pour property_documents",
+      "description": "As a developer, I want a hook that handles file upload to the property-documents API so that lots and buildings can upload documents with slot organization, progress tracking, and expiry date support.",
+      "acceptanceCriteria": [
+        "New hook: hooks/use-property-document-upload.ts",
+        "Accepts entityType ('lot' | 'building'), entityId, and slotConfigs as params",
+        "Uploads to /api/property-documents/upload with correct buildingId/lotId",
+        "Supports expiry_date per file",
+        "Returns slots state, progress, addFilesToSlot, removeFileFromSlot, uploadFiles",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Created hooks/use-property-document-upload.ts. Supports entityType, slot configs, expiry dates. Uploads to /api/property-documents/upload. Lint passes."
+    },
+    {
+      "id": "US-004",
+      "title": "Slot configurations pour lots et immeubles",
+      "description": "As a developer, I want slot config arrays for lot documents and building documents with Belgian-specific types, labels, icons, recommended badges, and expiry metadata.",
+      "acceptanceCriteria": [
+        "New file: lib/constants/property-document-slots.ts",
+        "LOT_DOCUMENT_SLOTS with 6 types: certificat_peb (rec), conformite_electrique (rec), conformite_gaz, detecteurs_fumee (rec), entretien_chaudiere, autre",
+        "BUILDING_DOCUMENT_SLOTS with 7 types: certificat_peb (rec), controle_ascenseur, citerne_mazout, reglement_copropriete, inventaire_amiante, audit_energetique, autre",
+        "Each slot has: type, label, recommended, allowMultiple, hint, icon, hasExpiry, defaultValidityYears",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Created lib/constants/property-document-slots.ts with LOT_DOCUMENT_SLOTS (6 types) and BUILDING_DOCUMENT_SLOTS (7 types). Includes hasExpiry and defaultValidityYears metadata."
+    },
+    {
+      "id": "US-005",
+      "title": "Expiry date input + alertes visuelles dans DocumentSlotGeneric",
+      "description": "As a gestionnaire, I want to see visual alerts when a document is close to expiring or already expired so that I can take action to renew it.",
+      "acceptanceCriteria": [
+        "DocumentSlotGeneric accepts optional hasExpiry prop",
+        "When hasExpiry=true, shows a date picker input for expiry date",
+        "Badge 'Expire bientôt' (orange) when <3 months away",
+        "Badge 'Expiré' (red) when past expiry date",
+        "Badge 'Valide' (green) when valid with date shown",
+        "Expiry date passed to upload hook for storage in property_documents.expiry_date",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002", "US-004"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added hasExpiry, expiryDate, onExpiryDateChange props to DocumentSlotGeneric. getExpiryStatus() computes valid/expiring_soon/expired with fr-BE date formatting. Date input shown below hint when hasExpiry=true and hasFiles. Badge shown in compact mode too. Lint passes."
+    },
+    {
+      "id": "US-006",
+      "title": "Step Documents dans wizard création/édition de lot — DONE",
+      "description": "As a gestionnaire, I want a Documents step in the lot creation and edit wizards so that I can upload PEB certificates, electrical conformity, etc. during lot setup.",
+      "acceptanceCriteria": [
+        "lotSteps updated: Documents step (Paperclip icon) inserted before Confirmation",
+        "Lot creation wizard renders DocumentChecklistGeneric with LOT_DOCUMENT_SLOTS at step 4",
+        "Lot edit wizard renders documents with existing docs pre-loaded",
+        "Documents uploaded on form submission via usePropertyDocumentUpload",
+        "Navigation works: documents preserved across step changes",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002", "US-003", "US-004"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Step Documents dans wizard création/édition d'immeuble",
+      "description": "As a gestionnaire, I want a Documents step in the building creation and edit wizards so that I can upload elevator certificates, condo rules, etc.",
+      "acceptanceCriteria": [
+        "buildingSteps updated: Documents step inserted before Confirmation",
+        "Building creation wizard renders DocumentChecklistGeneric with BUILDING_DOCUMENT_SLOTS",
+        "Documents uploaded on form submission via usePropertyDocumentUpload",
+        "Navigation works across steps with documents preserved",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002", "US-003", "US-004"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added Documents step to building wizard. Modified server action to return result instead of redirect, enabling client-side document upload + redirect. Lint passes."
+    },
+    {
+      "id": "US-008",
+      "title": "Section Documents dans page détails lot et immeuble",
+      "description": "As a gestionnaire, I want to see and manage documents on the lot and building detail pages so that I can upload, view, and delete documents after creation.",
+      "acceptanceCriteria": [
+        "Lot detail page shows DocumentChecklistGeneric with existing docs from property_documents",
+        "Building detail page shows DocumentChecklistGeneric with existing docs",
+        "Can upload new documents from detail page",
+        "Can delete documents (soft delete via archive)",
+        "Expiry alerts visible on detail pages",
+        "Documents fetched via PropertyDocumentService",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-005", "US-006", "US-007"],
+      "sizing": "L",
+      "passes": true,
+      "notes": "Created PropertyDocumentsPanel component in components/documents/. Integrated in both lot and building detail pages Documents tab, above intervention documents. Panel fetches existing docs from API, organizes by slot type, supports upload + delete + expiry alerts. Lint passes."
+    }
+  ]
+}

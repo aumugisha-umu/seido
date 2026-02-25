@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 
-export type UnifiedModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full'
+export type UnifiedModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
 export type UnifiedModalVariant = 'default' | 'success' | 'danger' | 'warning'
 export type UnifiedModalFooterAlign = 'left' | 'center' | 'right' | 'between'
 
@@ -32,6 +32,8 @@ export interface UnifiedModalHeaderProps {
   icon?: ReactNode
   /** Color variant */
   variant?: UnifiedModalVariant
+  /** Optional badge/extra content rendered to the right of title area */
+  badge?: ReactNode
   /** Back button callback (for multi-step modals) */
   onBack?: () => void
   /** Additional classes */

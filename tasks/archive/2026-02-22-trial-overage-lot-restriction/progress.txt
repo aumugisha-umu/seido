@@ -1,0 +1,83 @@
+# Progress Log — Trial Overage Banner + Lot Access Restriction
+# Started: 2026-02-22
+# Stories: 6 total
+---
+
+## US-001: Add getAccessibleLotIds() service method + server action ✅
+**Date:** 2026-02-22
+**Files:**
+- lib/services/domain/subscription.service.ts (new method + AccessibleLotIds type)
+- app/actions/subscription-actions.ts (new getAccessibleLots action)
+**Changes:**
+- Added AccessibleLotIds type: string[] | null
+- getAccessibleLotIds(teamId, subscriptionInfo, supabase): returns null if all accessible, string[] of 2 oldest if restricted
+- Fail-open pattern: query error returns null (all accessible) to avoid locking users out
+- Server action getAccessibleLots() follows existing pattern with auth check
+**Learnings:** Fail-open vs fail-closed: for access restriction on existing data, always fail open
+
+## US-002: Trial overage banner component ✅
+**Date:** 2026-02-22
+**Files:**
+- components/billing/trial-overage-banner.tsx (new)
+**Changes:**
+- Amber theme banner, non-dismissible
+- Shows locked lot count + days left + "S'abonner" CTA
+- Guards: returns null if actualLots <= FREE_TIER_LIMIT
+
+## US-003: Wire TrialOverageBanner into SubscriptionBanners + layout ✅
+**Date:** 2026-02-22
+**Files:**
+- components/billing/subscription-banners.tsx (modified)
+**Changes:**
+- Priority: ReadOnly > TrialOverage > Trial
+- TrialOverageBanner receives actualLots + daysLeft from subscriptionInfo
+
+## US-004: Enforce lot access restriction on biens list page ✅
+**Date:** 2026-02-22
+**Files:**
+- components/patrimoine/lot-card-unified/types.ts (added isLocked prop)
+- components/patrimoine/lot-card-unified/lot-card-unified.tsx (lock overlay + interaction blocking)
+- components/patrimoine/patrimoine-navigator.tsx (lockedLotIds prop, direct card rendering)
+- app/gestionnaire/(with-navbar)/biens/biens-page-client.tsx (fetch accessible lots, compute locked set)
+**Changes:**
+- LotCardUnified: when isLocked, renders semi-transparent white overlay with "Déverrouiller" button
+- Card interactions disabled: handleCardClick/handleHeaderClick return early, actions hidden
+- PatrimoineNavigator: bypasses DataCards for card view, renders LotCardUnified directly with isLocked
+- List view: locked-aware row click handler blocks navigation for locked lots
+- BiensPageClient: fetches getAccessibleLots() on mount, computes lockedLotIds Set
+**Learnings:**
+- CSS opacity inheritance: child elements can't override parent opacity — use semi-transparent overlay (bg-white/60) instead
+- Bypassing generic DataCards for direct rendering allows per-card props (isLocked) without polluting generic component
+
+## US-005: Enforce lot access restriction on lot detail page (server-side) ✅
+**Date:** 2026-02-22
+**Files:**
+- app/gestionnaire/(no-navbar)/biens/lots/[id]/page.tsx (server-side gate)
+- components/patrimoine/lot-card-unified/building-lots-grid.tsx (lockedLotIds prop)
+- app/gestionnaire/(no-navbar)/biens/immeubles/[id]/building-details-client.tsx (fetch accessible lots, pass lockedLotIds)
+**Changes:**
+- Lot detail page: subscription check before data loading, redirect to /gestionnaire/biens if locked
+- BuildingLotsGrid: accepts lockedLotIds, passes isLocked to each LotCardUnified
+- Building detail client: fetches accessible lots on mount, computes lockedLotIds Set
+**Learnings:**
+- Next.js redirect() throws internally — never call it inside try/catch, compute condition first then redirect outside
+- Fail-open pattern critical for server-side gates: subscription check failure must not lock users out
+
+## US-006: Restrict intervention creation on locked lots ✅
+**Date:** 2026-02-22
+**Files:**
+- app/actions/intervention-actions.ts (2 helper functions + 7 action guards)
+**Changes:**
+- Added `checkLotLockedBySubscription(lotId, teamId)`: checks if a lot is in the accessible list
+- Added `checkInterventionLotLocked(interventionId, teamId)`: looks up intervention lot_id then checks
+- Applied to: createInterventionAction (creation gate), updateInterventionAction (update gate)
+- Applied to status actions: approve, reject, startPlanning, finalize, cancel
+- Dynamic imports for subscription helpers to avoid circular dependency
+- All fail-open: subscription check errors allow access
+**Learnings:**
+- Dynamic imports (`await import(...)`) avoid circular dependencies when intervention-actions needs subscription-helpers
+- checkInterventionLotLocked pattern: look up the intervention's lot_id first, then delegate to lot check
+
+---
+## FEATURE COMPLETE ✅
+All 6/6 stories pass. Feature: Trial Overage Banner + Lot Access Restriction

@@ -1,0 +1,118 @@
+{
+  "project": "SEIDO",
+  "featureName": "Trial Overage Banner + Lot Access Restriction",
+  "branchName": "feature/stripe-subscription",
+  "description": "When a gestionnaire on free trial exceeds the FREE_TIER_LIMIT (2 lots), show a persistent banner warning that after trial ends, only the 2 oldest lots (by created_at) will remain accessible. After trial expires (read_only), enforce the restriction: locked lots appear greyed out with a 'Deverrouiller' CTA, lot detail pages block access, interventions on locked lots are restricted.",
+  "createdAt": "2026-02-22",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add getAccessibleLotIds() service method + server action",
+      "description": "As the system, I need a backend method to determine which lots are accessible for a team based on their subscription status, so that both UI and server-side checks can enforce the restriction consistently.",
+      "acceptanceCriteria": [
+        "SubscriptionService.getAccessibleLotIds(teamId): returns null (all accessible) when active/trialing/free_tier_within_limit",
+        "Returns array of 2 oldest lot IDs (by created_at ASC, deleted_at IS NULL) when read_only AND actual_lots > FREE_TIER_LIMIT",
+        "New server action getAccessibleLots() wraps the service method for client-side use",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "layer": "Backend",
+      "notes": "getAccessibleLotIds on SubscriptionService + getAccessibleLots server action. Fail-open on query error."
+    },
+    {
+      "id": "US-002",
+      "title": "Trial overage banner component",
+      "description": "As a gestionnaire on trial with >2 lots, I want to see a persistent banner warning me that after my trial ends only my 2 oldest lots will remain accessible, so that I can subscribe before losing access.",
+      "acceptanceCriteria": [
+        "TrialOverageBanner shows when status=trialing AND actual_lots > FREE_TIER_LIMIT",
+        "Message includes: number of lots at risk, which lots will be kept (2 oldest), days left",
+        "CTA 'S'abonner' navigates to /gestionnaire/settings/billing",
+        "NOT dismissible (critical warning, shows on every page load)",
+        "Follows existing TrialBanner design pattern (color scheme, layout)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "layer": "UI",
+      "notes": "Amber theme, non-dismissible, shows locked count + kept count + days left"
+    },
+    {
+      "id": "US-003",
+      "title": "Wire TrialOverageBanner into SubscriptionBanners + layout",
+      "description": "As a gestionnaire, I want the overage banner to appear on every page (persistent in layout), with correct priority vs existing banners.",
+      "acceptanceCriteria": [
+        "SubscriptionBanners priority: ReadOnly > TrialOverage > Trial",
+        "SubscriptionBanners passes actual_lots and FREE_TIER_LIMIT to TrialOverageBanner",
+        "Banner visible on all gestionnaire pages (persistent in layout)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "XS",
+      "passes": true,
+      "layer": "UI",
+      "notes": "Priority: ReadOnly > TrialOverage > Trial. Wired into SubscriptionBanners."
+    },
+    {
+      "id": "US-004",
+      "title": "Enforce lot access restriction on biens list page",
+      "description": "As a gestionnaire whose trial has expired (read_only), I want to see my locked lots greyed out with a 'Deverrouiller' CTA in the patrimoine list, so that I understand what I'm missing and can upgrade.",
+      "acceptanceCriteria": [
+        "Biens page fetches accessible lot IDs via getAccessibleLots()",
+        "Lots NOT in accessible list: greyed out card, lock icon overlay, 'Deverrouiller' button",
+        "Clicking 'Deverrouiller' navigates to /gestionnaire/settings/billing",
+        "Clicking a locked lot card does NOT navigate to detail page",
+        "Accessible lots (2 oldest) render normally with full interaction",
+        "During trial (not expired): all lots render normally (no greying)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "layer": "UI",
+      "notes": "Semi-transparent overlay on locked cards. Direct rendering bypasses DataCards for isLocked support. List view blocks navigation for locked lots."
+    },
+    {
+      "id": "US-005",
+      "title": "Enforce lot access restriction on lot detail page (server-side)",
+      "description": "As the system, I need to block direct URL access to locked lots, so that users can't bypass the UI restriction by typing the lot URL.",
+      "acceptanceCriteria": [
+        "Lot detail page (server component) checks if lot is accessible via getAccessibleLotIds()",
+        "If lot is locked: redirect to /gestionnaire/biens with toast message or show restricted view",
+        "If lot is accessible or subscription is active: render normally",
+        "Building detail page: locked lots in the lots grid show lock overlay (consistent with biens page)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "layer": "Backend+UI",
+      "notes": "Server-side redirect for locked lots. Building detail grid passes lockedLotIds to LotCardUnified. Fail-open on subscription check failure."
+    },
+    {
+      "id": "US-006",
+      "title": "Restrict intervention creation on locked lots",
+      "description": "As the system, I need to prevent creating interventions on locked lots, so that the restriction is enforced end-to-end.",
+      "acceptanceCriteria": [
+        "Intervention creation action checks if target lot is accessible",
+        "If lot is locked: return error 'Lot verrouille — souscrivez pour y acceder'",
+        "Existing interventions on locked lots: visible but read-only (no status changes)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "layer": "Backend",
+      "notes": "Two helpers: checkLotLockedBySubscription (direct lot check) + checkInterventionLotLocked (looks up intervention lot first). Applied to create, update, approve, reject, startPlanning, finalize, cancel actions."
+    }
+  ]
+}

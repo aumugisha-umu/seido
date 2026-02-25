@@ -68,6 +68,10 @@ export const useInterventionPlanning = (
   instructions?: string,
   selectedManagers?: string[],
   selectedTenants?: string[],
+  assignmentMode?: string,
+  providerInstructions?: Record<string, string>,
+  confirmationRequired?: string[],
+  requiresConfirmation?: boolean,
 ) => {
   // État des modals
   const [planningModal, setPlanningModal] = useState<PlanningModal>({
@@ -115,9 +119,7 @@ export const useInterventionPlanning = (
     startTime: "",
     endTime: "",
   })
-  const [programmingProposedSlots, setProgrammingProposedSlots] = useState<TimeSlot[]>([
-    { date: "", startTime: "", endTime: "" }
-  ])
+  const [programmingProposedSlots, setProgrammingProposedSlots] = useState<TimeSlot[]>([])
 
   // Actions de planification (après acceptation d'un devis)
   const handlePlanningModal = (intervention: InterventionAction, acceptedQuote?: unknown) => {
@@ -180,27 +182,22 @@ export const useInterventionPlanning = (
       requireQuote: requireQuote,
       selectedProviders: selectedProviders || [],
       instructions: instructions || undefined,
+      assignmentMode: assignmentMode || undefined,
+      providerInstructions: providerInstructions && Object.keys(providerInstructions).length > 0
+        ? providerInstructions
+        : undefined,
+      confirmationRequired: confirmationRequired && confirmationRequired.length > 0
+        ? confirmationRequired
+        : undefined,
+      requiresConfirmation: requiresConfirmation || undefined,
     }
 
     try {
-      // ✅ FIX AUTH BUG: Use Server Action instead of client-side fetch
-      logger.info("📅 Using Server Action for programming intervention", {
-        requireQuote,
-        providerCount: selectedProviders?.length || 0
-      })
-
-      const result = await programInterventionAction(
-        programmingModal.intervention.id,
-        planningData
-      )
-
-      if (!result.success) {
-        throw new Error(result.error || 'Erreur lors de la planification')
-      }
-
-      // Sync participant assignments to the database
+      // ── Step 1: Sync assignments FIRST ──
+      // Assignments must exist before programInterventionAction sets confirmation flags.
+      // (Mirrors creation flow: create assignments → then set confirmation requirements)
       if (selectedManagers || selectedProviders || selectedTenants) {
-        logger.info("👥 Syncing participant assignments", {
+        logger.info("👥 Syncing participant assignments (before scheduling)", {
           managers: selectedManagers?.length,
           providers: selectedProviders?.length,
           tenants: selectedTenants?.length,
@@ -216,7 +213,23 @@ export const useInterventionPlanning = (
         if (!assignmentResult.success) {
           logger.error("Failed to sync assignments:", assignmentResult.error)
           toast.error('Les participants n\'ont pas pu être mis à jour')
+          return
         }
+      }
+
+      // ── Step 2: Schedule intervention (sets confirmation flags on synced assignments) ──
+      logger.info("📅 Using Server Action for programming intervention", {
+        requireQuote,
+        providerCount: selectedProviders?.length || 0
+      })
+
+      const result = await programInterventionAction(
+        programmingModal.intervention.id,
+        planningData
+      )
+
+      if (!result.success) {
+        throw new Error(result.error || 'Erreur lors de la planification')
       }
 
       // Fermer la modale
@@ -278,10 +291,10 @@ export const useInterventionPlanning = (
   }
 
   // Gestion des créneaux de programmation
-  const addProgrammingSlot = () => {
+  const addProgrammingSlot = (data?: TimeSlot) => {
     setProgrammingProposedSlots([
-      ...programmingProposedSlots, 
-      { date: "", startTime: "", endTime: "" }
+      ...programmingProposedSlots,
+      data || { date: "", startTime: "", endTime: "" }
     ])
   }
 
@@ -293,9 +306,7 @@ export const useInterventionPlanning = (
   }
 
   const removeProgrammingSlot = (index: number) => {
-    if (programmingProposedSlots.length > 1) {
-      setProgrammingProposedSlots(programmingProposedSlots.filter((_, i) => i !== index))
-    }
+    setProgrammingProposedSlots(programmingProposedSlots.filter((_, i) => i !== index))
   }
 
   // Reset states
@@ -308,7 +319,7 @@ export const useInterventionPlanning = (
   const resetProgrammingState = () => {
     setProgrammingOption(null)
     setProgrammingDirectSchedule({ date: "", startTime: "", endTime: "" })
-    setProgrammingProposedSlots([{ date: "", startTime: "", endTime: "" }])
+    setProgrammingProposedSlots([])
   }
 
   const closePlanningModal = () => {
@@ -398,9 +409,10 @@ export const useInterventionPlanning = (
     }
 
     if (programmingOption === "propose") {
-      return programmingProposedSlots.every(slot =>
-        slot.date && slot.startTime && slot.endTime
-      )
+      return programmingProposedSlots.length > 0 &&
+        programmingProposedSlots.every(slot =>
+          slot.date && slot.startTime && slot.endTime
+        )
     }
 
     return programmingOption === "organize"

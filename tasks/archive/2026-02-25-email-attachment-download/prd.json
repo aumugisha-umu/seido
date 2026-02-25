@@ -1,0 +1,92 @@
+{
+  "project": "SEIDO",
+  "featureName": "Email Attachment Download & Preview",
+  "branchName": "preview",
+  "description": "Make email attachment download functional with signed URLs, add inline preview for images/PDFs, tighten storage RLS for team isolation, and add file type icons.",
+  "createdAt": "2026-02-25",
+  "prdSource": "tasks/prd-email-attachments.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Download API endpoint (signed URLs)",
+      "description": "As a gestionnaire, I want to download email attachments securely via signed URLs, so that storage paths are never exposed to the client.",
+      "acceptanceCriteria": [
+        "GET /api/emails/[id]/attachments/[attachmentId] returns { signedUrl, filename, contentType }",
+        "Auth required via getApiAuthContext()",
+        "Validates attachment belongs to an email in user's team",
+        "Signed URL expires in 1 hour (3600s)",
+        "Returns 404 if attachment not found",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Created /api/emails/[id]/attachments/[attachmentId]/route.ts. Double validation (attachment→email, email→team). Service role for cross-table checks. createSignedUrl with 3600s expiry. Generic 404 to prevent info disclosure."
+    },
+    {
+      "id": "US-002",
+      "title": "Wire download button in UI",
+      "description": "As a gestionnaire viewing an email, I want the download button to actually download the file when I click it.",
+      "acceptanceCriteria": [
+        "Clicking download fetches signed URL from API then triggers browser download",
+        "Loading state shown on button while fetching",
+        "Error toast on failure",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added handleDownloadAttachment with fetch→signedUrl→programmatic link click. Loader2 spinner during download. toast.error on failure. Button disabled during download."
+    },
+    {
+      "id": "US-003",
+      "title": "Inline preview for images and PDFs",
+      "description": "As a gestionnaire, I want to preview images and PDFs inline without downloading.",
+      "acceptanceCriteria": [
+        "Images (jpeg, png, gif, webp) show clickable thumbnail preview",
+        "PDFs show Preview button that opens signed URL in new tab",
+        "Non-previewable files show download button only",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added isPreviewableImage/isPreviewablePdf helpers. handlePreviewAttachment fetches signed URL, opens PDF in new tab, caches image URLs in state for inline thumbnail. Eye button for previewable files, Download button for all. Inline img with click-to-fullsize."
+    },
+    {
+      "id": "US-004",
+      "title": "Tighten storage RLS (team isolation)",
+      "description": "As a security measure, ensure users can only access their own team's email attachments in storage.",
+      "acceptanceCriteria": [
+        "RLS policy checks storage path starts with user's team_id",
+        "Existing broad policies replaced with team-scoped versions",
+        "Service role bypasses RLS (uploads still work)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Migration 20260225100000: Dropped 3 broad policies, created 3 team-scoped policies using get_team_id_from_document_path(name). INSERT/SELECT check team_members, DELETE restricted to admin/gestionnaire roles."
+    },
+    {
+      "id": "US-005",
+      "title": "File type icons in attachment list",
+      "description": "As a gestionnaire, I want to see appropriate icons for different file types to quickly identify attachment types.",
+      "acceptanceCriteria": [
+        "PDF: FileText icon, Images: Image icon, Spreadsheets: Sheet icon, Default: Paperclip",
+        "Icons derived from mime_type field",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Added getAttachmentIcon() helper mapping mime_type to Lucide icons. Imported ImageIcon + Sheet. Changed .map() from implicit to explicit return to use dynamic icon component."
+    }
+  ]
+}

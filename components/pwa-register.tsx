@@ -12,8 +12,6 @@ export function PWARegister() {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
-          console.log('✅ [PWA] Service Worker registered:', registration.scope)
-
           // Check for updates every hour
           setInterval(() => {
             registration.update()

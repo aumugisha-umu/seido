@@ -35,7 +35,26 @@
       "WebFetch(domain:m3.material.io)",
       "Bash(timeout:*)",
       "Bash(npx eslint:*)",
-      "WebFetch(domain:docs.stripe.com)"
+      "WebFetch(domain:docs.stripe.com)",
+      "WebFetch(domain:prateeksha.com)",
+      "WebFetch(domain:www.kolide.com)",
+      "WebFetch(domain:www.brand-theory.com)",
+      "Bash(git log:*)",
+      "WebFetch(domain:skillsmp.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(if not exist \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\tests\\\\e2e\\\\setup\" mkdir \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\tests\\\\e2e\\\\setup\")",
+      "Bash(test:*)",
+      "Bash(git -C \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\" diff --name-only HEAD~5)",
+      "Bash(git -C \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\" diff --name-only)",
+      "Bash(npm run test:integration:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx supabase migration repair:*)",
+      "Bash(npx supabase db push:*)",
+      "Bash(npm run supabase:types:*)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []
@@ -65,8 +84,8 @@
       }
     ]
   },
-  "outputStyle": "Explanatory",
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
-  }
+  },
+  "outputStyle": "Explanatory"
 }

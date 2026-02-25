@@ -27,6 +27,8 @@ export interface LandingHeaderProps {
   showNav?: boolean
   /** Afficher la navigation légale (CGU, Confidentialité, Cookies) */
   showLegalNav?: boolean
+  /** Afficher la navigation blog (Accueil, Tous les articles) */
+  showBlogNav?: boolean
   /** Classes CSS additionnelles */
   className?: string
 }
@@ -34,6 +36,7 @@ export interface LandingHeaderProps {
 export function LandingHeader({
   showNav = true,
   showLegalNav = false,
+  showBlogNav = false,
   className
 }: LandingHeaderProps) {
   const pathname = usePathname()
@@ -89,6 +92,12 @@ export function LandingHeader({
               >
                 FAQ
               </a>
+              <Link
+                href="/blog"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+              >
+                Blog
+              </Link>
             </nav>
           )}
 
@@ -115,6 +124,29 @@ export function LandingHeader({
             </nav>
           )}
 
+          {/* Navigation - Blog pages */}
+          {showBlogNav && (
+            <nav className="hidden md:flex items-center gap-6 flex-1 justify-center">
+              <Link
+                href="/"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+              >
+                Accueil
+              </Link>
+              <Link
+                href="/blog"
+                className={cn(
+                  'text-sm font-medium transition-colors whitespace-nowrap leading-9',
+                  pathname === '/blog'
+                    ? 'text-white border-b-2 border-blue-500 pb-1'
+                    : 'text-white/70 hover:text-white'
+                )}
+              >
+                Tous les articles
+              </Link>
+            </nav>
+          )}
+
           {/* Auth Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
             <Link href="/auth/login" className="flex items-center">
@@ -132,8 +164,8 @@ export function LandingHeader({
                 size="sm"
                 className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/25 px-2.5 sm:px-3"
               >
-                <span className="hidden sm:inline">Commencer</span>
-                <span className="sm:hidden text-xs">Essai</span>
+                <span className="hidden sm:inline">Essayer gratuitement</span>
+                <span className="sm:hidden text-xs">Essai gratuit</span>
                 <Sparkles className="w-3 h-3 ml-1 sm:ml-2" />
               </Button>
             </Link>

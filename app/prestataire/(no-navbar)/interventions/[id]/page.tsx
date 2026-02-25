@@ -80,7 +80,8 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     { data: timeSlots },
     { data: assignments },
     { data: messagesByThread },
-    { data: participantsByThread }
+    { data: participantsByThread },
+    { data: reports }
   ] = await Promise.all([
 
     // Documents (provider can see)
@@ -296,7 +297,15 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
         byThread[p.thread_id].push(p)
       })
       return { data: byThread }
-    })()
+    })(),
+
+    // Reports (closure reports from all roles)
+    supabase
+      .from('intervention_reports')
+      .select('*, creator:created_by(name)')
+      .eq('intervention_id', id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true })
   ])
 
   // Debug logging for location data
@@ -314,6 +323,7 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     <PrestataireInterventionDetailClient
       intervention={intervention}
       documents={documents || []}
+      reports={reports || []}
       quotes={quotes || []}
       threads={threads || []}
       timeSlots={timeSlots || []}

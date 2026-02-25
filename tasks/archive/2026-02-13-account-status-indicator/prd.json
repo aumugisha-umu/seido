@@ -1,0 +1,43 @@
+{
+  "project": "SEIDO",
+  "featureName": "Account Status Indicator + Filter for Quotes/Confirmation",
+  "branchName": "preview",
+  "description": "Add has_account badge in ContactSection and ContactSelector. Filter quote requests and confirmation to only users with accounts.",
+  "createdAt": "2026-02-13",
+  "prdSource": null,
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add 'Non invité' badge in ContactSection and ContactSelector",
+      "description": "Show a visible 'Non invité' badge on contact cards in ContactSection (used in ProgrammingModal participant boxes) and in ContactSelector dropdown items (used in selection modals). Also update intervention creation/modification forms.",
+      "acceptanceCriteria": [
+        "ContactSection shows 'Non invité' badge for contacts where has_account is false",
+        "ContactSelector dropdown items show 'Non invité' badge for contacts without accounts",
+        "has_account field added to BaseContact interface and ContactSelector contact interface",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Badge added to ContactSection (contact-section.tsx:350) and ContactSelector (ui/contact-selector.tsx:218). has_account added to both interfaces. Fixed provider mapping in detail page to pass has_account (was missing). assignment-section-v2.tsx already had has_account in its Contact interface."
+    },
+    {
+      "id": "US-002",
+      "title": "Filter quote requests and confirmation to account holders only",
+      "description": "In the server action createQuoteRequestsForProviders path, filter out providers without has_account. Also ensure confirmation requirements only target account holders (already done in ProgrammingModal but verify backend).",
+      "acceptanceCriteria": [
+        "Quote requests are only created for providers with auth_user_id (has_account)",
+        "Server action filters providers before calling createQuoteRequestsForProviders",
+        "Confirmation requirements already filter has_account in ProgrammingModal (verify)",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Server action (intervention-actions.ts:2721-2737): queries users with auth_user_id IS NOT NULL before creating quotes. API route (intervention-quote-request/route.ts:169): filters eligibleProviders by auth_user_id. Confirmation already pre-filtered in ProgrammingModal (lines 422-434) using has_account !== false."
+    }
+  ]
+}

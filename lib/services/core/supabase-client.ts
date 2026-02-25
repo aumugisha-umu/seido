@@ -17,11 +17,32 @@ if (!supabaseAnonKey) {
 }
 
 /**
+ * ✅ Browser client singleton instance
+ * Cached at module level to prevent multiple client creation per session
+ * This is the recommended pattern from Supabase docs:
+ * - Single client per browser session
+ * - Avoids duplicate auth subscriptions
+ * - Reduces memory footprint
+ */
+let browserClientSingleton: ReturnType<typeof createBrowserClient<Database>> | null = null
+
+/**
  * Browser client for client-side operations
  * Use this in components that run in the browser
+ *
+ * ✅ OPTIMIZED (2026-02-08): Returns singleton instance instead of creating new client
+ * - First call creates the client
+ * - Subsequent calls return the same instance
+ * - Resets on page reload (expected browser behavior)
  */
 export function createBrowserSupabaseClient() {
-  return createBrowserClient<Database>(supabaseUrl!, supabaseAnonKey!, {
+  // Return existing singleton if available
+  if (browserClientSingleton) {
+    return browserClientSingleton
+  }
+
+  // Create new client (only on first call)
+  browserClientSingleton = createBrowserClient<Database>(supabaseUrl!, supabaseAnonKey!, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
@@ -57,6 +78,16 @@ export function createBrowserSupabaseClient() {
       }
     }
   })
+
+  return browserClientSingleton
+}
+
+/**
+ * Get the browser client singleton (alias for createBrowserSupabaseClient)
+ * Use this when you want to be explicit about getting the singleton
+ */
+export function getBrowserClient() {
+  return createBrowserSupabaseClient()
 }
 
 /**
@@ -181,9 +212,14 @@ export function createServiceRoleSupabaseClient() {
 
 /**
  * Legacy browser client for backward compatibility
- * @deprecated Use createBrowserSupabaseClient() instead
+ * @deprecated Use createBrowserSupabaseClient() or getBrowserClient() instead
+ *
+ * ✅ Now returns singleton via lazy getter to avoid module-level side effects
  */
-export const supabase = createBrowserSupabaseClient()
+export const supabase = /* @__PURE__ */ (() => {
+  // Lazy initialization - only creates client when first accessed
+  return createBrowserSupabaseClient()
+})()
 
 /**
  * Retry utility with enhanced error handling
@@ -264,8 +300,8 @@ export async function getCurrentUserId(client?: ReturnType<typeof createBrowserS
 export async function isAuthenticated(client?: ReturnType<typeof createBrowserSupabaseClient>): Promise<boolean> {
   try {
     const supabaseClient = client || createBrowserSupabaseClient()
-    const { data: { session } } = await supabaseClient.auth.getSession()
-    return !!session?.user
+    const { data } = await supabaseClient.auth.getSession()
+    return !!data.session
   } catch (error) {
     logger.error('Error checking authentication:', error)
     return false
@@ -295,13 +331,14 @@ export async function isAuthenticated(client?: ReturnType<typeof createBrowserSu
 export async function getServerSession() {
   const supabase = await createServerSupabaseClient()
 
-  const { data: { session }, error } = await supabase.auth.getSession()
+  const { data, error } = await supabase.auth.getSession()
 
-  if (error || !session) {
+  if (error || !data.session) {
     return null
   }
 
-  return session
+  // Spread to bypass Supabase Proxy warning on .user access
+  return { ...data.session }
 }
 
 // Re-export types

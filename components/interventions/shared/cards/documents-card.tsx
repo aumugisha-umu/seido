@@ -42,7 +42,7 @@ export const DocumentsCard = ({
       <div className="flex items-center justify-between">
         <h3 className="text-base font-semibold flex items-center gap-2">
           <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          Rapports & Documents
+          Documents
         </h3>
 
         {canUpload && onUpload && (

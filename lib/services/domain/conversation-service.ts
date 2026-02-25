@@ -134,13 +134,15 @@ export class ConversationService {
       const user = await this.getUserWithRole(userId)
       const filteredThreads = await this.filterThreadsByAccess(result.data, user)
 
-      // Add unread counts for each thread
-      const threadsWithUnread = await Promise.all(
-        filteredThreads.map(async (thread) => ({
-          ...thread,
-          unread_count: await this.getThreadUnreadCount(thread.id, userId)
-        }))
-      )
+      // ✅ OPTIMIZED: Batch get unread counts (3 queries instead of 2-4 per thread)
+      const threadIds = filteredThreads.map(t => t.id)
+      const unreadCounts = await this.getThreadsUnreadCountsBatch(threadIds, userId)
+
+      // Add unread counts to threads
+      const threadsWithUnread = filteredThreads.map(thread => ({
+        ...thread,
+        unread_count: unreadCounts.get(thread.id) || 0
+      }))
 
       return createSuccessResponse(threadsWithUnread)
     } catch (error) {
@@ -295,15 +297,7 @@ export class ConversationService {
    */
   async sendMessage(threadId: string, content: string, userId: string, attachments?: string[]) {
     try {
-      console.log('🔧 [CONVERSATION-SERVICE] sendMessage called with:', {
-        threadId,
-        userId,
-        contentLength: content.length,
-        attachments,
-        attachmentsLength: attachments?.length,
-        attachmentsType: typeof attachments,
-        attachmentsIsArray: Array.isArray(attachments)
-      })
+      logger.debug({ threadId, userId, contentLength: content.length, attachmentsLength: attachments?.length }, '[CONVERSATION-SERVICE] sendMessage called')
 
       // Check user has access to send in this thread
       const hasAccess = await this.checkThreadSendAccess(threadId, userId)
@@ -361,24 +355,12 @@ export class ConversationService {
         return result
       }
 
-      console.log('✅ [CONVERSATION-SERVICE] Message created with ID:', result.data.id)
+      logger.debug({ messageId: result.data.id }, '[CONVERSATION-SERVICE] Message created')
 
       // Handle attachments if provided
-      console.log('🔍 [CONVERSATION-SERVICE] Checking attachments condition:', {
-        attachments,
-        attachmentsLength: attachments?.length,
-        conditionResult: !!(attachments && attachments.length > 0)
-      })
-
       if (attachments && attachments.length > 0) {
-        console.log('📎 [CONVERSATION-SERVICE] Calling linkDocumentsToMessage with:', {
-          messageId: result.data.id,
-          documentIds: attachments,
-          documentIdsLength: attachments.length
-        })
+        logger.debug({ messageId: result.data.id, documentIds: attachments }, '[CONVERSATION-SERVICE] Linking documents to message')
         await this.linkDocumentsToMessage(result.data.id, attachments)
-      } else {
-        console.log('⚠️ [CONVERSATION-SERVICE] Skipping linkDocumentsToMessage - no attachments')
       }
 
       // Send notifications to other participants
@@ -818,6 +800,43 @@ export class ConversationService {
   }
 
   /**
+   * Get all provider user IDs assigned to an intervention
+   * ✅ FIX 2026-02-09: Symmetric to getInterventionTenants for checkThreadAccess
+   * @param interventionId - The intervention ID
+   * @param onlyInvited - If true (default), only returns users with auth_id
+   * @returns Array of provider user IDs (prestataires assigned to this intervention)
+   */
+  private async getInterventionProviders(interventionId: string, onlyInvited: boolean = true): Promise<string[]> {
+    try {
+      // Join with users table to check auth_id
+      const { data, error } = await this.conversationRepo.supabase
+        .from('intervention_assignments')
+        .select(`
+          user_id,
+          user:users!inner(id, auth_user_id)
+        `)
+        .eq('intervention_id', interventionId)
+        .eq('role', 'prestataire')
+
+      if (error) {
+        logger.error('Failed to fetch intervention providers', error)
+        return []
+      }
+
+      // Filter by auth_id if onlyInvited is true
+      const providers = data?.filter(a => {
+        if (!onlyInvited) return true
+        return !!(a.user as any)?.auth_user_id
+      }) || []
+
+      return providers.map(a => a.user_id)
+    } catch (error) {
+      logger.error('Error in getInterventionProviders', error)
+      return []
+    }
+  }
+
+  /**
    * Check if user has access to intervention
    */
   private async checkInterventionAccess(interventionId: string, userId: string): Promise<boolean> {
@@ -892,6 +911,15 @@ export class ConversationService {
       if (thread.data.thread_type === 'tenant_to_managers' && user.role === 'locataire') {
         const tenants = await this.getInterventionTenants(thread.data.intervention_id)
         if (tenants.includes(userId)) {
+          return true
+        }
+      }
+
+      // ✅ FIX 2026-02-09: Special case for provider_to_managers thread - provider always has access
+      // Symmetric to tenant_to_managers above (fixes PERMISSION_DENIED bug)
+      if (thread.data.thread_type === 'provider_to_managers' && user.role === 'prestataire') {
+        const providers = await this.getInterventionProviders(thread.data.intervention_id)
+        if (providers.includes(userId)) {
           return true
         }
       }
@@ -1143,63 +1171,33 @@ export class ConversationService {
    */
   private async linkDocumentsToMessage(messageId: string, documentIds: string[]) {
     try {
-      console.log('🔗 [LINK-DOCUMENTS] START - linkDocumentsToMessage called with:', {
-        messageId,
-        documentIds,
-        documentIdsLength: documentIds.length
-      })
+      logger.debug({ messageId, documentIds }, '[LINK-DOCUMENTS] linkDocumentsToMessage called')
 
       // Get the thread to find the intervention
-      console.log('🔍 [LINK-DOCUMENTS] Step 1: Fetching message to get thread_id...')
       const { data: message, error: messageError } = await this.conversationRepo.supabase
         .from('conversation_messages')
         .select('thread_id')
         .eq('id', messageId)
         .single()
 
-      console.log('📊 [LINK-DOCUMENTS] Step 1 result:', {
-        hasMessage: !!message,
-        threadId: message?.thread_id,
-        error: messageError
-      })
-
       if (!message) {
-        console.error('❌ [LINK-DOCUMENTS] Message not found for document linking', { messageId, error: messageError })
-        logger.error('Message not found for document linking', { messageId })
+        logger.error({ messageId, error: messageError }, 'Message not found for document linking')
         return
       }
 
-      console.log('🔍 [LINK-DOCUMENTS] Step 2: Fetching thread to get intervention_id...')
       const { data: thread, error: threadError } = await this.conversationRepo.supabase
         .from('conversation_threads')
         .select('intervention_id')
         .eq('id', message.thread_id)
         .single()
 
-      console.log('📊 [LINK-DOCUMENTS] Step 2 result:', {
-        hasThread: !!thread,
-        interventionId: thread?.intervention_id,
-        error: threadError
-      })
-
       if (!thread) {
-        console.error('❌ [LINK-DOCUMENTS] Thread not found for document linking', { threadId: message.thread_id, error: threadError })
-        logger.error('Thread not found for document linking', { threadId: message.thread_id })
+        logger.error({ threadId: message.thread_id, error: threadError }, 'Thread not found for document linking')
         return
       }
 
       // Update the documents to link them to this message
       // Only update documents that belong to this intervention (security check)
-      console.log('🔄 [LINK-DOCUMENTS] Step 3: Updating intervention_documents table...')
-      console.log('📝 [LINK-DOCUMENTS] UPDATE query:', {
-        table: 'intervention_documents',
-        update: { message_id: messageId },
-        where: {
-          id_in: documentIds,
-          intervention_id: thread.intervention_id
-        }
-      })
-
       const { data: updateData, error: updateError, count } = await this.conversationRepo.supabase
         .from('intervention_documents')
         .update({ message_id: messageId })
@@ -1207,23 +1205,13 @@ export class ConversationService {
         .eq('intervention_id', thread.intervention_id)
         .select()
 
-      console.log('📊 [LINK-DOCUMENTS] Step 3 result:', {
-        hasError: !!updateError,
-        error: updateError,
-        count,
-        updatedData: updateData
-      })
-
       if (updateError) {
-        console.error('❌ [LINK-DOCUMENTS] Failed to link documents to message', updateError)
-        logger.error('Failed to link documents to message', updateError)
+        logger.error({ error: updateError }, 'Failed to link documents to message')
       } else {
-        console.log(`✅ [LINK-DOCUMENTS] SUCCESS - Linked ${documentIds.length} documents to message ${messageId}`)
-        logger.info(`Successfully linked ${documentIds.length} documents to message ${messageId}`)
+        logger.info({ messageId, documentCount: documentIds.length }, 'Successfully linked documents to message')
       }
     } catch (error) {
-      console.error('❌ [LINK-DOCUMENTS] EXCEPTION in linkDocumentsToMessage:', error)
-      logger.error('Error linking documents to message', error)
+      logger.error({ error }, 'Error linking documents to message')
     }
   }
 
@@ -1271,6 +1259,123 @@ export class ConversationService {
     } catch (error) {
       logger.error('Error getting thread unread count', error)
       return 0
+    }
+  }
+
+  /**
+   * ✅ OPTIMIZED: Batch get unread counts for multiple threads
+   * Reduces N+1 queries (2-4 queries per thread) to just 2-3 total queries
+   *
+   * @param threadIds - Array of thread IDs to get unread counts for
+   * @param userId - Current user ID
+   * @returns Map of threadId -> unreadCount
+   */
+  private async getThreadsUnreadCountsBatch(
+    threadIds: string[],
+    userId: string
+  ): Promise<Map<string, number>> {
+    const unreadCounts = new Map<string, number>()
+
+    if (threadIds.length === 0) {
+      return unreadCounts
+    }
+
+    try {
+      // ════════════════════════════════════════════════════════════════════
+      // Query 1: Get all participants for all threads in ONE query
+      // ════════════════════════════════════════════════════════════════════
+      const { data: participants } = await this.conversationRepo.supabase
+        .from('conversation_participants')
+        .select('thread_id, last_read_message_id')
+        .eq('user_id', userId)
+        .in('thread_id', threadIds)
+
+      // Build a map of threadId -> last_read_message_id
+      const participantMap = new Map<string, string | null>()
+      for (const p of participants || []) {
+        participantMap.set(p.thread_id, p.last_read_message_id)
+      }
+
+      // Collect message IDs we need to fetch timestamps for
+      const messageIdsToFetch: string[] = []
+      for (const p of participants || []) {
+        if (p.last_read_message_id) {
+          messageIdsToFetch.push(p.last_read_message_id)
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 2: Get timestamps for all last_read messages in ONE query
+      // ════════════════════════════════════════════════════════════════════
+      const messageTimestamps = new Map<string, string>()
+      if (messageIdsToFetch.length > 0) {
+        const { data: messages } = await this.conversationRepo.supabase
+          .from('conversation_messages')
+          .select('id, created_at')
+          .in('id', messageIdsToFetch)
+
+        for (const msg of messages || []) {
+          messageTimestamps.set(msg.id, msg.created_at)
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 3: Get all recent messages for all threads in ONE query
+      // We'll count them client-side based on each participant's last_read
+      // ════════════════════════════════════════════════════════════════════
+      const { data: allMessages } = await this.conversationRepo.supabase
+        .from('conversation_messages')
+        .select('id, thread_id, created_at')
+        .in('thread_id', threadIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      // Group messages by thread for efficient counting
+      const messagesByThread = new Map<string, Array<{ id: string; created_at: string }>>()
+      for (const msg of allMessages || []) {
+        if (!messagesByThread.has(msg.thread_id)) {
+          messagesByThread.set(msg.thread_id, [])
+        }
+        messagesByThread.get(msg.thread_id)!.push({
+          id: msg.id,
+          created_at: msg.created_at
+        })
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Calculate unread counts client-side
+      // ════════════════════════════════════════════════════════════════════
+      for (const threadId of threadIds) {
+        const lastReadMessageId = participantMap.get(threadId)
+        const threadMessages = messagesByThread.get(threadId) || []
+
+        if (!lastReadMessageId) {
+          // User hasn't read any messages -> all are unread
+          unreadCounts.set(threadId, threadMessages.length)
+        } else {
+          // Count messages created after the last read message
+          const lastReadTimestamp = messageTimestamps.get(lastReadMessageId)
+          if (!lastReadTimestamp) {
+            // Edge case: message was deleted, treat all as read
+            unreadCounts.set(threadId, 0)
+          } else {
+            const unreadCount = threadMessages.filter(
+              msg => msg.created_at > lastReadTimestamp
+            ).length
+            unreadCounts.set(threadId, unreadCount)
+          }
+        }
+      }
+
+      logger.info(`[CONVERSATION] Batch unread counts: ${threadIds.length} threads, 3 queries total`)
+      return unreadCounts
+    } catch (error) {
+      logger.error('Error in batch unread counts', error)
+      // Fallback: return 0 for all threads
+      for (const threadId of threadIds) {
+        unreadCounts.set(threadId, 0)
+      }
+      return unreadCounts
     }
   }
 

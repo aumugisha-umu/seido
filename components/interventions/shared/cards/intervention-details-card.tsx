@@ -23,6 +23,7 @@
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
 import {
   FileText,
@@ -35,6 +36,7 @@ import {
   Clock,
   AlertCircle,
   User,
+  Users,
   XCircle,
   HelpCircle
 } from 'lucide-react'
@@ -50,9 +52,10 @@ import { ParticipantsRow } from '../layout/participants-row'
  * @param proposedCount - Nombre de créneaux proposés
  */
 const getPlanningStatusConfig = (
-  status: 'pending' | 'proposed' | 'scheduled' | 'completed',
+  status: 'pending' | 'proposed' | 'responded' | 'scheduled' | 'completed',
   interventionStatus?: string,
-  proposedCount?: number
+  proposedCount?: number,
+  schedulingType?: 'fixed' | 'slots' | 'flexible' | null
 ) => {
   switch (status) {
     case 'completed':
@@ -70,6 +73,14 @@ const getPlanningStatusConfig = (
         color: 'text-purple-600',
         bgColor: 'bg-purple-50',
         description: 'Créneau confirmé'
+      }
+    case 'responded':
+      return {
+        icon: CheckCircle2,
+        label: proposedCount && proposedCount > 1 ? `${proposedCount} créneaux` : '1 créneau',
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        description: 'Vous avez répondu aux créneaux'
       }
     case 'proposed':
       return {
@@ -101,6 +112,16 @@ const getPlanningStatusConfig = (
           description: null // Pas de description redondante
         }
       }
+      // Mode flexible: les participants s'organisent entre eux
+      if (schedulingType === 'flexible') {
+        return {
+          icon: Users,
+          label: 'Coordination autonome',
+          color: 'text-emerald-600',
+          bgColor: 'bg-emerald-50',
+          description: 'Les participants s\'organisent entre eux'
+        }
+      }
       // Statuts approuvee, planification, planifiee, etc.
       return {
         icon: AlertCircle,
@@ -120,12 +141,19 @@ const getPlanningStatusConfig = (
  * @param receivedCount - Nombre de devis reçus
  */
 const getQuotesStatusConfig = (
-  status: 'pending' | 'received' | 'approved',
+  status: 'none' | 'pending' | 'received' | 'approved',
   interventionStatus?: string,
   requestedCount: number = 0,
   receivedCount: number = 0
 ) => {
   switch (status) {
+    case 'none':
+      return {
+        icon: FileText,
+        label: 'Non requis',
+        color: 'text-slate-500',
+        bgColor: 'bg-slate-50'
+      }
     case 'approved':
       return {
         icon: CheckCircle2,
@@ -185,10 +213,15 @@ interface PlanningStatusSectionProps {
   planning: NonNullable<InterventionDetailsCardProps['planning']>
   interventionStatus?: string
   onNavigateToPlanning?: () => void
+  onOpenSlotResponseModal?: () => void
+  onOpenQuoteModal?: () => void
+  pendingSlotsForUser?: number
+  requiresQuote?: boolean
+  hasSubmittedQuote?: boolean
 }
 
-const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlanning }: PlanningStatusSectionProps) => {
-  const planningConfig = getPlanningStatusConfig(planning.status, interventionStatus, planning.proposedSlotsCount)
+const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlanning, onOpenSlotResponseModal, onOpenQuoteModal, pendingSlotsForUser, requiresQuote, hasSubmittedQuote }: PlanningStatusSectionProps) => {
+  const planningConfig = getPlanningStatusConfig(planning.status, interventionStatus, planning.proposedSlotsCount, planning.schedulingType)
   const quotesConfig = getQuotesStatusConfig(
     planning.quotesStatus,
     interventionStatus,
@@ -201,9 +234,9 @@ const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlann
   const isClickable = !!onNavigateToPlanning
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-muted-foreground">
+        <h4 className="text-sm font-semibold text-slate-900">
           Planning et Estimations
         </h4>
         {isClickable && (
@@ -229,172 +262,227 @@ const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlann
       >
         {/* Planning Status */}
         <div className={cn(
-          'flex items-center gap-3 p-3 rounded-lg bg-slate-50 transition-colors',
-          isClickable && 'hover:bg-slate-100'
+          'flex flex-col gap-2 p-3 rounded-lg transition-shadow border',
+          (pendingSlotsForUser ?? 0) > 0
+            ? 'border-l-4 border-l-amber-400 bg-amber-50 border-amber-200'
+            : 'bg-white border-slate-200 shadow-sm',
+          isClickable && !(pendingSlotsForUser && pendingSlotsForUser > 0) && 'hover:shadow'
         )}>
-          <div
-            className={cn(
-              'flex items-center justify-center h-9 w-9 rounded-lg flex-shrink-0',
-              planningConfig.bgColor
-            )}
-          >
-            <PlanningIcon className={cn('h-4 w-4', planningConfig.color)} aria-hidden="true" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Planning</p>
-            {(planning.scheduledDate || planningConfig.description) && (
-              <p className="text-xs text-muted-foreground truncate">
-                {planning.scheduledDate
-                  ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime
-                      ? planning.isFixedScheduling
-                        ? ` • ${formatTime(planning.scheduledStartTime)}`  // Mode date fixe: seulement l'heure de début
-                        : planning.scheduledEndTime
-                          ? ` • ${formatTimeRange(planning.scheduledStartTime, planning.scheduledEndTime)}`
-                          : ` • ${formatTime(planning.scheduledStartTime)}`
-                      : ''}`
-                  : planningConfig.description}
-              </p>
-            )}
-          </div>
-          {/* Badges container */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <Badge
-              variant="outline"
+          <div className="flex items-center gap-3">
+            <div
               className={cn(
-                'text-xs',
-                planningConfig.bgColor,
-                planningConfig.color,
-                'border-transparent'
+                'flex items-center justify-center h-10 w-10 rounded-lg flex-shrink-0',
+                planningConfig.bgColor
               )}
-              aria-label={`Statut planning: ${planningConfig.label}`}
             >
-              {planningConfig.label}
-            </Badge>
+              <PlanningIcon className={cn('h-5 w-5', planningConfig.color)} aria-hidden="true" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">Planning</p>
+              {(pendingSlotsForUser ?? 0) > 0 ? (
+                <p className="text-xs text-amber-700">
+                  {pendingSlotsForUser} créneau{pendingSlotsForUser! > 1 ? 'x' : ''} en attente de votre réponse
+                </p>
+              ) : (planning.scheduledDate || planningConfig.description) && (
+                <p className="text-xs text-muted-foreground truncate">
+                  {planning.scheduledDate
+                    ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime
+                        ? planning.isFixedScheduling
+                          ? ` • ${formatTime(planning.scheduledStartTime)}`
+                          : planning.scheduledEndTime
+                            ? ` • ${formatTimeRange(planning.scheduledStartTime, planning.scheduledEndTime)}`
+                            : ` • ${formatTime(planning.scheduledStartTime)}`
+                        : ''}`
+                    : planningConfig.description}
+                </p>
+              )}
+            </div>
+            {/* Badges container */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-xs',
+                  planningConfig.bgColor,
+                  planningConfig.color,
+                  'border-transparent'
+                )}
+                aria-label={`Statut planning: ${planningConfig.label}`}
+              >
+                {planningConfig.label}
+              </Badge>
 
-            {/* Badge réponses avec HoverCard */}
-            {planning.responseStats && planning.responseStats.totalExpectedResponses > 0 && (
-              <HoverCard>
-                <HoverCardTrigger asChild>
-                  <Badge
-                    variant="outline"
-                    className="text-xs bg-slate-100 text-slate-700 border-transparent cursor-help"
-                    aria-label={`${planning.responseStats.maxResponsesReceived} réponses sur ${planning.responseStats.totalExpectedResponses}`}
-                  >
-                    {planning.responseStats.maxResponsesReceived}/{planning.responseStats.totalExpectedResponses} ✓
-                  </Badge>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-80 p-3" align="end">
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Réponses par créneau</p>
-                    {planning.responseStats.slotDetails.map((slot, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-sm gap-2">
-                        <span className="text-muted-foreground truncate">
-                          {formatDate(slot.slotDate)} {slot.startTime.substring(0, 5)}-{slot.endTime.substring(0, 5)}
-                        </span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {slot.accepted > 0 && (
-                            <span className="text-green-600 flex items-center gap-0.5">
-                              <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                              {slot.accepted}
-                            </span>
-                          )}
-                          {slot.rejected > 0 && (
-                            <span className="text-red-600 flex items-center gap-0.5">
-                              <XCircle className="h-3 w-3" aria-hidden="true" />
-                              {slot.rejected}
-                            </span>
-                          )}
-                          {slot.pending > 0 && (
-                            <span className="text-amber-600 flex items-center gap-0.5">
-                              <HelpCircle className="h-3 w-3" aria-hidden="true" />
-                              {slot.pending}
-                            </span>
-                          )}
-                          {slot.accepted === 0 && slot.rejected === 0 && slot.pending === 0 && (
-                            <span className="text-slate-400 text-xs">Aucune</span>
-                          )}
+              {/* Badge réponses avec HoverCard */}
+              {planning.responseStats && planning.responseStats.totalExpectedResponses > 0 && (
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <Badge
+                      variant="outline"
+                      className="text-xs bg-slate-100 text-slate-700 border-transparent cursor-help"
+                      aria-label={`${planning.responseStats.maxResponsesReceived} réponses sur ${planning.responseStats.totalExpectedResponses}`}
+                    >
+                      {planning.responseStats.maxResponsesReceived}/{planning.responseStats.totalExpectedResponses} ✓
+                    </Badge>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-80 p-3" align="end">
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Réponses par créneau</p>
+                      {planning.responseStats.slotDetails.map((slot, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-sm gap-2">
+                          <span className="text-muted-foreground truncate">
+                            {formatDate(slot.slotDate)} {slot.startTime.substring(0, 5)}-{slot.endTime.substring(0, 5)}
+                          </span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {slot.accepted > 0 && (
+                              <span className="text-green-600 flex items-center gap-0.5">
+                                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                                {slot.accepted}
+                              </span>
+                            )}
+                            {slot.rejected > 0 && (
+                              <span className="text-red-600 flex items-center gap-0.5">
+                                <XCircle className="h-3 w-3" aria-hidden="true" />
+                                {slot.rejected}
+                              </span>
+                            )}
+                            {slot.pending > 0 && (
+                              <span className="text-amber-600 flex items-center gap-0.5">
+                                <HelpCircle className="h-3 w-3" aria-hidden="true" />
+                                {slot.pending}
+                              </span>
+                            )}
+                            {slot.accepted === 0 && slot.rejected === 0 && slot.pending === 0 && (
+                              <span className="text-slate-400 text-xs">Aucune</span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
-            )}
+                      ))}
+                    </div>
+                  </HoverCardContent>
+                </HoverCard>
+              )}
+            </div>
           </div>
+          {/* CTA: Respond to slots (prestataire only, when pending) */}
+          {(pendingSlotsForUser ?? 0) > 0 && onOpenSlotResponseModal && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => { e.stopPropagation(); onOpenSlotResponseModal() }}
+              className="w-full text-amber-700 border-amber-300 hover:bg-amber-100"
+            >
+              <Calendar className="h-4 w-4 mr-1.5" />
+              Gérer planification
+            </Button>
+          )}
+          {/* CTA: Modify responses (prestataire, all slots responded) */}
+          {planning.status === 'responded' && onOpenSlotResponseModal && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => { e.stopPropagation(); onOpenSlotResponseModal() }}
+              className="w-full text-green-700 border-green-300 hover:bg-green-100"
+            >
+              <Calendar className="h-4 w-4 mr-1.5" />
+              Modifier mes réponses
+            </Button>
+          )}
         </div>
 
         {/* Estimation Status */}
         <div className={cn(
-          'flex items-center gap-3 p-3 rounded-lg bg-slate-50 transition-colors',
-          isClickable && 'hover:bg-slate-100'
+          'flex flex-col gap-2 p-3 rounded-lg transition-shadow border',
+          requiresQuote && !hasSubmittedQuote && !planning.selectedQuoteAmount
+            ? 'border-l-4 border-l-blue-400 bg-blue-50 border-blue-200'
+            : 'bg-white border-slate-200 shadow-sm',
+          isClickable && !(requiresQuote && !hasSubmittedQuote) && 'hover:shadow'
         )}>
-          <div
-            className={cn(
-              'flex items-center justify-center h-9 w-9 rounded-lg flex-shrink-0',
-              quotesConfig.bgColor
-            )}
-          >
-            <QuotesIcon className={cn('h-4 w-4', quotesConfig.color)} aria-hidden="true" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Estimation</p>
-            {planning.selectedQuoteAmount && (
-              <p className="text-xs text-muted-foreground truncate">
-                {formatAmount(planning.selectedQuoteAmount)}
-              </p>
-            )}
-          </div>
-          {planning.selectedQuoteAmount ? (
-            <Badge
-              variant="outline"
-              className="text-xs bg-green-50 text-green-600 border-transparent shrink-0"
-              aria-label="Estimation validée"
-            >
-              Validée
-            </Badge>
-          ) : planning.receivedQuotesCount && planning.receivedQuotesCount > 0 ? (
-            <Badge
-              variant="outline"
-              className="text-xs bg-blue-50 text-blue-600 border-transparent shrink-0"
-              aria-label={`${planning.receivedQuotesCount} estimation${planning.receivedQuotesCount > 1 ? 's' : ''} reçue${planning.receivedQuotesCount > 1 ? 's' : ''}`}
-            >
-              {planning.receivedQuotesCount} reçue{planning.receivedQuotesCount > 1 ? 's' : ''}
-            </Badge>
-          ) : planning.requestedQuotesCount && planning.requestedQuotesCount > 0 ? (
-            <Badge
-              variant="outline"
-              className="text-xs bg-amber-50 text-amber-600 border-transparent shrink-0"
-              aria-label={`${planning.requestedQuotesCount} demande${planning.requestedQuotesCount > 1 ? 's' : ''} en attente`}
-            >
-              {planning.requestedQuotesCount} demande{planning.requestedQuotesCount > 1 ? 's' : ''}
-            </Badge>
-          ) : (
-            <Badge
-              variant="outline"
+          <div className="flex items-center gap-3">
+            <div
               className={cn(
-                'text-xs border-transparent shrink-0',
-                quotesConfig.bgColor,
-                quotesConfig.color
+                'flex items-center justify-center h-10 w-10 rounded-lg flex-shrink-0',
+                quotesConfig.bgColor
               )}
-              aria-label={quotesConfig.label}
             >
-              {quotesConfig.label}
-            </Badge>
+              <QuotesIcon className={cn('h-5 w-5', quotesConfig.color)} aria-hidden="true" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold">Estimation</p>
+              {planning.selectedQuoteAmount ? (
+                <p className="text-xs text-muted-foreground truncate">
+                  {formatAmount(planning.selectedQuoteAmount)}
+                </p>
+              ) : requiresQuote && !hasSubmittedQuote ? (
+                <p className="text-xs text-blue-700">Estimation demandée</p>
+              ) : hasSubmittedQuote && !planning.selectedQuoteAmount ? (
+                <p className="text-xs text-muted-foreground">Estimation envoyée</p>
+              ) : null}
+            </div>
+            {planning.selectedQuoteAmount ? (
+              <Badge
+                variant="outline"
+                className="text-xs bg-green-50 text-green-600 border-transparent shrink-0"
+                aria-label="Estimation validée"
+              >
+                Validée
+              </Badge>
+            ) : planning.receivedQuotesCount && planning.receivedQuotesCount > 0 ? (
+              <Badge
+                variant="outline"
+                className="text-xs bg-blue-50 text-blue-600 border-transparent shrink-0"
+                aria-label={`${planning.receivedQuotesCount} estimation${planning.receivedQuotesCount > 1 ? 's' : ''} reçue${planning.receivedQuotesCount > 1 ? 's' : ''}`}
+              >
+                {planning.receivedQuotesCount} reçue{planning.receivedQuotesCount > 1 ? 's' : ''}
+              </Badge>
+            ) : planning.requestedQuotesCount && planning.requestedQuotesCount > 0 ? (
+              <Badge
+                variant="outline"
+                className="text-xs bg-amber-50 text-amber-600 border-transparent shrink-0"
+                aria-label={`${planning.requestedQuotesCount} demande${planning.requestedQuotesCount > 1 ? 's' : ''} en attente`}
+              >
+                {planning.requestedQuotesCount} demande{planning.requestedQuotesCount > 1 ? 's' : ''}
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-xs border-transparent shrink-0',
+                  quotesConfig.bgColor,
+                  quotesConfig.color
+                )}
+                aria-label={quotesConfig.label}
+              >
+                {quotesConfig.label}
+              </Badge>
+            )}
+          </div>
+          {/* CTA: Submit estimation (prestataire, quote requested, not yet submitted) */}
+          {requiresQuote && !hasSubmittedQuote && !planning.selectedQuoteAmount && onOpenQuoteModal && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => { e.stopPropagation(); onOpenQuoteModal() }}
+              className="w-full text-blue-700 border-blue-300 hover:bg-blue-100"
+            >
+              <FileText className="h-4 w-4 mr-1.5" />
+              Soumettre une estimation
+            </Button>
+          )}
+          {/* CTA: Edit estimation (prestataire, already submitted, not yet approved) */}
+          {hasSubmittedQuote && !planning.selectedQuoteAmount && onOpenQuoteModal && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => { e.stopPropagation(); onOpenQuoteModal() }}
+              className="w-full text-muted-foreground border-slate-200 hover:bg-slate-100"
+            >
+              <FileText className="h-4 w-4 mr-1.5" />
+              Modifier l&apos;estimation
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Montant validé (highlight) */}
-      {planning.selectedQuoteAmount && (
-        <div className="flex items-center justify-between p-3 rounded-lg bg-green-50/50 border border-green-100">
-          <span className="text-sm font-medium text-muted-foreground">
-            Montant validé
-          </span>
-          <span className="text-lg font-bold text-green-700">
-            {formatAmount(planning.selectedQuoteAmount)}
-          </span>
-        </div>
-      )}
     </div>
   )
 }
@@ -417,8 +505,17 @@ export const InterventionDetailsCard = ({
   createdBy,
   createdAt,
   onNavigateToPlanning,
+  onOpenSlotResponseModal,
+  onOpenQuoteModal,
+  pendingSlotsForUser,
+  requiresQuote,
+  hasSubmittedQuote,
+  sections,
   className
 }: InterventionDetailsCardProps) => {
+  const showSection = (name: 'participants' | 'description' | 'location' | 'instructions' | 'planning' | 'creator') =>
+    !sections || sections.includes(name)
+
   const hasLocationDetails = locationDetails?.buildingName || locationDetails?.lotReference || locationDetails?.fullAddress
   const hasParticipants = participants && (
     participants.managers.length > 0 ||
@@ -434,7 +531,7 @@ export const InterventionDetailsCard = ({
   return (
     <div className={cn('space-y-4', className)}>
         {/* Participants */}
-        {hasParticipants && participants && (
+        {showSection('participants') && hasParticipants && participants && (
           <ParticipantsRow
             participants={participants}
             currentUserId={currentUserId}
@@ -444,9 +541,9 @@ export const InterventionDetailsCard = ({
         )}
 
         {/* Description */}
-        {description && (
+        {showSection('description') && description && (
           <>
-            {hasParticipants && <Separator />}
+            {showSection('participants') && hasParticipants && <Separator />}
             <div className="space-y-1.5">
               <h4 className="text-sm font-medium text-muted-foreground">
                 Description
@@ -457,9 +554,9 @@ export const InterventionDetailsCard = ({
         )}
 
         {/* Localisation détaillée (immeuble, lot, adresse) avec carte */}
-        {hasLocationDetails && (
+        {showSection('location') && hasLocationDetails && (
           <>
-            {(hasParticipants || description) && <Separator />}
+            {(showSection('participants') && hasParticipants || showSection('description') && description) && <Separator />}
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
@@ -508,9 +605,9 @@ export const InterventionDetailsCard = ({
         )}
 
         {/* Instructions pour le prestataire */}
-        {instructions && (
+        {showSection('instructions') && instructions && (
           <>
-            {(description || hasLocationDetails) && <Separator />}
+            {(showSection('description') && description || showSection('location') && hasLocationDetails) && <Separator />}
             <div className="space-y-1.5">
               <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
@@ -522,9 +619,9 @@ export const InterventionDetailsCard = ({
         )}
 
         {/* Localisation simple (fallback si pas de locationDetails) */}
-        {location && !hasLocationDetails && (
+        {showSection('location') && location && !hasLocationDetails && (
           <>
-            {(description || instructions) && <Separator />}
+            {(showSection('description') && description || showSection('instructions') && instructions) && <Separator />}
             <div className="space-y-1.5">
               <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
@@ -536,21 +633,26 @@ export const InterventionDetailsCard = ({
         )}
 
         {/* Section Planification */}
-        {planning && (
+        {showSection('planning') && planning && (
           <>
-            {(description || hasLocationDetails || instructions || location) && <Separator />}
+            {(showSection('description') && description || showSection('location') && hasLocationDetails || showSection('instructions') && instructions || showSection('location') && location) && <Separator />}
             <PlanningStatusSection
               planning={planning}
               interventionStatus={interventionStatus}
               onNavigateToPlanning={onNavigateToPlanning}
+              onOpenSlotResponseModal={onOpenSlotResponseModal}
+              onOpenQuoteModal={onOpenQuoteModal}
+              pendingSlotsForUser={pendingSlotsForUser}
+              requiresQuote={requiresQuote}
+              hasSubmittedQuote={hasSubmittedQuote}
             />
           </>
         )}
 
         {/* Section Créateur et Date */}
-        {(createdBy || createdAt) && (
+        {showSection('creator') && (createdBy || createdAt) && (
           <>
-            {(description || hasLocationDetails || instructions || location || planning) && <Separator />}
+            {(showSection('description') && description || showSection('location') && hasLocationDetails || showSection('instructions') && instructions || showSection('location') && location || showSection('planning') && planning) && <Separator />}
             <div className="flex items-center gap-1 text-sm text-muted-foreground flex-wrap">
               <User className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Créé par</span>

@@ -30,6 +30,9 @@ import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
 import { logger } from '@/lib/logger'
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
 import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
+import { useSubscription } from "@/hooks/use-subscription"
+import { UpgradeModal } from "@/components/billing/upgrade-modal"
+import { FREE_TIER_LIMIT } from "@/lib/stripe"
 import type {
   BuildingInfo,
   ComponentLot,
@@ -116,6 +119,8 @@ export default function EditBuildingClient({
   const [isSaving, setIsSaving] = useState(false)
   const [expandedLots, setExpandedLots] = useState<{[key: string]: boolean}>({})
   const [isMounted, setIsMounted] = useState(false)
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
+  const { status: subscriptionStatus, refresh: refreshSubscription } = useSubscription()
   const hasInitializedStep3 = useRef(false)
 
   // Services
@@ -182,7 +187,21 @@ export default function EditBuildingClient({
   }, [currentStep, lots])
 
   // Lot management functions
+  const isAtLotLimit = (): boolean => {
+    if (!subscriptionStatus) return false
+    if (subscriptionStatus.status === 'trialing') return false
+    // Count only new lots (existing ones are already counted in actual_lots)
+    const newLotCount = lots.filter(l => l.id.startsWith('lot-new-')).length
+    if (subscriptionStatus.is_free_tier) return (subscriptionStatus.actual_lots + newLotCount) >= FREE_TIER_LIMIT
+    if (subscriptionStatus.subscribed_lots > 0) return (subscriptionStatus.actual_lots + newLotCount) >= subscriptionStatus.subscribed_lots
+    return false
+  }
+
   const addLot = () => {
+    if (isAtLotLimit()) {
+      setUpgradeModalOpen(true)
+      return
+    }
     // Generate temp ID for new lot
     const tempId = `lot-new-${Date.now()}`
     const category = "appartement"
@@ -254,6 +273,10 @@ export default function EditBuildingClient({
   }
 
   const duplicateLot = (lotId: string) => {
+    if (isAtLotLimit()) {
+      setUpgradeModalOpen(true)
+      return
+    }
     const lotToDuplicate = lots.find((lot) => lot.id === lotId)
     if (lotToDuplicate) {
       const newLot: ComponentLot = {
@@ -586,6 +609,7 @@ export default function EditBuildingClient({
           onDuplicateLot={duplicateLot}
           onRemoveLot={removeLot}
           onToggleLotExpansion={toggleLotExpansion}
+          disableAddLot={isAtLotLimit()}
         />
       )}
 
@@ -849,6 +873,17 @@ export default function EditBuildingClient({
           </div>
         </DialogContent>
       </Dialog>
+
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        currentLots={subscriptionStatus?.actual_lots ?? 0}
+        subscribedLots={subscriptionStatus?.subscribed_lots}
+        onUpgradeComplete={() => {
+          setUpgradeModalOpen(false)
+          refreshSubscription()
+        }}
+      />
     </div>
   )
 }

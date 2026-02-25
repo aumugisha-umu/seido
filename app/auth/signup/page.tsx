@@ -6,6 +6,13 @@ import { SignupForm } from "./signup-form"
 import { BetaAccessGate } from "../beta-access-gate"
 import { checkBetaAccess } from "@/lib/beta-access"
 import { logger, logError } from '@/lib/logger'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Inscription | SEIDO',
+  description: 'Creez votre compte SEIDO et commencez votre essai gratuit de gestion locative.',
+  robots: { index: false, follow: false },
+}
 
 /**
  * 🔐 PAGE SIGNUP - SERVER COMPONENT (Migration Server Components + Beta Protection)

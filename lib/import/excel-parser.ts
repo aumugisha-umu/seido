@@ -1,9 +1,10 @@
 /**
  * Excel Parser
  * Wrapper for SheetJS to parse Excel/CSV files
+ *
+ * ⚡ OPTIMIZED: XLSX is lazy-loaded to reduce initial bundle size (~500KB)
  */
 
-import * as XLSX from 'xlsx';
 import type {
   ParseResult,
   ParsedSheet,
@@ -14,6 +15,16 @@ import type {
   RawCompanyRow,
 } from './types';
 import { SHEET_NAMES, FILE_CONSTRAINTS } from './constants';
+
+// ⚡ Lazy load XLSX to avoid 500KB in initial bundle
+let xlsxModule: typeof import('xlsx') | null = null;
+
+async function getXLSX() {
+  if (!xlsxModule) {
+    xlsxModule = await import('xlsx');
+  }
+  return xlsxModule;
+}
 
 // ============================================================================
 // Parse Functions
@@ -30,6 +41,7 @@ export async function parseExcelFile(file: File): Promise<ParseResult> {
   }
 
   try {
+    const XLSX = await getXLSX();
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, {
       type: 'array',
@@ -40,30 +52,35 @@ export async function parseExcelFile(file: File): Promise<ParseResult> {
 
     // Parse each expected sheet
     const buildings = parseSheet<RawBuildingRow>(
+      XLSX,
       workbook,
       SHEET_NAMES.BUILDINGS,
       findSheetName(workbook.SheetNames, SHEET_NAMES.BUILDINGS)
     );
 
     const lots = parseSheet<RawLotRow>(
+      XLSX,
       workbook,
       SHEET_NAMES.LOTS,
       findSheetName(workbook.SheetNames, SHEET_NAMES.LOTS)
     );
 
     const contacts = parseSheet<RawContactRow>(
+      XLSX,
       workbook,
       SHEET_NAMES.CONTACTS,
       findSheetName(workbook.SheetNames, SHEET_NAMES.CONTACTS)
     );
 
     const contracts = parseSheet<RawContractRow>(
+      XLSX,
       workbook,
       SHEET_NAMES.CONTRACTS,
       findSheetName(workbook.SheetNames, SHEET_NAMES.CONTRACTS)
     );
 
     const companies = parseSheet<RawCompanyRow>(
+      XLSX,
       workbook,
       SHEET_NAMES.COMPANIES,
       findSheetName(workbook.SheetNames, SHEET_NAMES.COMPANIES)
@@ -96,6 +113,7 @@ export async function parseCsvFile(
   }
 
   try {
+    const XLSX = await getXLSX();
     const text = await file.text();
     const workbook = XLSX.read(text, {
       type: 'string',
@@ -113,19 +131,19 @@ export async function parseCsvFile(
 
     switch (entityType) {
       case 'building':
-        result.buildings = parseSheet<RawBuildingRow>(workbook, SHEET_NAMES.BUILDINGS, sheetName);
+        result.buildings = parseSheet<RawBuildingRow>(XLSX, workbook, SHEET_NAMES.BUILDINGS, sheetName);
         break;
       case 'lot':
-        result.lots = parseSheet<RawLotRow>(workbook, SHEET_NAMES.LOTS, sheetName);
+        result.lots = parseSheet<RawLotRow>(XLSX, workbook, SHEET_NAMES.LOTS, sheetName);
         break;
       case 'contact':
-        result.contacts = parseSheet<RawContactRow>(workbook, SHEET_NAMES.CONTACTS, sheetName);
+        result.contacts = parseSheet<RawContactRow>(XLSX, workbook, SHEET_NAMES.CONTACTS, sheetName);
         break;
       case 'contract':
-        result.contracts = parseSheet<RawContractRow>(workbook, SHEET_NAMES.CONTRACTS, sheetName);
+        result.contracts = parseSheet<RawContractRow>(XLSX, workbook, SHEET_NAMES.CONTRACTS, sheetName);
         break;
       case 'company':
-        result.companies = parseSheet<RawCompanyRow>(workbook, SHEET_NAMES.COMPANIES, sheetName);
+        result.companies = parseSheet<RawCompanyRow>(XLSX, workbook, SHEET_NAMES.COMPANIES, sheetName);
         break;
     }
 
@@ -144,7 +162,8 @@ export async function parseCsvFile(
  * Parse a single sheet from the workbook
  */
 function parseSheet<T>(
-  workbook: XLSX.WorkBook,
+  XLSX: typeof import('xlsx'),
+  workbook: import('xlsx').WorkBook,
   expectedName: string,
   actualName: string | null
 ): ParsedSheet<T> {

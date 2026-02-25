@@ -1,0 +1,38 @@
+# Progress Log — Blog Section (Landing + Index + Article Pages)
+# Started: 2026-02-19
+# Stories: 6 total
+---
+
+## US-001: Blog utility library — DONE
+- Created lib/blog.ts with 7 exports + types ArticleMeta/Article
+- gray-matter + react-markdown installed
+- Files: lib/blog.ts
+
+## US-002: Blog article page — DONE
+- Created app/blog/layout.tsx, app/blog/[slug]/page.tsx, components/blog/blog-markdown.tsx
+- Server Component with generateStaticParams, generateMetadata, JSON-LD Article schema
+- Client BlogMarkdown with 15 custom styled components for dark theme
+
+## US-003: Blog index page — DONE
+- Created app/blog/page.tsx, components/blog/blog-article-card.tsx, components/blog/blog-list-client.tsx
+- Search, category filter, tag filter, responsive grid, empty state
+
+## US-004: Landing page blog section — DONE
+- Server→Client data boundary: getLatestArticles(3) in app/page.tsx → prop to LandingPage
+- Blog section between FAQ and CTA with FadeIn, BlogArticleCard, responsive grid
+- Learning: 'use client' components can't call fs-based functions — pass data from server parent
+- Files: app/page.tsx, components/landing/landing-page.tsx
+
+## US-005: Navbar blog link + shared header/footer — DONE
+- Added Blog link to landing-header.tsx desktop nav (after FAQ)
+- Created showBlogNav prop: Accueil + Tous les articles with active state
+- Moved LandingHeader + footer into blog layout.tsx (shared across all blog pages)
+- Removed duplicate headers/footers from blog/page.tsx and blog/[slug]/page.tsx
+- Learning: Consolidate shared UI in layout.tsx rather than repeating in each page
+- Files: components/landing/landing-header.tsx, app/blog/layout.tsx, app/blog/page.tsx, app/blog/[slug]/page.tsx
+
+## US-006: Blog SEO — sitemap + robots — DONE
+- Added /blog (priority 0.8, weekly) to sitemap.ts
+- Added dynamic /blog/[slug] entries from getAllArticles() (priority 0.7, monthly, lastModified from article date)
+- robots.ts: already allows /blog via allow: '/' — no changes needed
+- Files: app/sitemap.ts

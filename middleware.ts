@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { canProceedWithMiddlewareCheck } from '@/lib/auth-coordination-dal'
 import { getRateLimiterForRoute, getClientIdentifier } from '@/lib/rate-limit'
+import { logger } from '@/lib/logger'
 
 /**
  * 🛡️ MIDDLEWARE AUTHENTIFICATION RÉELLE - SEIDO APP (Best Practices 2025)
@@ -122,13 +123,13 @@ export async function middleware(request: NextRequest) {
         const profile = profiles?.[0] || null
 
         if (profile?.role) {
-          console.log('🔄 [MIDDLEWARE] Redirecting logged-in user from', pathname, 'to', `/${profile.role}/dashboard`)
+          logger.info({ from: pathname, to: `/${profile.role}/dashboard` }, '[MIDDLEWARE] Redirecting logged-in user')
           return NextResponse.redirect(new URL(`/${profile.role}/dashboard`, request.url))
         }
       }
     } catch (error) {
       // En cas d'erreur, laisser passer (l'utilisateur verra la page login)
-      console.log('⚠️ [MIDDLEWARE] Error checking session for auth redirect:', error)
+      logger.debug({ error }, '[MIDDLEWARE] Error checking session for auth redirect')
     }
 
     // Pas de session active ou erreur → continuer vers la page login/signup
@@ -161,7 +162,7 @@ export async function middleware(request: NextRequest) {
   // 🎭 DEMO MODE: Skip Supabase auth for /demo routes (they use DemoProvider)
   // Also skip Next.js internal data requests (RSC refreshes, Server Actions)
   if (pathname.startsWith('/demo') || pathname.startsWith('/_next/data/')) {
-    console.log('🎭 [MIDDLEWARE] Skipping Supabase auth check for:', pathname)
+    logger.debug({ pathname }, '[MIDDLEWARE] Skipping Supabase auth check')
     return NextResponse.next({
       request: {
         headers: request.headers,
@@ -220,7 +221,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (!canProceed) {
-      console.log('⏸️ [MIDDLEWARE] Coordination hold:', coordReason)
+      logger.debug({ reason: coordReason }, '[MIDDLEWARE] Coordination hold')
       // Laisser AuthProvider terminer son chargement
       return response
     }
@@ -230,18 +231,18 @@ export async function middleware(request: NextRequest) {
       const { data: { user }, error } = await supabase.auth.getUser()
 
       if (error || !user) {
-        console.log('🚫 [MIDDLEWARE] Authentication failed for', pathname, ':', error?.message || 'No user')
+        logger.info({ pathname, error: error?.message }, '[MIDDLEWARE] Authentication failed')
         response.cookies.set('middleware-check', 'true', { maxAge: 5 })
         return NextResponse.redirect(new URL('/auth/login?reason=session_expired', request.url))
       }
 
       // ✅ VÉRIFICATION EMAIL CONFIRMÉ
       if (!user.email_confirmed_at) {
-        console.log('📧 [MIDDLEWARE] Email not confirmed for user:', user.email)
+        logger.info({ email: user.email }, '[MIDDLEWARE] Email not confirmed for user')
         return NextResponse.redirect(new URL('/auth/login?reason=email_not_confirmed', request.url))
       }
 
-      console.log('✅ [MIDDLEWARE] User authenticated:', user.id)
+      logger.debug({ userId: user.id }, '[MIDDLEWARE] User authenticated')
 
       // ✅ PATTERN NEXT.JS 15 + SUPABASE OFFICIEL
       // Middleware = Token refresh + Basic gatekeeper ONLY

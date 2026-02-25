@@ -1,0 +1,73 @@
+# Progress Log — Stripe Billing Audit Fixes
+# Started: 2026-02-22
+# Stories: 6 total
+---
+
+## US-001: Consolidate mapStripeStatus to single source of truth ✅
+**Date:** 2026-02-22
+**Files:**
+- lib/services/domain/stripe-webhook.handler.ts (removed private mapStripeStatus, import SubscriptionService)
+- app/actions/subscription-actions.ts (replaced inline statusMap with SubscriptionService.mapStripeStatus())
+**Changes:**
+- Webhook handler: `this.mapStripeStatus()` → `SubscriptionService.mapStripeStatus()` (2 call sites)
+- Subscription actions: 10-line inline map → 1-line static call in verifyCheckoutSession
+- Left comment in webhook handler noting consolidation
+**Learnings:** Static methods on service classes make good shared utilities — importable without instantiation
+
+## US-002: Handle paused subscription status ✅
+**Date:** 2026-02-22
+**Files:**
+- lib/services/domain/subscription.service.ts (3 locations)
+**Changes:**
+- checkReadOnly: added `if (status === 'paused') return true`
+- checkCanAddProperty (private): added `'paused'` to blocked status list
+- canAddProperty (public): added `'paused'` to read-only blocked status list
+**Learnings:** When adding a new Stripe status, must check 3 places: checkReadOnly, checkCanAddProperty, and canAddProperty
+
+## US-003: Add subscription gate to lot edit page ✅
+**Date:** 2026-02-22
+**Files:**
+- app/gestionnaire/(no-navbar)/biens/lots/modifier/[id]/page.tsx
+**Changes:**
+- Added imports: createSubscriptionService, SubscriptionRepository, createServiceRoleSupabaseClient
+- Added subscription check after auth context (same pattern as lots/[id]/page.tsx)
+- isLotLocked computed in try/catch, redirect() called outside catch
+**Learnings:** CRUD completeness: when gating an entity, gate ALL routes (view, edit, create, delete)
+
+## US-004: Add subscription check to updateCompleteProperty + canAddProperty(count) ✅
+**Date:** 2026-02-22
+**Files:**
+- lib/services/domain/subscription.service.ts (canAddProperty signature change)
+- app/actions/building-actions.ts (createCompleteProperty + updateCompleteProperty)
+**Changes:**
+- canAddProperty(teamId, count=1): count parameter used in all limit comparisons
+- createCompleteProperty: passes data.lots.length as count
+- updateCompleteProperty: added full subscription gate after building verification
+- Error message includes slot count: "il ne reste que X slot(s) disponible(s)"
+**Learnings:** Boolean canAdd() is insufficient for batch operations — always accept a count parameter
+
+## US-005: Change getAccessibleLotIds fail-open to fail-closed ✅
+**Date:** 2026-02-22
+**Files:**
+- lib/services/domain/subscription.service.ts (getAccessibleLotIds)
+**Changes:**
+- DB query error: return [] instead of null
+- Log level: error (was already error, upgraded message to include "FAIL CLOSED")
+- Verified all callers: [] is truthy in JS, .includes() on [] returns false = lot locked
+**Learnings:** Layered fail pattern: service-level DB error = fail-closed, overall subscription check error = fail-open (from outer catch in callers)
+
+## US-006: Error boundary + useSubscription error state ✅
+**Date:** 2026-02-22
+**Files:**
+- hooks/use-subscription.ts (added hasError to return type)
+- components/settings-page.tsx (added BillingErrorBoundary class component)
+**Changes:**
+- useSubscription: added `hasError: boolean` to interface + return value
+- settings-page: inline BillingErrorBoundary wrapping SubscriptionSummaryCard
+- Fallback: amber card with warning icon + "Rechargez la page" message
+**Learnings:** Error boundaries must be class components in React — can't use hooks
+
+---
+## FEATURE COMPLETE ✅
+All 6/6 stories pass. Lint: 0 new errors. Tests: 62/62 subscription-service pass.
+Audit false positives eliminated: C1 (UpgradeModal quantity — service handles delta correctly), C8 (subscribedLots prop — already passed).

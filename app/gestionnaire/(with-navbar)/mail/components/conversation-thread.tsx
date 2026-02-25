@@ -5,10 +5,19 @@ import { Card, CardContent } from '@/components/ui/card'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import DOMPurify from 'isomorphic-dompurify'
-import { useMemo, useState } from 'react'
-import { Paperclip, ChevronDown, ChevronRight } from 'lucide-react'
-import { Separator } from '@/components/ui/separator'
+import { useMemo, useState, useCallback } from 'react'
+import { Paperclip, ChevronDown, ChevronRight, ArrowUpRight, ArrowDownLeft, Download, Loader2, FileText, ImageIcon, Sheet, Eye } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import { stripEmailQuotes, stripTextEmailQuotes } from '@/lib/utils/email-quote-stripper'
+import { AttachmentPreviewModal } from './attachment-preview-modal'
+
+const getAttachmentIcon = (mimeType: string) => {
+  if (mimeType === 'application/pdf') return FileText
+  if (mimeType.startsWith('image/')) return ImageIcon
+  if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType === 'text/csv') return Sheet
+  return Paperclip
+}
 
 interface ConversationThreadProps {
   emails: MailboxEmail[]
@@ -16,9 +25,32 @@ interface ConversationThreadProps {
 
 function EmailThreadItem({ email }: { email: MailboxEmail }) {
   const [showQuotedContent, setShowQuotedContent] = useState(false)
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null)
+  const [previewAttachment, setPreviewAttachment] = useState<{ id: string; filename: string; file_size: number; mime_type: string } | null>(null)
 
-  // Fallback chain: body_html → body_text → snippet → empty
-  // This handles cases where HTML is empty (plain-text email replies)
+  const handleDownloadAttachment = useCallback(async (attachmentId: string, filename: string) => {
+    setDownloadingAttachmentId(attachmentId)
+    try {
+      const response = await fetch(`/api/emails/${email.id}/attachments/${attachmentId}`)
+      if (!response.ok) throw new Error('Erreur lors du telechargement')
+      const data = await response.json()
+      const link = document.createElement('a')
+      link.href = data.signedUrl
+      link.download = filename
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch {
+      toast.error('Impossible de telecharger la piece jointe')
+    } finally {
+      setDownloadingAttachmentId(null)
+    }
+  }, [email.id])
+
+  const isSent = email.direction === 'sent'
+
+  // Fallback chain: body_html -> body_text -> snippet -> empty
   const sanitizedBody = useMemo(() => {
     const content = email.body_html || email.body_text || email.snippet || ''
     if (!content.trim()) return ''
@@ -35,7 +67,6 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
     if (sanitizedBody && sanitizedBody.trim() !== '') {
       return stripEmailQuotes(sanitizedBody)
     }
-    // Fallback: strip from plain text
     const textContent = email.body_text || email.snippet || ''
     if (textContent) {
       return stripTextEmailQuotes(textContent)
@@ -43,13 +74,31 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
     return { cleanHtml: '', hasQuotedContent: false }
   }, [sanitizedBody, email.body_text, email.snippet])
 
-  // Determine if we have displayable content
   const hasHtmlContent = sanitizedBody && sanitizedBody.trim() !== ''
   const textFallback = email.body_text || email.snippet || ''
 
+  const dateStr = email.received_at
+    ? format(new Date(email.received_at), 'PPp', { locale: fr })
+    : ''
+
   return (
-    <Card className="border">
+    <Card className={`border ${isSent ? 'border-l-4 border-l-primary/60 bg-primary/[0.02]' : ''}`}>
       <CardContent className="p-6">
+        {/* Sender header with direction indicator */}
+        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border/50">
+          {isSent ? (
+            <ArrowUpRight className="h-3.5 w-3.5 text-primary shrink-0" aria-label="Envoy&#233;" />
+          ) : (
+            <ArrowDownLeft className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-label="Re&#231;u" />
+          )}
+          <span className={`text-sm font-medium truncate ${isSent ? 'text-primary' : 'text-foreground'}`}>
+            {isSent ? 'Vous' : email.sender_name}
+          </span>
+          <span className="text-xs text-muted-foreground ml-auto shrink-0">
+            {dateStr}
+          </span>
+        </div>
+
         {/* Email body - Cleaned (quotes stripped) */}
         {hasHtmlContent ? (
           <div
@@ -78,7 +127,7 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
                 <ChevronRight className="h-3 w-3" aria-hidden="true" />
               )}
               <span>
-                {showQuotedContent ? 'Masquer le message cité' : 'Afficher le message cité'}
+                {showQuotedContent ? 'Masquer le message cit\u00e9' : 'Afficher le message cit\u00e9'}
               </span>
             </button>
 
@@ -104,41 +153,73 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
         {/* Attachments */}
         {email.has_attachments && email.attachments.length > 0 && (
           <div className="mt-4 pt-4 border-t">
-            <div className="text-sm font-medium mb-2">Attachments:</div>
+            <div className="text-sm font-medium mb-2">
+              Pi&#232;ces jointes ({email.attachments.length})
+            </div>
             <div className="space-y-2">
-              {email.attachments.map((attachment) => (
-                <div
-                  key={attachment.id}
-                  className="flex items-center gap-2 p-2 border rounded hover:bg-muted cursor-pointer"
-                >
-                  <Paperclip className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm truncate">{attachment.filename}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {(attachment.file_size / 1024).toFixed(1)} KB
+              {email.attachments.map((attachment) => {
+                const AttachmentIcon = getAttachmentIcon(attachment.mime_type)
+                return (
+                  <div key={attachment.id}>
+                    <div className="flex items-center justify-between p-2 border rounded hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <AttachmentIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{attachment.filename}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {(attachment.file_size / 1024).toFixed(1)} KB
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Pr\u00e9visualiser ${attachment.filename}`}
+                          onClick={() => setPreviewAttachment(attachment)}
+                        >
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`T\u00e9l\u00e9charger ${attachment.filename}`}
+                          disabled={downloadingAttachmentId === attachment.id}
+                          onClick={() => handleDownloadAttachment(attachment.id, attachment.filename)}
+                        >
+                          {downloadingAttachmentId === attachment.id
+                            ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            : <Download className="h-4 w-4" aria-hidden="true" />
+                          }
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
       </CardContent>
+
+      {/* Attachment Preview Modal — rendered per thread item for independent state */}
+      <AttachmentPreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        emailId={email.id}
+        attachment={previewAttachment}
+      />
     </Card>
   )
 }
 
 export function ConversationThread({ emails }: ConversationThreadProps) {
-  // Emails are already sorted in reverse order (latest first)
+  // Emails sorted chronologically (oldest first) — matches Gmail thread view
   return (
-    <div className="space-y-6">
-      {emails.map((email, index) => (
-        <div key={email.id}>
-          <EmailThreadItem email={email} />
-          {index < emails.length - 1 && <Separator className="my-4" />}
-        </div>
+    <div className="space-y-4">
+      {emails.map((email) => (
+        <EmailThreadItem key={email.id} email={email} />
       ))}
     </div>
   )
 }
-

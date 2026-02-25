@@ -1,0 +1,75 @@
+{
+  "project": "SEIDO",
+  "featureName": "Planning Mode Display Fix",
+  "branchName": "preview",
+  "description": "Fix intervention detail display to correctly handle all 3 scheduling modes (fixed, slots, flexible). Currently flexible mode shows misleading 'En attente' on General tab and 'Aucun creneau propose' on Planning tab instead of appropriate contextual messages.",
+  "createdAt": "2026-02-09",
+  "prdSource": "inline",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add schedulingType to shared types and InterventionDetailsCard",
+      "description": "As a developer, I want schedulingType to be available in InterventionDetailsCardProps.planning so that the PlanningStatusSection can adapt its display per scheduling mode.",
+      "acceptanceCriteria": [
+        "InterventionDetailsCardProps.planning includes optional schedulingType: 'fixed' | 'slots' | 'flexible' | null",
+        "PlanningCardProps includes optional schedulingType field",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Added schedulingType to both InterventionDetailsCardProps.planning and PlanningCardProps"
+    },
+    {
+      "id": "US-002",
+      "title": "Handle flexible mode in PlanningStatusSection (General tab)",
+      "description": "As a gestionnaire, when scheduling_type is 'flexible', I want the General tab 'Planning et Estimations' section to show 'Coordination autonome' with an emerald badge instead of 'En attente', so I understand the planning mode is intentional.",
+      "acceptanceCriteria": [
+        "When schedulingType='flexible': icon is Users (emerald), label is 'Coordination autonome', description shows 'Les participants s'organisent entre eux'",
+        "When schedulingType='fixed' or 'slots': existing behavior unchanged",
+        "When schedulingType is null: existing 'En attente' behavior unchanged",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added Users import, new schedulingType param to getPlanningStatusConfig, emerald flexible case in default branch"
+    },
+    {
+      "id": "US-003",
+      "title": "Handle flexible mode in PlanningCard (Planning tab)",
+      "description": "As a gestionnaire, when scheduling_type is 'flexible' and I navigate to the Planning tab, I want to see a contextual message explaining that participants coordinate autonomously, instead of 'Aucun creneau propose' with a 'Proposer un creneau' button.",
+      "acceptanceCriteria": [
+        "When schedulingType='flexible': shows emerald card with 'Coordination autonome' message (reusing InterventionSchedulingPreview pattern)",
+        "When schedulingType='flexible': hides 'Proposer un creneau' button",
+        "When schedulingType is not 'flexible': existing slot-based behavior unchanged",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added Users import, schedulingType destructured, ternary empty state for flexible vs slots, header button hidden for flexible"
+    },
+    {
+      "id": "US-004",
+      "title": "Pass scheduling_type from intervention-detail-client to components",
+      "description": "As a developer, I want the intervention-detail-client.tsx to pass the intervention's scheduling_type to both InterventionDetailsCard and PlanningCard so the UI adapts.",
+      "acceptanceCriteria": [
+        "InterventionDetailsCard receives schedulingType in its planning prop",
+        "PlanningCard receives schedulingType prop",
+        "All 3 modes display correctly on both General and Planning tabs",
+        "Typecheck passes (npx tsc --noEmit)",
+        "npm run lint passes with no new errors"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Wired schedulingType to all 6 call sites: gestionnaire, locataire, prestataire x (InterventionDetailsCard + PlanningCard). lint passes."
+    }
+  ]
+}

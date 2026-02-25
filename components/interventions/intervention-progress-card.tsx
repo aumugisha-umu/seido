@@ -5,7 +5,6 @@
  * Displays the status timeline/progression for an intervention
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { StatusTimeline } from '@/components/interventions/status-timeline'
 import { Activity } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
@@ -48,29 +47,25 @@ export function InterventionProgressCard({ intervention, activityLogs = [] }: In
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Activity className="w-5 h-5" />
-          Progression
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <StatusTimeline
-          currentStatus={intervention.status}
-          createdAt={intervention.created_at}
-          scheduledDate={intervention.scheduled_date}
-          completedDate={intervention.completed_date}
-          rejectedAt={intervention.status === 'rejetee' ? intervention.updated_at : null}
-          cancelledAt={intervention.status === 'annulee' ? intervention.updated_at : null}
-          createdBy={actors.createdBy}
-          approvedBy={actors.approvedBy}
-          rejectedBy={actors.rejectedBy}
-          scheduledBy={actors.scheduledBy}
-          completedBy={actors.completedBy}
-          cancelledBy={actors.cancelledBy}
-        />
-      </CardContent>
-    </Card>
+    <div>
+      <h3 className="flex items-center gap-2 text-base font-semibold mb-4">
+        <Activity className="w-5 h-5" />
+        Progression
+      </h3>
+      <StatusTimeline
+        currentStatus={intervention.status}
+        createdAt={intervention.created_at}
+        scheduledDate={intervention.scheduled_date}
+        completedDate={intervention.completed_date}
+        rejectedAt={intervention.status === 'rejetee' ? intervention.updated_at : null}
+        cancelledAt={intervention.status === 'annulee' ? intervention.updated_at : null}
+        createdBy={actors.createdBy}
+        approvedBy={actors.approvedBy}
+        rejectedBy={actors.rejectedBy}
+        scheduledBy={actors.scheduledBy}
+        completedBy={actors.completedBy}
+        cancelledBy={actors.cancelledBy}
+      />
+    </div>
   )
 }

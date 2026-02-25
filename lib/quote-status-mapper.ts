@@ -1,31 +1,37 @@
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 
 /**
  * Utility functions to map quote status between French (UI) and English (Database)
  * This ensures we always send valid enum values to PostgreSQL while keeping French display
  */
 
-// Database enum values (English)
-export type DbQuoteStatus = 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
+// Database enum values (English) — matches DB constraint:
+// ('draft', 'pending', 'sent', 'accepted', 'rejected', 'expired', 'cancelled')
+export type DbQuoteStatus = 'draft' | 'pending' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
 
 // UI display values (French)
-export type UiQuoteStatus = 'En attente' | 'Accepté' | 'Refusé' | 'Expiré' | 'Annulé'
+export type UiQuoteStatus = 'Brouillon' | 'En attente' | 'Envoyé' | 'Accepté' | 'Refusé' | 'Expiré' | 'Annulé'
 
 /**
  * Convert French UI status to English database status
  */
-export function mapStatusToDb(_uiStatus: string): DbQuoteStatus {
+export function mapStatusToDb(uiStatus: string): DbQuoteStatus {
   const mapping: Record<string, DbQuoteStatus> = {
+    'Brouillon': 'draft',
     'En attente': 'pending',
-    'Accepté': 'approved',
-    'Approuvé': 'approved',
+    'Envoyé': 'sent',
+    'Accepté': 'accepted',
+    'Approuvé': 'accepted',
     'Refusé': 'rejected',
     'Rejeté': 'rejected',
     'Expiré': 'expired',
     'Annulé': 'cancelled',
     // Handle if already in English (backward compatibility)
+    'draft': 'draft',
     'pending': 'pending',
-    'approved': 'approved',
+    'sent': 'sent',
+    'accepted': 'accepted',
+    'approved': 'accepted', // Legacy mapping
     'rejected': 'rejected',
     'expired': 'expired',
     'cancelled': 'cancelled'
@@ -45,8 +51,10 @@ export function mapStatusToDb(_uiStatus: string): DbQuoteStatus {
  */
 export function mapStatusFromDb(dbStatus: DbQuoteStatus): UiQuoteStatus {
   const mapping: Record<DbQuoteStatus, UiQuoteStatus> = {
+    'draft': 'Brouillon',
     'pending': 'En attente',
-    'approved': 'Accepté',
+    'sent': 'Envoyé',
+    'accepted': 'Accepté',
     'rejected': 'Refusé',
     'expired': 'Expiré',
     'cancelled': 'Annulé'
@@ -58,13 +66,13 @@ export function mapStatusFromDb(dbStatus: DbQuoteStatus): UiQuoteStatus {
 /**
  * Check if a status is valid for database storage
  */
-export function isValidDbStatus(_status: string): status is DbQuoteStatus {
-  return ['pending', 'approved', 'rejected', 'expired', 'cancelled'].includes(status as DbQuoteStatus)
+export function isValidDbStatus(status: string): status is DbQuoteStatus {
+  return ['draft', 'pending', 'sent', 'accepted', 'rejected', 'expired', 'cancelled'].includes(status as DbQuoteStatus)
 }
 
 /**
  * Normalize status - convert any format to valid database format
  */
-export function normalizeStatus(_status: string): DbQuoteStatus {
+export function normalizeStatus(status: string): DbQuoteStatus {
   return mapStatusToDb(status)
 }

@@ -1,0 +1,35 @@
+# Progress Log — Enhanced DatePicker: Month/Year Dropdowns + Manual Input
+# Started: 2026-02-10
+# Stories: 3 total — 3 DONE
+---
+
+## US-001: Enable month/year dropdown on base Calendar + DatePicker (S) — DONE
+- Files: components/ui/calendar.tsx
+- Changes: captionLayout default "label" -> "dropdown", added fr locale, startMonth/endMonth +-10 years
+- Learning: react-day-picker v9 supports captionLayout="dropdown" natively — just change the default
+
+## US-002: Add manual date text input to DatePicker (M) — DONE
+- Files: components/ui/date-picker.tsx
+- Changes: Replaced Button with editable <input> + auto-mask (dd/MM/yyyy), parseFrenchDate validation, red border on error, blur revert
+- Exported parseLocalDate + formatLocalDate for consumer files
+- Learning: applyDateMask strips non-digits then re-inserts slashes — simpler than tracking cursor position
+
+## US-003: Update direct Calendar usages / unify to DatePicker (S) — DONE
+- Files: components/interventions/intervention-create-form.tsx, intervention-request-form.tsx, app/gestionnaire/(with-navbar)/parametres/emails/components/email-connection-form.tsx
+- Changes: Replaced 4 Popover+Button+Calendar blocks with shared <DatePicker>. Cleaned unused imports.
+- Kept Calendar as-is in: programming-modal-FINAL.tsx, assignment-section-v2.tsx, multi-slot-response-modal.tsx (inline with TimePickers), time-slot-proposer.tsx (mode="multiple")
+- Learning: Don't force DatePicker where Calendar is used inline in compound UIs — those need direct Calendar for layout flexibility
+- Learning: react-hook-form Date <-> ISO string bridge: `formatLocalDate(field.value)` for value, `new Date(y, m-1, d)` from ISO for onChange
+
+---
+
+## 2026-02-11 — ParticipantsRow Polish: Tooltips, Badge Consistency, Contacts Icon
+- Implemented: Tooltip on "Participants" and "Contacts" labels, ContactRound icon for Contacts, unified Badge variant/sizing, separate counts (withAccount.length vs contacts.length)
+- Files: components/interventions/shared/layout/participants-row.tsx
+- Learnings: Tooltip for brief explanatory labels + HoverCard for rich interactive content = layered disclosure pattern. TooltipProvider per-tooltip avoids shared open/close state.
+- Decision: ContactRound at h-3.5 (not h-4 like Users) — proportionally balanced due to different visual weight
+
+## 2026-02-11 — Intervention Workflow Polish (40 files, in progress)
+- Implemented: scheduling-service.ts (327 lines), planning hook enhancements (assignmentMode, providerInstructions, confirmationRequired), ProgrammingModal workflow refinements, approval-modal improvements, multi-slot-response-modal updates
+- Files: lib/services/domain/scheduling-service.ts (NEW), hooks/use-intervention-planning.ts, components/intervention/modals/*, app/*/interventions/[id]/components/intervention-detail-client.tsx (3 roles)
+- Decision: New domain service extracts scheduling logic from scattered components → single source of truth for intervention planning rules

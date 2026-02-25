@@ -1,0 +1,78 @@
+{
+  "project": "SEIDO",
+  "featureName": "Gestion des dates d'expiration sur les documents",
+  "branchName": "preview",
+  "description": "Ajouter la gestion des dates de validité/expiration sur les documents dans les flows de création de contrat/bail, immeuble et lots. Les slots qui ont hasExpiry=true affichent un date picker pour la date d'expiration, avec des badges visuels (vert=valide, orange=expire bientôt, rouge=expiré).",
+  "createdAt": "2026-02-17",
+  "prdSource": "tasks/prd-merge-contacts-documents.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Wire expiry props dans DocumentChecklistGeneric",
+      "description": "As a developer, I want DocumentChecklistGeneric to forward hasExpiry/expiryDate/onExpiryDateChange to each DocumentSlotGeneric so the expiry UI (already built) is activated",
+      "acceptanceCriteria": [
+        "DocumentChecklistGeneric accepts onSetSlotExpiryDate callback",
+        "All 3 render sites (recommended, optional, autre) pass hasExpiry + expiryDate + onExpiryDateChange",
+        "Property doc hooks (usePropertyDocumentUpload, useMultiLotDocumentUpload) expose setSlotExpiryDate",
+        "BuildingContactsStepV3 passes setSlotExpiryDate to both building and per-lot checklists",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added onSetSlotExpiryDate to DocumentChecklistGeneric. Forwards hasExpiry from slot config, derives expiryDate from slot.files[0]?.expiryDate. Added setSlotExpiryDate to usePropertyDocumentUpload and useMultiLotDocumentUpload. Wired in BuildingContactsStepV3 and lot creation page."
+    },
+    {
+      "id": "US-002",
+      "title": "Ajouter hasExpiry aux configs de slots lease",
+      "description": "As a developer, I want lease document slot configs to support hasExpiry and defaultValidityYears so that relevant lease documents (attestation_assurance) show the expiry UI",
+      "acceptanceCriteria": [
+        "DocumentSlotConfig interface has hasExpiry? and defaultValidityYears?",
+        "attestation_assurance slot has hasExpiry: true, defaultValidityYears: 1",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Extended DocumentSlotConfig with hasExpiry and defaultValidityYears. Configured attestation_assurance with 1-year validity."
+    },
+    {
+      "id": "US-003",
+      "title": "Ajouter support expiry dans les hooks contract",
+      "description": "As a developer, I want useContractUpload and useContractUploadByCategory to support expiry dates so contract documents can track validity",
+      "acceptanceCriteria": [
+        "ContractFileWithPreview has expiryDate? field",
+        "useContractUpload has setFileExpiryDate method",
+        "useContractUpload sends expiryDate in FormData during upload",
+        "useContractUploadByCategory has setSlotExpiryDate method",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added expiryDate to ContractFileWithPreview. Added setFileExpiryDate to base hook. setSlotExpiryDate in category hook updates all files of a type. Upload sends expiryDate in FormData."
+    },
+    {
+      "id": "US-004",
+      "title": "Wire expiry dans wrappers lease + migration DB",
+      "description": "As a gestionnaire, I want the lease creation flow to show date pickers for documents with expiry (e.g., attestation_assurance) and persist expiry dates to the database",
+      "acceptanceCriteria": [
+        "DocumentChecklist wrapper passes onSetSlotExpiryDate",
+        "contract-form-container extracts setSlotExpiryDate and passes to DocumentChecklist",
+        "DocumentSlot wrapper passes hasExpiry/expiryDate/onExpiryDateChange",
+        "Migration adds expiry_date column to contract_documents table",
+        "Upload API stores expiry_date when provided",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Updated DocumentChecklist and DocumentSlot wrappers. contract-form-container extracts setSlotExpiryDate from hook. Migration 20260217100000 adds expiry_date DATE to contract_documents. Upload API conditionally inserts expiry_date."
+    }
+  ]
+}

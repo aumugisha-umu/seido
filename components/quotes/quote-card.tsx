@@ -62,7 +62,6 @@ export function QuoteCard({
   
   const getStatusColor = (_status: string) => {
     switch (quote.status) {
-      case 'approved':
       case 'accepted':
         return 'bg-green-50 border-green-200 text-green-800'
       case 'rejected':
@@ -79,7 +78,6 @@ export function QuoteCard({
 
   const getStatusLabel = (_status: string) => {
     switch (quote.status) {
-      case 'approved':
       case 'accepted':
         return 'Accepté'
       case 'rejected':
@@ -96,7 +94,6 @@ export function QuoteCard({
 
   const getBadgeColor = (_status: string) => {
     switch (quote.status) {
-      case 'approved':
       case 'accepted':
         return 'bg-green-100 text-green-800'
       case 'rejected':

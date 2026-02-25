@@ -1,16 +1,26 @@
 import { MetadataRoute } from 'next'
+import { getAllArticles } from '@/lib/blog'
 
 /**
  * Sitemap dynamique pour SEIDO
  *
  * Contient uniquement les routes PUBLIQUES accessibles aux crawlers.
- * Les routes protegees (admin, gestionnaire, prestataire, locataire)
- * sont bloquees par robots.txt et ne doivent pas etre indexees.
+ * Les routes protegees (auth, admin, gestionnaire, prestataire, locataire)
+ * sont bloquees par robots.ts et ne doivent pas etre indexees.
  *
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://www.seido-app.com'
+
+  // Dynamic blog article entries
+  const articles = getAllArticles()
+  const blogEntries: MetadataRoute.Sitemap = articles.map((article) => ({
+    url: `${baseUrl}/blog/${article.slug}`,
+    lastModified: new Date(article.date),
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }))
 
   return [
     // Page d'accueil (landing)
@@ -20,25 +30,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 1,
     },
-    // Pages d'authentification
+    // Blog index
     {
-      url: `${baseUrl}/auth/login`,
+      url: `${baseUrl}/blog`,
       lastModified: new Date(),
-      changeFrequency: 'monthly',
+      changeFrequency: 'weekly',
       priority: 0.8,
     },
-    {
-      url: `${baseUrl}/auth/signup`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/auth/reset-password`,
-      lastModified: new Date(),
-      changeFrequency: 'yearly',
-      priority: 0.5,
-    },
+    // Blog articles (dynamic)
+    ...blogEntries,
     // Pages legales
     {
       url: `${baseUrl}/conditions-generales`,

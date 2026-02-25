@@ -51,39 +51,15 @@ export class BuildingService {
    */
   async getById(id: string) {
     const startTime = Date.now()
-    console.log(`🏗️ [BUILDING-SERVICE] getById called`, {
-      buildingId: id,
-      timestamp: new Date().toISOString()
-    })
-
-    console.log(`📍 [BUILDING-SERVICE] Calling repository.findById()...`, { buildingId: id })
-    const repositoryStart = Date.now()
+    logger.debug({ buildingId: id }, '[BUILDING-SERVICE] getById called')
 
     const result = await this.repository.findById(id)
 
-    const repositoryElapsed = Date.now() - repositoryStart
-    console.log(`⏱️ [BUILDING-SERVICE] repository.findById() returned`, {
-      buildingId: id,
-      success: result.success,
-      hasData: !!result.data,
-      elapsed: `${repositoryElapsed}ms`
-    })
-
     if (isErrorResponse(result)) {
-      console.error(`❌ [BUILDING-SERVICE] Repository returned error`, {
-        buildingId: id,
-        error: result.error,
-        totalElapsed: `${Date.now() - startTime}ms`
-      })
       return result
     }
 
-    const totalElapsed = Date.now() - startTime
-    console.log(`✅ [BUILDING-SERVICE] getById completed successfully`, {
-      buildingId: id,
-      buildingName: result.data.name,
-      totalElapsed: `${totalElapsed}ms`
-    })
+    logger.debug({ buildingId: id, elapsed: Date.now() - startTime }, '[BUILDING-SERVICE] getById completed')
 
     // TypeScript now knows result.data is non-null
     return result

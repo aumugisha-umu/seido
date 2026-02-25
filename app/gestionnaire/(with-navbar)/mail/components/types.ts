@@ -27,6 +27,7 @@ export interface MailboxEmail {
   thread_order?: number
   is_parent?: boolean
   email_connection_id?: string
+  cc_addresses?: string[] | null
   team_id?: string
 }
 
@@ -69,6 +70,21 @@ export interface ConversationGroup {
 }
 
 // Helper functions
+
+/**
+ * Extracts clean email address from RFC 5322 format
+ * "Display Name" <email@domain.com> → email@domain.com
+ * <email@domain.com> → email@domain.com
+ * email@domain.com → email@domain.com
+ */
+export const extractEmailAddress = (fromAddress: string): string => {
+  if (!fromAddress) return ''
+  const match = fromAddress.match(/<([^>]+)>/)
+  if (match && match[1]) return match[1].trim().toLowerCase()
+  // Already a plain email address
+  const trimmed = fromAddress.trim().toLowerCase()
+  return trimmed.includes('@') ? trimmed : ''
+}
 
 /**
  * Extracts display name from RFC 5322 email format
@@ -228,13 +244,14 @@ export const groupEmailsByConversation = (emails: MailboxEmail[]): (Conversation
       // Single email - return directly (no group)
       result.push(convEmails[0])
     } else {
-      // Conversation: oldest email is the parent
-      const [parent, ...children] = convEmails
+      // Conversation: oldest email provides header metadata
+      // ALL emails (including oldest) appear as children so every message is visible when expanded
+      const parent = convEmails[0]
 
       result.push({
         conversationId: convId,
         parent: { ...parent, is_parent: true },
-        children: children.map((e, i) => ({ ...e, is_parent: false, thread_order: i + 1 }))
+        children: convEmails.map((e, i) => ({ ...e, is_parent: i === 0, thread_order: i }))
       })
     }
   }
@@ -255,10 +272,8 @@ export const getConversationEmails = (conversationId: string, emails: MailboxEma
   return emails
     .filter(e => e.conversation_id === conversationId)
     .sort((a, b) => {
-      if (a.thread_order && b.thread_order) {
-        return b.thread_order - a.thread_order // Reverse order (latest first)
-      }
-      return new Date(b.received_at).getTime() - new Date(a.received_at).getTime()
+      // Chronological order (oldest first) — matches Gmail/Outlook thread view
+      return new Date(a.received_at).getTime() - new Date(b.received_at).getTime()
     })
 }
 

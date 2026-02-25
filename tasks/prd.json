@@ -1,73 +1,67 @@
 {
   "project": "SEIDO",
-  "featureName": "Fix Conversation Participants Management",
+  "featureName": "Universal Email Attachment Preview",
   "branchName": "preview",
-  "description": "Corriger la gestion des participants aux conversations d'intervention. Les locataires ne doivent ajouter aucun gestionnaire, les gestionnaires n'ajoutent que les assignés, et les autres sont ajoutés à leur premier message.",
-  "createdAt": "2026-02-06",
-  "prdSource": "tasks/prd-conversation-participants-fix.md",
-  "status": "completed",
+  "description": "Add in-app preview for ALL email attachment types. Images show inline, PDFs in iframe, Office/text files via Google Docs Viewer in a modal. The Eye button must appear on every attachment, not just images/PDFs. Both email-detail.tsx and conversation-thread.tsx are affected.",
+  "createdAt": "2026-02-25",
+  "prdSource": "inline",
+  "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Modifier le trigger SQL add_team_managers_to_thread",
-      "description": "En tant que système, je veux que le trigger n'ajoute plus tous les gestionnaires afin que seuls les participants légitimes soient dans la conversation",
+      "title": "Create shared AttachmentPreviewModal component",
+      "description": "As a gestionnaire, I want a modal that can preview any attachment type in-app, so I don't have to download files to see their content.",
       "acceptanceCriteria": [
-        "Le trigger est modifié pour ne plus ajouter automatiquement tous les gestionnaires",
-        "La migration s'applique sans erreur",
-        "Typecheck passes (npx tsc --noEmit)"
+        "Modal uses existing UnifiedModal (size full) for consistency with DocumentViewerModal",
+        "Images: displayed via <img> with zoom/fit controls",
+        "PDFs: displayed via iframe with signedUrl",
+        "Office files (docx, xlsx, pptx): displayed via Google Docs Viewer iframe (docs.google.com/gview?url=encodedSignedUrl&embedded=true)",
+        "Text/CSV files: displayed via Google Docs Viewer iframe (same pattern)",
+        "Unknown types: fallback message with download button",
+        "Modal header shows filename + file size + download button",
+        "Loading state with Loader2 spinner while fetching signed URL",
+        "Error state with retry + download fallback",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 1,
+      "priority": 3,
       "dependsOn": [],
-      "sizing": "XS",
+      "sizing": "M",
       "passes": true,
-      "notes": "Migration 20260206100000 créée - supprime trigger thread_add_managers et fonction add_team_managers_to_thread"
+      "notes": "Created attachment-preview-modal.tsx. UnifiedModal full size, 3 preview modes: image (<img>), PDF (iframe), Google Docs Viewer (iframe for docx/xlsx/pptx/csv/txt/rtf). Two-phase loading (API fetch + content render). Error state with retry. Download via badge prop in header. Extension-based fallback for generic mime types."
     },
     {
       "id": "US-002",
-      "title": "Création intervention locataire: gestionnaires liés au bien",
-      "description": "En tant que locataire, je veux que les gestionnaires liés à mon lot/immeuble soient ajoutés comme participants afin qu'ils puissent suivre la conversation",
+      "title": "Wire preview modal in email-detail.tsx",
+      "description": "As a gestionnaire viewing a single email, I want the Eye button on ALL attachments (not just images/PDFs), so I can preview any file in-app.",
       "acceptanceCriteria": [
-        "Les gestionnaires de lot_contacts sont ajoutés comme participants",
-        "Les gestionnaires de building_contacts (immeuble parent) sont aussi ajoutés",
-        "Seuls les gestionnaires avec compte (auth_user_id) sont ajoutés",
-        "Typecheck passes"
+        "Eye button visible on ALL attachments regardless of mime_type",
+        "Clicking Eye opens AttachmentPreviewModal with correct attachment data",
+        "Existing inline image preview still works (for images, modal is an alternative via Eye button)",
+        "Existing PDF new-tab behavior replaced by in-modal iframe preview",
+        "Download button remains unchanged",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 2,
+      "priority": 3,
       "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "notes": "Implémenté dans create-intervention/route.ts (lignes 281-343). Query lot_contacts + building_contacts, filtre role=gestionnaire, ajoute aux threads GROUP et TENANT_TO_MANAGERS."
+      "notes": "Replaced old handlePreviewAttachment (inline image + PDF new-tab) with modal-based preview. Removed isPreviewableImage/isPreviewablePdf guards — Eye button now on ALL attachments. Removed previewingAttachmentId and imagePreviewUrls state. Added AttachmentPreviewModal import + render. Modal handles its own loading/error/signed URL fetch."
     },
     {
       "id": "US-003",
-      "title": "Création intervention gestionnaire: seulement les assignés",
-      "description": "En tant que gestionnaire, je veux que seuls les gestionnaires assignés soient ajoutés comme participants afin que la liste reflète les responsables réels",
+      "title": "Wire preview modal in conversation-thread.tsx",
+      "description": "As a gestionnaire viewing an email thread, I want the same preview behavior as single-email view.",
       "acceptanceCriteria": [
-        "Seuls les gestionnaires avec intervention_assignments sont ajoutés",
-        "Les autres gestionnaires ont accès via RLS mais ne sont pas participants",
-        "Typecheck passes"
+        "Eye button visible on ALL attachments in thread messages",
+        "Clicking Eye opens AttachmentPreviewModal",
+        "Each thread message manages its own preview state independently",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 2,
+      "priority": 3,
       "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "notes": "Déjà fonctionnel via trigger add_assignment_to_conversation_participants (CASE 3). US-001 a supprimé l'ajout de TOUS les managers, ce trigger ajoute seulement les ASSIGNÉS."
-    },
-    {
-      "id": "US-004",
-      "title": "Ajout automatique au premier message",
-      "description": "En tant que gestionnaire non-participant, je veux être ajouté comme participant quand j'envoie mon premier message afin de suivre la conversation après ma première intervention",
-      "acceptanceCriteria": [
-        "Avant l'envoi, vérifier si l'utilisateur est déjà participant",
-        "Si non-participant avec accès RLS, l'ajouter automatiquement",
-        "Le message est envoyé normalement",
-        "Typecheck passes"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-002", "US-003"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "Modifié sendMessage() dans conversation-service.ts (lignes 319-332). Vérifie si l'utilisateur est participant avant d'envoyer, l'ajoute si nécessaire."
+      "notes": "Full rewrite: removed isPreviewableImage/isPreviewablePdf/imagePreviewUrls/handlePreviewAttachment. Replaced with previewAttachment state + AttachmentPreviewModal rendered per EmailThreadItem. Eye button on ALL attachments. Removed unused useCallback import dependency on old preview handlers."
     }
   ]
 }

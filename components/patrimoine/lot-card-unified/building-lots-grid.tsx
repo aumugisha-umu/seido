@@ -30,6 +30,8 @@ interface BuildingLotsGridProps {
   buildingOthers?: BaseContact[]
   // Optional: initial lot to expand (from URL param, e.g., after contract edit)
   initialExpandedLotId?: string | null
+  /** IDs of lots locked by subscription restriction. null = all accessible. */
+  lockedLotIds?: Set<string> | null
 }
 
 /**
@@ -50,7 +52,8 @@ export function BuildingLotsGrid({
   buildingProviders = [],
   buildingOwners = [],
   buildingOthers = [],
-  initialExpandedLotId = null
+  initialExpandedLotId = null,
+  lockedLotIds = null
 }: BuildingLotsGridProps) {
   const { toast } = useToast()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
@@ -285,6 +288,7 @@ export function BuildingLotsGrid({
             mode="view"
             showBuilding={false}
             showInterventionsCount={false}
+            isLocked={lockedLotIds?.has(lot.id) ?? false}
             isExpanded={expandedLotIds.has(lot.id)}
             onExpand={(expanded) => {
               setExpandedLotIds(prev => {

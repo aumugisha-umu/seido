@@ -32,11 +32,12 @@ export async function createSupabaseServerClient() {
 export async function getServerSession() {
   const supabase = await createSupabaseServerClient()
   
-  const { data: { session }, error } = await supabase.auth.getSession()
-  
-  if (error || !session) {
+  const { data, error } = await supabase.auth.getSession()
+
+  if (error || !data.session) {
     return null
   }
-  
-  return session
+
+  // Spread to bypass Supabase Proxy warning on .user access
+  return { ...data.session }
 }

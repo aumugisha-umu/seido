@@ -398,7 +398,6 @@ function PropertySelectorView({
                                   <DropdownMenuItem
                                     onClick={() => {
                                       // Future feature: Archive building
-                                      console.log('Archive building:', building.id)
                                     }}
                                     className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                                     disabled
@@ -538,7 +537,6 @@ function PropertySelectorView({
                                             <DropdownMenuItem
                                               onClick={() => {
                                                 // Future feature: Archive lot
-                                                console.log('Archive lot:', lot.id)
                                               }}
                                               className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                                               disabled
@@ -556,6 +554,7 @@ function PropertySelectorView({
                                         variant={isLotSelected ? "default" : "outline"}
                                         size="sm"
                                         className="h-6 px-2 text-xs"
+                                        data-testid={`lot-select-btn-${lot.id}`}
                                         onClick={() => {
                                           if (!isLotSelected) {
                                             onLotSelect?.(lot.id.toString(), building.id.toString())
@@ -695,6 +694,7 @@ function PropertySelectorView({
                                             variant={isLotSelected ? "default" : "outline"}
                                             size="sm"
                                             className="h-7 px-3 text-xs"
+                                            data-testid={`lot-select-btn-${lot.id}`}
                                             onClick={() => {
                                               if (!isLotSelected) {
                                                 onLotSelect?.(lot.id.toString(), building.id.toString())
@@ -932,6 +932,7 @@ function PropertySelectorView({
                         variant={isSelected ? "default" : "outline"}
                         size="sm"
                         className="h-8 px-3 text-xs"
+                        data-testid={`lot-select-btn-${lot.id}`}
                         onClick={() => {
                           if (!isSelected) {
                             onLotSelect?.(lot.id?.toString() || '', undefined)
@@ -1132,6 +1133,7 @@ function PropertySelectorView({
             : 'text-slate-600 hover:bg-slate-200/60'
         }`}
         title="Vue cartes"
+        data-testid="view-toggle-cards"
       >
         <LayoutGrid className="h-4 w-4" />
       </button>
@@ -1143,6 +1145,7 @@ function PropertySelectorView({
             : 'text-slate-600 hover:bg-slate-200/60'
         }`}
         title="Vue liste"
+        data-testid="view-toggle-list"
       >
         <List className="h-4 w-4" />
       </button>
@@ -1179,13 +1182,6 @@ export default function PropertySelector(props: PropertySelectorProps) {
   const buildingsArray = props.initialData?.buildings ?? hookResult.data?.buildings ?? []
   const lotsArray = props.initialData?.lots ?? hookResult.data?.lots ?? []
   const loading = props.initialData ? false : hookResult.loading
-
-  // Debug logs (keep for diagnostics, only when using initialData)
-  if (props.initialData) {
-    console.log('🔍 [PROPERTY-SELECTOR] Using initialData')
-    console.log('   buildingsCount:', buildingsArray.length)
-    console.log('   lotsCount:', lotsArray.length)
-  }
 
   return (
     <PropertySelectorView

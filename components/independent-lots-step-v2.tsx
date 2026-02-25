@@ -123,11 +123,9 @@ export function IndependentLotsStepV2({
                   lotNumber={lotNumber}
                   isExpanded={isExpanded}
                   onUpdate={(field, value) => {
-                    console.log('📤 [STEP-V2] onUpdate called:', { lotId: lot.id, field, value })
                     onUpdateLot(lot.id, field, value)
                   }}
                   onGeocodeResult={onGeocodeResult ? (result) => {
-                    console.log('📤 [STEP-V2] onGeocodeResult called:', { lotId: lot.id, result })
                     onGeocodeResult(lot.id, result)
                   } : undefined}
                   onDuplicate={() => onDuplicateLot(lot.id)}

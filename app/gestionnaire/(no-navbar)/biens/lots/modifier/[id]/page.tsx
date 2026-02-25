@@ -6,8 +6,10 @@
 
 import { redirect } from 'next/navigation'
 import { getServerAuthContext } from '@/lib/server-context'
-import { createServerLotService, createServerTeamService } from '@/lib/services'
+import { createServerLotService, createServerTeamService, createServiceRoleSupabaseClient } from '@/lib/services'
 import { transformLotForEdit } from '@/lib/utils/lot-transform'
+import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
+import { SubscriptionRepository } from '@/lib/services/repositories/subscription.repository'
 import LotEditClient from './lot-edit-client'
 import { logger } from '@/lib/logger'
 
@@ -27,13 +29,28 @@ export default async function EditLotPage({ params }: PageProps) {
   logger.info('🔐 [LOT-EDIT-PAGE] Step 1: Getting server auth context...')
   const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
 
-  logger.info('✅ [LOT-EDIT-PAGE] Auth context obtained:', {
-    userId: user.id,
-    userEmail: user.email,
-    profileId: profile.id,
-    teamId: team.id,
-    teamName: team.name
-  })
+  // ✅ Subscription restriction: block editing of locked lots
+  let isLotLocked = false
+  try {
+    const subscriptionService = createSubscriptionService(supabase)
+    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
+    const subscriptionInfo = await subscriptionService.getSubscriptionInfo(team.id, serviceRoleRepo)
+
+    if (subscriptionInfo) {
+      const accessibleLotIds = await subscriptionService.getAccessibleLotIds(team.id, subscriptionInfo, supabase)
+      if (accessibleLotIds && !accessibleLotIds.includes(resolvedParams.id)) {
+        isLotLocked = true
+      }
+    }
+  } catch (error) {
+    // Fail open: if subscription check fails, allow access
+    logger.warn('[LOT-EDIT-PAGE] Subscription check failed, allowing access', { lotId: resolvedParams.id, error })
+  }
+
+  if (isLotLocked) {
+    logger.info('[LOT-EDIT-PAGE] Edit blocked: lot is locked by subscription restriction', { lotId: resolvedParams.id, teamId: team.id })
+    redirect('/gestionnaire/biens')
+  }
 
   // ✅ STEP 2: Initialize services
   logger.info('🔧 [LOT-EDIT-PAGE] Step 2: Initializing services...')

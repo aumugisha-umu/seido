@@ -6,13 +6,15 @@
  * Utilise les composants partagés BEM pour le nouveau design
  */
 
-import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useMemo, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { createBrowserSupabaseClient } from '@/lib/services'
@@ -29,7 +31,9 @@ import {
   InterventionDetailsCard,
   DocumentsCard,
   QuotesCard,
-  PlanningCard
+  PlanningCard,
+  ReportsCard,
+  InterventionReport,
 } from '@/components/interventions/shared'
 
 // Unified tabs component (replaces InterventionTabs)
@@ -42,8 +46,30 @@ import {
 // Tab Localisation dédié
 import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
 
-// Chat component (functional, not mock)
-import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
+// ✅ LAZY LOADED: Heavy chat component loaded on demand (US-304)
+const InterventionChatTab = dynamic(
+  () => import('@/components/interventions/intervention-chat-tab').then(mod => ({ default: mod.InterventionChatTab })),
+  {
+    loading: () => (
+      <div className="flex-1 flex flex-col p-4 space-y-4">
+        <div className="flex gap-2">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-8 w-24 rounded-full" />
+          ))}
+        </div>
+        <div className="flex-1 space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+              <Skeleton className={`h-16 ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'} rounded-lg`} />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-12 w-full rounded-lg" />
+      </div>
+    ),
+    ssr: false
+  }
+)
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
@@ -54,7 +80,7 @@ import { Building2, MapPin, User as UserIcon, Calendar } from 'lucide-react'
 // Modals
 import { QuoteSubmissionModal } from '@/components/intervention/modals/quote-submission-modal'
 import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choice-modal'
-import { MultiSlotResponseModal } from '@/components/intervention/modals/multi-slot-response-modal'
+import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
 
 // Multi-provider components
 import { LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
@@ -66,8 +92,8 @@ import { acceptTimeSlotAction, rejectTimeSlotAction } from '@/app/actions/interv
 import { useAutoExecuteAction } from '@/hooks/use-auto-execute-action'
 import { useActivityLogs } from '@/hooks/use-activity-logs'
 
-// Activity tab (shared)
-import { ActivityTab } from '@/components/interventions/activity-tab'
+// Progression card (moved from Activity tab to General tab)
+import { InterventionProgressCard } from '@/components/interventions/intervention-progress-card'
 
 // Confirmation banners
 import {
@@ -130,6 +156,7 @@ interface ParentLink {
 interface PrestataireInterventionDetailClientProps {
   intervention: Intervention
   documents: Document[]
+  reports: InterventionReport[]
   quotes: Quote[]
   threads: Thread[]
   timeSlots: TimeSlot[]
@@ -162,6 +189,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 export function PrestataireInterventionDetailClient({
   intervention,
   documents,
+  reports,
   quotes,
   threads,
   timeSlots,
@@ -174,10 +202,26 @@ export function PrestataireInterventionDetailClient({
   initialParticipantsByThread
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [autoOpenComplete, setAutoOpenComplete] = useState(false)
+
+  // Detect ?action=complete or ?action=quote query param to auto-open modals
+  useEffect(() => {
+    const action = searchParams.get('action')
+    if (action === 'complete') {
+      setAutoOpenComplete(true)
+    } else if (action === 'quote') {
+      setQuoteModalOpen(true)
+    }
+    // Clean URL to prevent re-opening on refresh
+    if (action) {
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [searchParams])
+
   const [activeTab, setActiveTab] = useState('general')
   const [refreshing, setRefreshing] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
-  const [availabilityOnlyMode, setAvailabilityOnlyMode] = useState(false) // Hide estimation section
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
   const [rejectQuoteModalOpen, setRejectQuoteModalOpen] = useState(false)
   const [quoteToReject, setQuoteToReject] = useState<Quote | null>(null)
@@ -189,8 +233,11 @@ export function PrestataireInterventionDetailClient({
   const [slotToModify, setSlotToModify] = useState<TimeSlot | null>(null)
   const [currentChoice, setCurrentChoice] = useState<'accepted' | 'rejected'>('accepted')
 
-  // Response modal state (for accept/reject with confirmation)
-  const [responseModalSlotId, setResponseModalSlotId] = useState<string | null>(null)
+  // Response modal state (all active slots)
+  const [responseModalSlots, setResponseModalSlots] = useState<ModalTimeSlot[]>([])
+  const [responseModalExisting, setResponseModalExisting] = useState<
+    Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }>
+  >({})
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // Thread type à utiliser pour InterventionChatTab
@@ -257,9 +304,8 @@ export function PrestataireInterventionDetailClient({
       },
       // Prestataire rejects a time slot
       reject_slot: async ({ slotId }) => {
-        // Open MultiSlotResponseModal (handles both accept and reject)
-        setResponseModalSlotId(slotId)
-        setIsResponseModalOpen(true)
+        // Open MultiSlotResponseModal with all active slots
+        handleOpenResponseModal(slotId)
         throw new Error('Veuillez indiquer la raison du refus')
       },
       // Prestataire submits a quick estimate
@@ -271,7 +317,6 @@ export function PrestataireInterventionDetailClient({
         }
 
         // Open the quote modal with pre-filled amount
-        setAvailabilityOnlyMode(false)
         setQuoteModalOpen(true)
 
         // Note: The modal will handle the actual submission
@@ -345,6 +390,16 @@ export function PrestataireInterventionDetailClient({
   const hasProposedSlots = pendingSlotsForCurrentUser.length > 0
   const proposedSlotsCount = pendingSlotsForCurrentUser.length
 
+  // Count ALL active (non-cancelled/selected/confirmed/rejected) slots, regardless of response
+  const totalActiveSlotsCount = useMemo(() => {
+    return timeSlots.filter(slot =>
+      !['cancelled', 'selected', 'confirmed', 'rejected'].includes(slot.status)
+    ).length
+  }, [timeSlots])
+
+  // True when user has responded to all proposed slots (none pending, but active slots exist)
+  const hasRespondedToAllSlots = totalActiveSlotsCount > 0 && proposedSlotsCount === 0
+
   // Handler to navigate to planning tab when clicking "Voir les créneaux"
   const handleViewSlots = () => {
     setActiveTab('planning')
@@ -409,7 +464,9 @@ export function PrestataireInterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'manager' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'manager' as const,
+        hasAccount: !!a.user!.auth_user_id
       })),
     providers: assignments
       .filter(a => a.role === 'prestataire' && a.user)
@@ -418,7 +475,9 @@ export function PrestataireInterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'provider' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'provider' as const,
+        hasAccount: !!a.user!.auth_user_id
       })),
     tenants: assignments
       .filter(a => a.role === 'locataire' && a.user)
@@ -427,7 +486,9 @@ export function PrestataireInterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'tenant' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'tenant' as const,
+        hasAccount: !!a.user!.auth_user_id
       }))
   }), [assignments])
 
@@ -465,15 +526,13 @@ export function PrestataireInterventionDetailClient({
     }))
   , [timeSlots])
 
-  // Slot sélectionné pour la modale de réponse
-  const selectedSlotForResponse = responseModalSlotId
-    ? timeSlots.find(s => s.id === responseModalSlotId)
-    : null
-
-  // Réponse actuelle de l'utilisateur pour ce slot
-  const currentUserResponseForSlot = selectedSlotForResponse
-    ? (selectedSlotForResponse as any).responses?.find((r: any) => r.user_id === currentUser.id)?.response
-    : null
+  // Slots proposed by current user (for cancel-on-accept logic)
+  const userProposedSlotIds = useMemo(() =>
+    timeSlots
+      .filter(s => s.proposed_by === currentUser.id && (s.status === 'pending' || s.status === 'requested'))
+      .map(s => s.id),
+    [timeSlots, currentUser.id]
+  )
 
   // Documents transformés pour DocumentsCard
   const transformedDocuments: InterventionDocument[] = useMemo(() =>
@@ -501,38 +560,130 @@ export function PrestataireInterventionDetailClient({
     setActiveTab('conversations')
   }
 
+  const handleViewDocument = async (documentId: string) => {
+    const doc = documents.find(d => d.id === documentId)
+    if (!doc) {
+      toast.error('Document non trouvé')
+      return
+    }
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { data, error } = await supabase.storage
+        .from(doc.storage_bucket)
+        .createSignedUrl(doc.storage_path, 3600)
+      if (error) throw error
+      window.open(data.signedUrl, '_blank')
+    } catch {
+      toast.error("Impossible d'ouvrir le document")
+    }
+  }
+
+  const handleDownloadDocument = async (documentId: string) => {
+    const doc = documents.find(d => d.id === documentId)
+    if (!doc) {
+      toast.error('Document non trouvé')
+      return
+    }
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const fileName = doc.original_filename || doc.filename || 'document'
+      const { data, error } = await supabase.storage
+        .from(doc.storage_bucket)
+        .createSignedUrl(doc.storage_path, 3600, { download: fileName })
+      if (error) throw error
+      const link = document.createElement('a')
+      link.href = data.signedUrl
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch {
+      toast.error('Impossible de télécharger le document')
+    }
+  }
+
   const handleRefresh = async () => {
     setRefreshing(true)
     router.refresh()
     setTimeout(() => setRefreshing(false), 1000)
   }
 
-  // Handle reject slot - opens the reject modal
+  // Handle reject slot — opens response modal with ALL active slots, pre-filled as reject
   const handleRejectSlot = (slot: TimeSlot) => {
-    setSlotToReject(slot)
-    setRejectSlotModalOpen(true)
+    handleOpenResponseModal(slot.id, 'reject')
   }
 
-  // Handle accept slot - opens the response modal for confirmation
+  // Handle accept slot — opens response modal with ALL active slots, pre-filled as accept
   const handleAcceptSlot = (slot: TimeSlot) => {
-    console.log('🔵 [DEBUG] handleAcceptSlot called:', { slotId: slot?.id, interventionId: intervention.id })
     if (!slot) {
-      console.error('🔴 [DEBUG] handleAcceptSlot: slot is undefined!')
       toast.error('Erreur: créneau non trouvé')
       return
     }
-    // Open the response modal instead of calling action directly
-    setResponseModalSlotId(slot.id)
-    setIsResponseModalOpen(true)
+    handleOpenResponseModal(slot.id, 'accept')
   }
 
-  // Handle opening response modal (for modify choice button)
-  const handleOpenResponseModal = (slotId: string) => {
-    const slotExists = timeSlots.some(s => s.id === slotId)
-    if (slotExists) {
-      setResponseModalSlotId(slotId)
-      setIsResponseModalOpen(true)
+  // Handle opening response modal — shows ALL active slots
+  // intent param pre-fills the clicked slot's response (accept/reject)
+  const handleOpenResponseModal = (slotId: string, intent?: 'accept' | 'reject') => {
+    const activeSlots = timeSlots.filter(s =>
+      s.status !== 'cancelled' && s.status !== 'rejected'
+    )
+
+    const modalSlots: ModalTimeSlot[] = activeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      notes: (slot as any).notes || null,
+      proposer_name: slot.proposed_by_user?.first_name
+        ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`
+        : slot.proposed_by_user?.company_name || (slot.proposed_by_user as any)?.name,
+      proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+      responses: ((slot as any).responses || []).map((r: any) => ({
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: {
+          name: r.user?.first_name
+            ? `${r.user.first_name} ${r.user.last_name || ''}`
+            : r.user?.company_name || r.user?.name || 'Utilisateur',
+          role: r.user?.role
+        }
+      }))
+    }))
+
+    // Build existingResponses: 'accepted'->'accept', 'rejected'->'reject'
+    const existing: Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }> = {}
+    for (const slot of activeSlots) {
+      const userResp = ((slot as any).responses || []).find(
+        (r: any) => r.user_id === currentUser.id
+      )
+      if (userResp && userResp.response !== 'pending') {
+        existing[slot.id] = {
+          response: userResp.response === 'accepted' ? 'accept'
+                  : userResp.response === 'rejected' ? 'reject'
+                  : 'pending',
+          reason: userResp.notes || undefined
+        }
+      }
     }
+
+    // Overlay user's click intent for the target slot
+    if (slotId && intent) {
+      existing[slotId] = { response: intent }
+      // If accepting, auto-reject all other pending slots (matches modal behavior)
+      if (intent === 'accept') {
+        for (const s of activeSlots) {
+          if (s.id !== slotId && !existing[s.id]) {
+            existing[s.id] = { response: 'reject', reason: 'Autre créneau accepté' }
+          }
+        }
+      }
+    }
+
+    setResponseModalSlots(modalSlots)
+    setResponseModalExisting(existing)
+    setIsResponseModalOpen(true)
   }
 
   // Handle modify choice - opens the modify choice modal
@@ -540,12 +691,6 @@ export function PrestataireInterventionDetailClient({
     setSlotToModify(slot)
     setCurrentChoice(currentResponse)
     setModifyChoiceModalOpen(true)
-  }
-
-  // Handle opening availability modal (quote submission modal in availability-only mode)
-  const handleOpenAvailabilityModal = () => {
-    setAvailabilityOnlyMode(true)
-    setQuoteModalOpen(true)
   }
 
   // Handle opening reject quote modal from action panel
@@ -633,15 +778,17 @@ export function PrestataireInterventionDetailClient({
 
   // Handle opening quote submission modal (full quote with estimation)
   const handleOpenQuoteModal = () => {
-    setSelectedQuote(null)
-    setAvailabilityOnlyMode(false) // Show full form with estimation
+    // Find existing pending quote request for this provider so the API uses UPDATE path
+    const pendingQuote = transformedQuotes.find(
+      q => q.provider_id === currentUser.id && (q.status === 'pending' || q.status === 'sent')
+    ) || null
+    setSelectedQuote(pendingQuote)
     setQuoteModalOpen(true)
   }
 
   // Handle editing existing quote
   const handleEditQuote = (quote: Quote) => {
     setSelectedQuote(quote)
-    setAvailabilityOnlyMode(false) // Ensure full form is shown when editing
     setQuoteModalOpen(true)
   }
 
@@ -657,9 +804,7 @@ export function PrestataireInterventionDetailClient({
       laborCost: laborItem?.total || quote.amount || 0,
       materialsCost: materialsItem?.total || 0,
       workDetails: quote.description || '',
-      estimatedDurationHours: laborItem?.quantity || 1,
       attachments: [],
-      providerAvailabilities: []
     }
   }
 
@@ -751,6 +896,7 @@ export function PrestataireInterventionDetailClient({
               status: intervention.status,
               tenant_id: intervention.tenant_id || undefined,
               scheduled_date: intervention.scheduled_date || undefined,
+              requires_quote: intervention.requires_quote || false,
               quotes: quotes.map(q => ({
                 id: q.id,
                 status: q.status,
@@ -769,7 +915,7 @@ export function PrestataireInterventionDetailClient({
             onEditQuote={handleEditQuote}
             onRejectQuoteRequest={handleRejectQuoteRequest}
             onCancelQuote={handleCancelQuote}
-            onProposeSlots={handleOpenAvailabilityModal}
+            autoOpenComplete={autoOpenComplete}
           />
         }
         hasGlobalNav={false}
@@ -810,24 +956,6 @@ export function PrestataireInterventionDetailClient({
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <ContentWrapper>
-                  {/* Bannières de confirmation si nécessaire */}
-                  {/* Show slot banner if there are pending slots, otherwise show confirmation banner */}
-                  {hasProposedSlots ? (
-                    <ConfirmationRequiredBanner
-                      interventionId={intervention.id}
-                      hasProposedSlots={true}
-                      proposedSlotsCount={proposedSlotsCount}
-                      onViewSlots={handleViewSlots}
-                    />
-                  ) : showConfirmationBanner && (
-                    <ConfirmationRequiredBanner
-                      interventionId={intervention.id}
-                      scheduledDate={intervention.scheduled_date}
-                      scheduledTime={null}
-                      onConfirm={handleConfirmationResponse}
-                      onReject={handleConfirmationResponse}
-                    />
-                  )}
                   {showConfirmedBanner && <ConfirmationSuccessBanner />}
                   {showRejectedBanner && <ConfirmationRejectedBanner />}
 
@@ -842,29 +970,61 @@ export function PrestataireInterventionDetailClient({
                       currentUserId={currentUser.id}
                       currentUserRole="prestataire"
                       onOpenChat={handleOpenChatFromParticipant}
+                      onOpenSlotResponseModal={() => handleOpenResponseModal('')}
+                      onOpenQuoteModal={handleOpenQuoteModal}
+                      pendingSlotsForUser={proposedSlotsCount}
+                      requiresQuote={intervention.requires_quote}
+                      hasSubmittedQuote={transformedQuotes.some(q => q.provider_id === currentUser.id && q.status === 'sent')}
                       planning={{
                         scheduledDate,
-                        status: scheduledDate ? 'scheduled' : 'pending',
+                        schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
+                        status: scheduledDate ? 'scheduled'
+                          : proposedSlotsCount > 0 ? 'proposed'
+                          : hasRespondedToAllSlots ? 'responded'
+                          : 'pending',
+                        proposedSlotsCount: hasRespondedToAllSlots ? totalActiveSlotsCount : proposedSlotsCount,
                         quotesCount: transformedQuotes.length,
-                        quotesStatus: transformedQuotes.some(q => q.status === 'approved')
+                        requestedQuotesCount: transformedQuotes.filter(q => q.status === 'pending').length,
+                        receivedQuotesCount: transformedQuotes.filter(q => q.status === 'sent').length,
+                        quotesStatus: transformedQuotes.some(q => q.status === 'accepted')
                           ? 'approved'
-                          : transformedQuotes.length > 0
+                          : transformedQuotes.some(q => q.status === 'sent')
                             ? 'received'
-                            : 'pending',
-                        selectedQuoteAmount: transformedQuotes.find(q => q.status === 'approved')?.amount
+                            : intervention.requires_quote
+                              ? 'pending'
+                              : 'none',
+                        selectedQuoteAmount: transformedQuotes.find(q => q.status === 'accepted')?.amount
                       }}
                     />
                   </div>
 
-                  {/* Documents */}
-                  <div className="mt-6 flex-1 min-h-0 overflow-hidden">
+                  {/* Rapports de clôture */}
+                  {reports.length > 0 && (
+                    <div className="mt-6">
+                      <ReportsCard reports={reports} />
+                    </div>
+                  )}
+
+                  {/* Documents & Progression — side by side on desktop, stacked on mobile */}
+                  <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <DocumentsCard
                       documents={transformedDocuments}
                       userRole="provider"
-                      onUpload={() => console.log('Upload document')}
-                      onView={(id) => console.log('View document:', id)}
-                      onDownload={(id) => console.log('Download document:', id)}
-                      className="overflow-hidden h-full"
+                      onUpload={() => { /* TODO: implement document upload */ }}
+                      onView={handleViewDocument}
+                      onDownload={handleDownloadDocument}
+                    />
+                    <InterventionProgressCard
+                      intervention={intervention}
+                      activityLogs={activityLogs.map(log => ({
+                        ...log,
+                        user: (log as any).user_name ? {
+                          id: (log as any).user_id,
+                          name: (log as any).user_name,
+                          email: (log as any).user_email || '',
+                          avatar_url: (log as any).user_avatar_url || null
+                        } : undefined
+                      }))}
                     />
                   </div>
                 </ContentWrapper>
@@ -915,57 +1075,36 @@ export function PrestataireInterventionDetailClient({
                 />
               </TabsContent>
 
-              {/* TAB: ACTIVITÉ */}
-              <TabsContent value="activity" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
-                  <ActivityTab
-                    intervention={intervention}
-                    activityLogs={activityLogs.map(log => ({
-                      ...log,
-                      user: (log as any).user_name ? {
-                        id: (log as any).user_id,
-                        name: (log as any).user_name,
-                        email: (log as any).user_email || '',
-                        avatar_url: (log as any).user_avatar_url || null
-                      } : undefined
-                    }))}
-                  />
-                </div>
-              </TabsContent>
 
               {/* TAB: PLANNING */}
-              <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
-                  {/* Devis du prestataire */}
-                  <QuotesCard
-                    quotes={transformedQuotes.filter(q => q.provider_id === currentUser.id)}
-                    userRole="provider"
-                    showActions={false}
-                    onAddQuote={handleOpenQuoteModal}
-                    className="flex-1 min-h-0"
-                  />
-
+              <TabsContent value="planning" className="mt-0 flex-1 overflow-auto">
+                <div className="flex flex-col gap-4 p-4 sm:p-6">
                   {/* Planning */}
                   <PlanningCard
                     timeSlots={transformedTimeSlots}
                     scheduledDate={scheduledDate || undefined}
                     scheduledStartTime={scheduledStartTime || undefined}
+                    schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
                     userRole="provider"
                     currentUserId={currentUser.id}
-                    onAddSlot={handleOpenAvailabilityModal}
                     onApproveSlot={(slotId) => {
-                      console.log('🔵 [DEBUG] PlanningCard onApproveSlot called:', { slotId, timeSlotsCount: timeSlots.length })
                       const slot = timeSlots.find(s => s.id === slotId)
-                      console.log('🔵 [DEBUG] Slot found:', slot ? { id: slot.id, date: slot.slot_date } : 'NOT FOUND')
                       if (slot) handleAcceptSlot(slot)
-                      else console.error('🔴 [DEBUG] Slot not found in timeSlots array!')
+                      else console.error('Slot not found in timeSlots array for id:', slotId)
                     }}
                     onRejectSlot={(slotId) => {
                       const slot = timeSlots.find(s => s.id === slotId)
                       if (slot) handleRejectSlot(slot)
                     }}
                     onOpenResponseModal={handleOpenResponseModal}
-                    className="flex-1 min-h-0"
+                  />
+
+                  {/* Devis du prestataire */}
+                  <QuotesCard
+                    quotes={transformedQuotes.filter(q => q.provider_id === currentUser.id)}
+                    userRole="provider"
+                    showActions={true}
+                    onRespondToQuote={handleOpenQuoteModal}
                   />
                 </div>
               </TabsContent>
@@ -982,7 +1121,6 @@ export function PrestataireInterventionDetailClient({
           ...intervention,
           urgency: intervention.urgency || 'normale',
           priority: intervention.urgency || 'normale',
-          time_slots: timeSlots
         }}
         existingQuote={selectedQuote ? transformQuoteToExistingQuote(selectedQuote) : undefined}
         quoteRequest={selectedQuote ? {
@@ -995,10 +1133,8 @@ export function PrestataireInterventionDetailClient({
         onSuccess={() => {
           setQuoteModalOpen(false)
           setSelectedQuote(null)
-          setAvailabilityOnlyMode(false) // Reset mode
           handleRefresh()
         }}
-        hideEstimationSection={availabilityOnlyMode}
       />
 
       {/* Reject Quote Request Modal */}
@@ -1054,42 +1190,22 @@ export function PrestataireInterventionDetailClient({
         </DialogContent>
       </Dialog>
 
-      {/* Multi Slot Response Modal (handles both accept and reject for multiple slots) */}
-      {selectedSlotForResponse && (
+      {/* Multi Slot Response Modal (all active slots with pre-filled responses) */}
+      {responseModalSlots.length > 0 && (
         <MultiSlotResponseModal
           isOpen={isResponseModalOpen}
           onClose={() => {
             setIsResponseModalOpen(false)
-            setResponseModalSlotId(null)
+            setResponseModalSlots([])
+            setResponseModalExisting({})
           }}
-          slots={[{
-            id: selectedSlotForResponse.id,
-            slot_date: selectedSlotForResponse.slot_date || '',
-            start_time: selectedSlotForResponse.start_time || '',
-            end_time: selectedSlotForResponse.end_time || '',
-            notes: (selectedSlotForResponse as any).notes,
-            proposer_name: selectedSlotForResponse.proposed_by_user?.first_name
-              ? `${selectedSlotForResponse.proposed_by_user.first_name} ${selectedSlotForResponse.proposed_by_user.last_name || ''}`
-              : selectedSlotForResponse.proposed_by_user?.company_name,
-            proposer_role: selectedSlotForResponse.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
-            responses: (selectedSlotForResponse as any).responses?.map((r: any) => ({
-              user_id: r.user_id,
-              response: r.response as 'accepted' | 'rejected' | 'pending',
-              user: {
-                name: r.user?.first_name
-                  ? `${r.user.first_name} ${r.user.last_name || ''}`
-                  : r.user?.company_name || 'Utilisateur',
-                role: r.user?.role
-              }
-            })) || []
-          }]}
+          slots={responseModalSlots}
           interventionId={intervention.id}
-          existingResponses={currentUserResponseForSlot ? { [selectedSlotForResponse.id]: { response: currentUserResponseForSlot } } : undefined}
-          onSuccess={() => {
-            setIsResponseModalOpen(false)
-            setResponseModalSlotId(null)
-            handleRefresh()
-          }}
+          existingResponses={Object.keys(responseModalExisting).length > 0
+            ? responseModalExisting
+            : undefined}
+          userProposedSlotIds={userProposedSlotIds}
+          onSuccess={handleRefresh}
         />
       )}
 

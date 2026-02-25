@@ -65,7 +65,6 @@ export function useEmailPolling({
 
     // Stop polling if we've had too many auth failures
     if (authFailures.current >= MAX_AUTH_FAILURES) {
-      console.log('[EMAIL-POLLING] Stopped due to auth failures')
       return
     }
 

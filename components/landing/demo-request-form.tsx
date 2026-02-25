@@ -115,7 +115,6 @@ export function DemoRequestForm({
         await onSubmit(data)
       } else {
         // Comportement par défaut: alert
-        console.log('Demo request submitted:', data)
         alert('Merci ! Notre équipe vous contactera sous 24h.')
       }
 

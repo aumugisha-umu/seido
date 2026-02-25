@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { getServiceRoleClient } from '@/lib/api-service-role-helper'
 
 /**
  * Lightweight endpoint for email polling
@@ -28,44 +29,48 @@ export async function GET(request: Request) {
 
     const teamId = membership.team_id
 
+    // Use service role client for email queries (bypasses slow RLS with 6 policies)
+    // Security: User already validated as team manager above
+    const supabaseAdmin = getServiceRoleClient()
+
     // Fetch counts + latest emails in parallel (lightweight queries)
     const [inboxUnread, processedCount, sentCount, archiveCount, latestEmails, lastSync] = await Promise.all([
       // Inbox: Unread received emails
-      supabase
+      supabaseAdmin
         .from('emails')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('team_id', teamId)
         .eq('direction', 'received')
         .eq('status', 'unread')
         .is('deleted_at', null),
 
       // Processed: Read received emails
-      supabase
+      supabaseAdmin
         .from('emails')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('team_id', teamId)
         .eq('direction', 'received')
         .eq('status', 'read')
         .is('deleted_at', null),
 
       // Sent
-      supabase
+      supabaseAdmin
         .from('emails')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('team_id', teamId)
         .eq('direction', 'sent')
         .is('deleted_at', null),
 
       // Archive
-      supabase
+      supabaseAdmin
         .from('emails')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('team_id', teamId)
         .eq('status', 'archived')
         .is('deleted_at', null),
 
       // Latest 10 emails (ID only for comparison)
-      supabase
+      supabaseAdmin
         .from('emails')
         .select('id, created_at, from_address, subject, status')
         .eq('team_id', teamId)
@@ -75,7 +80,7 @@ export async function GET(request: Request) {
         .limit(10),
 
       // Last sync timestamp
-      supabase
+      supabaseAdmin
         .from('team_email_connections')
         .select('last_sync_at')
         .eq('team_id', teamId)

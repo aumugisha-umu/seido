@@ -1,0 +1,77 @@
+# Progress Log — Testing Infrastructure: Full Cleanup & Implementation
+# Started: 2026-02-20
+# Stories: 11 total
+# Based on: tests/TESTING-AUDIT.md (brainstorming audit)
+---
+
+## Pre-existing work (from brainstorming phase)
+- Comprehensive audit written to tests/TESTING-AUDIT.md
+- 750+ manual QA test cases documented, 0 automated
+- E2E infrastructure created: vitest.e2e.config.ts, helpers/auth.ts, helpers/browser.ts, smoke.e2e.ts
+- Login auth helper fixed for SEIDO's useActionState redirect pattern
+- 4 critical bugs fixed in use-multi-lot-document-upload.ts (camelCase→snake_case)
+- Building creation page skeleton timeout identified (cold server fetches in dev mode)
+- Cookie consent banner helper created (inline in smoke.e2e.ts)
+- Stale files identified: tests-new/ (Playwright without dep), old screenshots
+
+## 2026-02-20 — US-001: Delete stale files (XS) ✅
+- Deleted tests-new/ directory (stale Playwright tests, no Playwright dep)
+- Deleted 8 debug screenshots from tests/e2e/screenshots/
+- Verified no orphaned imports remain
+- Files: -tests-new/*.ts, -tests/e2e/screenshots/*.png
+
+## 2026-02-20 — US-003: Install cross-env (XS) ✅
+- Installed cross-env@10.1.0 as devDependency
+- Updated test:e2e:preview: cmd /c "set..." → cross-env VITEST_MODE=preview ...
+- Updated test:e2e:headed: cmd /c "set..." → cross-env E2E_HEADLESS=false ...
+- Files: package.json, package-lock.json
+
+## 2026-02-20 — US-002: Reorganize directory structure (S) ✅
+- Created tests/fixtures/test-accounts.ts (shared, moved from e2e/fixtures/)
+- Created tests/fixtures/known-entities.ts (routes + content markers)
+- Old tests/e2e/fixtures/test-accounts.ts → re-export barrel for backwards compat
+- Created tests/e2e/pages/ directory (for POMs)
+- Created tests/unit/ directory (for unit tests)
+- Files: tests/fixtures/test-accounts.ts, tests/fixtures/known-entities.ts, tests/e2e/fixtures/test-accounts.ts
+
+## 2026-02-20 — US-004: Extract cookie helper + utilities (S) ✅
+- Created tests/e2e/helpers/cookies.ts with dismissCookieBanner()
+- Added waitForContent() to tests/e2e/helpers/selectors.ts
+- Refactored smoke.e2e.ts to import both + use KNOWN_ENTITIES for routes/markers
+- Learnings: waitForContent() with polling is essential for streaming Server Components
+- Files: tests/e2e/helpers/cookies.ts, tests/e2e/helpers/selectors.ts, tests/e2e/smoke.e2e.ts
+
+## 2026-02-20 — US-005: Create Page Object Models (S) ✅
+- Created tests/e2e/pages/login.page.ts (LoginPage POM with loginAs())
+- Created tests/e2e/pages/dashboard.page.ts (DashboardPage with isLoaded())
+- Refactored auth.ts to delegate to LoginPage POM
+- Refactored smoke.e2e.ts to use both POMs
+- Learnings: POM pattern encapsulates SEIDO's useActionState redirect dance
+- Files: tests/e2e/pages/login.page.ts, tests/e2e/pages/dashboard.page.ts, tests/e2e/helpers/auth.ts, tests/e2e/smoke.e2e.ts
+
+## 2026-02-20 — US-007: Add data-testid attributes (M) ✅
+- login-form.tsx: login-email-input, login-password-input, login-submit-btn
+- step-progress-header.tsx: step-item-${stepNumber} (dynamic)
+- building-creation-form.tsx: wizard-prev-btn, wizard-next-btn/wizard-submit-btn
+- lot page.tsx: wizard-prev-btn, wizard-next-btn, wizard-submit-btn
+- gestionnaire-sidebar.tsx: sidebar-nav-${segment} (dynamic)
+- Files: 5 component files modified, 0 visual regressions
+
+## 2026-02-20 — US-010: Unit tests for utilities (M) ✅
+- Created tests/unit/vat-validator.test.ts (19 tests) — Belgian VAT checksum, formatting, normalization
+- Created tests/unit/quote-status.test.ts (24 tests) — badge status priority, labels, colors, counts
+- Created tests/unit/intervention-location.test.ts (8 tests) — location formatting, fallbacks
+- Updated vitest.config.ts: include tests/unit/, exclude tests/e2e/
+- All 51 new tests pass. 4 pre-existing failures (stale expectations, not our scope)
+- Files: 3 test files + vitest.config.ts
+
+## 2026-02-20 — US-011: Consolidate configs & docs (S) ✅
+- TESTING-AUDIT.md Section 10 added with full implementation status
+- CLAUDE.md updated: Playwright ref replaced with Puppeteer + vitest commands
+- vitest.config.ts already updated in US-010
+- Files: tests/TESTING-AUDIT.md, .claude/CLAUDE.md
+
+## BLOCKED stories (require dev server on localhost:3000)
+- US-006: Fix all 5 smoke tests passing reliably
+- US-008: Building creation wizard E2E test
+- US-009: Lot creation wizard E2E test

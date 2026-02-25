@@ -70,7 +70,7 @@ export default function NouvelleDemandePage({
   const [selectedLogement, setSelectedLogement] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     type: "",
-    urgence: "",
+    urgence: "normale",
     description: "",
   })
   const [isCreating, setIsCreating] = useState(false)
@@ -180,7 +180,7 @@ export default function NouvelleDemandePage({
 
   const handleLogementSelect = (logementId: string) => {
     setSelectedLogement(logementId)
-    setCurrentStep(2)
+    // L'utilisateur cliquera sur "Sélectionner ce logement" pour avancer
   }
 
   const handleInputChange = (field: string, value: string) => {
@@ -328,7 +328,15 @@ export default function NouvelleDemandePage({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {logements.map((logement) => (
-          <Card key={logement.id} className="border hover:border-blue-300 transition-colors">
+          <Card
+            key={logement.id}
+            className={`border transition-colors cursor-pointer ${
+              selectedLogement === logement.id
+                ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50/50'
+                : 'hover:border-blue-300'
+            }`}
+            onClick={() => handleLogementSelect(logement.id)}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Home className="h-5 w-5 text-gray-600 shrink-0" />
@@ -345,8 +353,15 @@ export default function NouvelleDemandePage({
               <p className="text-sm text-gray-600 mb-1">{logement.surface}</p>
               <p className="text-sm text-gray-500 mb-3">{logement.interventions}</p>
 
-              <Button onClick={() => handleLogementSelect(logement.id)} className="w-full" variant="outline">
-                Sélectionner
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleLogementSelect(logement.id)
+                }}
+                className="w-full"
+                variant={selectedLogement === logement.id ? "default" : "outline"}
+              >
+                {selectedLogement === logement.id ? "✓ Sélectionné" : "Sélectionner"}
               </Button>
             </CardContent>
           </Card>

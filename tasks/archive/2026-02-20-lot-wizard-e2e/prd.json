@@ -1,0 +1,136 @@
+{
+  "project": "SEIDO",
+  "featureName": "Lot Wizard — Server Component Refactoring + Independent Mode E2E",
+  "branchName": "preview",
+  "description": "Refactor the lot creation wizard (2872-line monolithic Client Component) to follow Next.js/React/Supabase best practices: Server Component wrapper with getServerAuthContext(), remove useTeamStatus/useAuth/TeamCheckModal, add data-testid attributes, and enable full E2E testing including independent mode.",
+  "createdAt": "2026-02-20",
+  "prdSource": ".claude/plans/giggly-petting-hickey.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create Server Component page.tsx for lot wizard",
+      "description": "As a developer, I want a thin Server Component wrapper (like the building wizard) that handles auth + data loading server-side, so the client form never needs useTeamStatus/useAuth.",
+      "acceptanceCriteria": [
+        "New page.tsx uses getServerAuthContext('gestionnaire')",
+        "Team managers loaded server-side (same pattern as immeubles/nouveau/page.tsx)",
+        "Category counts loaded server-side",
+        "searchParams.buildingId passed as prop for pre-fill",
+        "Imports and renders LotCreationForm client component",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Created 75-line Server Component mirroring immeubles/nouveau/page.tsx. Added searchParams.buildingId prop for pre-fill. Lint clean."
+    },
+    {
+      "id": "US-002",
+      "title": "Refactor page.tsx → lot-creation-form.tsx (client component)",
+      "description": "As a developer, I want the existing lot wizard page renamed and cleaned up: remove useAuth, useTeamStatus, TeamCheckModal, isMounted, and all client-side data loading effects — replace with props from the Server Component.",
+      "acceptanceCriteria": [
+        "File renamed from page.tsx to lot-creation-form.tsx",
+        "Props interface added (userProfile, userTeam, allTeams, initialTeamManagers, initialCategoryCounts, prefillBuildingId)",
+        "useAuth() removed — replaced with userProfile prop",
+        "useTeamStatus() removed entirely",
+        "TeamCheckModal import and early return (line 879) removed",
+        "isMounted state + useEffect removed",
+        "loadUserTeamAndManagers effect (lines 368-467) removed — initialized from props",
+        "loadCategoryCountsByTeam effect (lines 469-500) removed — initialized from props",
+        "useSearchParams().get('buildingId') replaced with prefillBuildingId prop",
+        "loading.tsx deleted (no longer needed)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "2872→2711 lines (-161). Removed useAuth, useTeamStatus, TeamCheckModal, isMounted, 2 data-loading effects, lazy service init. All replaced by 6 props from Server Component. Deleted loading.tsx. Lint clean."
+    },
+    {
+      "id": "US-003",
+      "title": "Add data-testid to radio buttons + verify wizard works",
+      "description": "As a test author, I want data-testid attributes on the step 1 radio buttons so E2E tests can reliably select building association modes.",
+      "acceptanceCriteria": [
+        "data-testid='radio-existing' on the existing building radio div",
+        "data-testid='radio-new' on the new building radio div",
+        "data-testid='radio-independent' on the independent radio div",
+        "Radio switching works without TeamCheckModal flash (manual verify or E2E)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Added 3 data-testid attributes to radio divs in lot-creation-form.tsx. TeamCheckModal is fully removed so no flash possible."
+    },
+    {
+      "id": "US-004",
+      "title": "E2E test: Lot wizard existing building mode (7 tests)",
+      "description": "As a developer, I want the existing 7 E2E tests for the lot wizard (existing building flow) to pass after the refactoring.",
+      "acceptanceCriteria": [
+        "All 7 existing tests pass: load step 1, select building, navigate steps 2-5, back navigation",
+        "Tests pass in 2 consecutive runs (no flakiness)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Fixed 4 remaining bare `user` references → `userProfile`. All 7 tests pass in 2 consecutive runs (0 flakiness)."
+    },
+    {
+      "id": "US-005",
+      "title": "E2E test: Lot wizard independent mode",
+      "description": "As a developer, I want E2E tests that validate the independent lot creation flow: selecting independent mode, navigating all 5 steps, and verifying state preservation on back navigation.",
+      "acceptanceCriteria": [
+        "POM updated with selectIndependentMode() method using data-testid",
+        "New describe block with 3+ tests for independent mode",
+        "Test 1: select independent mode on step 1 — wizard stays visible, Next enabled",
+        "Test 2: navigate through all 5 steps in independent mode",
+        "Test 3: navigate back to step 1 with state preserved",
+        "All tests pass in 2 consecutive runs",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-004"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added selectIndependentMode() + fillIndependentLotAddress() to POM. 3 new tests (10 total). Key fixes: click label[for=independent] for Radix, navigate via dashboard to clear Next.js client cache, page.evaluate clicks for hydration safety. 3 consecutive runs pass."
+    },
+    {
+      "id": "US-006",
+      "title": "Extend POM with submission methods",
+      "description": "As a test author, I want clickSubmit(), waitForSuccessToast(), and waitForRedirect() methods in the POM so E2E tests can verify real form submission.",
+      "acceptanceCriteria": [
+        "clickSubmit() method clicks wizard-submit-btn on step 5",
+        "waitForSuccessToast(timeout) waits for 'créé avec succès' text in DOM",
+        "waitForRedirect(urlPart, timeout) polls URL for client-side navigation",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-005"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added 3 methods to POM: clickSubmit (waits for selector + clicks), waitForSuccessToast (polls DOM text), waitForRedirect (polls URL for client-side nav). Lint clean."
+    },
+    {
+      "id": "US-007",
+      "title": "E2E: Submit and create lots in DB (both modes)",
+      "description": "As a developer, I want E2E tests that actually submit the lot wizard form and verify real data creation in staging DB — toast message + redirect URL for both existing building and independent modes.",
+      "acceptanceCriteria": [
+        "Test 1: existing building mode — submit creates lot, toast 'créé avec succès', redirect to /gestionnaire/biens/immeubles/{id}",
+        "Test 2: independent mode — submit creates lot, toast 'créé avec succès', redirect to /gestionnaire/biens",
+        "Both tests pass in 2 consecutive runs (no flakiness)",
+        "All 12 tests pass (10 navigation + 2 submission)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-006"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added 2 submission tests (existing building + independent). Key: waitForNextEnabled(15_000) before every clickNext() prevents auto-init useEffect race. Also added submission test to building-creation.e2e.ts (bonus). 2 consecutive runs pass (12/12), 0 flakiness."
+    }
+  ]
+}

@@ -56,38 +56,15 @@ export class LotService {
    */
   async getById(id: string) {
     const startTime = Date.now()
-    console.log(`🏢 [LOT-SERVICE] getById called`, {
-      lotId: id,
-      timestamp: new Date().toISOString()
-    })
-
-    console.log(`📍 [LOT-SERVICE] Calling repository.findById()...`, { lotId: id })
-    const repositoryStart = Date.now()
+    logger.debug({ lotId: id }, '[LOT-SERVICE] getById called')
 
     const result = await this.repository.findById(id)
 
-    const repositoryElapsed = Date.now() - repositoryStart
-    console.log(`⏱️ [LOT-SERVICE] repository.findById() returned`, {
-      lotId: id,
-      success: result.success,
-      hasData: !!result.data,
-      elapsed: `${repositoryElapsed}ms`
-    })
-
     if (!result.success) {
-      console.error(`❌ [LOT-SERVICE] Repository returned error`, {
-        lotId: id,
-        error: result.error,
-        totalElapsed: `${Date.now() - startTime}ms`
-      })
       return result
     }
 
     if (!result.data) {
-      console.error(`❌ [LOT-SERVICE] No data in successful result`, {
-        lotId: id,
-        totalElapsed: `${Date.now() - startTime}ms`
-      })
       return {
         success: false as const,
         error: {
@@ -97,12 +74,7 @@ export class LotService {
       }
     }
 
-    const totalElapsed = Date.now() - startTime
-    console.log(`✅ [LOT-SERVICE] getById completed successfully`, {
-      lotId: id,
-      lotReference: result.data.reference,
-      totalElapsed: `${totalElapsed}ms`
-    })
+    logger.debug({ lotId: id, elapsed: Date.now() - startTime }, '[LOT-SERVICE] getById completed')
 
     return result
   }

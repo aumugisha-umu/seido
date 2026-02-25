@@ -1,0 +1,119 @@
+{
+  "project": "SEIDO",
+  "featureName": "E2E Testing Infrastructure + Document Upload & Intervention Validation",
+  "branchName": "preview",
+  "description": "Mise en place d'une infrastructure de tests E2E fonctionnelle avec Puppeteer + Vitest, correction des bugs critiques d'upload multi-lot, et validation end-to-end des flows de creation d'immeubles/lots avec documents et interventions. Focus sur tests locaux (localhost:3000).",
+  "createdAt": "2026-02-20",
+  "prdSource": "inline",
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix login auth helper for client-side redirect pattern",
+      "description": "As a test runner, I want the Puppeteer login helper to handle SEIDO's client-side redirect pattern (useActionState + window.location.href with 100ms delay) so that E2E tests can authenticate successfully.",
+      "acceptanceCriteria": [
+        "Auth helper uses waitForFunction instead of waitForNavigation to detect post-login redirect",
+        "Login waits for URL to no longer contain /auth/login (max 15s timeout)",
+        "Error messages from login form are properly captured if login fails",
+        "Smoke test 'should login as gestionnaire' passes against local dev server",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Validate smoke tests pass against local dev server",
+      "description": "As a developer, I want all 5 smoke tests passing against localhost:3000 so that the E2E infrastructure is proven functional before writing more complex tests.",
+      "acceptanceCriteria": [
+        "All 5 smoke tests pass: login page loads, login as gestionnaire, dashboard display, building creation page, lot creation page",
+        "Tests run via npm run test:e2e with dev server running on localhost:3000",
+        "Screenshots are saved on failure for debugging",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "E2E test: Building creation wizard (5-step flow)",
+      "description": "As a gestionnaire, I want a full E2E test that navigates the 5-step building creation wizard (Info > Lots > Contacts & Documents > Interventions > Confirmation) to validate the flow works end-to-end.",
+      "acceptanceCriteria": [
+        "Test navigates to /gestionnaire/biens/immeubles/nouveau",
+        "Step 1: Fills building info (name, address, type)",
+        "Step 2: Adds at least 1 lot",
+        "Step 3: Contacts & Documents step loads correctly",
+        "Step 4: Intervention step loads with templates",
+        "Step 5: Confirmation step displays summary",
+        "Test completes without errors",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "E2E test: Lot creation wizard (independent lot mode)",
+      "description": "As a gestionnaire, I want a full E2E test for the lot creation wizard in independent-lot mode to validate the flow including document upload staging and intervention selection.",
+      "acceptanceCriteria": [
+        "Test navigates to /gestionnaire/biens/lots/nouveau",
+        "Selects 'lot independant' mode",
+        "Fills lot info (name, address, type)",
+        "Documents step loads with document slots",
+        "Intervention step loads with lot-specific templates",
+        "Confirmation step displays summary",
+        "Test completes without errors",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "E2E test: Document upload validation during creation",
+      "description": "As a gestionnaire, I want to verify that document upload staging works correctly during building/lot creation — files are staged in memory and the UI reflects pending uploads.",
+      "acceptanceCriteria": [
+        "Test stages a document file in the building creation wizard (step 3)",
+        "Staged file appears in the document checklist UI with pending status",
+        "Document slots are correctly displayed per entity type",
+        "Test validates the multi-lot document upload hook sends correct snake_case fields (lot_id, team_id, document_type)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "E2E test: Intervention selection during creation",
+      "description": "As a gestionnaire, I want to verify that intervention templates are correctly displayed and selectable during building/lot creation, and that scheduling options work.",
+      "acceptanceCriteria": [
+        "Test navigates to intervention step in building creation wizard",
+        "Building intervention templates are displayed (6 templates)",
+        "Can toggle intervention selection on/off",
+        "Scheduling options are displayed for selected interventions",
+        "Contact assignment selector is available",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

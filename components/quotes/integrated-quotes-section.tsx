@@ -21,7 +21,7 @@ interface Quote {
   workDetails?: string
   estimatedDurationHours?: number
   estimatedStartDate?: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'accepted' | 'rejected'
   submittedAt: string
   reviewedAt?: string
   reviewComments?: string
@@ -49,7 +49,7 @@ interface QuoteRequest {
   deadline?: string
   status: 'pending' | 'responded' | 'expired'
   has_quote?: boolean
-  quote_status?: 'pending' | 'approved' | 'rejected'
+  quote_status?: 'pending' | 'accepted' | 'rejected'
 }
 
 interface IntegratedQuotesSectionProps {

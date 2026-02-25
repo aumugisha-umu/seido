@@ -1,0 +1,88 @@
+{
+  "project": "SEIDO",
+  "featureName": "Onboarding Checklist Redesign — Tutorial + Performance",
+  "branchName": "feature/stripe-subscription",
+  "description": "Redesign the quick-start onboarding checklist: reorder steps to follow a logical workflow (lot > locataire > prestataire > contrat > intervention > cloture), add tutorial/didactic content explaining why each step matters and how data connects, fix performance by moving data fetch to SSR.",
+  "createdAt": "2026-02-22",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "SSR onboarding data fetch (performance fix)",
+      "description": "As a gestionnaire, when I load my dashboard, the onboarding checklist should appear immediately (no delay/flash) because the data is fetched server-side and streamed with the page.",
+      "acceptanceCriteria": [
+        "getOnboardingProgress() called in AsyncDashboardContent server component",
+        "getSubscriptionStatus() called in AsyncDashboardContent server component",
+        "OnboardingProgress + subscription status passed as props through ManagerDashboardV2 to OnboardingChecklist",
+        "OnboardingChecklist no longer has useEffect fetching data (receives via props)",
+        "Checklist renders in initial HTML stream (no client-side flash)",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "layer": "Backend+UI",
+      "notes": "Moved onboarding queries to AsyncDashboardContent SSR. Subscription status check + 5 count queries run server-side. OnboardingChecklist receives data via props, no more useEffect fetch. localStorage dismiss check kept client-side."
+    },
+    {
+      "id": "US-002",
+      "title": "New step order, queries, and types",
+      "description": "As a gestionnaire, I see 6 steps in logical workflow order: (1) Creer un lot, (2) Ajouter un locataire, (3) Ajouter un prestataire, (4) Creer un contrat, (5) Creer une intervention, (6) Cloturer une intervention. Progress is tracked with correct DB queries.",
+      "acceptanceCriteria": [
+        "OnboardingProgress interface updated: hasLot, hasAddedTenant, hasInvitedProvider, hasContract, hasIntervention, hasClosedIntervention",
+        "hasUploadedDocument removed from interface and query",
+        "New query: hasAddedTenant checks team_members with role='locataire'",
+        "New query: hasContract checks contracts table with team_id",
+        "STEPS array reordered: lot > locataire > prestataire > contrat > intervention > cloture",
+        "All 6 queries run in parallel via Promise.all",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "layer": "Backend",
+      "notes": "Updated OnboardingProgress interface (added hasAddedTenant + hasContract, removed hasUploadedDocument). Updated server action + SSR queries to 6 parallel checks. STEPS reordered: lot > locataire > prestataire > contrat > intervention > cloture. URLs now point directly to creation pages."
+    },
+    {
+      "id": "US-003",
+      "title": "Tutorial/didactic content per step",
+      "description": "As a new gestionnaire, each onboarding step shows educational content explaining: (a) what the entity is, (b) why it matters, (c) how the data will be used later in the app. This helps me understand the platform while setting it up.",
+      "acceptanceCriteria": [
+        "Each step has a 'whyItMatters' text (1-2 sentences, benefit-oriented)",
+        "Each step has a 'howItConnects' text (1 sentence, explains downstream usage)",
+        "Educational content visible below each pending step (not just on hover)",
+        "Completed steps show only label (educational text hidden to save space)",
+        "Content is in French, professional tone, outcome-focused (not feature-focused)",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "layer": "UI",
+      "notes": "Added whyItMatters + howItConnects fields to ChecklistStep. Tutorial content shown for current step via border-l + lightbulb icon. Benefit-oriented French text for all 6 steps. Contract step: 'Le contrat lie un locataire a un lot' (user requirement). Also started US-004 visual improvements (step numbers, current step highlight) in same change."
+    },
+    {
+      "id": "US-004",
+      "title": "Sequential flow UX + visual improvements",
+      "description": "As a gestionnaire, I see a visual progression through the steps: the current step is highlighted, future steps are visually muted (not locked, but clearly suggesting order), and completing a step triggers a satisfying transition.",
+      "acceptanceCriteria": [
+        "Current (first incomplete) step has distinct visual treatment (primary border/bg, slightly larger)",
+        "Future steps are visually muted (lighter text, smaller icons) but still clickable",
+        "Completed steps compact with green checkmark + strikethrough (existing behavior preserved)",
+        "Step numbers visible (1-6) to reinforce sequential flow",
+        "Smooth transition when step completes (animate from current to next)",
+        "Progress bar shows X/6 with percentage",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "layer": "UI",
+      "notes": "Most visual improvements implemented in US-003: step numbers (1-6 replacing icons for incomplete steps), current step primary highlight (bg-primary/5, border-primary/20, font-semibold text-primary), future steps muted but clickable, icon shown on right of current step. CSS transition-all handles smooth state changes on re-render."
+    }
+  ]
+}

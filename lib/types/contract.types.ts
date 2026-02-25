@@ -114,6 +114,7 @@ export interface ContractDocument {
   description: string | null
   uploaded_by: string | null
   uploaded_at: string
+  expiry_date: string | null
   deleted_at: string | null
   deleted_by: string | null
   created_at: string
@@ -213,6 +214,7 @@ export interface ContractDocumentInsert {
   title?: string | null
   description?: string | null
   uploaded_by?: string | null
+  expiry_date?: string | null
 }
 
 /**
@@ -222,6 +224,7 @@ export interface ContractDocumentUpdate {
   document_type?: ContractDocumentType
   title?: string | null
   description?: string | null
+  expiry_date?: string | null
   deleted_at?: string | null
   deleted_by?: string | null
 }

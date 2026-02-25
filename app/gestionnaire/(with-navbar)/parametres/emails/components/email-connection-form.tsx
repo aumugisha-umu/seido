@@ -23,14 +23,12 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
+import { DatePicker, formatLocalDate } from '@/components/ui/date-picker'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Loader2, AlertCircle, CheckCircle2, CalendarIcon, Mail, Shield } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle2, Mail, Shield } from 'lucide-react'
 import { EMAIL_PROVIDERS, PROVIDER_OPTIONS } from '@/lib/constants/email-providers'
 import { toast } from 'sonner'
-import { format, subDays } from 'date-fns'
-import { cn } from '@/lib/utils'
+import { subDays } from 'date-fns'
 
 // Icône Google
 const GoogleIcon = () => (
@@ -384,37 +382,18 @@ export function EmailConnectionForm({ onSuccess, onCancel }: EmailConnectionForm
                     render={({ field }) => (
                         <FormItem className="flex flex-col">
                             <FormLabel>Sync Emails From</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                            variant="outline"
-                                            className={cn(
-                                                "w-full pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                        >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        disabled={(date) =>
-                                            date > new Date() || date < new Date("1900-01-01")
-                                        }
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
+                            <FormControl>
+                                <DatePicker
+                                    value={field.value ? formatLocalDate(field.value) : undefined}
+                                    onChange={(iso) => {
+                                        const [y, m, d] = iso.split('-').map(Number)
+                                        field.onChange(new Date(y, m - 1, d))
+                                    }}
+                                    maxDate={formatLocalDate(new Date())}
+                                    placeholder="jj/mm/aaaa"
+                                    className="w-full"
+                                />
+                            </FormControl>
                             <FormDescription>
                                 Only emails received after this date will be synced. Default is 30 days ago.
                             </FormDescription>

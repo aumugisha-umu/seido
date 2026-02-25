@@ -7,16 +7,39 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
-// Tab components (ChatTab kept for potential reuse)
-import { ChatTab } from './chat-tab'
-import { DocumentsTab } from './documents-tab'
+// Tab components
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 
-// Chat complet avec threads et temps réel
-import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
+// ✅ LAZY LOADED: Heavy chat component loaded on demand (US-304)
+// Reduces initial bundle size and improves TTI by 200-500ms
+const InterventionChatTab = dynamic(
+  () => import('@/components/interventions/intervention-chat-tab').then(mod => ({ default: mod.InterventionChatTab })),
+  {
+    loading: () => (
+      <div className="flex-1 flex flex-col p-4 space-y-4">
+        <div className="flex gap-2">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-8 w-24 rounded-full" />
+          ))}
+        </div>
+        <div className="flex-1 space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+              <Skeleton className={`h-16 ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'} rounded-lg`} />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-12 w-full rounded-lg" />
+      </div>
+    ),
+    ssr: false
+  }
+)
 
 // Modale d'upload de documents
 import { DocumentUploadDialog } from '@/components/interventions/document-upload-dialog'
@@ -37,7 +60,9 @@ import {
   CommentsCard,
   DocumentsCard,
   QuotesCard,
-  PlanningCard
+  PlanningCard,
+  ReportsCard,
+  InterventionReport,
 } from '@/components/interventions/shared'
 
 // Unified tabs component (replaces InterventionTabs)
@@ -56,7 +81,7 @@ import { formatDate, formatTime, formatTimeRange } from '@/components/interventi
 // Modal pour choisir un créneau
 import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
 // Modal pour répondre à un ou plusieurs créneaux (accepter/refuser)
-import { MultiSlotResponseModal } from '@/components/intervention/modals/multi-slot-response-modal'
+import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
 // Modal pour prévisualiser les documents
 import { DocumentPreviewModal } from '@/components/intervention/modals/document-preview-modal'
 
@@ -83,6 +108,10 @@ import {
 // Quote status utilities
 import { getQuoteBadgeStatus, getQuoteBadgeLabel, getQuoteBadgeColor } from '@/lib/utils/quote-status'
 
+// Quote approval/rejection modals
+import { QuoteApprovalModal } from '@/components/quotes/quote-approval-modal'
+import { QuoteRejectionModal } from '@/components/quotes/quote-rejection-modal'
+
 // Role-based actions utilities
 import {
   getRoleBasedActions,
@@ -97,6 +126,7 @@ import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 import { useTeamStatus } from '@/hooks/use-team-status'
 import { useToast } from '@/hooks/use-toast'
 import { useInterventionApproval } from '@/hooks/use-intervention-approval'
+import { useInterventionCancellation } from '@/hooks/use-intervention-cancellation'
 import { useActivityLogs } from '@/hooks/use-activity-logs'
 
 // Activity tab (shared)
@@ -132,10 +162,10 @@ import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-mo
 import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel-quote-request-modal'
 import { CancelQuoteConfirmModal } from '@/components/intervention/modals/cancel-quote-confirm-modal'
 import { FinalizationModalLive } from '@/components/intervention/finalization-modal-live'
-import dynamic from 'next/dynamic'
 
 // Dynamic import for approval modal (now handles everything in one modal)
 const ApprovalModal = dynamic(() => import("@/components/intervention/modals/approval-modal").then(mod => ({ default: mod.ApprovalModal })), { ssr: false })
+const CancelConfirmationModal = dynamic(() => import("@/components/intervention/modals/cancel-confirmation-modal").then(mod => ({ default: mod.CancelConfirmationModal })), { ssr: false })
 
 // Multi-provider components
 import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
@@ -219,6 +249,7 @@ interface InterventionDetailClientProps {
   intervention: Intervention
   assignments: Assignment[]
   documents: Document[]
+  reports: InterventionReport[]
   quotes: Quote[]
   timeSlots: TimeSlot[]
   threads: Thread[]
@@ -268,6 +299,7 @@ export function InterventionDetailClient({
   intervention,
   assignments,
   documents,
+  reports,
   quotes,
   timeSlots,
   threads,
@@ -303,8 +335,26 @@ export function InterventionDetailClient({
     providerName: ''
   })
   const [isCancellingQuote, setIsCancellingQuote] = useState(false)
+  // État pour les modales d'approbation/rejet d'estimation
+  const [quoteApprovalModal, setQuoteApprovalModal] = useState<{
+    isOpen: boolean
+    quoteId: string
+    providerName: string
+    totalAmount: number
+  } | null>(null)
+  const [quoteRejectionModal, setQuoteRejectionModal] = useState<{
+    isOpen: boolean
+    quoteId: string
+    providerName: string
+    totalAmount: number
+  } | null>(null)
   // ✅ FIX 2026-01-26: Use requires_quote field instead of deprecated demande_de_devis status
   const [requireQuote, setRequireQuote] = useState(intervention.requires_quote || false)
+  const [modalAssignmentMode, setModalAssignmentMode] = useState<AssignmentMode>(assignmentMode || 'group')
+  const [modalProviderInstructions, setModalProviderInstructions] = useState<Record<string, string>>({})
+  const [modalInstructions, setModalInstructions] = useState(intervention.instructions || '')
+  const [requiresConfirmation, setRequiresConfirmation] = useState(false)
+  const [confirmationRequired, setConfirmationRequired] = useState<string[]>([])
   const [showFinalizationModal, setShowFinalizationModal] = useState(false)
 
   // Ref to track if URL action has been processed (prevents re-triggering from unstable deps)
@@ -314,8 +364,11 @@ export function InterventionDetailClient({
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
   const [selectedSlotIdForChoice, setSelectedSlotIdForChoice] = useState<string | null>(null)
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false)
-  // État pour la modale de réponse à un créneau
-  const [responseModalSlotId, setResponseModalSlotId] = useState<string | null>(null)
+  // État pour la modale de réponse à un créneau (all active slots)
+  const [responseModalSlots, setResponseModalSlots] = useState<ModalTimeSlot[]>([])
+  const [responseModalExisting, setResponseModalExisting] = useState<
+    Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }>
+  >({})
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // Thread type sélectionné pour le chat (utilisé quand on clique sur une icône message)
@@ -353,15 +406,15 @@ export function InterventionDetailClient({
   // State for action button loading
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  // State for cancel quote confirmation modal (from toggle)
+  // State for cancel quote confirmation modal (from toggle) — supports bulk cancel
   const [cancelQuoteConfirmModal, setCancelQuoteConfirmModal] = useState<{
     isOpen: boolean
-    quoteId: string | null
-    providerName: string
+    quoteCount: number
+    providerNames: string[]
   }>({
     isOpen: false,
-    quoteId: null,
-    providerName: ''
+    quoteCount: 0,
+    providerNames: []
   })
   const [isCancellingQuoteFromToggle, setIsCancellingQuoteFromToggle] = useState(false)
 
@@ -376,6 +429,13 @@ export function InterventionDetailClient({
   const getActiveQuote = () => {
     return quotes.find(q =>
       ['pending', 'sent', 'accepted'].includes(q.status)
+    )
+  }
+
+  // Helper: get ALL active quotes (for bulk cancel)
+  const getActiveQuotes = () => {
+    return quotes.filter(q =>
+      ['pending', 'sent'].includes(q.status) && (!q.amount || q.amount <= 0)
     )
   }
 
@@ -484,7 +544,8 @@ export function InterventionDetailClient({
         email: a.user?.email || '',
         phone: a.user?.phone,
         role: a.user?.role,
-        type: 'gestionnaire' as const
+        type: 'gestionnaire' as const,
+        has_account: !!(a.user as any)?.auth_user_id
       }))
       .filter(c => c.id) // Remove empty contacts
 
@@ -496,7 +557,8 @@ export function InterventionDetailClient({
         email: a.user?.email || '',
         phone: a.user?.phone,
         role: a.user?.role,
-        type: 'prestataire' as const
+        type: 'prestataire' as const,
+        has_account: !!(a.user as any)?.auth_user_id
       }))
       .filter(c => c.id)
 
@@ -508,7 +570,8 @@ export function InterventionDetailClient({
         email: a.user?.email || '',
         phone: a.user?.phone,
         role: a.user?.role,
-        type: 'locataire' as const
+        type: 'locataire' as const,
+        has_account: !!(a.user as any)?.auth_user_id
       }))
       .filter(c => c.id)
 
@@ -539,6 +602,16 @@ export function InterventionDetailClient({
     )
   }, [])
 
+  const handleProviderInstructionsChange = useCallback((providerId: string, instructions: string) => {
+    setModalProviderInstructions(prev => ({ ...prev, [providerId]: instructions }))
+  }, [])
+
+  const handleConfirmationRequiredChange = useCallback((userId: string, required: boolean) => {
+    setConfirmationRequired(prev =>
+      required ? [...prev, userId] : prev.filter(id => id !== userId)
+    )
+  }, [])
+
   // ============================================================================
   // Transformations pour les composants shared (nouveau design PreviewHybrid)
   // ============================================================================
@@ -552,7 +625,9 @@ export function InterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'manager' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'manager' as const,
+        hasAccount: !!a.user!.auth_user_id
       })),
     providers: assignments
       .filter(a => a.role === 'prestataire' && a.user)
@@ -561,7 +636,9 @@ export function InterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'provider' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'provider' as const,
+        hasAccount: !!a.user!.auth_user_id
       })),
     tenants: assignments
       .filter(a => a.role === 'locataire' && a.user)
@@ -570,7 +647,9 @@ export function InterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'tenant' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'tenant' as const,
+        hasAccount: !!a.user!.auth_user_id
       }))
   }), [assignments])
 
@@ -738,14 +817,13 @@ export function InterventionDetailClient({
     ? timeSlots.find(s => s.id === selectedSlotIdForChoice)
     : null
 
-  // Récupérer le slot complet pour la modale de réponse
-  const selectedSlotForResponse = responseModalSlotId
-    ? timeSlots.find(s => s.id === responseModalSlotId)
-    : null
-  // Récupérer la réponse actuelle de l'utilisateur pour ce slot
-  const currentUserResponseForSlot = selectedSlotForResponse
-    ? (selectedSlotForResponse as any).responses?.find((r: any) => r.user_id === serverUserId)?.response
-    : null
+  // Slots proposed by current user (for cancel-on-accept logic)
+  const userProposedSlotIds = useMemo(() =>
+    timeSlots
+      .filter(s => s.proposed_by === serverUserId && (s.status === 'pending' || s.status === 'requested'))
+      .map(s => s.id),
+    [timeSlots, serverUserId]
+  )
 
   // Créneau confirmé (si un créneau est sélectionné/confirmé)
   const confirmedSlot = timeSlots.find(s => s.status === 'selected')
@@ -769,30 +847,78 @@ export function InterventionDetailClient({
       : 'pending'
 
   // Statut des devis
-  const quotesStatus = transformedQuotes.some(q => q.status === 'approved')
+  const quotesStatus = transformedQuotes.some(q => q.status === 'accepted')
     ? 'approved'
     : transformedQuotes.length > 0
       ? 'received'
-      : 'pending'
+      : intervention.requires_quote
+        ? 'pending'
+        : 'none'
 
   // Montant du devis validé
-  const selectedQuoteAmount = transformedQuotes.find(q => q.status === 'approved')?.amount
+  const selectedQuoteAmount = transformedQuotes.find(q => q.status === 'accepted')?.amount
 
   // Initialize planning hook with dynamic participant selection
   const planning = useInterventionPlanning(
     requireQuote,
     selectedProviderIds,
-    intervention.instructions || '',
+    modalInstructions,
     selectedManagerIds,
     selectedTenantIds,
+    modalAssignmentMode,
+    modalProviderInstructions,
+    confirmationRequired,
+    requiresConfirmation,
   )
 
-  // Reset participant selection to defaults when programming modal opens
+  // Reset participant selection and pre-fill scheduling state when programming modal opens
   useEffect(() => {
     if (planning.programmingModal.isOpen) {
+      // Reset participants to defaults
       setSelectedManagerIds(managers.map(m => m.id))
       setSelectedProviderIds(providers.map(p => p.id))
       setSelectedTenantIds(tenants.map(t => t.id))
+
+      // Pre-fill confirmation from existing assignments
+      const confirmationUserIds = assignments
+        .filter(a => a.requires_confirmation === true)
+        .map(a => a.user_id)
+        .filter((id): id is string => !!id)
+
+      if (confirmationUserIds.length > 0) {
+        setRequiresConfirmation(true)
+        setConfirmationRequired(confirmationUserIds)
+      } else {
+        setRequiresConfirmation(false)
+        setConfirmationRequired([])
+      }
+
+      // Pre-fill scheduling option from current intervention state (for planification status)
+      const schedulingType = intervention.scheduling_type
+      if (schedulingType === 'fixed') {
+        planning.setProgrammingOption('direct')
+        if (scheduledDate && scheduledStartTime) {
+          planning.setProgrammingDirectSchedule({
+            date: scheduledDate,
+            startTime: scheduledStartTime.substring(0, 5),
+            endTime: scheduledEndTime?.substring(0, 5) || ''
+          })
+        }
+      } else if (schedulingType === 'slots') {
+        planning.setProgrammingOption('propose')
+        const existingSlots = timeSlots
+          .filter(s => s.status === 'pending' || s.status === 'requested')
+          .map(s => ({
+            date: s.slot_date || '',
+            startTime: (s.start_time || '').substring(0, 5),
+            endTime: (s.end_time || '').substring(0, 5)
+          }))
+        if (existingSlots.length > 0) {
+          planning.setProgrammingProposedSlots(existingSlots)
+        }
+      } else if (schedulingType === 'flexible') {
+        planning.setProgrammingOption('organize')
+      }
     }
   }, [planning.programmingModal.isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -805,6 +931,7 @@ export function InterventionDetailClient({
 
   // Initialize approval hook for approve/reject actions
   const approvalHook = useInterventionApproval(handleRefresh)
+  const cancellationHook = useInterventionCancellation()
 
   // Prepare intervention data for approval hook
   const interventionActionData = useMemo(() => {
@@ -883,6 +1010,14 @@ export function InterventionDetailClient({
       setTimeout(() => {
         planning.openProgrammingModal(interventionActionData)
       }, 100)
+    } else if (actionParam === 'manage_planning' && intervention.status === 'planification') {
+      setTimeout(() => {
+        planning.openProgrammingModal(interventionActionData)
+      }, 100)
+    } else if (actionParam === 'modify_planning' && intervention.status === 'planifiee') {
+      setTimeout(() => {
+        planning.openProgrammingModal(interventionActionData)
+      }, 100)
     } else {
       // Unknown action or status mismatch, reset the flag to allow future processing
       processedUrlActionRef.current = false
@@ -922,10 +1057,10 @@ export function InterventionDetailClient({
         // Open ProgrammingModal via planning hook
         planning.openProgrammingModal(interventionActionData)
         return
-      case 'propose_slots':
-      case 'manage_quotes':
-        // Simply switch to planning tab instead of navigating
-        setActiveTab('planning')
+      case 'manage_planning':
+      case 'modify_planning':
+        // Open ProgrammingModal pre-filled with current state
+        planning.openProgrammingModal(interventionActionData)
         return
       case 'finalize':
         // Check if it's an API action or navigation
@@ -1000,8 +1135,7 @@ export function InterventionDetailClient({
         router.push(action.href || `/gestionnaire/interventions/modifier/${intervention.id}`)
         return
       case 'cancel':
-        // TODO: Open cancel modal
-        console.log('Annuler intervention')
+        cancellationHook.handleCancellationAction(interventionActionData)
         return
     }
 
@@ -1059,60 +1193,55 @@ export function InterventionDetailClient({
 
   // Handle toggle quote request ON/OFF
   const handleToggleQuoteRequest = (checked: boolean) => {
-    // If toggling OFF and there is an active quote, show confirmation modal
+    // If toggling OFF and there are active quotes, show confirmation modal
     if (!checked) {
-      const activeQuote = getActiveQuote()
-      if (activeQuote) {
-        const providerName = activeQuote.provider?.name || 'ce prestataire'
+      const activeQuotes = getActiveQuotes()
+      if (activeQuotes.length > 0) {
+        const providerNames = activeQuotes.map(
+          q => q.provider?.name || 'Prestataire inconnu'
+        )
         setCancelQuoteConfirmModal({
           isOpen: true,
-          quoteId: activeQuote.id,
-          providerName
+          quoteCount: activeQuotes.length,
+          providerNames
         })
         // Don't change toggle state yet (will be updated after confirmation)
         return
       }
     }
-    // If toggling ON or no active quote, update toggle state directly
+    // If toggling ON or no active quotes, update toggle state directly
     setRequireQuote(checked)
   }
 
-  // Confirm cancel quote from toggle
+  // Confirm cancel ALL quotes from toggle
   const handleConfirmCancelQuoteFromToggle = async () => {
-    if (!cancelQuoteConfirmModal.quoteId) return
+    if (cancelQuoteConfirmModal.quoteCount === 0) return
 
     setIsCancellingQuoteFromToggle(true)
 
     try {
-      console.log('🔄 Cancelling quote from toggle:', {
-        interventionId: intervention.id,
-        quoteId: cancelQuoteConfirmModal.quoteId,
-        currentStatus: intervention.status
-      })
-
-      // 1. Cancel the quote request
       const cancelResponse = await fetch(
-        `/api/intervention/${intervention.id}/quotes/${cancelQuoteConfirmModal.quoteId}`,
-        { method: 'DELETE' }
+        `/api/intervention/${intervention.id}/quotes/cancel-all`,
+        { method: 'POST' }
       )
 
       if (!cancelResponse.ok) {
         const errorData = await cancelResponse.json().catch(() => ({}))
-        console.error('Quote cancellation failed:', errorData)
-        throw new Error(errorData.error || 'Failed to cancel quote')
+        console.error('Bulk quote cancellation failed:', errorData)
+        throw new Error(errorData.error || 'Failed to cancel quotes')
       }
 
-      console.log('✅ Quote cancelled successfully - status automatically updated to planification')
+      const result = await cancelResponse.json()
 
       toast({
-        title: 'Demande annulée',
-        description: 'La demande d\'estimation a été annulée'
+        title: result.cancelledCount > 1 ? 'Demandes annulées' : 'Demande annulée',
+        description: result.message || 'Les demandes d\'estimation ont été annulées'
       })
 
-      setCancelQuoteConfirmModal({ isOpen: false, quoteId: null, providerName: '' })
+      setCancelQuoteConfirmModal({ isOpen: false, quoteCount: 0, providerNames: [] })
       handleRefresh()
     } catch (error) {
-      console.error('Error cancelling quote from toggle:', error)
+      console.error('Error cancelling quotes from toggle:', error)
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'annulation'
       toast({
         title: 'Erreur',
@@ -1196,7 +1325,6 @@ export function InterventionDetailClient({
 
   // Handle redirect to multi-step contact creation flow
   const handleRequestContactCreation = (contactType: string) => {
-    console.log(`🔗 [INTERVENTION-DETAIL] Redirecting to contact creation: ${contactType}`)
     // Build return URL with placeholder that will be replaced by the contact creation page
     const baseReturnUrl = `/gestionnaire/interventions/${intervention.id}`
     const returnUrl = `${baseReturnUrl}?newContactId=PLACEHOLDER&contactType=${contactType}`
@@ -1206,8 +1334,6 @@ export function InterventionDetailClient({
   // Auto-assign newly created contact when returning from contact creation
   useEffect(() => {
     if (!newContactId || !returnedContactType || newContactId === 'PLACEHOLDER') return
-
-    console.log(`✅ [INTERVENTION-DETAIL] Auto-assigning new contact: ${newContactId}`)
 
     const role = returnedContactType === 'gestionnaire' || returnedContactType === 'manager'
       ? 'gestionnaire'
@@ -1339,68 +1465,26 @@ export function InterventionDetailClient({
     handleOpenProgrammingModalWithData()
   }
 
-  // Handler pour approuver une estimation
-  const handleApproveQuote = async (quoteId: string) => {
-    try {
-      const response = await fetch(`/api/intervention/${intervention.id}/quotes/${quoteId}/approve`, {
-        method: 'POST'
-      })
-
-      const result = await response.json()
-
-      if (result.success || response.ok) {
-        toast({
-          title: 'Estimation approuvée',
-          description: 'L\'estimation a été approuvée avec succès'
-        })
-        handleRefresh()
-      } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Erreur lors de l\'approbation de l\'estimation',
-          variant: 'destructive'
-        })
-      }
-    } catch (error) {
-      console.error('Error approving quote:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Erreur lors de l\'approbation de l\'estimation',
-        variant: 'destructive'
-      })
-    }
+  // Handler pour approuver une estimation → ouvre la modale de confirmation
+  const handleApproveQuote = (quoteId: string) => {
+    const quote = transformedQuotes.find(q => q.id === quoteId)
+    setQuoteApprovalModal({
+      isOpen: true,
+      quoteId,
+      providerName: quote?.provider_name || 'Prestataire',
+      totalAmount: quote?.amount || 0
+    })
   }
 
-  // Handler pour rejeter une estimation
-  const handleRejectQuote = async (quoteId: string) => {
-    try {
-      const response = await fetch(`/api/intervention/${intervention.id}/quotes/${quoteId}/reject`, {
-        method: 'POST'
-      })
-
-      const result = await response.json()
-
-      if (result.success || response.ok) {
-        toast({
-          title: 'Estimation rejetée',
-          description: 'L\'estimation a été rejetée'
-        })
-        handleRefresh()
-      } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Erreur lors du rejet de l\'estimation',
-          variant: 'destructive'
-        })
-      }
-    } catch (error) {
-      console.error('Error rejecting quote:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Erreur lors du rejet de l\'estimation',
-        variant: 'destructive'
-      })
-    }
+  // Handler pour rejeter une estimation → ouvre la modale de rejet
+  const handleRejectQuote = (quoteId: string) => {
+    const quote = transformedQuotes.find(q => q.id === quoteId)
+    setQuoteRejectionModal({
+      isOpen: true,
+      quoteId,
+      providerName: quote?.provider_name || 'Prestataire',
+      totalAmount: quote?.amount || 0
+    })
   }
 
   // Handler pour annuler une demande d'estimation (statut pending)
@@ -1606,13 +1690,55 @@ export function InterventionDetailClient({
     }
   }
 
-  // Handler pour ouvrir la modale de réponse à un créneau
-  const handleOpenResponseModal = (slotId: string) => {
-    const slotExists = timeSlots.some(s => s.id === slotId)
-    if (slotExists) {
-      setResponseModalSlotId(slotId)
-      setIsResponseModalOpen(true)
+  // Handler pour ouvrir la modale de réponse — affiche TOUS les créneaux actifs
+  const handleOpenResponseModal = (_slotId: string) => {
+    const activeSlots = timeSlots.filter(s =>
+      s.status === 'pending' || s.status === 'requested'
+    )
+    if (activeSlots.length === 0) return
+
+    // Transform to modal format
+    const modalSlots: ModalTimeSlot[] = activeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      notes: (slot as any).notes || null,
+      proposer_name: slot.proposed_by_user?.first_name
+        ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`
+        : slot.proposed_by_user?.company_name || (slot.proposed_by_user as any)?.name,
+      proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+      responses: ((slot as any).responses || []).map((r: any) => ({
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: {
+          name: r.user?.first_name
+            ? `${r.user.first_name} ${r.user.last_name || ''}`
+            : r.user?.company_name || r.user?.name || 'Utilisateur',
+          role: r.user?.role
+        }
+      }))
+    }))
+
+    // Build existingResponses with correct type mapping: 'accepted'->'accept', 'rejected'->'reject'
+    const existing: Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }> = {}
+    for (const slot of activeSlots) {
+      const userResp = ((slot as any).responses || []).find(
+        (r: any) => r.user_id === serverUserId
+      )
+      if (userResp && userResp.response !== 'pending') {
+        existing[slot.id] = {
+          response: userResp.response === 'accepted' ? 'accept'
+                  : userResp.response === 'rejected' ? 'reject'
+                  : 'pending',
+          reason: userResp.notes || undefined
+        }
+      }
     }
+
+    setResponseModalSlots(modalSlots)
+    setResponseModalExisting(existing)
+    setIsResponseModalOpen(true)
   }
 
   // Handler pour fermer la modale et rafraîchir
@@ -1766,7 +1892,7 @@ export function InterventionDetailClient({
                         className="gap-2 min-h-[36px] relative"
                       >
                         <MessageSquareText className="w-4 h-4" />
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
                           {transformedComments.length}
                         </span>
                       </Button>
@@ -1869,7 +1995,7 @@ export function InterventionDetailClient({
                   className="h-9 w-9 relative"
                 >
                   <MessageSquareText className="w-4 h-4" />
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
                     {transformedComments.length}
                   </span>
                   <span className="sr-only">{transformedComments.length} commentaires</span>
@@ -2069,19 +2195,23 @@ export function InterventionDetailClient({
             id: p.id,
             name: p.name,
             email: p.email || '',
-            role: p.role
+            role: p.role,
+            has_account: !!p.has_account
           }))}
           onConfirm={planning.handleProgrammingConfirm}
           isFormValid={planning.isProgrammingFormValid()}
           teamId={teamId || ''}
+          requireQuote={requireQuote}
+          onRequireQuoteChange={setRequireQuote}
           // Managers
           managers={managers.map(m => ({
             id: m.id,
             name: m.name,
             email: m.email || '',
-            phone: m.phone,
+            phone: m.phone || undefined,
             role: m.role,
-            type: 'gestionnaire' as const
+            type: 'gestionnaire' as const,
+            has_account: !!m.has_account
           }))}
           selectedManagers={selectedManagerIds}
           onManagerToggle={handleManagerToggle}
@@ -2090,15 +2220,31 @@ export function InterventionDetailClient({
             id: t.id,
             name: t.name,
             email: t.email || '',
-            phone: t.phone,
+            phone: t.phone || undefined,
             type: 'locataire' as const,
-            has_account: true // Assigned tenants have accounts
+            has_account: !!t.has_account
           }))}
           selectedTenants={selectedTenantIds}
           onTenantToggle={handleTenantToggle}
           showTenantsSection={tenants.length > 0}
           includeTenants={tenants.length > 0}
           onIncludeTenantsChange={() => {}}
+          // Instructions
+          instructions={modalInstructions}
+          onInstructionsChange={setModalInstructions}
+          // Assignment mode & per-provider instructions
+          assignmentMode={modalAssignmentMode}
+          onAssignmentModeChange={setModalAssignmentMode}
+          providerInstructions={modalProviderInstructions}
+          onProviderInstructionsChange={handleProviderInstructionsChange}
+          // Quote requests (for displaying active quotes in modal)
+          quoteRequests={quotes}
+          // Confirmation participants
+          requiresConfirmation={requiresConfirmation}
+          onRequiresConfirmationChange={setRequiresConfirmation}
+          confirmationRequired={confirmationRequired}
+          onConfirmationRequiredChange={handleConfirmationRequiredChange}
+          currentUserId={serverUserId}
         />
 
         {/* Cancel Slot Modal */}
@@ -2128,12 +2274,13 @@ export function InterventionDetailClient({
           isLoading={isCancellingQuote}
         />
 
-        {/* Cancel Quote Confirm Modal (from toggle) */}
+        {/* Cancel Quote Confirm Modal (from toggle — bulk cancel) */}
         <CancelQuoteConfirmModal
           isOpen={cancelQuoteConfirmModal.isOpen}
-          onClose={() => setCancelQuoteConfirmModal({ isOpen: false, quoteId: null, providerName: '' })}
+          onClose={() => setCancelQuoteConfirmModal({ isOpen: false, quoteCount: 0, providerNames: [] })}
           onConfirm={handleConfirmCancelQuoteFromToggle}
-          providerName={cancelQuoteConfirmModal.providerName}
+          quoteCount={cancelQuoteConfirmModal.quoteCount}
+          providerNames={cancelQuoteConfirmModal.providerNames}
           isLoading={isCancellingQuoteFromToggle}
         />
 
@@ -2201,6 +2348,7 @@ export function InterventionDetailClient({
                         scheduledStartTime,
                         scheduledEndTime,
                         isFixedScheduling, // ✅ Mode date fixe: ne pas afficher l'heure de fin
+                        schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
                         status: planningStatus,
                         proposedSlotsCount,
                         quotesCount: transformedQuotes.length,
@@ -2251,28 +2399,14 @@ export function InterventionDetailClient({
               {/* TAB: PLANNING */}
               <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6 overflow-y-auto">
-                  {/* Devis */}
-                  {requireQuote && (
-                    <QuotesCard
-                      quotes={transformedQuotes}
-                      userRole="manager"
-                      showActions={true}
-                      onAddQuote={() => console.log('Add quote')}
-                      onApproveQuote={handleApproveQuote}
-                      onRejectQuote={handleRejectQuote}
-                      onCancelQuote={handleCancelQuote}
-                      className="flex-1 min-h-0"
-                    />
-                  )}
-
                   {/* Planning */}
                   <PlanningCard
                     timeSlots={transformedTimeSlots}
                     scheduledDate={scheduledDate || undefined}
                     scheduledStartTime={scheduledStartTime || undefined}
+                    schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
                     userRole="manager"
                     currentUserId={serverUserId}
-                    onAddSlot={handleOpenProgrammingModalWithData}
                     onApproveSlot={(slotId) => {
                       const slot = timeSlots.find(s => s.id === slotId)
                       if (slot) handleApproveSlot(slot)
@@ -2291,14 +2425,29 @@ export function InterventionDetailClient({
                     }}
                     onChooseSlot={handleChooseSlot}
                     onOpenResponseModal={handleOpenResponseModal}
-                    className="flex-1 min-h-0"
                   />
+
+                  {/* Devis */}
+                  {requireQuote && (
+                    <QuotesCard
+                      quotes={transformedQuotes}
+                      userRole="manager"
+                      showActions={true}
+                      onAddQuote={() => { /* TODO: implement add quote */ }}
+                      onApproveQuote={handleApproveQuote}
+                      onRejectQuote={handleRejectQuote}
+                      onCancelQuote={handleCancelQuote}
+                    />
+                  )}
                 </div>
               </TabsContent>
 
               {/* TAB: DOCUMENTS */}
               <TabsContent value="documents" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-6">
+                  {reports.length > 0 && (
+                    <ReportsCard reports={reports} />
+                  )}
                   <DocumentsCard
                     documents={transformedDocuments}
                     userRole="manager"
@@ -2362,37 +2511,21 @@ export function InterventionDetailClient({
           />
         )}
 
-        {/* Modale de réponse à un créneau (accepter/refuser) */}
-        {selectedSlotForResponse && (
+        {/* Modale de réponse aux créneaux (accepter/refuser — tous les créneaux actifs) */}
+        {responseModalSlots.length > 0 && (
           <MultiSlotResponseModal
             isOpen={isResponseModalOpen}
             onClose={() => {
               setIsResponseModalOpen(false)
-              setResponseModalSlotId(null)
+              setResponseModalSlots([])
+              setResponseModalExisting({})
             }}
-            slots={[{
-              id: selectedSlotForResponse.id,
-              slot_date: selectedSlotForResponse.slot_date || '',
-              start_time: selectedSlotForResponse.start_time || '',
-              end_time: selectedSlotForResponse.end_time || '',
-              notes: (selectedSlotForResponse as any).notes,
-              proposer_name: selectedSlotForResponse.proposed_by_user?.first_name
-                ? `${selectedSlotForResponse.proposed_by_user.first_name} ${selectedSlotForResponse.proposed_by_user.last_name || ''}`
-                : selectedSlotForResponse.proposed_by_user?.company_name,
-              proposer_role: selectedSlotForResponse.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
-              responses: (selectedSlotForResponse as any).responses?.map((r: any) => ({
-                user_id: r.user_id,
-                response: r.response as 'accepted' | 'rejected' | 'pending',
-                user: {
-                  name: r.user?.first_name
-                    ? `${r.user.first_name} ${r.user.last_name || ''}`
-                    : r.user?.company_name || 'Utilisateur',
-                  role: r.user?.role
-                }
-              })) || []
-            }]}
+            slots={responseModalSlots}
             interventionId={intervention.id}
-            existingResponses={currentUserResponseForSlot ? { [selectedSlotForResponse.id]: { response: currentUserResponseForSlot } } : undefined}
+            existingResponses={Object.keys(responseModalExisting).length > 0
+              ? responseModalExisting
+              : undefined}
+            userProposedSlotIds={userProposedSlotIds}
             onSuccess={handleRefresh}
           />
         )}
@@ -2449,6 +2582,57 @@ export function InterventionDetailClient({
             onActionChange={approvalHook.handleActionChange}
             onConfirm={approvalHook.handleConfirmAction}
             isLoading={approvalHook.isLoading}
+            documents={documents}
+          />
+        )}
+
+        {/* Modale d'annulation */}
+        {cancellationHook.cancellationModal.isOpen && (
+          <CancelConfirmationModal
+            isOpen={cancellationHook.cancellationModal.isOpen}
+            onClose={cancellationHook.closeCancellationModal}
+            onConfirm={cancellationHook.handleConfirmCancellation}
+            intervention={cancellationHook.cancellationModal.intervention}
+            cancellationReason={cancellationHook.cancellationReason}
+            onCancellationReasonChange={cancellationHook.setCancellationReason}
+            internalComment={cancellationHook.internalComment}
+            onInternalCommentChange={cancellationHook.setInternalComment}
+            isLoading={cancellationHook.isLoading}
+            error={cancellationHook.error}
+          />
+        )}
+
+        {/* Modale d'approbation d'estimation */}
+        {quoteApprovalModal && (
+          <QuoteApprovalModal
+            isOpen={quoteApprovalModal.isOpen}
+            onClose={() => setQuoteApprovalModal(null)}
+            onSuccess={() => {
+              setQuoteApprovalModal(null)
+              handleRefresh()
+            }}
+            quote={{
+              id: quoteApprovalModal.quoteId,
+              providerName: quoteApprovalModal.providerName,
+              totalAmount: quoteApprovalModal.totalAmount
+            }}
+          />
+        )}
+
+        {/* Modale de rejet d'estimation */}
+        {quoteRejectionModal && (
+          <QuoteRejectionModal
+            isOpen={quoteRejectionModal.isOpen}
+            onClose={() => setQuoteRejectionModal(null)}
+            onSuccess={() => {
+              setQuoteRejectionModal(null)
+              handleRefresh()
+            }}
+            quote={{
+              id: quoteRejectionModal.quoteId,
+              providerName: quoteRejectionModal.providerName,
+              totalAmount: quoteRejectionModal.totalAmount
+            }}
           />
         )}
 

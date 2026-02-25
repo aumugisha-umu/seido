@@ -11,6 +11,7 @@ interface InterventionActionPanelHeaderProps {
     status: string
     tenant_id?: string
     scheduled_date?: string
+    requires_quote?: boolean
     quotes?: Quote[]
     availabilities?: Array<{
       person: string
@@ -30,6 +31,8 @@ interface InterventionActionPanelHeaderProps {
   onCancelIntervention?: () => void
   onRejectQuoteRequest?: (_quote: Quote) => void
   onProposeSlots?: () => void
+  autoOpenComplete?: boolean
+  autoOpenTenantValidation?: 'approve' | 'reject' | false
   timeSlots?: Array<{
     id: string
     slot_date: string
@@ -37,6 +40,24 @@ interface InterventionActionPanelHeaderProps {
     end_time: string
     status?: string
     proposed_by?: string
+    proposed_by_user?: {
+      first_name?: string | null
+      last_name?: string | null
+      company_name?: string | null
+      role?: string
+      name?: string
+    } | null
+    responses?: Array<{
+      user_id: string
+      response: string
+      user?: {
+        first_name?: string | null
+        last_name?: string | null
+        company_name?: string | null
+        role?: string
+        name?: string
+      } | null
+    }>
   }>
 }
 
@@ -56,9 +77,6 @@ const shouldShowActionBadge = (
     case 'cloturee_par_prestataire':
     case 'cloturee_par_locataire':
       return true
-
-    case 'demande_de_devis':
-      return quotes?.some(q => q.status === 'pending' || q.status === 'sent') ?? false
 
     default:
       return false
@@ -80,6 +98,8 @@ export function InterventionActionPanelHeader({
   onCancelIntervention,
   onRejectQuoteRequest,
   onProposeSlots,
+  autoOpenComplete,
+  autoOpenTenantValidation,
   timeSlots = []
 }: InterventionActionPanelHeaderProps) {
   return (
@@ -108,6 +128,8 @@ export function InterventionActionPanelHeader({
           onCancelIntervention={onCancelIntervention}
           onRejectQuoteRequest={onRejectQuoteRequest}
           onProposeSlots={onProposeSlots}
+          autoOpenComplete={autoOpenComplete}
+          autoOpenTenantValidation={autoOpenTenantValidation}
           timeSlots={timeSlots}
         />
       </div>

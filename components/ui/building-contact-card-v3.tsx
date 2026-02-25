@@ -3,7 +3,7 @@
 import React from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Building, Users, Wrench, Home, UserCircle } from "lucide-react"
+import { Building, Wrench, Home, UserCircle } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { ContactSection } from "@/components/ui/contact-section"
 import type { User as UserType } from "@/lib/services/core/service-types"
@@ -57,6 +57,8 @@ interface BuildingContactCardV3Props {
 
   // Read-only mode (for confirmation view)
   readOnly?: boolean
+  /** Optional footer content rendered inside the Card (e.g. doc/intervention summaries) */
+  children?: React.ReactNode
 }
 
 export function BuildingContactCardV3({
@@ -70,7 +72,8 @@ export function BuildingContactCardV3({
   others,
   onAddContact,
   onRemoveContact,
-  readOnly = false
+  readOnly = false,
+  children
 }: BuildingContactCardV3Props) {
   return (
     <Card className="border-blue-300 shadow-md gap-0 py-0">
@@ -94,35 +97,30 @@ export function BuildingContactCardV3({
             </TooltipContent>
           </Tooltip>
 
-          {/* Building Name - Larger text */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                className="font-semibold text-base truncate text-slate-900 cursor-default block flex-shrink min-w-0"
-                title={buildingName || buildingAddress}
-              >
-                {buildingName || buildingAddress}
+          {/* Building Name + Address */}
+          <div className="flex-shrink min-w-0 flex flex-col">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className="font-semibold text-base truncate text-slate-900 cursor-default block"
+                  title={buildingName || buildingAddress}
+                >
+                  {buildingName || buildingAddress}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="text-xs">{buildingName || buildingAddress}</p>
+              </TooltipContent>
+            </Tooltip>
+            {readOnly && buildingAddress && (
+              <span className="text-xs text-muted-foreground truncate" title={buildingAddress}>
+                {buildingAddress}
               </span>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p className="text-xs">{buildingName || buildingAddress}</p>
-            </TooltipContent>
-          </Tooltip>
+            )}
+          </div>
 
           {/* Visual Indicators - Colored badges with icons (same as lots) */}
           <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0">
-            {buildingManagers.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 border border-purple-300 font-medium px-2 py-0.5 cursor-help">
-                    <Users className="w-3.5 h-3.5 mr-1" />
-                    {buildingManagers.length}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent side="top"><p className="text-xs">Gestionnaires de l'immeuble</p></TooltipContent>
-              </Tooltip>
-            )}
-
             {providers.length > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -211,6 +209,7 @@ export function BuildingContactCardV3({
           </p>
         )}
       </CardContent>
+      {children}
     </Card>
   )
 }

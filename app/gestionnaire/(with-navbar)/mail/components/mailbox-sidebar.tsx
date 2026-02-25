@@ -19,6 +19,7 @@ import {
   ChevronDown,
   Settings,
   CheckCircle,
+  Circle,
   Mail,
   Reply,
   type LucideIcon
@@ -123,7 +124,7 @@ function CollapsibleSection({
           <div className="flex items-center gap-2">
             <Icon className="h-4 w-4" />
             <span className="text-xs uppercase tracking-wide">{title}</span>
-            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+            <Badge variant="outline" className="ml-1 h-5 px-1.5 text-xs">
               {items.length}
             </Badge>
           </div>
@@ -281,33 +282,60 @@ export function MailboxSidebar({
 
       {/* Folders - Fixe en haut */}
       <div className="p-2 flex-shrink-0 space-y-1">
-        <Button
-          variant={currentFolder === 'inbox' ? 'secondary' : 'ghost'}
-          className="w-full justify-start"
-          onClick={() => onFolderChange('inbox')}
-        >
-          <Inbox className="mr-2 h-4 w-4" />
-          Boîte de réception
-          {unreadCounts.inbox > 0 && (
-            <Badge className="ml-auto" variant="default">
-              {unreadCounts.inbox}
-            </Badge>
-          )}
-        </Button>
-
-        <Button
-          variant={currentFolder === 'processed' ? 'secondary' : 'ghost'}
-          className="w-full justify-start"
-          onClick={() => onFolderChange('processed')}
-        >
-          <CheckCircle className="mr-2 h-4 w-4" />
-          Traités
-          {unreadCounts.processed > 0 && (
-            <Badge className="ml-auto" variant="secondary">
-              {unreadCounts.processed}
-            </Badge>
-          )}
-        </Button>
+        {/* Boîte de réception — collapsible with sub-folders */}
+        <Collapsible defaultOpen className="space-y-0.5">
+          <CollapsibleTrigger asChild>
+            <Button
+              variant={(currentFolder === 'inbox' || currentFolder === 'processed') ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+            >
+              <Inbox className="mr-2 h-4 w-4" />
+              Boîte de réception
+              {unreadCounts.inbox > 0 && (
+                <Badge className="ml-auto mr-1" variant="destructive">
+                  {unreadCounts.inbox}
+                </Badge>
+              )}
+              <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 [[data-state=closed]>&]:rotate-[-90deg]" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-0.5 pl-4">
+            <Button
+              variant={currentFolder === 'inbox' ? 'secondary' : 'ghost'}
+              size="sm"
+              className={cn(
+                "w-full justify-start h-8 text-sm font-normal",
+                currentFolder === 'inbox' && "bg-primary/10 text-primary font-medium"
+              )}
+              onClick={() => onFolderChange('inbox')}
+            >
+              <Circle className="mr-2 h-3 w-3" />
+              Non traités
+              {unreadCounts.inbox > 0 && (
+                <Badge className="ml-auto" variant="destructive">
+                  {unreadCounts.inbox}
+                </Badge>
+              )}
+            </Button>
+            <Button
+              variant={currentFolder === 'processed' ? 'secondary' : 'ghost'}
+              size="sm"
+              className={cn(
+                "w-full justify-start h-8 text-sm font-normal",
+                currentFolder === 'processed' && "bg-primary/10 text-primary font-medium"
+              )}
+              onClick={() => onFolderChange('processed')}
+            >
+              <CheckCircle className="mr-2 h-3 w-3" />
+              Traités
+              {unreadCounts.processed > 0 && (
+                <Badge className="ml-auto" variant="outline">
+                  {unreadCounts.processed}
+                </Badge>
+              )}
+            </Button>
+          </CollapsibleContent>
+        </Collapsible>
 
         <Button
           variant={currentFolder === 'sent' ? 'secondary' : 'ghost'}
@@ -316,6 +344,11 @@ export function MailboxSidebar({
         >
           <Send className="mr-2 h-4 w-4" />
           Envoyés
+          {unreadCounts.sent > 0 && (
+            <Badge className="ml-auto" variant="outline">
+              {unreadCounts.sent}
+            </Badge>
+          )}
         </Button>
 
         <Button
@@ -326,7 +359,7 @@ export function MailboxSidebar({
           <FileText className="mr-2 h-4 w-4" />
           Brouillons
           {unreadCounts.drafts > 0 && (
-            <Badge className="ml-auto" variant="secondary">
+            <Badge className="ml-auto" variant="outline">
               {unreadCounts.drafts}
             </Badge>
           )}
@@ -339,6 +372,11 @@ export function MailboxSidebar({
         >
           <Archive className="mr-2 h-4 w-4" />
           Archives
+          {unreadCounts.archive > 0 && (
+            <Badge className="ml-auto" variant="outline">
+              {unreadCounts.archive}
+            </Badge>
+          )}
         </Button>
       </div>
 

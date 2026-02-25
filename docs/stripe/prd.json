@@ -1,0 +1,735 @@
+{
+  "project": "SEIDO",
+  "featureName": "Stripe Subscription Integration",
+  "branchName": "feature/stripe-subscription",
+  "description": "Implement Stripe subscription billing for SEIDO with per-lot pricing (5€ HT/lot/month or 50€ HT/lot/year), 30-day app-managed trial without credit card, annual-aggressive pricing push, zero-friction upgrades, read-only mode on expiry, and coupon system via Stripe Dashboard.",
+  "createdAt": "2026-02-17",
+  "prdSource": "docs/stripe/2026-02-17-stripe-user-stories.md",
+  "designDoc": "docs/stripe/2026-01-30-stripe-subscription-design.md",
+  "implementationPlan": "docs/stripe/2026-01-30-stripe-subscription-implementation-plan.md",
+  "status": "ready",
+  "corrections": [
+    "C1: Table subscriptions = CREATE TABLE (pas ALTER — table n'existe pas encore)",
+    "C2: Admin client = getSupabaseAdmin() dans lib/services/core/supabase-admin.ts",
+    "C3: Email templates dans emails/templates/ (pas lib/email/templates/)",
+    "C4: Billing access = role admin dans team_members uniquement",
+    "C5: Coupons = pourcentage uniquement, duree flexible, Stripe Dashboard",
+    "C6: Read-only impacte locataires/prestataires avec message clair",
+    "C7: Double page billing : resume parametres + page dediee /gestionnaire/abonnement",
+    "C8: Notification suppression lot + lien Portal (pas de reduction auto)",
+    "C9: TVA = HT (prix affiches hors taxes)",
+    "C10: Trial demarre a la creation team (signup gestionnaire)",
+    "C11: Beta users : trial 30j a partir du deploiement Stripe"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Installation packages Stripe",
+      "description": "As a developer, I want Stripe SDK installed and configured so that I can interact with Stripe API from the SEIDO codebase.",
+      "acceptanceCriteria": [
+        "stripe et @stripe/stripe-js installes dans package.json",
+        "lib/stripe.ts cree avec API version 2025-09-30.clover",
+        "Variables d'environnement ajoutees a .env.example",
+        "Lint passe (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": false,
+      "layer": "Foundation",
+      "epic": 1,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Migration DB — Schema Stripe complet",
+      "description": "As a developer, I want all Stripe-related database tables and functions created so that the subscription system has its data layer ready.",
+      "acceptanceCriteria": [
+        "Table subscriptions creee (CREATE TABLE complet)",
+        "Enum subscription_status cree (trialing, active, past_due, canceled, incomplete, free_tier, read_only, unpaid)",
+        "Tables stripe_customers, stripe_invoices, stripe_webhook_events creees",
+        "Trigger tr_lots_subscription_count (compte lots uniquement)",
+        "Fonctions helper: can_team_add_property(), is_team_read_only(), cleanup_old_webhook_events()",
+        "RLS policies: SELECT pour role admin sur subscriptions, stripe_customers, stripe_invoices",
+        "Index de performance",
+        "npm run supabase:types regenere database.types.ts",
+        "Migration testee localement"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "Schema",
+      "epic": 1,
+      "notes": "CORRECTION C1: CREATE TABLE pas ALTER TABLE. CORRECTION C4: role admin uniquement pour RLS."
+    },
+    {
+      "id": "US-003",
+      "title": "Migration donnees beta users",
+      "description": "As a product owner, I want existing beta users to receive a 30-day trial from Stripe deployment date so that they have time to evaluate the paid offering.",
+      "acceptanceCriteria": [
+        "Script migration cree record subscriptions pour chaque team existante",
+        "Status trialing, trial_end = date deploiement + 30j",
+        "Stripe Customer cree pour chaque team",
+        "Teams <= 2 lots: status free_tier",
+        "Idempotent (peut etre relance)",
+        "Valide sur staging avant production"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "Schema",
+      "epic": 1,
+      "notes": "CORRECTION C11: Beta users trial 30j a partir du deploiement."
+    },
+    {
+      "id": "US-004",
+      "title": "Repository Subscription",
+      "description": "As a developer, I want a SubscriptionRepository following the SEIDO Repository Pattern so that subscription data access is centralized and type-safe.",
+      "acceptanceCriteria": [
+        "lib/services/repositories/subscription.repository.ts cree",
+        "Methodes: findByTeamId, findByStripeSubscriptionId, create, update, updateByTeamId, upsertByTeamId, getLotCount",
+        "Utilise .limit(1).maybeSingle() (multi-team safe)",
+        "Exporte dans lib/services/index.ts",
+        "Lint passe"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 2,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Repository Stripe Customer",
+      "description": "As a developer, I want a StripeCustomerRepository so that Stripe customer mapping is managed via the repository pattern.",
+      "acceptanceCriteria": [
+        "lib/services/repositories/stripe-customer.repository.ts cree",
+        "Methodes: findByTeamId, findByStripeCustomerId, create",
+        "Utilise .limit(1).maybeSingle()",
+        "Exporte dans lib/services/index.ts",
+        "Lint passe"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "XS",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 2,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "SubscriptionService — Core",
+      "description": "As a developer, I want a complete SubscriptionService with all business logic so that subscription state management is centralized.",
+      "acceptanceCriteria": [
+        "lib/services/domain/subscription.service.ts cree",
+        "Types: SubscriptionStatus, SubscriptionInfo, UpgradePreview",
+        "10 methodes: getSubscriptionInfo, canAddProperty, hasPaymentMethod, getOrCreateStripeCustomer, createCheckoutSession, upgradeSubscriptionDirect, previewUpgrade, createPortalSession, initializeTrialSubscription, isReadOnlyMode",
+        "allow_promotion_codes: true dans createCheckoutSession",
+        "previewUpgrade retourne is_estimate flag",
+        "Exporte dans lib/services/index.ts",
+        "Lint passe"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-004", "US-005"],
+      "sizing": "L",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 2,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Webhook API Route",
+      "description": "As a developer, I want a Stripe webhook handler at /api/stripe/webhook so that all Stripe events are securely processed and synced to our DB.",
+      "acceptanceCriteria": [
+        "app/api/stripe/webhook/route.ts cree",
+        "Verification signature Stripe (constructEvent)",
+        "Idempotency via stripe_webhook_events (insert BEFORE processing)",
+        "Events: checkout.session.completed, subscription.created/updated/deleted, invoice.paid/payment_failed",
+        "Utilise getSupabaseAdmin() (service_role)",
+        "Repond 200 en < 20s (pas d'email dans handler)",
+        "Repond 500 en cas d'erreur (Stripe retry)",
+        "Lint passe"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-006"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 3,
+      "notes": "CORRECTION C2: getSupabaseAdmin() pas createAdminSupabaseClient()"
+    },
+    {
+      "id": "US-008",
+      "title": "Server Actions Subscription",
+      "description": "As a gestionnaire admin, I want server actions to manage my team's subscription so that I can check status, upgrade, and manage billing from the app.",
+      "acceptanceCriteria": [
+        "app/actions/subscription-actions.ts cree avec 'use server'",
+        "Helper getTeamContext() avec .limit(1).maybeSingle()",
+        "9 actions: getSubscriptionStatus, checkCanAddProperty, checkHasPaymentMethod, isReadOnlyMode, createCheckoutSessionAction, upgradeSubscriptionDirect, getUpgradePreview, verifyCheckoutSession, createPortalSessionAction",
+        "createCheckoutSessionAction default interval='annual'",
+        "verifyCheckoutSession verifie payment_status + team_id",
+        "Lint passe"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-006"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 4,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Integration trial dans le signup flow",
+      "description": "As a nouveau gestionnaire, I want my 30-day trial to start automatically when I create my team so that I can use all features without payment info.",
+      "acceptanceCriteria": [
+        "Apres creation team dans callback auth, appel initializeTrialSubscription()",
+        "Stripe Customer cree (sans subscription Stripe)",
+        "Record subscriptions: status=trialing, trial_end=now+30d, id=NULL",
+        "Si <= 2 lots: status=free_tier",
+        "Email bienvenue envoye (J+1)",
+        "Lint passe"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-006"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 5,
+      "notes": "CORRECTION C10: Trial demarre a la creation team."
+    },
+    {
+      "id": "US-010",
+      "title": "Page dediee Abonnement",
+      "description": "As a gestionnaire admin, I want a dedicated billing page showing my subscription details so that I can see my plan, usage, invoices, and manage my subscription.",
+      "acceptanceCriteria": [
+        "Page /gestionnaire/abonnement/page.tsx creee (Server Component)",
+        "Affiche: statut, plan, lots utilises/abonnes, prochaine facture, date renouvellement",
+        "Section factures avec liens PDF",
+        "Bouton Gerer mon abonnement → Stripe Portal",
+        "Bouton Mettre a niveau si upgrade possible",
+        "ValueCalculator integre",
+        "Accessible uniquement role=admin",
+        "Mobile responsive",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "UI",
+      "epic": 6,
+      "notes": "CORRECTION C7: Page dediee billing."
+    },
+    {
+      "id": "US-011",
+      "title": "Resume abonnement dans Parametres",
+      "description": "As a gestionnaire admin, I want a subscription summary card in settings so that I can quickly see my plan status.",
+      "acceptanceCriteria": [
+        "Section ajoutee dans /gestionnaire/parametres (remplace composant beta)",
+        "Affiche: statut, plan, lots, jours restants trial",
+        "Lien Voir les details vers /gestionnaire/abonnement",
+        "Si trial: compte a rebours + CTA annuel",
+        "Si read-only: banner rouge + CTA reactivation",
+        "Visible uniquement role=admin",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 6,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Trial Banner",
+      "description": "As a gestionnaire en trial, I want to see a banner showing my trial progress so that I know when it ends and can subscribe.",
+      "acceptanceCriteria": [
+        "components/billing/trial-banner.tsx cree",
+        "Affiche les 7 derniers jours du trial",
+        "Progress bar: bleu (>7j) → orange (3-7j) → rouge (<=1j)",
+        "CTA pointe vers Checkout annuel",
+        "Dismissable 24h (localStorage)",
+        "Message loss aversion jours critiques",
+        "Integre dans layout gestionnaire",
+        "Mobile responsive",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "UI",
+      "epic": 6,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Read-Only Banner",
+      "description": "As a gestionnaire dont l'essai a expire, I want a permanent banner explaining my read-only status so that I know how to regain access.",
+      "acceptanceCriteria": [
+        "components/billing/read-only-banner.tsx cree",
+        "Permanent, non-dismissable",
+        "CTA primaire: Choisir l'abonnement annuel",
+        "Lien secondaire: ou payer mensuellement",
+        "Locataire/prestataire: message adapte (demandes indisponibles, contacter gestionnaire)",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 6,
+      "notes": "CORRECTION C6: Message clair pour locataires/prestataires."
+    },
+    {
+      "id": "US-014",
+      "title": "Upgrade Modal (double mode)",
+      "description": "As a gestionnaire atteignant sa limite de lots, I want an upgrade modal that adapts to whether I have a saved card for minimal friction.",
+      "acceptanceCriteria": [
+        "components/billing/upgrade-modal.tsx cree",
+        "Mode A (CB sauvee): confirmation inline, 1 clic upgradeSubscriptionDirect()",
+        "Mode B (pas CB): PricingCard annuel pre-selectionne, Checkout redirect",
+        "Disclaimer montant estime",
+        "allow_promotion_codes: true pour Checkout",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "UI",
+      "epic": 6,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Pricing Card (annual-aggressive)",
+      "description": "As a gestionnaire potentiel, I want pricing that highlights annual savings so that I'm incentivized to choose annual.",
+      "acceptanceCriteria": [
+        "components/billing/pricing-card.tsx cree",
+        "Annuel: carte highlight, badge Recommande Economisez 17%, prix barre, CTA primaire",
+        "Mensuel: petit lien muted",
+        "Prix affiches HT + mention TVA applicable",
+        "Calcul dynamique total = nb_lots x prix",
+        "Economies en euros",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 6,
+      "notes": "CORRECTION C9: Prix HT."
+    },
+    {
+      "id": "US-016",
+      "title": "Contextual Upgrade Prompt",
+      "description": "As a gestionnaire bloque par une limite, I want a contextual message explaining why and how to upgrade.",
+      "acceptanceCriteria": [
+        "components/billing/upgrade-prompt.tsx cree",
+        "Contextes: add_lot, add_intervention, export_data, ai_feature",
+        "Icone, message, CTA specifique par contexte",
+        "CTA vers annuel par defaut",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 6,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Value Calculator",
+      "description": "As a gestionnaire en trial, I want to see how much time and money SEIDO saved me so that I feel the value.",
+      "acceptanceCriteria": [
+        "components/billing/value-calculator.tsx cree",
+        "Calcul: interventions cloturees x 30min x 45€/h",
+        "Affiche: heures economisees, equivalent monetaire, nb interventions",
+        "Utilisable dans page abonnement et emails",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 6,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Hook useSubscription",
+      "description": "As a developer, I want a client-side hook for subscription state so that any component can check status reactively.",
+      "acceptanceCriteria": [
+        "hooks/use-subscription.ts cree",
+        "Expose: status, loading, refresh(), canAddProperty(), hasPaymentMethod()",
+        "Cache le resultat",
+        "refresh() appelee apres upgrade/checkout success",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 7,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Integration limite lots dans formulaires",
+      "description": "As a gestionnaire, I want lot creation forms to check my subscription limit so that I'm prompted to upgrade if needed.",
+      "acceptanceCriteria": [
+        "Formulaire creation lot: check canAddProperty() avant submit",
+        "Si limite + upgrade_needed: affiche UpgradeModal",
+        "Si read_only: boutons desactives + UpgradePrompt",
+        "Formulaire creation building: meme logique",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-014", "US-018"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 7,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Enforcement read-only cross-app",
+      "description": "As a developer, I want read-only mode enforced across the entire app for all roles.",
+      "acceptanceCriteria": [
+        "Layout gestionnaire: banners integres",
+        "Boutons Nouveau desactives en read-only",
+        "Formulaires modification desactives",
+        "Export toujours accessible (RGPD)",
+        "Locataire: message demandes indisponibles quand team gestionnaire read-only",
+        "Prestataire: interventions en cours continuent, pas de nouvelles assignations",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-013", "US-018"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "UI",
+      "epic": 7,
+      "notes": "CORRECTION C6: Read-only impacte tous les roles."
+    },
+    {
+      "id": "US-021",
+      "title": "Notification suppression lot → lien Portal",
+      "description": "As a gestionnaire qui supprime un lot, I want to be notified I'm still paying for the old quantity.",
+      "acceptanceCriteria": [
+        "Apres suppression lot, si subscribed_lots > actual_lots: toast + bouton Portal",
+        "Pas de reduction automatique",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-018"],
+      "sizing": "XS",
+      "passes": false,
+      "layer": "UI",
+      "epic": 7,
+      "notes": "CORRECTION C8: Notification + lien Portal."
+    },
+    {
+      "id": "US-022",
+      "title": "Flow Checkout success + verification",
+      "description": "As a gestionnaire qui vient de payer, I want payment verified server-side before seeing success.",
+      "acceptanceCriteria": [
+        "Page parametres detecte ?checkout=success&session_id=cs_xxx",
+        "Appelle verifyCheckoutSession(sessionId) server-side",
+        "Verifie payment_status paid ET team_id correspond",
+        "Si verifie: message succes",
+        "Si non verifie: message verification en cours + polling",
+        "Navigation manuelle sans session_id: pas de message succes",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 8,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "CRON — Notifications trial (J-7, J-3, J-1)",
+      "description": "As a product owner, I want automated emails sent before trial expiry to remind users to subscribe.",
+      "acceptanceCriteria": [
+        "app/api/cron/trial-notifications/route.ts cree",
+        "Auth par Bearer token CRON_SECRET",
+        "J-7: email informatif + CTA annuel",
+        "J-3: email urgent + loss aversion",
+        "J-1: email critique avec stats + CTA annuel",
+        "Idempotent (tracking flag)",
+        "Lint passe"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-006", "US-025"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 9,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "CRON — Expiration trial",
+      "description": "As a product owner, I want expired trials automatically transitioned to read-only or free tier.",
+      "acceptanceCriteria": [
+        "app/api/cron/trial-expiration/route.ts cree",
+        "status=trialing AND trial_end < now()",
+        "lot_count <= 2: free_tier",
+        "lot_count > 2: read_only",
+        "Email trial expire envoye",
+        "Idempotent",
+        "Lint passe"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-006", "US-025"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 9,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Email templates billing",
+      "description": "As a developer, I want all billing email templates created so that CRON jobs and events can send formatted emails.",
+      "acceptanceCriteria": [
+        "Templates dans emails/templates/billing/: welcome, trial-ending, trial-expired, win-back, payment-failed, subscription-activated",
+        "CTAs vers annuel par defaut",
+        "Stats personnalisees dans J-7/J-3/J-1",
+        "Prix HT + mention TVA",
+        "Service: lib/services/domain/subscription-email.service.ts",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 9,
+      "notes": "CORRECTION C3: emails/templates/ pas lib/email/templates/"
+    },
+    {
+      "id": "US-026",
+      "title": "CRON — Behavioral triggers",
+      "description": "As a product owner, I want usage-based conversion emails for engaged trial users.",
+      "acceptanceCriteria": [
+        "app/api/cron/behavioral-triggers/route.ts cree",
+        "Triggers: >= 3 lots, >= 1 intervention cloturee, >= 1 team member",
+        "Email personnalise + CTA annuel",
+        "Anti-spam: max 1/team/7 jours",
+        "Trial only (pas free_tier ni active)",
+        "Lint passe"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-025"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 9,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "CRON — Cleanup webhook events",
+      "description": "As a developer, I want old webhook events cleaned up automatically.",
+      "acceptanceCriteria": [
+        "app/api/cron/cleanup-webhook-events/route.ts cree",
+        "Supprime events > 30 jours",
+        "Hebdomadaire",
+        "Lint passe"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-002"],
+      "sizing": "XS",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 9,
+      "notes": ""
+    },
+    {
+      "id": "US-028",
+      "title": "Configuration Vercel CRON",
+      "description": "As a developer, I want all CRON jobs registered in vercel.json.",
+      "acceptanceCriteria": [
+        "vercel.json mis a jour avec 4 nouveaux crons",
+        "CRONs existants preserves (sync-emails, intervention-reminders)",
+        "Lint passe"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-023", "US-024", "US-026", "US-027"],
+      "sizing": "XS",
+      "passes": false,
+      "layer": "Config",
+      "epic": 9,
+      "notes": ""
+    },
+    {
+      "id": "US-029",
+      "title": "Documentation coupons Stripe + configuration",
+      "description": "As a product owner, I want a clear coupon strategy documented and configured in Stripe Dashboard.",
+      "acceptanceCriteria": [
+        "Documentation dans docs/stripe/: types, regles, bonnes pratiques",
+        "Coupons: EARLY2026 (100% off 3 mois), REFERRAL (100% off 1 mois), ANNUAL20 (20% off forever)",
+        "Pourcentage uniquement, duree flexible (once/repeating/forever)",
+        "Checkout Sessions avec allow_promotion_codes: true",
+        "Guide interne creation coupon",
+        "Test en mode test"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "Config",
+      "epic": 10,
+      "notes": "CORRECTION C5: Coupons pourcentage uniquement, duree flexible."
+    },
+    {
+      "id": "US-030",
+      "title": "Flow reactivation (read-only → paid)",
+      "description": "As a gestionnaire dont l'abonnement a expire, I want to reactivate easily to regain access.",
+      "acceptanceCriteria": [
+        "Banner read-only avec Reactiver mon abonnement CTA",
+        "Click → createCheckoutSessionAction('annual')",
+        "Checkout → webhook → status=active",
+        "Acces restore immediatement",
+        "Email confirmation envoye",
+        "Lint passe"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-013", "US-008"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 11,
+      "notes": ""
+    },
+    {
+      "id": "US-031",
+      "title": "Admin — Extension trial",
+      "description": "As an admin SEIDO, I want to extend a team's trial period.",
+      "acceptanceCriteria": [
+        "Script SQL: UPDATE subscriptions SET trial_end = trial_end + INTERVAL X days",
+        "Peut etre execute via Supabase SQL Editor",
+        "Documente dans guide admin"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-002"],
+      "sizing": "XS",
+      "passes": false,
+      "layer": "Backend",
+      "epic": 11,
+      "notes": ""
+    },
+    {
+      "id": "US-032",
+      "title": "Configuration Stripe Dashboard production",
+      "description": "As a developer, I want Stripe Dashboard fully configured for production.",
+      "acceptanceCriteria": [
+        "Produit SEIDO Subscription avec 2 prix (annuel 50€ HT, mensuel 5€ HT)",
+        "Webhook endpoint configure avec tous les events",
+        "Smart Retries active",
+        "Dunning emails Stripe actives",
+        "Customer Portal configure (full self-service + annulation)",
+        "Stripe Tax Belgium 21% VAT exclusive automatic",
+        "Coupons crees"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "Config",
+      "epic": 12,
+      "notes": ""
+    },
+    {
+      "id": "US-033",
+      "title": "Tests end-to-end (Stripe test mode)",
+      "description": "As a developer, I want all subscription flows tested with Stripe test cards.",
+      "acceptanceCriteria": [
+        "14 test cases passes (signup, trial, expiry, checkout, upgrade, cancel, payment failed, reactivation, webhook idempotency, code promo)",
+        "Stripe CLI pour tester webhooks localement",
+        "Rapport de test documente"
+      ],
+      "priority": 5,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": false,
+      "layer": "Testing",
+      "epic": 12,
+      "notes": "Depends on all previous stories being implemented."
+    },
+    {
+      "id": "US-034",
+      "title": "Social proof dans trial banner",
+      "description": "As a gestionnaire en trial, I want to see how many other managers use SEIDO.",
+      "acceptanceCriteria": [
+        "Compteur: Rejoint par X+ gestionnaires ce mois",
+        "Source: count teams active/trialing, cache",
+        "Desktop uniquement"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-012"],
+      "sizing": "XS",
+      "passes": false,
+      "layer": "UI",
+      "epic": 13,
+      "notes": "Post-MVP."
+    },
+    {
+      "id": "US-035",
+      "title": "Onboarding checklist gamifie",
+      "description": "As a nouveau gestionnaire en trial, I want a progress checklist guiding me through features.",
+      "acceptanceCriteria": [
+        "Checklist: creer lot, intervention, inviter prestataire, uploader document, cloturer intervention",
+        "Barre progression visuelle",
+        "Badge/celebration par etape",
+        "CTA upgrade apres 3+ etapes"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-018"],
+      "sizing": "M",
+      "passes": false,
+      "layer": "UI",
+      "epic": 13,
+      "notes": "Post-MVP."
+    },
+    {
+      "id": "US-036",
+      "title": "Strategic in-app notifications",
+      "description": "As a gestionnaire, I want upgrade prompts at positive moments (milestones).",
+      "acceptanceCriteria": [
+        "Prompts: intervention cloturee, 10 interventions, 90% quota",
+        "CTA uniquement derniers 7 jours trial ou a la limite",
+        "Max 1 notification strategique par session"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-018"],
+      "sizing": "S",
+      "passes": false,
+      "layer": "UI",
+      "epic": 13,
+      "notes": "Post-MVP."
+    }
+  ]
+}

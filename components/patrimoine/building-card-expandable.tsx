@@ -13,6 +13,7 @@ import {
 import { Building2, MapPin, Home, Users, AlertCircle, Eye, Edit, ChevronDown, Check, X, Zap, MoreVertical, Wrench, Archive } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { usePrefetch } from '@/hooks/use-prefetch'
 import type { BuildingLotItem, BuildingData } from '@/config/table-configs/patrimoine.config'
 
 interface BuildingCardExpandableProps {
@@ -60,13 +61,19 @@ export function BuildingCardExpandable({
     // BEM Classes
     const blockClass = "building-card-expandable"
 
+    // URL for building detail page
+    const buildingUrl = `/gestionnaire/biens/immeubles/${building.id}`
+
+    // ✅ Prefetch on hover - page loads instantly when user clicks
+    const { onMouseEnter: prefetchBuildingOnEnter, onMouseLeave: prefetchBuildingOnLeave } = usePrefetch(buildingUrl)
+
     const handleCardClick = (e: React.MouseEvent) => {
         // Don't navigate if clicking on interactive elements
         const target = e.target as HTMLElement
         if (target.closest('button') || target.closest('a')) {
             return
         }
-        router.push(`/gestionnaire/biens/immeubles/${building.id}`)
+        router.push(buildingUrl)
     }
 
     const handleLotClick = (lotId: string) => {
@@ -87,12 +94,14 @@ export function BuildingCardExpandable({
                     <div
                         className={cn(`${blockClass}__header`, "flex items-start justify-between gap-2 cursor-pointer")}
                         onClick={handleCardClick}
+                        onMouseEnter={prefetchBuildingOnEnter}
+                        onMouseLeave={prefetchBuildingOnLeave}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault()
-                                router.push(`/gestionnaire/biens/immeubles/${building.id}`)
+                                router.push(buildingUrl)
                             }
                         }}
                     >

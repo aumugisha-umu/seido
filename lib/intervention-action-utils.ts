@@ -15,8 +15,7 @@ import {
   UserCheck,
   Send,
   CalendarCheck,
-  ThumbsUp,
-  ThumbsDown,
+  AlertTriangle,
   Eye,
   Edit,
   XCircle,
@@ -61,6 +60,7 @@ export type ActionType =
   | 'start_planning'
   | 'manage_quotes'
   | 'propose_slots'
+  | 'manage_planning'
   | 'remind_tenant'
   | 'finalize'
   | 'reopen'
@@ -128,18 +128,11 @@ const getGestionnaireActions = (
     case 'planification':
       return [
         {
-          label: 'Gérer créneaux',
-          icon: Clock,
+          label: 'Gérer planification',
+          icon: Calendar,
           variant: 'primary',
-          actionType: 'propose_slots',
-          href: `${baseUrl}?tab=planning`
-        },
-        {
-          label: 'Gérer estimations',
-          icon: FileText,
-          variant: 'primary',
-          actionType: 'manage_quotes',
-          href: `${baseUrl}?tab=planning`
+          actionType: 'manage_planning',
+          href: `${baseUrl}?action=manage_planning`
         }
       ]
 
@@ -151,25 +144,32 @@ const getGestionnaireActions = (
           variant: 'primary',
           actionType: 'finalize',
           href: `${baseUrl}?action=finalize`
+        },
+        {
+          label: 'Modifier planification',
+          icon: Edit,
+          variant: 'secondary',
+          actionType: 'modify_planning',
+          href: `${baseUrl}?action=modify_planning`
         }
       ]
 
     case 'cloturee_par_prestataire':
       return [
         {
+          label: 'Clôturer',
+          icon: CheckCircle,
+          variant: 'primary',
+          actionType: 'finalize',
+          href: `${baseUrl}?action=finalize`
+        },
+        {
           label: 'Relancer locataire',
           icon: Send,
-          variant: 'primary',
+          variant: 'secondary',
           actionType: 'remind_tenant',
           apiRoute: '/api/intervention-remind-tenant',
           apiMethod: 'POST'
-        },
-        {
-          label: 'Clôturer',
-          icon: CheckCircle,
-          variant: 'secondary',
-          actionType: 'finalize',
-          href: `${baseUrl}?action=finalize`
         }
       ]
 
@@ -180,8 +180,7 @@ const getGestionnaireActions = (
           icon: CheckCircle,
           variant: 'primary',
           actionType: 'finalize',
-          apiRoute: '/api/intervention-finalize',
-          apiMethod: 'POST'
+          href: `${baseUrl}?action=finalize`
         }
       ]
 
@@ -217,34 +216,31 @@ const getGestionnaireActions = (
  */
 const getPrestataireActions = (
   status: string,
-  interventionId: string
+  interventionId: string,
+  options?: { requiresQuote?: boolean; hasPendingQuote?: boolean }
 ): RoleBasedAction[] => {
   const baseUrl = `/prestataire/interventions/${interventionId}`
+  const actions: RoleBasedAction[] = []
 
   switch (status) {
-    // Note: demande_de_devis removed - providers can submit quotes from 'planification' status
-    // Quote submission button shown when intervention.requires_quote = true
-
     case 'planification':
-      return [
-        {
-          label: 'Gérer créneaux',
-          icon: CalendarCheck,
-          variant: 'primary',
-          actionType: 'propose_timeslots',
-          href: `${baseUrl}?tab=planning`
-        }
-      ]
+      actions.push({
+        label: 'Gérer planification',
+        icon: CalendarCheck,
+        variant: 'primary',
+        actionType: 'propose_timeslots',
+        href: `${baseUrl}?tab=planning`
+      })
+      break
 
     case 'planifiee':
-      return [
+      actions.push(
         {
           label: 'Marquer terminée',
           icon: CheckCircle,
           variant: 'primary',
           actionType: 'mark_completed',
-          apiRoute: '/api/intervention-complete',
-          apiMethod: 'POST'
+          href: `${baseUrl}?action=complete`
         },
         {
           label: 'Voir détails',
@@ -253,11 +249,22 @@ const getPrestataireActions = (
           actionType: 'view_details',
           href: baseUrl
         }
-      ]
-
-    default:
-      return []
+      )
+      break
   }
+
+  // Quote action — shown when requires_quote and provider has a pending quote request
+  if (options?.requiresQuote && options?.hasPendingQuote) {
+    actions.push({
+      label: 'Gérer devis',
+      icon: Euro,
+      variant: actions.length > 0 ? 'secondary' : 'primary',
+      actionType: 'submit_quote',
+      href: `${baseUrl}?action=quote`
+    })
+  }
+
+  return actions
 }
 
 /**
@@ -284,19 +291,18 @@ const getLocataireActions = (
     case 'cloturee_par_prestataire':
       return [
         {
-          label: 'Valider travaux',
-          icon: ThumbsUp,
+          label: 'Valider',
+          icon: CheckCircle,
           variant: 'primary',
           actionType: 'validate_work',
-          apiRoute: `/api/intervention/${interventionId}/validate-tenant`,
-          apiMethod: 'POST'
+          href: `${baseUrl}?action=validate_work`
         },
         {
           label: 'Contester',
-          icon: ThumbsDown,
+          icon: AlertTriangle,
           variant: 'destructive',
           actionType: 'contest_work',
-          href: `${baseUrl}?action=contest`
+          href: `${baseUrl}?action=contest_work`
         }
       ]
 
@@ -326,13 +332,14 @@ const getLocataireActions = (
 export const getRoleBasedActions = (
   interventionId: string,
   status: string,
-  userRole: UserRole
+  userRole: UserRole,
+  options?: { requiresQuote?: boolean; hasPendingQuote?: boolean }
 ): RoleBasedAction[] => {
   switch (userRole) {
     case 'gestionnaire':
       return getGestionnaireActions(status, interventionId)
     case 'prestataire':
-      return getPrestataireActions(status, interventionId)
+      return getPrestataireActions(status, interventionId, options)
     case 'locataire':
       return getLocataireActions(status, interventionId)
     default:

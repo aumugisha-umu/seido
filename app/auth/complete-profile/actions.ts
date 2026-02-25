@@ -162,6 +162,26 @@ export async function completeOAuthProfileAction(
       // On continue quand même, ce n'est pas bloquant
     }
 
+    // 5. Initialize trial subscription (30-day trial)
+    // Email signup does this via DB trigger handle_new_user_confirmed(),
+    // but OAuth bypasses that trigger, so we create it here.
+    const trialEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    const { error: subError } = await supabaseAdmin
+      .from('subscriptions')
+      .insert({
+        team_id: team.id,
+        status: 'trialing',
+        trial_start: new Date().toISOString(),
+        trial_end: trialEnd.toISOString(),
+        billable_properties: 0,
+        subscribed_lots: 0,
+      })
+
+    if (subError) {
+      logger.error('[COMPLETE-OAUTH-PROFILE] Subscription creation failed:', subError)
+      // Non-blocking — user can still use the app
+    }
+
     logger.info('[COMPLETE-OAUTH-PROFILE] Profile creation completed successfully')
 
     // Invalider le cache et retourner le redirect path

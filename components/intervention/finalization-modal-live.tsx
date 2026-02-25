@@ -11,7 +11,8 @@
  * - Toggle pour programmer intervention de suivi
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   UnifiedModal,
   UnifiedModalHeader,
@@ -21,8 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Separator } from '@/components/ui/separator'
+import { InterventionDetailsCard } from '@/components/interventions/shared/cards/intervention-details-card'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -32,10 +32,6 @@ import {
   AlertCircle,
   CheckCircle2,
   XCircle,
-  User,
-  Building2,
-  Phone,
-  Mail,
   Wrench,
   CalendarPlus,
   FileText,
@@ -66,13 +62,32 @@ interface InterventionReport {
   }
 }
 
-interface UserContact {
+interface AssignmentUser {
   id: string
   name: string
   email?: string
   phone?: string
   role?: string
+  avatar_url?: string | null
   provider_category?: string
+  auth_user_id?: string | null
+  company?: { name?: string } | null
+}
+
+interface Assignment {
+  id: string
+  role: string
+  is_primary?: boolean
+  user?: AssignmentUser | null
+}
+
+interface AddressRecord {
+  formatted_address?: string
+  street?: string
+  city?: string
+  postal_code?: string
+  latitude?: number | null
+  longitude?: number | null
 }
 
 interface FinalizationContextData {
@@ -83,21 +98,46 @@ interface FinalizationContextData {
     type: string
     urgency: string
     description: string
+    instructions?: string | null
+    scheduling_type?: string | null
+    requires_quote?: boolean
     status: string
     is_contested?: boolean
     lot?: {
       id: string
       reference: string
+      address_record?: AddressRecord | null
       building?: {
         id: string
         name: string
-        address?: string
+        address_record?: AddressRecord | null
       }
     }
+    building?: {
+      id: string
+      name: string
+      address_record?: AddressRecord | null
+    }
   }
-  tenant?: UserContact | null
-  provider?: UserContact | null
+  assignments: Assignment[]
+  timeSlots: Array<{ id: string; slot_date: string; start_time: string; end_time: string; status: string; selected_by_manager?: boolean }>
+  quotes: Array<{ id: string; amount: number | null; status: string }>
   reports: InterventionReport[]
+}
+
+const getStatusBadgeColors = (status: string) => {
+  const s = status.toLowerCase()
+  if (s.includes('clotur')) return { bg: 'bg-green-100 text-green-800 border-green-200', dot: 'bg-green-500' }
+  if (s === 'approuvee') return { bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' }
+  if (s.includes('planifi')) return { bg: 'bg-blue-100 text-blue-800 border-blue-200', dot: 'bg-blue-500' }
+  return { bg: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-500' }
+}
+
+const getUrgencyBadgeColors = (urgency: string) => {
+  const u = urgency.toLowerCase()
+  if (u === 'haute' || u === 'urgente') return { bg: 'bg-red-100 text-red-800 border-red-200', dot: 'bg-red-500' }
+  if (u === 'moyenne') return { bg: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-500' }
+  return { bg: 'bg-green-100 text-green-800 border-green-200', dot: 'bg-green-500' }
 }
 
 export function FinalizationModalLive({
@@ -106,10 +146,16 @@ export function FinalizationModalLive({
   onClose,
   onComplete
 }: FinalizationModalLiveProps) {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<FinalizationContextData | null>(null)
   const { toast } = useToast()
+
+  // ⚡ Optimized navigation helper
+  const navigateTo = useCallback((path: string) => {
+    router.push(path)
+  }, [router])
 
   // Manager report input
   const [managerReport, setManagerReport] = useState('')
@@ -189,7 +235,7 @@ export function FinalizationModalLive({
           title: `Suivi - ${data.intervention.title}`
         })
 
-        window.location.href = `/gestionnaire/interventions/nouvelle-intervention?${queryParams.toString()}`
+        navigateTo(`/gestionnaire/interventions/nouvelle-intervention?${queryParams.toString()}`)
       } else {
         onClose()
         onComplete?.()
@@ -248,7 +294,106 @@ export function FinalizationModalLive({
     }
   }
 
-  const { intervention, tenant, provider, reports = [] } = data || {}
+  const { intervention, assignments = [], timeSlots = [], quotes = [], reports = [] } = data || {}
+
+  // Build participants data for ParticipantsRow (same pattern as intervention-detail-client.tsx lines 618-652)
+  const participantsData = useMemo(() => ({
+    managers: assignments
+      .filter(a => a.role === 'gestionnaire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        avatar_url: a.user!.avatar_url || undefined,
+        company_name: (typeof a.user!.company === 'object' ? a.user!.company?.name : undefined) || undefined,
+        role: 'manager' as const,
+        hasAccount: !!a.user!.auth_user_id
+      })),
+    providers: assignments
+      .filter(a => a.role === 'prestataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        avatar_url: a.user!.avatar_url || undefined,
+        company_name: (typeof a.user!.company === 'object' ? a.user!.company?.name : undefined) || undefined,
+        role: 'provider' as const,
+        hasAccount: !!a.user!.auth_user_id
+      })),
+    tenants: assignments
+      .filter(a => a.role === 'locataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        avatar_url: a.user!.avatar_url || undefined,
+        company_name: (typeof a.user!.company === 'object' ? a.user!.company?.name : undefined) || undefined,
+        role: 'tenant' as const,
+        hasAccount: !!a.user!.auth_user_id
+      }))
+  }), [assignments])
+
+  // Build locationDetails for InterventionDetailsCard
+  const locationDetails = useMemo(() => {
+    if (!intervention) return undefined
+    const lotBuilding = intervention.lot?.building
+    const directBuilding = intervention.building
+    const lotRecord = intervention.lot?.address_record
+    const buildingRecord = lotBuilding?.address_record || directBuilding?.address_record
+    const record = lotRecord || buildingRecord
+    return {
+      buildingName: lotBuilding?.name || directBuilding?.name,
+      lotReference: intervention.lot?.reference,
+      fullAddress: record?.formatted_address
+        || (record?.street || record?.city
+          ? [record.street, record.postal_code, record.city].filter(Boolean).join(', ')
+          : undefined),
+      latitude: record?.latitude || null,
+      longitude: record?.longitude || null
+    }
+  }, [intervention])
+
+  // Build planning status for InterventionDetailsCard (aligned with General tab logic)
+  const planning = useMemo(() => {
+    if (!intervention) return undefined
+    const confirmedSlot = timeSlots.find(s => s.status === 'selected')
+    const isFixedScheduling = confirmedSlot?.selected_by_manager === true
+    const scheduledDate = confirmedSlot?.slot_date || null
+
+    const proposedSlotsCount = timeSlots.filter(s =>
+      s.status === 'pending' || s.status === 'requested'
+    ).length
+
+    const planningStatus: 'pending' | 'proposed' | 'scheduled' = scheduledDate
+      ? 'scheduled'
+      : proposedSlotsCount > 0
+        ? 'proposed'
+        : 'pending'
+
+    const approvedQuote = quotes.find(q => q.status === 'accepted')
+    const sentQuotes = quotes.filter(q => q.status === 'sent')
+    const pendingQuotes = quotes.filter(q => q.status === 'pending')
+
+    return {
+      status: planningStatus,
+      scheduledDate,
+      scheduledStartTime: confirmedSlot?.start_time || null,
+      scheduledEndTime: confirmedSlot?.end_time || null,
+      isFixedScheduling,
+      schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
+      proposedSlotsCount,
+      quotesStatus: approvedQuote ? 'approved' as const
+        : sentQuotes.length > 0 ? 'received' as const
+        : pendingQuotes.length > 0 ? 'pending' as const
+        : 'none' as const,
+      selectedQuoteAmount: approvedQuote?.amount || null,
+      receivedQuotesCount: sentQuotes.length,
+      requestedQuotesCount: pendingQuotes.length,
+    }
+  }, [intervention, timeSlots, quotes])
 
   // Format date helper
   const formatDate = (dateString: string) => {
@@ -310,186 +455,84 @@ export function FinalizationModalLive({
         <>
           <UnifiedModalHeader
             title="Finalisation de l'intervention"
-            subtitle={`${intervention.reference} • ${intervention.title}`}
+            subtitle={intervention.title}
             icon={<CheckCircle2 className="h-5 w-5" />}
-            variant="success"
+            className="bg-white !pr-14"
             badge={
-              <Badge
-                variant="secondary"
-                className="bg-green-50 text-green-700 border-green-200 text-sm font-normal px-3 py-1"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                {data.tenantValidation ? 'Validé par le locataire' : 'Clôturé par le prestataire'}
-              </Badge>
+              <>
+                <Badge variant="outline" className="text-xs font-normal text-gray-700 border-gray-300">
+                  {intervention.type}
+                </Badge>
+                <Badge className={cn('text-xs font-normal border', getStatusBadgeColors(intervention.status).bg)}>
+                  <div className={cn('w-2 h-2 rounded-full', getStatusBadgeColors(intervention.status).dot)} />
+                  <span>{intervention.status}</span>
+                </Badge>
+                <Badge className={cn('text-xs font-normal border', getUrgencyBadgeColors(intervention.urgency).bg)}>
+                  <div className={cn('w-2 h-2 rounded-full', getUrgencyBadgeColors(intervention.urgency).dot)} />
+                  <span>{intervention.urgency}</span>
+                </Badge>
+              </>
             }
           />
 
-          <UnifiedModalBody className="space-y-6">
+          <UnifiedModalBody className="space-y-4 bg-slate-50">
 
-                {/* Section 1: Informations générales + Bien */}
+                {/* Section 1: Informations générales (réutilisation InterventionDetailsCard) */}
                 <Card className="border-gray-100 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-medium text-gray-900">
-                      Informations générales
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Type + Urgence */}
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          Catégorie d'intervention
-                        </p>
-                        <p className="text-sm font-normal text-gray-900">
-                          {intervention.type}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          Urgence
-                        </p>
-                        <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 font-normal">
-                          {intervention.urgency}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                        Description
-                      </p>
-                      <p className="text-sm font-normal text-gray-700 leading-relaxed">
-                        {intervention.description}
-                      </p>
-                    </div>
-
-                    <Separator className="bg-gray-100" />
-
-                    {/* Bien concerné */}
-                    {intervention.lot && (
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center">
-                          <Building2 className="w-3.5 h-3.5 mr-1.5" />
-                          Bien concerné
-                        </p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {intervention.lot.reference}
-                          {intervention.lot.building && (
-                            <span className="font-normal text-gray-600">
-                              {' '}• {intervention.lot.building.name}
-                              {intervention.lot.building.address_record?.street && ` • ${intervention.lot.building.address_record.street}`}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-
-                    <Separator className="bg-gray-100" />
-
-                    {/* Locataire + Prestataire */}
-                    <div className="grid grid-cols-2 gap-6">
-                      {/* Locataire */}
-                      {tenant && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center">
-                            <User className="w-3.5 h-3.5 mr-1.5" />
-                            Locataire
-                          </p>
-                          <div className="flex items-start space-x-3">
-                            <Avatar className="h-9 w-9 bg-sky-100">
-                              <AvatarFallback className="bg-sky-100 text-sky-700 text-xs font-medium">
-                                {tenant.name?.slice(0, 2).toUpperCase() || 'U'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="space-y-0.5">
-                              <p className="text-sm font-medium text-gray-900">{tenant.name}</p>
-                              {tenant.email && (
-                                <p className="text-xs text-gray-600 flex items-center">
-                                  <Mail className="w-3 h-3 mr-1" />{tenant.email}
-                                </p>
-                              )}
-                              {tenant.phone && (
-                                <p className="text-xs text-gray-600 flex items-center">
-                                  <Phone className="w-3 h-3 mr-1" />{tenant.phone}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Prestataire */}
-                      {provider && (
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide flex items-center">
-                            <Wrench className="w-3.5 h-3.5 mr-1.5" />
-                            Prestataire
-                          </p>
-                          <div className="flex items-start space-x-3">
-                            <Avatar className="h-9 w-9 bg-purple-100">
-                              <AvatarFallback className="bg-purple-100 text-purple-700 text-xs font-medium">
-                                {provider.name?.slice(0, 2).toUpperCase() || 'P'}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="space-y-0.5">
-                              <p className="text-sm font-medium text-gray-900">{provider.name}</p>
-                              {provider.email && (
-                                <p className="text-xs text-gray-600 flex items-center">
-                                  <Mail className="w-3 h-3 mr-1" />{provider.email}
-                                </p>
-                              )}
-                              {provider.phone && (
-                                <p className="text-xs text-gray-600 flex items-center">
-                                  <Phone className="w-3 h-3 mr-1" />{provider.phone}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                  <CardContent className="pt-6">
+                    <InterventionDetailsCard
+                      sections={['participants', 'description', 'location', 'instructions', 'planning']}
+                      description={intervention.description || undefined}
+                      instructions={intervention.instructions || undefined}
+                      interventionStatus={intervention.status}
+                      locationDetails={locationDetails}
+                      participants={participantsData}
+                      currentUserRole="gestionnaire"
+                      planning={planning}
+                    />
                   </CardContent>
                 </Card>
 
                 {/* Section 2: Rapports d'intervention */}
                 <Card className="border-gray-100 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-medium text-gray-900 flex items-center">
                       <FileText className="w-5 h-5 mr-2 text-sky-600" />
                       Rapports d'intervention
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3">
                     {reports.length === 0 ? (
                       <p className="text-sm text-gray-500 italic">Aucun rapport soumis</p>
                     ) : (
-                      reports.map((report) => {
-                        const isProviderReport = report.report_type === 'provider_report'
-                        const isContested = report.metadata?.is_contested === true
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {reports.map((report) => {
+                          const isProviderReport = report.report_type === 'provider_report'
+                          const isContested = report.metadata?.is_contested === true
 
-                        return (
-                          <div
-                            key={report.id}
-                            className={cn(
-                              "p-4 rounded-lg border",
-                              isContested
-                                ? "border-amber-300 bg-amber-50"
-                                : isProviderReport
-                                  ? "border-purple-200 bg-purple-50/30"
-                                  : "border-green-200 bg-green-50/30"
-                            )}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                {isProviderReport ? (
-                                  <Wrench className="w-4 h-4 text-purple-600" />
-                                ) : (
-                                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                )}
-                                <span className="font-medium text-gray-900">
-                                  {isProviderReport ? 'Rapport du prestataire' : 'Validation du locataire'}
-                                </span>
+                          return (
+                            <div
+                              key={report.id}
+                              className={cn(
+                                "p-3 rounded-lg border",
+                                isContested
+                                  ? "border-amber-300 bg-amber-50"
+                                  : isProviderReport
+                                    ? "border-purple-200 bg-purple-50/30"
+                                    : "border-green-200 bg-green-50/30"
+                              )}
+                            >
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-2">
+                                  {isProviderReport ? (
+                                    <Wrench className="w-4 h-4 text-purple-600" />
+                                  ) : (
+                                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                  )}
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {isProviderReport ? 'Rapport du prestataire' : 'Validation du locataire'}
+                                  </span>
+                                </div>
                                 {isContested && (
                                   <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
                                     <AlertTriangle className="w-3 h-3 mr-1" />
@@ -497,27 +540,24 @@ export function FinalizationModalLive({
                                   </Badge>
                                 )}
                               </div>
-                              <span className="text-xs text-gray-500">
-                                {formatDate(report.created_at)}
-                              </span>
+                              <p className="text-xs text-gray-500 mb-1.5">
+                                {formatDate(report.created_at)} • Par {report.creator?.name || 'Utilisateur'}
+                              </p>
+                              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                                {report.content}
+                              </p>
                             </div>
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                              {report.content}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-2">
-                              Par {report.creator?.name || 'Utilisateur'}
-                            </p>
-                          </div>
-                        )
-                      })
+                          )
+                        })}
+                      </div>
                     )}
                   </CardContent>
                 </Card>
 
                 {/* Section 3: Votre rapport (gestionnaire) */}
                 <Card className="border-gray-100 shadow-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-medium text-gray-900">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-medium text-gray-900">
                       Votre rapport (optionnel)
                     </CardTitle>
                   </CardHeader>
@@ -526,10 +566,10 @@ export function FinalizationModalLive({
                       value={managerReport}
                       onChange={(e) => setManagerReport(e.target.value)}
                       placeholder="Ajoutez vos commentaires de clôture, observations ou recommandations..."
-                      className="min-h-[120px] resize-none"
+                      className="min-h-[80px] resize-none"
                       maxLength={5000}
                     />
-                    <p className="text-xs text-gray-500 mt-2 text-right">
+                    <p className="text-xs text-gray-500 mt-1 text-right">
                       {managerReport.length}/5000 caractères
                     </p>
                   </CardContent>
@@ -559,7 +599,7 @@ export function FinalizationModalLive({
 
                     {/* Visual indicator when follow-up is enabled */}
                     {scheduleFollowUp && (
-                      <div className="flex items-center gap-2 p-3 mt-4 bg-sky-50 border border-sky-200 rounded-lg animate-in slide-in-from-top-2">
+                      <div className="flex items-center gap-2 p-3 mt-3 bg-sky-50 border border-sky-200 rounded-lg animate-in slide-in-from-top-2">
                         <CheckCircle2 className="w-5 h-5 text-sky-600 flex-shrink-0" />
                         <div className="text-sm text-sky-900">
                           <span className="font-medium">Intervention de suivi activée</span>

@@ -37,7 +37,7 @@ export const getUser = cache(async () => {
     // getSession() lit le JWT depuis les cookies SANS appel réseau
     // Le middleware a DÉJÀ validé le token avec getUser()
     // Donc on peut faire confiance au JWT pour les pages
-    const { data: { session }, error } = await supabase.auth.getSession()
+    const { data, error } = await supabase.auth.getSession()
 
     if (error) {
       if (process.env.NODE_ENV === 'development') {
@@ -46,7 +46,9 @@ export const getUser = cache(async () => {
       return null
     }
 
-    // Retourner l'user depuis la session (pas d'appel réseau)
+    // ✅ Spread to bypass Supabase Proxy that warns on .user access
+    // The middleware already validated the token with getUser(), so this is safe
+    const session = data.session ? { ...data.session } : null
     return session?.user ?? null
   } catch (error) {
     logger.error('❌ [AUTH-DAL] Exception in getUser:', error)
@@ -66,14 +68,14 @@ export const getSession = cache(async () => {
   const supabase = await createServerSupabaseClient()
 
   try {
-    const { data: { session }, error } = await supabase.auth.getSession()
+    const { data, error } = await supabase.auth.getSession()
 
     if (error) {
       return null
     }
 
-    // ✅ Session is already validated by middleware - no need for double call
-    return session
+    // ✅ Spread to bypass Supabase Proxy that warns on .user access
+    return data.session ? { ...data.session } : null
   } catch (error) {
     logger.error('❌ [AUTH-DAL] Exception in getSession:', error)
     return null

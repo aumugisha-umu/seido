@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback } from "react"
-import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon, Filter, ArrowUpDown, X } from "lucide-react"
+import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon, Filter, ArrowUpDown, X, Loader2, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -125,6 +125,16 @@ interface InterventionsNavigatorProps {
   showCombinedFilter?: boolean
   /** Show active filters as removable badges */
   showActiveFiltersBadges?: boolean
+
+  // ✅ NEW: Pagination support (2026-02-08)
+  /** Total count of interventions (for display and "Load More") */
+  total?: number
+  /** Whether more interventions are available to load */
+  hasMore?: boolean
+  /** Callback to load more interventions */
+  onLoadMore?: () => void
+  /** Whether currently loading more interventions */
+  isLoadingMore?: boolean
 }
 
 /**
@@ -172,7 +182,12 @@ export function InterventionsNavigator({
   showStatusFilter = false,
   showUrgencyFilter = false,
   showCombinedFilter = false,
-  showActiveFiltersBadges = false
+  showActiveFiltersBadges = false,
+  // ✅ NEW: Pagination props
+  total,
+  hasMore = false,
+  onLoadMore,
+  isLoadingMore = false
 }: InterventionsNavigatorProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<string | undefined>(initialActiveTab)
@@ -216,10 +231,15 @@ export function InterventionsNavigator({
     setSortBy('date-desc')
   }, [])
 
-  // Sync with initialActiveTab changes
+  // Sync with initialActiveTab changes (one-shot: set then release control)
   useEffect(() => {
     if (initialActiveTab !== undefined) {
+      // Set controlled tab for one render so ContentNavigator syncs internalActiveTab
       setActiveTab(initialActiveTab)
+      // Then release control so ContentNavigator returns to uncontrolled mode
+      // This allows user to freely click other tabs afterwards
+      const timer = setTimeout(() => setActiveTab(undefined), 0)
+      return () => clearTimeout(timer)
     }
   }, [initialActiveTab])
 
@@ -371,6 +391,34 @@ export function InterventionsNavigator({
     return configs[tabId] || { title: "Aucune donnée", description: "" }
   }
 
+  // ✅ Load More button component
+  const LoadMoreButton = () => {
+    if (!hasMore || !onLoadMore) return null
+
+    return (
+      <div className="flex justify-center py-4">
+        <Button
+          variant="outline"
+          onClick={onLoadMore}
+          disabled={isLoadingMore}
+          className="gap-2"
+        >
+          {isLoadingMore ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Chargement...
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-4 w-4" />
+              Charger plus ({interventions.length}/{total || '?'})
+            </>
+          )}
+        </Button>
+      </div>
+    )
+  }
+
   // Render content for each tab
   const renderTabContent = (tabId: string) => {
     const tabData = getFilteredByTab(tabId)
@@ -386,16 +434,20 @@ export function InterventionsNavigator({
     }
 
     return (
-      <InterventionsViewContainer
-        interventions={tabData}
-        userContext={userContext}
-        loading={loading}
-        emptyStateConfig={getEmptyStateForTab(tabId)}
-        showStatusActions={true}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        hideViewSwitcher={true}
-      />
+      <>
+        <InterventionsViewContainer
+          interventions={tabData}
+          userContext={userContext}
+          loading={loading}
+          emptyStateConfig={getEmptyStateForTab(tabId)}
+          showStatusActions={true}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          hideViewSwitcher={true}
+        />
+        {/* ✅ Load More button - only show on "toutes" tab to avoid confusion with filtered tabs */}
+        {tabId === 'toutes' && <LoadMoreButton />}
+      </>
     )
   }
 
@@ -405,15 +457,15 @@ export function InterventionsNavigator({
   // Build tabs based on preset
   const tabs = useMemo(() => {
     if (tabsPreset === 'dashboard') {
-      // Dashboard tabs: conditionally show "Actions en attente" first
+      // Dashboard tabs: always show "À traiter" first (even with 0 count)
       return [
-        ...(pendingActionsCount > 0 ? [{
+        {
           id: "actions_en_attente",
-          label: "En attente",
+          label: "À traiter",
           icon: AlertTriangle,
           count: pendingActionsCount,
           content: renderTabContent("actions_en_attente")
-        }] : []),
+        },
         {
           id: "en_cours",
           label: "En cours",
@@ -493,7 +545,7 @@ export function InterventionsNavigator({
 
   // Default tab
   const defaultTab = tabsPreset === 'dashboard'
-    ? (pendingActionsCount > 0 ? "actions_en_attente" : "en_cours")
+    ? "actions_en_attente"
     : tabsPreset === 'prestataire'
     ? "prestataire_en_cours"
     : "toutes"
@@ -644,12 +696,6 @@ export function InterventionsNavigator({
   // ========================================
   // BEM Classes
   // ========================================
-  const blockClass = cn(
-    "interventions-section",
-    "flex-1 flex flex-col min-h-0",
-    compact && "interventions-section--compact"
-  )
-
   const headerClass = cn(
     "interventions-section__header",
     "flex items-center justify-between gap-2 flex-shrink-0",
@@ -664,12 +710,6 @@ export function InterventionsNavigator({
   const actionsClass = cn(
     "interventions-section__actions",
     "flex items-center gap-1 flex-shrink-0"
-  )
-
-  const contentClass = cn(
-    "interventions-section__content",
-    "flex-1 flex flex-col min-h-0",
-    compact ? "px-2 pb-1.5 sm:px-3 sm:pb-2" : ""
   )
 
   // ========================================
@@ -694,9 +734,11 @@ export function InterventionsNavigator({
   // With header (dashboard mode)
   const HeaderIcon = headerConfig?.icon
   return (
-    <div className={blockClass}>
-      {/* Card wrapper for dashboard mode */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className={cn(
+      "interventions-section flex-1 flex flex-col min-h-0",
+      "bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden",
+      compact && "interventions-section--compact"
+    )}>
         {/* Header */}
         <div className={headerClass}>
           <div className={titleClass}>
@@ -724,18 +766,18 @@ export function InterventionsNavigator({
         {activeFiltersBadges}
 
         {/* Content */}
-        <div className={contentClass}>
-          <ContentNavigator
-            tabs={tabs}
-            defaultTab={defaultTab}
-            activeTab={activeTab}
-            searchPlaceholder="Rechercher par titre, description, ou référence..."
-            onSearch={setSearchTerm}
-            rightControls={rightControls}
-            className="shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0"
-          />
-        </div>
-      </div>
+        <ContentNavigator
+          tabs={tabs}
+          defaultTab={defaultTab}
+          activeTab={activeTab}
+          searchPlaceholder="Rechercher par titre, description, ou référence..."
+          onSearch={setSearchTerm}
+          rightControls={rightControls}
+          className={cn(
+            "shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0",
+            compact ? "px-2 pb-1.5 sm:px-3 sm:pb-2" : ""
+          )}
+        />
     </div>
   )
 }

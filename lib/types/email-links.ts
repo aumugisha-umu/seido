@@ -133,10 +133,16 @@ export interface LinkedEmail {
     id: string;
     subject: string;
     from_address: string;
+    to_addresses: string[];
     received_at: string | null;
     sent_at: string | null;
     direction: 'received' | 'sent';
     status: string;
     snippet?: string;
+    // Threading headers for conversation grouping
+    message_id: string | null;
+    in_reply_to_header: string | null;
+    references: string | null;
+    email_connection_id: string | null;
     link: EmailLink;
 }

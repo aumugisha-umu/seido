@@ -36,7 +36,7 @@ function SubmitButton({ isFormValid, isSubmitting }: { isFormValid: boolean; isS
           Création du compte...
         </>
       ) : (
-        "Créer mon compte"
+        "Commencer mon essai gratuit"
       )}
     </Button>
   )

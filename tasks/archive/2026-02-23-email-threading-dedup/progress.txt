@@ -1,0 +1,40 @@
+# Progress Log — Email Threading Fix (Dedup, Order, Sent/Received)
+# Started: 2026-02-23
+# Stories: 5/5 complete
+---
+
+## 2026-02-23 — US-001: Deduplicate emails during IMAP sync
+- Added dedup check in email-sync.service.ts (check message_id exists before insert)
+- Added UNIQUE partial index on (team_id, message_id) WHERE message_id IS NOT NULL
+- Migration also cleans up existing duplicates (keeps oldest per team_id+message_id)
+- Belt-and-suspenders: catch PostgreSQL 23505 (unique violation) as silent skip
+- Files: email-sync.service.ts, 20260223000000_deduplicate_emails_unique_message_id.sql
+- Learning: Always add DB constraint + application check for dedup (race conditions)
+
+## 2026-02-23 — US-002: Store in_reply_to_header on sent emails
+- smtp.service.ts now saves `in_reply_to_header: inReplyTo` (parent message_id string)
+- This feeds into generateConversationId() Priority 2 (In-Reply-To header)
+- Combined with `references` (Priority 1), sent replies now group correctly with parent thread
+- Files: smtp.service.ts
+- Learning: Threading depends on in_reply_to_header (RFC string), NOT in_reply_to (UUID FK)
+
+## 2026-02-23 — US-003: Fix thread ordering to chronological
+- Changed getConversationEmails() sort from descending to ascending (oldest first)
+- Matches Gmail/Outlook convention: read top-to-bottom = chronological flow
+- Files: types.ts, conversation-thread.tsx
+- Learning: Email threads are NOT chat — chronological (oldest top) is universal standard
+
+## 2026-02-23 — US-004: Sent/received visual distinction
+- Added sender header to EmailThreadItem (name + direction icon + timestamp)
+- Sent: blue left border, blue tint bg, ArrowUpRight icon, "Vous" label
+- Received: neutral style, ArrowDownLeft icon, sender name
+- Removed redundant Separator between thread items (card borders sufficient)
+- Files: conversation-thread.tsx
+
+## 2026-02-23 — US-005: Include sent replies in inbox threads
+- Added getSentRepliesForThreads() to email.repository.ts
+- API route /api/emails merges sent replies for inbox/processed folders
+- SSR page.tsx fetches sent replies in parallel with received emails
+- Client-side groupEmailsByConversation naturally handles mixed directions
+- Files: email.repository.ts, route.ts, page.tsx
+- Learning: Sent emails have sent_at not received_at — adaptEmail already handles fallback

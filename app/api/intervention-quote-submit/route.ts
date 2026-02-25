@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
       providerId: user.id, // Current user is the provider
       amount: body.laborCost ? parseFloat(body.laborCost) + (body.materialsCost ? parseFloat(body.materialsCost) : 0) : 0,
       description: body.description,
-      estimatedDuration: body.estimatedDurationHours ? Math.round(body.estimatedDurationHours * 60) : undefined, // Convert hours to minutes
     }
 
     // ✅ ZOD VALIDATION
@@ -44,13 +43,11 @@ export async function POST(request: NextRequest) {
       interventionId,
       amount: totalAmount,
       description,
-      estimatedDuration,
     } = validatedData
 
     // Extract original values for line items
     const laborCostNum = body.laborCost ? parseFloat(body.laborCost) : 0
     const materialsCostNum = body.materialsCost ? parseFloat(body.materialsCost) : 0
-    const estimatedDurationHours = body.estimatedDurationHours
     const providerAvailabilities = body.providerAvailabilities || []
 
     logger.info({
@@ -80,8 +77,8 @@ export async function POST(request: NextRequest) {
     // Build line items
     const lineItems: any[] = [{
       description: 'Main d\'œuvre',
-      quantity: estimatedDurationHours || 1,
-      unit_price: laborCostNum / (estimatedDurationHours || 1),
+      quantity: 1,
+      unit_price: laborCostNum,
       total: laborCostNum
     }]
 
@@ -182,12 +179,13 @@ export async function POST(request: NextRequest) {
         .insert({
           intervention_id: interventionId,
           provider_id: user.id,
+          created_by: user.id,
+          team_id: intervention.team_id,
           amount: totalAmount,
           description: description.trim(),
           line_items: lineItems,
           status: 'sent',
           quote_type: 'estimation',
-          estimated_duration: estimatedDuration,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })

@@ -79,16 +79,11 @@ class ActivityLogger {
 
       // Validation des champs obligatoires
       if (!logData.team_id || !logData.user_id) {
-        console.error('❌ ActivityLogger: team_id and user_id are required', {
-          team_id: logData.team_id,
-          user_id: logData.user_id,
-          context: this.context
-        })
+        logger.error({ team_id: logData.team_id, user_id: logData.user_id }, 'ActivityLogger: team_id and user_id are required')
         return null
       }
 
-      // 🔍 DEBUG: Log the data being sent
-      console.log('📝 ActivityLogger: Attempting to insert log:', JSON.stringify(logData, null, 2))
+      logger.debug({ logData }, 'ActivityLogger: Attempting to insert log')
 
       const { data, error } = await this.supabase
         .from('activity_logs')
@@ -97,22 +92,14 @@ class ActivityLogger {
         .single()
 
       if (error) {
-        console.error('❌ ActivityLogger: Error saving log:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-          sentData: logData
-        })
-        console.error('❌ Full error object:', JSON.stringify(error, null, 2))
+        logger.error({ error, sentData: logData }, 'ActivityLogger: Error saving log')
         return null
       }
 
-      console.log('✅ ActivityLogger: Log saved successfully:', data?.id)
+      logger.debug({ id: data?.id }, 'ActivityLogger: Log saved successfully')
       return data?.id || null
     } catch (error) {
-      console.error('❌ ActivityLogger: Unexpected error:', error instanceof Error ? error.message : String(error))
-      console.error('❌ Full exception:', error)
+      logger.error({ error }, 'ActivityLogger: Unexpected error')
       return null
     }
   }
@@ -350,7 +337,7 @@ class ActivityLogger {
           : buildingName || null
       }
     } catch (error) {
-      console.error('⚠️ ActivityLogger: Failed to load intervention relations:', error)
+      logger.error({ error }, 'ActivityLogger: Failed to load intervention relations')
       // Continue sans ces infos si erreur
     }
 
@@ -540,13 +527,13 @@ class ActivityLogger {
       const { data, error } = await query
 
       if (error) {
-        console.error('ActivityLogger: Error fetching logs:', error)
+        logger.error({ error }, 'ActivityLogger: Error fetching logs')
         return null
       }
 
       return data
     } catch (error) {
-      console.error('ActivityLogger: Unexpected error fetching logs:', error)
+      logger.error({ error }, 'ActivityLogger: Unexpected error fetching logs')
       return null
     }
   }
@@ -577,7 +564,7 @@ class ActivityLogger {
         .gte('created_at', startDate.toISOString())
 
       if (error) {
-        console.error('ActivityLogger: Error fetching stats:', error)
+        logger.error({ error }, 'ActivityLogger: Error fetching stats')
         return null
       }
 
@@ -602,7 +589,7 @@ class ActivityLogger {
 
       return stats
     } catch (error) {
-      console.error('ActivityLogger: Error calculating stats:', error)
+      logger.error({ error }, 'ActivityLogger: Error calculating stats')
       return null
     }
   }

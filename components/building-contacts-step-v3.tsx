@@ -1,12 +1,17 @@
 "use client"
 
-import React from "react"
-import { BuildingInfoCard } from "@/components/ui/building-info-card"
+import React, { useState } from "react"
 import { BuildingContactCardV3 } from "@/components/ui/building-contact-card-v3"
 import { LotContactCardV4 } from "@/components/ui/lot-contact-card-v4"
-import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
+import { ContactSelectorRef } from "@/components/contact-selector"
 import type { User as UserType, Team } from "@/lib/services/core/service-types"
-import { LotCategory } from "@/lib/lot-types"
+import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Users, Paperclip, ChevronDown, ChevronUp } from "lucide-react"
+import { DocumentChecklistGeneric } from "@/components/documents/document-checklist-generic"
+import type { UsePropertyDocumentUploadReturn } from "@/hooks/use-property-document-upload"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 // Simplified Contact interface matching ContactSelector and child components
 interface Contact {
@@ -39,7 +44,7 @@ interface Lot {
 interface BuildingContactsStepV3Props {
   buildingInfo: BuildingInfo
   teamManagers: UserType[]
-  buildingManagers: UserType[] // Tous les gestionnaires de l'immeuble (minimum 1 requis)
+  buildingManagers: UserType[]
   userProfile: {
     id: string
     email: string
@@ -64,23 +69,20 @@ interface BuildingContactsStepV3Props {
   openBuildingManagerModal: () => void
   removeBuildingManager: (managerId: string) => void
   toggleLotExpansion: (lotId: string) => void
+  /** Optional: building document upload hook (enables Documents sub-tab) */
+  buildingDocUpload?: UsePropertyDocumentUploadReturn
+  /** Optional: per-lot document upload hooks (map of lotId → hook return) */
+  lotDocUploads?: { [lotId: string]: UsePropertyDocumentUploadReturn }
 }
 
 /**
- * ✨ V3 VERSION - Using BuildingContactCardV3 and LotContactCardV4
+ * BuildingContactsStepV3 — Contacts & Documents merged step
  *
- * Key improvements over V2:
- * ✅ Uses standalone BuildingContactCardV3 (grid 2x2 on desktop)
- * ✅ Uses standalone LotContactCardV4 (accordion + visual indicators)
- * ✅ Consistent design across creation wizard and detail pages
- * ✅ Reduced code duplication
- * ✅ Easier to maintain and update
+ * When buildingDocUpload is provided, renders sub-tabs:
+ * - Tab "Contacts": existing contact assignment UI
+ * - Tab "Documents": building-level + per-lot document checklists
  *
- * Architecture:
- * - Building contacts: V3 card with horizontal grid on desktop
- * - Lot contacts: V4 card with accordion + colored badges
- * - Lot layout: Responsive grid (1 col mobile, 2 cols tablet, 3 cols desktop)
- * - All business logic preserved from V2
+ * When buildingDocUpload is NOT provided (backwards compat), renders contacts only.
  */
 export function BuildingContactsStepV3({
   buildingInfo,
@@ -100,16 +102,24 @@ export function BuildingContactsStepV3({
   openManagerModal,
   openBuildingManagerModal,
   removeBuildingManager,
-  toggleLotExpansion
+  toggleLotExpansion,
+  buildingDocUpload,
+  lotDocUploads
 }: BuildingContactsStepV3Props) {
-  // Map building contacts from object to arrays
   const providers = buildingContacts['provider'] || []
   const owners = buildingContacts['owner'] || []
   const others = buildingContacts['other'] || []
 
-  return (
+  // Track expanded lots in documents tab separately
+  const [expandedDocLots, setExpandedDocLots] = useState<{ [key: string]: boolean }>({})
+
+  const toggleDocLotExpansion = (lotId: string) => {
+    setExpandedDocLots(prev => ({ ...prev, [lotId]: !prev[lotId] }))
+  }
+
+  // Contacts content (extracted to reuse with/without tabs)
+  const contactsContent = (
     <div className="space-y-3 @container">
-      {/* Building Contact Card V3 */}
       <BuildingContactCardV3
         buildingName={buildingInfo.name || `Immeuble - ${buildingInfo.address}`}
         buildingAddress={`${buildingInfo.address}, ${buildingInfo.city}${buildingInfo.postalCode ? ` - ${buildingInfo.postalCode}` : ''}`}
@@ -120,7 +130,6 @@ export function BuildingContactsStepV3({
         owners={owners}
         others={others}
         onAddContact={(contactType) => {
-          // Open contact selector modal for building (no lotId)
           contactSelectorRef.current?.openContactModal(contactType)
         }}
         onRemoveContact={(contactId, contactType) => {
@@ -128,7 +137,6 @@ export function BuildingContactsStepV3({
         }}
       />
 
-      {/* Lot Contact Cards V4 */}
       {lots.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2 px-1">
@@ -137,7 +145,6 @@ export function BuildingContactsStepV3({
             </h3>
           </div>
 
-          {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {lots.map((lot, index) => {
               const isExpanded = expandedLots[lot.id] || false
@@ -165,7 +172,6 @@ export function BuildingContactsStepV3({
                     owners={lotOwners}
                     others={lotOthers}
                     onAddContact={(contactType) => {
-                      // Open contact selector modal for this lot
                       contactSelectorRef.current?.openContactModal(contactType, lot.id)
                     }}
                     onRemoveContact={(contactId, contactType) => {
@@ -182,6 +188,139 @@ export function BuildingContactsStepV3({
           </div>
         </div>
       )}
+    </div>
+  )
+
+  // Documents content (building + per-lot)
+  const documentsContent = buildingDocUpload ? (
+    <div className="space-y-6">
+      {/* Building-level documents */}
+      <DocumentChecklistGeneric
+        title={`Documents de l'immeuble — ${buildingInfo.name || 'Immeuble'}`}
+        slots={buildingDocUpload.slots}
+        onAddFilesToSlot={buildingDocUpload.addFilesToSlot}
+        onRemoveFileFromSlot={buildingDocUpload.removeFileFromSlot}
+        progress={buildingDocUpload.progress}
+        missingRecommendedTypes={buildingDocUpload.missingRecommendedTypes}
+        isUploading={buildingDocUpload.isUploading}
+        onSetSlotExpiryDate={buildingDocUpload.setSlotExpiryDate}
+      />
+
+      {/* Per-lot documents */}
+      {lots.length > 0 && lotDocUploads && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <h3 className="text-sm font-semibold text-gray-700">
+              Documents spécifiques aux lots
+            </h3>
+            <span className="text-xs text-muted-foreground">
+              ({lots.length} lot{lots.length > 1 ? 's' : ''})
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {lots.map((lot, index) => {
+              const lotNumber = lots.length - index
+              const lotUpload = lotDocUploads[lot.id]
+              if (!lotUpload) return null
+
+              const isExpanded = expandedDocLots[lot.id] || false
+              const categoryConfig = getLotCategoryConfig(lot.category)
+              const hasFiles = lotUpload.hasFiles
+              const progressPct = lotUpload.progress.percentage
+
+              return (
+                <div
+                  key={lot.id}
+                  className="border rounded-lg bg-white overflow-hidden"
+                >
+                  {/* Lot header — clickable accordion */}
+                  <button
+                    type="button"
+                    onClick={() => toggleDocLotExpansion(lot.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className={cn(
+                      "flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold",
+                      "bg-blue-100 text-blue-700"
+                    )}>
+                      #{lotNumber}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <span className="font-medium text-sm">{lot.reference}</span>
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        {categoryConfig.label}
+                      </Badge>
+                    </div>
+                    {hasFiles && (
+                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                        {progressPct}%
+                      </Badge>
+                    )}
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-gray-400" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+
+                  {/* Expanded: document checklist */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 border-t">
+                      <DocumentChecklistGeneric
+                        title={`Documents — ${lot.reference}`}
+                        slots={lotUpload.slots}
+                        onAddFilesToSlot={lotUpload.addFilesToSlot}
+                        onRemoveFileFromSlot={lotUpload.removeFileFromSlot}
+                        progress={lotUpload.progress}
+                        missingRecommendedTypes={lotUpload.missingRecommendedTypes}
+                        isUploading={lotUpload.isUploading}
+                        onSetSlotExpiryDate={lotUpload.setSlotExpiryDate}
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null
+
+  // If no document upload provided, render contacts only (backwards compat)
+  if (!buildingDocUpload) {
+    return contactsContent
+  }
+
+  // Render with sub-tabs
+  return (
+    <div className="space-y-4">
+      <Tabs defaultValue="contacts" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto">
+          <TabsTrigger value="contacts" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            <span>Contacts</span>
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="flex items-center gap-2">
+            <Paperclip className="w-4 h-4" />
+            <span>Documents</span>
+            {buildingDocUpload.hasFiles && (
+              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 ml-1">
+                {buildingDocUpload.progress.percentage}%
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="contacts" className="mt-4">
+          {contactsContent}
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-4">
+          {documentsContent}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

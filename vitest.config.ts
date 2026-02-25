@@ -13,9 +13,9 @@ export default defineConfig({
     // Reporter format for clarity
     reporters: ['verbose'],
 
-    // Include test file patterns
-    include: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
-    exclude: ['node_modules', 'dist', '.next', 'backups'],
+    // Include test file patterns (unit tests only — E2E uses separate config)
+    include: ['**/__tests__/**/*.test.ts', '**/*.test.ts', 'tests/unit/**/*.test.ts'],
+    exclude: ['node_modules', 'dist', '.next', 'backups', 'tests/e2e/**'],
 
     // Setup files for test utilities
     setupFiles: [],

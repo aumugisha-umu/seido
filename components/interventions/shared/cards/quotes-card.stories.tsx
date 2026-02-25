@@ -56,7 +56,7 @@ const mockQuotes: Quote[] = [
   {
     id: '2',
     provider_id: 'provider-2',
-    status: 'approved',
+    status: 'accepted',
     amount: 380,
     description: 'Remplacement du joint et vérification de la tuyauterie',
     provider_name: 'Jean Plombier',
@@ -113,7 +113,7 @@ export const ProviderView: Story = {
  */
 export const TenantView: Story = {
   args: {
-    quotes: mockQuotes.filter(q => q.status === 'approved'),
+    quotes: mockQuotes.filter(q => q.status === 'accepted'),
     userRole: 'tenant'
   }
 }

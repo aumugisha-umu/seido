@@ -221,24 +221,8 @@ export function LotsWithContactsPreview({
   // Handle contact removal from modal (using lookup map like building contacts)
   const handleContactRemoved = async (contactId: string, contactType: string, context?: { lotId?: string }) => {
     try {
-      console.log('🔍 [DEBUG-LOT-REMOVAL] Starting removal attempt:', {
-        contactId,
-        contactType,
-        contextLotId: context?.lotId,
-        hasLotContactIdsMap: !!lotContactIdsMap,
-        mapSize: Object.keys(lotContactIdsMap).length,
-        allMapKeys: Object.keys(lotContactIdsMap),
-        allMapValues: Object.values(lotContactIdsMap)
-      })
-
       // Use lookup map to find lot_contact ID (like building contacts pattern)
       const contactInfo = lotContactIdsMap[contactId]
-
-      console.log('🔍 [DEBUG-LOT-REMOVAL] Lookup result:', {
-        contactId,
-        foundInMap: !!contactInfo,
-        contactInfo
-      })
 
       if (!contactInfo) {
         console.error('❌ [DEBUG-LOT-REMOVAL] Contact NOT found in lookup map:', {
@@ -248,19 +232,7 @@ export function LotsWithContactsPreview({
         throw new Error('Contact non trouvé dans les lots')
       }
 
-      console.log('🚀 [DEBUG-LOT-REMOVAL] Calling removeContactFromLotAction:', {
-        lotContactId: contactInfo.lotContactId,
-        lotId: contactInfo.lotId,
-        lotReference: contactInfo.lotReference
-      })
-
       const result = await removeContactFromLotAction(contactInfo.lotContactId)
-
-      console.log('📥 [DEBUG-LOT-REMOVAL] Server action result:', {
-        success: result.success,
-        error: result.error,
-        fullResult: result
-      })
 
       if (result.success) {
         toast({

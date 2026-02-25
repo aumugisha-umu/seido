@@ -21,10 +21,14 @@ import LeaseFormDetailsMerged from '@/components/contract/lease-form-details-mer
 import { DocumentChecklist } from '@/components/contract/document-checklist'
 import { LeaseInterventionsStep } from '@/components/contract/lease-interventions-step'
 import type { ScheduledInterventionData } from '@/components/contract/intervention-schedule-row'
+import { ParticipantChip } from '@/components/interventions/shared/layout/participants-row'
 import {
   LEASE_INTERVENTION_TEMPLATES,
   createMissingDocumentIntervention,
-  resolveTemplateText
+  resolveTemplateText,
+  CUSTOM_DATE_VALUE,
+  INSURANCE_EXPIRY_NEXT_DAY_VALUE,
+  type SchedulingOption
 } from '@/lib/constants/lease-interventions'
 import { LEASE_DOCUMENT_SLOTS } from '@/lib/constants/lease-document-slots'
 import { format } from 'date-fns'
@@ -99,6 +103,9 @@ export interface ContractFormContainerProps {
 
   // Edit mode
   existingContract?: ContractWithRelations
+
+  // Current logged-in gestionnaire (for pre-assigning interventions)
+  currentUser?: { id: string; name: string }
 
   // Contact creation redirect (create mode only)
   sessionKey?: string | null
@@ -204,6 +211,7 @@ export default function ContractFormContainer({
   initialContacts,
   prefilledLotId,
   existingContract,
+  currentUser,
   sessionKey: initialSessionKey,
   newContactId: initialNewContactId,
   contactType: initialContactType
@@ -274,6 +282,7 @@ export default function ContractFormContainer({
     progress: uploadProgress,
     missingRecommendedDocuments,
     isUploading: isUploadingDocuments,
+    setSlotExpiryDate,
     uploadFiles: uploadDocumentFiles,
     hasFiles: hasDocuments,
     hasPendingUploads
@@ -313,18 +322,59 @@ export default function ContractFormContainer({
       return template.applicableChargesTypes.includes(formData.chargesType as ChargesType)
     })
 
-    // Interventions standard avec titres résolus
-    const standardInterventions: ScheduledInterventionData[] = applicableTemplates.map(template => ({
-      key: template.key,
-      title: resolveTemplateText(template.title, formData.chargesType as ChargesType),
-      description: resolveTemplateText(template.description, formData.chargesType as ChargesType),
-      interventionTypeCode: template.interventionTypeCode,
-      icon: template.icon,
-      colorClass: template.colorClass,
-      enabled: template.enabledByDefault,
-      scheduledDate: template.calculateDefaultDate(startDate, endDate),
-      isAutoCalculated: true
-    }))
+    // Option dynamique assurance : lendemain de la date d'expiration si renseignée
+    const insuranceSlot = slots.find(s => s.type === 'attestation_assurance')
+    const insuranceExpiryDate = insuranceSlot?.files?.[0]?.expiryDate
+
+    // Pré-assigner le gestionnaire actuel à chaque intervention
+    const defaultAssignedUsers = currentUser
+      ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
+      : []
+
+    // Interventions standard avec titres résolus + options de planification
+    const standardInterventions: ScheduledInterventionData[] = applicableTemplates.map(template => {
+      // Construire les options disponibles
+      let options: SchedulingOption[] = [...template.schedulingOptions]
+      let defaultOption = template.defaultSchedulingOption
+
+      // Ajouter l'option dynamique assurance si applicable
+      if (template.key === 'insurance_reminder' && insuranceExpiryDate) {
+        const expiryDateObj = parseLocalDate(insuranceExpiryDate)
+        const formattedExpiry = format(expiryDateObj, 'dd/MM/yyyy')
+        const insuranceDynamicOption: SchedulingOption = {
+          value: INSURANCE_EXPIRY_NEXT_DAY_VALUE,
+          label: `Lendemain expiration assurance (${formattedExpiry})`,
+          calculateDate: () => {
+            const d = parseLocalDate(insuranceExpiryDate)
+            d.setDate(d.getDate() + 1)
+            return d
+          }
+        }
+        options = [insuranceDynamicOption, ...options]
+        defaultOption = INSURANCE_EXPIRY_NEXT_DAY_VALUE
+      }
+
+      // Calculer la date depuis l'option par défaut
+      const selectedOption = options.find(o => o.value === defaultOption)
+      const scheduledDate = selectedOption
+        ? selectedOption.calculateDate(startDate, endDate)
+        : template.calculateDefaultDate(startDate, endDate)
+
+      return {
+        key: template.key,
+        title: resolveTemplateText(template.title, formData.chargesType as ChargesType),
+        description: resolveTemplateText(template.description, formData.chargesType as ChargesType),
+        interventionTypeCode: template.interventionTypeCode,
+        icon: template.icon,
+        colorClass: template.colorClass,
+        enabled: template.enabledByDefault,
+        scheduledDate,
+        isAutoCalculated: true,
+        availableOptions: options,
+        selectedSchedulingOption: defaultOption,
+        assignedUsers: defaultAssignedUsers
+      }
+    })
 
     // Interventions pour documents manquants
     const documentInterventions: ScheduledInterventionData[] = missingRecommendedDocuments.map((docType, index) => {
@@ -338,12 +388,15 @@ export default function ContractFormContainer({
         colorClass: template.colorClass,
         enabled: template.enabledByDefault,
         scheduledDate: template.calculateDefaultDate(startDate, endDate),
-        isAutoCalculated: true
+        isAutoCalculated: true,
+        availableOptions: template.schedulingOptions,
+        selectedSchedulingOption: template.defaultSchedulingOption,
+        assignedUsers: defaultAssignedUsers
       }
     })
 
     setScheduledInterventions([...standardInterventions, ...documentInterventions])
-  }, [formData.startDate, formData.durationMonths, formData.chargesType, missingRecommendedDocuments])
+  }, [formData.startDate, formData.durationMonths, formData.chargesType, missingRecommendedDocuments, slots, currentUser])
 
   // Track original contacts for edit mode (to determine adds/removes/updates)
   const [originalContacts] = useState<FormContact[]>(() => {
@@ -645,7 +698,12 @@ export default function ContractFormContainer({
                 team_id: teamId,
                 contract_id: contractId,  // Lier l'intervention au contrat
                 requested_date: intervention.scheduledDate || undefined
-              }, { useServiceRole: true })  // Bypass RLS pour création batch
+              }, {
+                useServiceRole: true,  // Bypass RLS pour création batch
+                assignments: intervention.assignedUsers.length > 0
+                  ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                  : undefined
+              })
             })
           )
 
@@ -805,6 +863,7 @@ export default function ContractFormContainer({
               progress={uploadProgress}
               missingRecommendedDocuments={missingRecommendedDocuments}
               isUploading={isUploadingDocuments}
+              onSetSlotExpiryDate={setSlotExpiryDate}
             />
           </div>
         )
@@ -816,6 +875,11 @@ export default function ContractFormContainer({
             scheduledInterventions={scheduledInterventions}
             onInterventionsChange={setScheduledInterventions}
             missingDocuments={missingRecommendedDocuments}
+            startDate={formData.startDate ? parseLocalDate(formData.startDate) : null}
+            endDate={formData.startDate && formData.durationMonths ? calculateContractEndDate(formData.startDate, formData.durationMonths) : null}
+            teamId={teamId}
+            leaseTenantIds={(formData.contacts || []).filter(c => c.role === 'locataire').map(c => c.userId)}
+            availableContacts={initialContacts}
           />
         )
 
@@ -1045,12 +1109,25 @@ export default function ContractFormContainer({
                     {scheduledInterventions
                       .filter(i => i.enabled && i.scheduledDate)
                       .map((intervention, index) => (
-                        <div key={index} className="flex items-center gap-2 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                          <span className="font-medium">{intervention.title}</span>
-                          <span className="text-muted-foreground">
-                            - {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '—'}
-                          </span>
+                        <div key={index} className="flex items-start gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{intervention.title}</span>
+                            <span className="text-muted-foreground">
+                              - {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '—'}
+                            </span>
+                            {intervention.assignedUsers.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {intervention.assignedUsers.map(user => (
+                                  <ParticipantChip
+                                    key={user.userId}
+                                    participant={{ id: user.userId, name: user.name }}
+                                    roleKey={user.role === 'gestionnaire' ? 'managers' : user.role === 'prestataire' ? 'providers' : 'tenants'}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     {scheduledInterventions.filter(i => !i.enabled).length > 0 && (
@@ -1149,6 +1226,7 @@ export default function ContractFormContainer({
               onClick={handlePrevious}
               disabled={isSubmitting}
               className="w-full sm:w-auto"
+              data-testid="wizard-prev-btn"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Précédent
@@ -1160,6 +1238,7 @@ export default function ContractFormContainer({
               onClick={handleNext}
               disabled={!validateStep(currentStep)}
               className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
+              data-testid="wizard-next-btn"
             >
               Continuer
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -1169,6 +1248,7 @@ export default function ContractFormContainer({
               onClick={handleSubmit}
               disabled={isSubmitting || !validateStep(currentStep)}
               className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
+              data-testid="wizard-submit-btn"
             >
               {isSubmitting ? (mode === 'create' ? 'Création...' : 'Enregistrement...') : submitLabel}
               <SubmitIcon className="w-4 h-4 ml-2" />

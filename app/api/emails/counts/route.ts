@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
+import { getServiceRoleClient } from '@/lib/api-service-role-helper';
 
 export async function GET(request: Request) {
     try {
@@ -23,38 +24,42 @@ export async function GET(request: Request) {
 
         const teamId = membership.team_id;
 
+        // Use service role client for email queries (bypasses slow RLS with 6 policies)
+        // Security: User already validated as team manager above
+        const supabaseAdmin = getServiceRoleClient();
+
         // Fetch counts in parallel
         const [inboxUnread, processedCount, sentCount, archiveCount] = await Promise.all([
             // Inbox: Unread received emails
-            supabase
+            supabaseAdmin
                 .from('emails')
-                .select('*', { count: 'exact', head: true })
+                .select('id', { count: 'exact', head: true })
                 .eq('team_id', teamId)
                 .eq('direction', 'received')
                 .eq('status', 'unread')
                 .is('deleted_at', null),
 
             // Processed: Read received emails (not archived)
-            supabase
+            supabaseAdmin
                 .from('emails')
-                .select('*', { count: 'exact', head: true })
+                .select('id', { count: 'exact', head: true })
                 .eq('team_id', teamId)
                 .eq('direction', 'received')
                 .eq('status', 'read')
                 .is('deleted_at', null),
 
             // Sent (Total)
-            supabase
+            supabaseAdmin
                 .from('emails')
-                .select('*', { count: 'exact', head: true })
+                .select('id', { count: 'exact', head: true })
                 .eq('team_id', teamId)
                 .eq('direction', 'sent')
                 .is('deleted_at', null),
 
             // Archive (Total)
-            supabase
+            supabaseAdmin
                 .from('emails')
-                .select('*', { count: 'exact', head: true })
+                .select('id', { count: 'exact', head: true })
                 .eq('team_id', teamId)
                 .eq('status', 'archived')
                 .is('deleted_at', null)

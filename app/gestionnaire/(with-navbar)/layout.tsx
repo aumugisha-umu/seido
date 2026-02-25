@@ -1,14 +1,14 @@
 import type React from "react"
 import { getServerAuthContext } from "@/lib/server-context"
-import DashboardHeader from "@/components/dashboard-header"
+import GestionnaireTopbar from "@/components/gestionnaire-topbar"
 
 /**
- * 🧭 WITH-NAVBAR LAYOUT - Pages avec navigation globale
+ * 🧭 WITH-NAVBAR LAYOUT - Topbar for list/dashboard pages
  *
- * Ce layout ajoute le DashboardHeader pour les pages qui nécessitent
- * la barre de navigation principale (Dashboard, listes, etc.)
+ * Adds a slim topbar with page title + notifications + page actions.
+ * The sidebar is provided by the parent gestionnaire/layout.tsx (persistent across all pages).
  *
- * Pages concernées:
+ * Pages concernees:
  * - /gestionnaire/dashboard
  * - /gestionnaire/biens (liste)
  * - /gestionnaire/interventions (liste)
@@ -17,8 +17,6 @@ import DashboardHeader from "@/components/dashboard-header"
  * - /gestionnaire/parametres
  * - /gestionnaire/profile
  * - /gestionnaire/mail
- *
- * ✅ MULTI-ÉQUIPE (Jan 2026): Passe sameRoleTeams au header pour le sélecteur
  */
 
 export default async function WithNavbarLayout({
@@ -26,27 +24,18 @@ export default async function WithNavbarLayout({
 }: {
   children: React.ReactNode
 }) {
-  // ✅ Fetch data for DashboardHeader (cached via React.cache())
-  const { user, profile, team, sameRoleTeams } = await getServerAuthContext('gestionnaire')
-
-  const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
-  const userInitial = userName.charAt(0).toUpperCase()
+  const { profile, team, sameRoleTeams } = await getServerAuthContext('gestionnaire')
 
   return (
-    <div className="flex flex-col h-screen">
-      <DashboardHeader
-        role="gestionnaire"
-        userName={userName}
-        userInitial={userInitial}
-        userEmail={user.email || ''}
+    <>
+      <GestionnaireTopbar
         teamId={team.id}
         userId={profile.id}
-        avatarUrl={profile.avatar_url || undefined}
         teams={sameRoleTeams}
       />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
-    </div>
+    </>
   )
 }

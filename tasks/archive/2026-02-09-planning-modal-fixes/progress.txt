@@ -1,0 +1,40 @@
+# Progress Log - Planning Modal: Fix instructions + messages + confirmation participants
+# Started: 2026-02-09
+# Stories: 4 total
+---
+
+## US-001: Fix instructions textarea + add local state (XS) - DONE
+- Added `modalInstructions` state in parent, initialized from `intervention.instructions`
+- Passed `instructions` and `onInstructionsChange` props to ProgrammingModal
+- Textarea now properly controlled with real-time updates
+- Files: `intervention-detail-client.tsx`, `programming-modal-FINAL.tsx`
+
+## US-002: Update modal messages for invited-only clarity (XS) - DONE
+- Updated 4 messages to clarify only invited contacts (with accounts) are notified:
+  1. Participants section subtitle (line ~328)
+  2. Instructions info notice (line ~613)
+  3. Quote section description (line ~644)
+  4. "Organize" mode info message (line ~921)
+- Files: `programming-modal-FINAL.tsx`
+
+## US-003: Add ParticipantConfirmationSelector to direct+propose modes (M) - DONE
+- Added `ParticipantConfirmationSelector` import + `UserCheck` icon
+- Added confirmation props: requiresConfirmation, onRequiresConfirmationChange, confirmationRequired, onConfirmationRequiredChange, currentUserId
+- Created filtered memos: confirmationManagers, confirmationProviders, confirmationTenants (filter by has_account !== false)
+- Direct mode: optional Switch toggle + ParticipantConfirmationSelector(mandatory=false)
+- Propose mode: mandatory ParticipantConfirmationSelector(mandatory=true) always visible
+- Added state in parent: requiresConfirmation, confirmationRequired, handleConfirmationRequiredChange
+- Propagated has_account from assignments to manager/provider/tenant mappings
+- Files: `programming-modal-FINAL.tsx`, `intervention-detail-client.tsx`
+- Learning: has_account !== false pattern treats undefined as true (backwards compat)
+
+## US-004: Wire confirmation data through server action (M) - DONE
+- Extended PlanningData type with confirmationRequired[] + requiresConfirmation
+- Hook passes confirmationRequired + requiresConfirmation in payload
+- Server action now:
+  - Stores instructions on intervention
+  - Stores assignment_mode on intervention
+  - Stores requires_participant_confirmation on intervention
+  - Resets all assignments then sets requires_confirmation=true + confirmation_status='pending' for selected users
+  - Handles per-provider instructions (providerInstructions)
+- Files: `intervention-actions-service.ts`, `use-intervention-planning.ts`, `intervention-actions.ts`, `intervention-detail-client.tsx`

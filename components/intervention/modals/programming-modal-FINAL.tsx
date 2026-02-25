@@ -1,20 +1,22 @@
 "use client"
 
-import { useRef, useState, useEffect, useMemo } from "react"
+import React, { useRef, useState, useEffect, useMemo } from "react"
 import {
   Calendar,
   Clock,
   Plus,
-  Trash2,
   Check,
   CalendarDays,
   Users,
   User,
+  UserCheck,
   MapPin,
   Building2,
   FileText,
   Info,
-  X
+  X,
+  ArrowRight,
+  AlertTriangle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -22,6 +24,8 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { DatePicker } from "@/components/ui/date-picker"
 import { TimePicker24h } from "@/components/ui/time-picker-24h"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar as CalendarWidget } from "@/components/ui/calendar"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -38,6 +42,9 @@ import {
   getPriorityLabel
 } from "@/lib/intervention-utils"
 import { QuoteRequestCard } from "@/components/quotes/quote-request-card"
+import { AssignmentModeSelector, type AssignmentMode } from "@/components/intervention/assignment-mode-selector"
+import { ProviderInstructionsInput } from "@/components/intervention/provider-instructions-input"
+import { ParticipantConfirmationSelector } from "@/components/intervention/participant-confirmation-selector"
 import type { Database } from '@/lib/database.types'
 
 type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
@@ -78,7 +85,7 @@ interface ProgrammingModalFinalProps {
   directSchedule: TimeSlot
   onDirectScheduleChange: (schedule: TimeSlot) => void
   proposedSlots: TimeSlot[]
-  onAddProposedSlot: () => void
+  onAddProposedSlot: (data?: { date: string; startTime: string; endTime: string }) => void
   onUpdateProposedSlot: (index: number, field: keyof TimeSlot, value: string) => void
   onRemoveProposedSlot: (index: number) => void
   selectedProviders: string[]
@@ -91,6 +98,10 @@ interface ProgrammingModalFinalProps {
   onRequireQuoteChange?: (required: boolean) => void
   instructions?: string
   onInstructionsChange?: (instructions: string) => void
+  assignmentMode?: AssignmentMode
+  onAssignmentModeChange?: (mode: AssignmentMode) => void
+  providerInstructions?: Record<string, string>
+  onProviderInstructionsChange?: (providerId: string, instructions: string) => void
   managers?: Contact[]
   selectedManagers?: string[]
   onManagerToggle?: (managerId: string) => void
@@ -112,6 +123,220 @@ interface ProgrammingModalFinalProps {
   // Lots selection (for granular control)
   excludedLotIds?: string[]
   onLotToggle?: (lotId: string) => void
+  // Confirmation participants
+  requiresConfirmation?: boolean
+  onRequiresConfirmationChange?: (requires: boolean) => void
+  confirmationRequired?: string[]
+  onConfirmationRequiredChange?: (userId: string, required: boolean) => void
+  currentUserId?: string
+}
+
+// ── Helpers for compact slot display ──
+
+function formatSlotDate(dateStr: string): string {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+  } catch {
+    return dateStr
+  }
+}
+
+function formatSlotDateLong(dateStr: string): string {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })
+  } catch {
+    return dateStr
+  }
+}
+
+// ── Sub-component: Popover content for adding a time slot ──
+
+function TimeSlotPopoverContent({ onAdd, onCancel }: {
+  onAdd: (slot: { date: string; startTime: string; endTime: string }) => void
+  onCancel: () => void
+}) {
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const dateStr = selectedDate
+    ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+    : ''
+
+  const isValid = dateStr && startTime && endTime
+
+  return (
+    <div className="space-y-4">
+      <div className="text-sm font-medium text-slate-900">Nouveau créneau</div>
+
+      {/* Calendar */}
+      <CalendarWidget
+        mode="single"
+        selected={selectedDate}
+        onSelect={setSelectedDate}
+        disabled={{ before: today }}
+        className="rounded-md border border-slate-200"
+      />
+
+      {/* Time pickers */}
+      <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-3">
+        <TimePicker24h value={startTime} onChange={setStartTime} />
+        <ArrowRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
+        <TimePicker24h value={endTime} onChange={setEndTime} />
+      </div>
+
+      {/* Preview */}
+      {dateStr && (startTime || endTime) && (
+        <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm">
+          <span className="font-medium text-purple-900">{formatSlotDateLong(dateStr)}</span>
+          {startTime && endTime && (
+            <span className="text-purple-600 ml-2">{startTime} - {endTime}</span>
+          )}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="text-xs">
+          Annuler
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={!isValid}
+          onClick={() => {
+            if (isValid) {
+              onAdd({ date: dateStr, startTime, endTime })
+            }
+          }}
+          className="text-xs bg-purple-600 hover:bg-purple-700"
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          Ajouter
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ── Sub-component: Propose slots section with badges + popover ──
+
+function ProposeSlotsSection({
+  proposedSlots,
+  onAddProposedSlot,
+  onRemoveProposedSlot,
+  hasOtherConfirmationParticipants,
+  onConfirmationRequiredChange,
+  confirmationManagers,
+  confirmationProviders,
+  confirmationTenants,
+  confirmationRequired,
+}: {
+  proposedSlots: TimeSlot[]
+  onAddProposedSlot: (data?: { date: string; startTime: string; endTime: string }) => void
+  onRemoveProposedSlot: (index: number) => void
+  hasOtherConfirmationParticipants: boolean
+  onConfirmationRequiredChange?: (userId: string, required: boolean) => void
+  confirmationManagers: Array<Contact & { isCurrentUser?: boolean }>
+  confirmationProviders: Contact[]
+  confirmationTenants: Contact[]
+  confirmationRequired: string[]
+}) {
+  const [popoverOpen, setPopoverOpen] = useState(false)
+
+  return (
+    <div className="space-y-3 p-4 bg-purple-50/30 border border-purple-200 rounded-lg">
+      <Label className="text-sm font-medium text-slate-900">
+        Créneaux proposés ({proposedSlots.length})
+      </Label>
+
+      {/* Slot badges + Add button */}
+      <div className="flex flex-wrap items-center gap-2">
+        {proposedSlots.map((slot, index) => (
+          <div
+            key={index}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm group hover:bg-purple-100 transition-colors"
+          >
+            <Calendar className="h-3.5 w-3.5 text-purple-600 flex-shrink-0" />
+            <span className="font-medium text-purple-900">{formatSlotDate(slot.date)}</span>
+            <span className="text-purple-600">{slot.startTime} - {slot.endTime}</span>
+            <button
+              type="button"
+              onClick={() => onRemoveProposedSlot(index)}
+              className="ml-1 p-0.5 rounded-full text-purple-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+
+        {/* Add slot via popover */}
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-dashed border-purple-300 text-purple-700 hover:bg-purple-50 hover:text-purple-800 h-9"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Ajouter un créneau
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-4" align="start" side="bottom">
+            <TimeSlotPopoverContent
+              onAdd={(slot) => {
+                onAddProposedSlot(slot)
+                setPopoverOpen(false)
+              }}
+              onCancel={() => setPopoverOpen(false)}
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* Empty state */}
+      {proposedSlots.length === 0 && (
+        <div className="text-center py-4 text-sm text-slate-500 bg-white rounded border-2 border-dashed border-slate-200">
+          Cliquez sur &quot;Ajouter un créneau&quot; pour proposer des disponibilités.
+        </div>
+      )}
+
+      {/* Mandatory confirmation section for slots — matching creation flow */}
+      {hasOtherConfirmationParticipants && onConfirmationRequiredChange && (
+        <div className="border border-blue-200 rounded-lg p-4 bg-blue-50/50">
+          <div className="flex items-center gap-2 mb-1">
+            <UserCheck className="h-5 w-5 text-blue-600" />
+            <Label className="text-sm font-medium">
+              Participants qui doivent valider les créneaux
+            </Label>
+            <Badge variant="secondary" className="text-xs">
+              Obligatoire
+            </Badge>
+          </div>
+          <p className="text-xs text-blue-600 mb-2">
+            Les participants sélectionnés devront confirmer leur disponibilité sur les créneaux proposés.
+          </p>
+
+          <ParticipantConfirmationSelector
+            managers={confirmationManagers}
+            providers={confirmationProviders}
+            tenants={confirmationTenants}
+            confirmationRequired={confirmationRequired}
+            onToggle={onConfirmationRequiredChange}
+            mandatory={true}
+          />
+        </div>
+      )}
+    </div>
+  )
 }
 
 export const ProgrammingModalFinal = ({
@@ -136,6 +361,10 @@ export const ProgrammingModalFinal = ({
   onRequireQuoteChange,
   instructions = "",
   onInstructionsChange,
+  assignmentMode = 'group',
+  onAssignmentModeChange,
+  providerInstructions = {},
+  onProviderInstructionsChange,
   managers = [],
   selectedManagers = [],
   onManagerToggle,
@@ -154,7 +383,12 @@ export const ProgrammingModalFinal = ({
   buildingTenants = null,
   loadingBuildingTenants = false,
   excludedLotIds = [],
-  onLotToggle
+  onLotToggle,
+  requiresConfirmation = false,
+  onRequiresConfirmationChange,
+  confirmationRequired = [],
+  onConfirmationRequiredChange,
+  currentUserId
 }: ProgrammingModalFinalProps) => {
   // Ref for ContactSelector modal
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
@@ -185,10 +419,38 @@ export const ProgrammingModalFinal = ({
     return all.filter(p => selectedProviders.includes(p.id))
   }, [providers, addedProviders, selectedProviders])
 
+  // Filtered contacts for confirmation selector — only those with accounts
+  const confirmationManagers = useMemo(() => {
+    return selectedManagerContacts
+      .filter(m => m.has_account !== false)
+      .map(m => ({ ...m, isCurrentUser: m.id === currentUserId }))
+  }, [selectedManagerContacts, currentUserId])
+
+  const confirmationProviders = useMemo(() => {
+    return selectedProviderContacts.filter(p => p.has_account !== false)
+  }, [selectedProviderContacts])
+
+  const confirmationTenants = useMemo(() => {
+    return tenants
+      .filter(t => selectedTenants.includes(t.id) && t.has_account !== false)
+      .map(t => ({ ...t, type: 'locataire' as const }))
+  }, [tenants, selectedTenants])
+
+  // Check if there are other participants besides current user (for confirmation section)
+  const hasOtherConfirmationParticipants = useMemo(() => {
+    const otherManagers = confirmationManagers.filter(m => !m.isCurrentUser)
+    return otherManagers.length + confirmationProviders.length + confirmationTenants.length > 0
+  }, [confirmationManagers, confirmationProviders, confirmationTenants])
+
   if (!intervention) return null
 
   // Get all quote requests for this intervention (show all statuses)
   const allQuoteRequests = quoteRequests || []
+
+  // Active quotes: pending or sent, no amount submitted yet (cancellable)
+  const activeQuoteRequests = allQuoteRequests.filter(q =>
+    ['pending', 'sent'].includes(q.status) && q.amount <= 0
+  )
 
   // Tenants unchanged (not added via ContactSelector)
   const selectedTenantContacts: Contact[] = tenants
@@ -279,10 +541,10 @@ export const ProgrammingModalFinal = ({
                 </div>
 
                 {/* Créé par */}
-                {intervention?.created_by && (
+                {(intervention?.creator_name || intervention?.created_by) && (
                   <div className="flex items-center space-x-1">
                     <User className="h-3 w-3" />
-                    <span>Créée par : {intervention.created_by}</span>
+                    <span>Créée par : {intervention.creator_name || intervention.created_by}</span>
                   </div>
                 )}
 
@@ -308,40 +570,12 @@ export const ProgrammingModalFinal = ({
         <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6">
 
-          {/* 1. Instructions générales */}
-          <div className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900 mb-1">
-                Instructions générales
-              </h2>
-              <p className="text-sm text-slate-600">
-                Ajoutez des instructions ou informations supplémentaires pour cette intervention
-              </p>
-            </div>
-            <Textarea
-              id="instructions"
-              placeholder="Ajoutez des instructions ou informations supplémentaires pour cette intervention..."
-              value={instructions}
-              onChange={(e) => onInstructionsChange?.(e.target.value)}
-              rows={4}
-              className="resize-none"
-            />
-            <p className="text-xs text-slate-500">
-              Ces informations seront partagées avec tous les participants
-            </p>
-          </div>
-
-          <Separator />
-
-          {/* 2. Assignations Section with ContactSection */}
+          {/* 1. Participants Section */}
           <div className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 mb-1">
                 Participants
               </h2>
-              <p className="text-sm text-slate-600">
-                Sélectionnez les gestionnaires et prestataires participant à l'intervention. Les locataires sont ajoutés automatiquement selon le bien concerné.
-              </p>
             </div>
 
             <div className={cn(
@@ -567,6 +801,71 @@ export const ProgrammingModalFinal = ({
                 </div>
               )}
             </div>
+
+            <p className="text-sm text-slate-600">
+                Seuls les contacts invités (ayant un compte) recevront les notifications et auront accès au suivi.
+              </p>
+          </div>
+
+          <Separator />
+
+          {/* 2. Instructions et messages */}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 mb-1">
+                Instructions et messages
+              </h2>
+              <p className="text-sm text-slate-600">
+                Ajoutez des instructions ou informations supplémentaires pour cette intervention
+              </p>
+            </div>
+
+            {/* Assignment mode selector - only when 2+ providers */}
+            {selectedProviders.length > 1 && onAssignmentModeChange && (
+              <AssignmentModeSelector
+                mode={assignmentMode}
+                onModeChange={onAssignmentModeChange}
+                providerCount={selectedProviders.length}
+              />
+            )}
+
+            {/* General instructions */}
+            <div className="space-y-2">
+              <Textarea
+                id="instructions"
+                placeholder="Instructions visibles par tous les prestataires et gestionnaires assignés"
+                value={instructions}
+                onChange={(e) => onInstructionsChange?.(e.target.value)}
+                rows={3}
+                className="resize-none"
+              />
+              <p className="text-xs text-slate-500">
+                Visibles par tous les prestataires assignés
+              </p>
+            </div>
+
+            {/* Per-provider instructions - only in separate mode with 2+ providers */}
+            {assignmentMode === 'separate' && selectedProviders.length > 1 && onProviderInstructionsChange && (
+              <ProviderInstructionsInput
+                providers={selectedProviderContacts.map(p => ({
+                  id: p.id,
+                  name: p.name,
+                  email: p.email,
+                  avatar_url: undefined,
+                  speciality: undefined
+                }))}
+                instructions={providerInstructions}
+                onInstructionsChange={onProviderInstructionsChange}
+              />
+            )}
+
+            {/* Info notice about instruction visibility */}
+            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+              <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-blue-800 text-xs">
+                Les instructions ne seront pas visibles par le locataire. Seuls les contacts invités (ayant un compte) assignés à l'intervention pourront les consulter.
+              </p>
+            </div>
           </div>
 
           <Separator />
@@ -578,8 +877,8 @@ export const ProgrammingModalFinal = ({
                 Estimation préalable
               </h2>
               <p className="text-sm text-slate-600">
-                {intervention.status === 'demande_de_devis' && allQuoteRequests.length > 0
-                  ? "Demande de devis en cours"
+                {activeQuoteRequests.length > 0
+                  ? `${activeQuoteRequests.length} demande${activeQuoteRequests.length > 1 ? 's' : ''} d'estimation en cours`
                   : "Demander une estimation du temps et du coût avant la planification"
                 }
               </p>
@@ -595,7 +894,7 @@ export const ProgrammingModalFinal = ({
                       Demander une estimation
                     </h3>
                     <p className="text-xs text-slate-600">
-                      Le prestataire devra fournir une estimation du temps et du coût avant la planification définitive
+                      Seuls les prestataires invités (ayant un compte) recevront la demande d&apos;estimation
                     </p>
                   </div>
                 </div>
@@ -605,15 +904,31 @@ export const ProgrammingModalFinal = ({
                 />
               </div>
 
-              {/* Display quote requests if status is 'demande_de_devis' */}
-              {intervention.status === 'demande_de_devis' && allQuoteRequests.length > 0 && (
+              {/* Warning when toggling OFF with active quotes */}
+              {!requireQuote && activeQuoteRequests.length > 0 && (
+                <div className="flex items-start gap-2 text-amber-700 bg-amber-100 p-3 rounded-md border border-amber-300">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">
+                    À la confirmation, {activeQuoteRequests.length > 1
+                      ? `les ${activeQuoteRequests.length} demandes d'estimation ci-dessous seront annulées`
+                      : "la demande d'estimation ci-dessous sera annulée"
+                    } et les prestataires ayant un compte en seront notifiés.
+                  </span>
+                </div>
+              )}
+
+              {/* Display active quote requests (pending/sent) — shown regardless of intervention status */}
+              {activeQuoteRequests.length > 0 && (
                 <div className="space-y-3 pt-3 border-t border-amber-300">
                   <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                     <FileText className="h-4 w-4 text-amber-600" />
-                    Demande envoyée
+                    {activeQuoteRequests.length > 1
+                      ? `${activeQuoteRequests.length} demandes envoyées`
+                      : "Demande envoyée"
+                    }
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {allQuoteRequests.map(request => (
+                    {activeQuoteRequests.map(request => (
                       <QuoteRequestCard
                         key={request.id}
                         request={request}
@@ -762,7 +1077,7 @@ export const ProgrammingModalFinal = ({
           {/* 5. Conditional Content Based on Selected Method */}
           {programmingOption === "direct" && (
             <div className="space-y-4 p-4 bg-blue-50/30 border border-blue-200 rounded-lg">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3 items-end">
                 <div className="flex flex-col gap-2">
                   <Label className="text-sm font-medium">Date du rendez-vous *</Label>
                   <DatePicker
@@ -777,91 +1092,61 @@ export const ProgrammingModalFinal = ({
                   <TimePicker24h
                     value={directSchedule.startTime}
                     onChange={(time) => onDirectScheduleChange({ ...directSchedule, startTime: time })}
-                    className="w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-medium text-slate-700">Heure de fin</Label>
+                  <TimePicker24h
+                    value={directSchedule.endTime}
+                    onChange={(time) => onDirectScheduleChange({ ...directSchedule, endTime: time })}
                   />
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium text-slate-700">Heure de fin (optionnelle)</Label>
-                <TimePicker24h
-                  value={directSchedule.endTime}
-                  onChange={(time) => onDirectScheduleChange({ ...directSchedule, endTime: time })}
-                  className="w-full max-w-[200px]"
-                />
-              </div>
+
+              {/* Optional confirmation section — matching creation flow */}
+              {hasOtherConfirmationParticipants && onRequiresConfirmationChange && (
+                <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="h-5 w-5 text-blue-600" />
+                      <Label className="text-sm font-medium cursor-pointer">
+                        Demander confirmation des participants
+                      </Label>
+                    </div>
+                    <Switch
+                      checked={requiresConfirmation}
+                      onCheckedChange={onRequiresConfirmationChange}
+                      className="data-[state=checked]:bg-blue-600"
+                    />
+                  </div>
+
+                  {requiresConfirmation && onConfirmationRequiredChange && (
+                    <ParticipantConfirmationSelector
+                      managers={confirmationManagers}
+                      providers={confirmationProviders}
+                      tenants={confirmationTenants}
+                      confirmationRequired={confirmationRequired}
+                      onToggle={onConfirmationRequiredChange}
+                      mandatory={false}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           )}
 
           {programmingOption === "propose" && (
-            <div className="space-y-3 p-4 bg-purple-50/30 border border-purple-200 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <Label className="text-sm font-medium text-slate-900">
-                  Créneaux proposés ({proposedSlots.length})
-                </Label>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={onAddProposedSlot}
-                  variant="outline"
-                  className="h-8 text-xs"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Ajouter un créneau
-                </Button>
-              </div>
-
-              {proposedSlots.length === 0 ? (
-                <div className="text-center py-6 text-sm text-slate-500 bg-white rounded border-2 border-dashed border-slate-200">
-                  Aucun créneau proposé. Cliquez sur "Ajouter un créneau" pour commencer.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {proposedSlots.map((slot, index) => (
-                    <div key={index} className="p-3 bg-white border border-purple-200 rounded-lg space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-700">Créneau {index + 1}</span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onRemoveProposedSlot(index)}
-                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="flex flex-col gap-2">
-                          <Label className="text-sm font-medium">Date *</Label>
-                          <DatePicker
-                            value={slot.date}
-                            onChange={(date) => onUpdateProposedSlot(index, 'date', date)}
-                            minDate={new Date().toISOString().split('T')[0]}
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <Label className="text-sm font-medium">Début *</Label>
-                          <TimePicker24h
-                            value={slot.startTime}
-                            onChange={(time) => onUpdateProposedSlot(index, 'startTime', time)}
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <Label className="text-sm font-medium">Fin *</Label>
-                          <TimePicker24h
-                            value={slot.endTime}
-                            onChange={(time) => onUpdateProposedSlot(index, 'endTime', time)}
-                            className="w-full"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <ProposeSlotsSection
+              proposedSlots={proposedSlots}
+              onAddProposedSlot={onAddProposedSlot}
+              onRemoveProposedSlot={onRemoveProposedSlot}
+              hasOtherConfirmationParticipants={hasOtherConfirmationParticipants}
+              onConfirmationRequiredChange={onConfirmationRequiredChange}
+              confirmationManagers={confirmationManagers}
+              confirmationProviders={confirmationProviders}
+              confirmationTenants={confirmationTenants}
+              confirmationRequired={confirmationRequired}
+            />
           )}
 
           {programmingOption === "organize" && (
@@ -872,7 +1157,7 @@ export const ProgrammingModalFinal = ({
                   Coordination autonome
                 </h3>
                 <p className="text-sm text-emerald-700 leading-relaxed">
-                  Les participants recevront une notification et pourront communiquer entre eux via la section discussion et l'outil de disponibilités fourni pour fixer le rendez-vous. Vous serez notifié une fois la date confirmée.
+                  Les participants invités (ayant un compte) recevront une notification et pourront communiquer entre eux via la section discussion et l'outil de disponibilités fourni pour fixer le rendez-vous. Vous serez notifié une fois la date confirmée.
                 </p>
               </div>
             </div>

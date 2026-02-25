@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   CheckCircle,
   XCircle,
@@ -11,7 +12,8 @@ import {
   FileText,
   Edit3,
   Trash2,
-  Edit
+  Edit,
+  CalendarCheck
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getActionStyling as getActionStylingFromLib } from "@/lib/intervention-action-styles"
@@ -59,6 +61,7 @@ interface InterventionActionButtonsProps {
     status: string
     tenant_id?: string
     scheduled_date?: string
+    requires_quote?: boolean
     quotes?: Quote[]
     availabilities?: Array<{
       person: string
@@ -84,6 +87,8 @@ interface InterventionActionButtonsProps {
   onCancelIntervention?: () => void
   onRejectQuoteRequest?: (_quote: Quote) => void
   onProposeSlots?: () => void
+  autoOpenComplete?: boolean
+  autoOpenTenantValidation?: 'approve' | 'reject' | false
   timeSlots?: Array<{
     id: string
     slot_date: string
@@ -91,6 +96,24 @@ interface InterventionActionButtonsProps {
     end_time: string
     status?: string
     proposed_by?: string
+    proposed_by_user?: {
+      first_name?: string | null
+      last_name?: string | null
+      company_name?: string | null
+      role?: string
+      name?: string
+    } | null
+    responses?: Array<{
+      user_id: string
+      response: string
+      user?: {
+        first_name?: string | null
+        last_name?: string | null
+        company_name?: string | null
+        role?: string
+        name?: string
+      } | null
+    }>
   }>
 }
 
@@ -106,13 +129,21 @@ export function InterventionActionButtons({
   onCancelIntervention,
   onRejectQuoteRequest,
   onProposeSlots,
+  autoOpenComplete = false,
+  autoOpenTenantValidation = false,
   timeSlots = []
 }: InterventionActionButtonsProps) {
+  const router = useRouter()
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [selectedAction, setSelectedAction] = useState<ActionConfig | null>(null)
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  // ⚡ Optimized navigation: use router.push instead of window.location.href
+  const navigateTo = useCallback((path: string) => {
+    router.push(path)
+  }, [router])
 
   // States for closure modals
   const [showWorkCompletionModal, setShowWorkCompletionModal] = useState(false)
@@ -121,6 +152,21 @@ export function InterventionActionButtons({
   const [tenantValidationInitialMode, setTenantValidationInitialMode] = useState<'approve' | 'reject'>('approve')
   const [showSimplifiedFinalizationModal, setShowSimplifiedFinalizationModal] = useState(false)
   const [showSlotConfirmationModal, setShowSlotConfirmationModal] = useState(false)
+
+  // Auto-open completion modal when navigated from card with ?action=complete
+  useEffect(() => {
+    if (autoOpenComplete) {
+      setShowSimpleWorkCompletionModal(true)
+    }
+  }, [autoOpenComplete])
+
+  // Auto-open tenant validation modal when navigated from card with ?action=validate_work or ?action=contest_work
+  useEffect(() => {
+    if (autoOpenTenantValidation) {
+      setTenantValidationInitialMode(autoOpenTenantValidation)
+      setShowTenantValidationModal(true)
+    }
+  }, [autoOpenTenantValidation])
 
   // Hook for quote management
   const quoting = useInterventionQuoting()
@@ -144,6 +190,13 @@ export function InterventionActionButtons({
   // Définir les actions disponibles selon le statut et le rôle
   const getAvailableActions = (): ActionConfig[] => {
     const actions: ActionConfig[] = []
+
+    // Check if user has actively responded to ALL active (pending/requested) slots
+    const activeSlots = (timeSlots || []).filter(s => s.status === 'pending' || s.status === 'requested')
+    const hasRespondedToAll = activeSlots.length > 0 && activeSlots.every(slot => {
+      const userResp = slot.responses?.find(r => r.user_id === userId)
+      return userResp && userResp.response !== 'pending'
+    })
 
     switch (intervention.status) {
       case 'demande':
@@ -171,78 +224,8 @@ export function InterventionActionButtons({
         }
         break
 
-      case 'demande_de_devis':
-        if (userRole === 'gestionnaire') {
-          // Ajouter le bouton "Modifier la planification" comme pour le statut planification
-          actions.push({
-            key: 'propose_slots',
-            label: 'Modifier la planification',
-            icon: Edit,
-            description: 'Modifier la planification existante'
-          })
-        }
-        if (userRole === 'prestataire') {
-          if (currentUserQuote) {
-            if (currentUserQuote.status === 'pending') {
-              const isQuoteRequest = !currentUserQuote.amount || currentUserQuote.amount === 0
-
-              if (isQuoteRequest) {
-                // Ne plus afficher "Rejeter la demande" - uniquement "Soumettre une estimation"
-                actions.push({
-                  key: 'submit_quote',
-                  label: 'Soumettre une estimation',
-                  icon: FileText,
-                  description: 'Soumettre votre estimation pour cette intervention'
-                })
-              } else {
-                actions.push(
-                  {
-                    key: 'edit_quote',
-                    label: 'Modifier l\'estimation',
-                    icon: Edit3,
-                    description: 'Modifier votre estimation en attente d\'évaluation'
-                  },
-                  {
-                    key: 'cancel_quote',
-                    label: 'Annuler l\'estimation',
-                    icon: Trash2,
-                    description: 'Annuler votre estimation actuelle'
-                  }
-                )
-              }
-            } else if (currentUserQuote.status === 'sent') {
-              actions.push(
-                {
-                  key: 'edit_quote',
-                  label: 'Modifier l\'estimation',
-                  icon: Edit3,
-                  description: 'Modifier votre estimation envoyée'
-                },
-                {
-                  key: 'cancel_quote',
-                  label: 'Annuler l\'estimation',
-                  icon: Trash2,
-                  description: 'Annuler votre estimation'
-                }
-              )
-            } else if (currentUserQuote.status === 'accepted') {
-              actions.push({
-                key: 'view_quote',
-                label: 'Voir l\'estimation',
-                icon: FileText,
-                description: 'Consulter votre estimation approuvée'
-              })
-            }
-          } else {
-            actions.push({
-              key: 'submit_quote',
-              label: 'Soumettre une estimation',
-              icon: FileText,
-              description: 'Proposer votre estimation pour cette intervention'
-            })
-          }
-        }
-        break
+      // Note: 'demande_de_devis' status removed — quote actions now handled
+      // via requires_quote flag in the post-switch block below
 
       case 'planification':
         if (userRole === 'gestionnaire') {
@@ -256,41 +239,54 @@ export function InterventionActionButtons({
         if (userRole === 'locataire') {
           actions.push({
             key: 'confirm_slot',
-            label: 'Valider un créneau',
-            icon: CheckCircle,
-            description: 'Confirmer un créneau proposé'
+            label: hasRespondedToAll ? 'Modifier mes réponses' : 'Valider un créneau',
+            icon: hasRespondedToAll ? Edit : CheckCircle,
+            description: hasRespondedToAll
+              ? 'Modifier vos réponses aux créneaux proposés'
+              : 'Confirmer un créneau proposé'
           })
         }
         if (userRole === 'prestataire') {
           // Use helper function to analyze time slots and determine action
           const analysis = analyzeTimeSlots(timeSlots, userId)
           const actionKey = getProviderActionForTimeSlots(analysis)
-          const label = getProviderActionLabel(actionKey)
 
-          // Map action keys to icons and descriptions
-          const actionConfig = {
-            confirm_availabilities: {
-              icon: CheckCircle,
-              description: 'Valider ou rejeter les créneaux proposés par le gestionnaire'
-            },
-            modify_availabilities: {
+          if (hasRespondedToAll && actionKey === 'confirm_availabilities') {
+            // User already responded to all slots — show "Modifier mes réponses"
+            actions.push({
+              key: 'confirm_availabilities',
+              label: 'Modifier mes réponses',
               icon: Edit,
-              description: 'Modifier vos disponibilités existantes'
-            },
-            add_availabilities: {
-              icon: Calendar,
-              description: 'Saisir vos créneaux de disponibilité'
+              description: 'Modifier vos réponses aux créneaux proposés'
+            })
+          } else {
+            const label = getProviderActionLabel(actionKey)
+
+            // Map action keys to icons and descriptions
+            const actionConfig = {
+              confirm_availabilities: {
+                icon: CalendarCheck,
+                description: 'Répondre aux créneaux proposés pour cette intervention'
+              },
+              modify_availabilities: {
+                icon: CalendarCheck,
+                description: 'Gérer vos réponses aux créneaux proposés'
+              },
+              add_availabilities: {
+                icon: CalendarCheck,
+                description: 'Consulter et répondre aux créneaux de planification'
+              }
             }
+
+            const config = actionConfig[actionKey]
+
+            actions.push({
+              key: actionKey,
+              label,
+              icon: config.icon,
+              description: config.description
+            })
           }
-
-          const config = actionConfig[actionKey]
-
-          actions.push({
-            key: actionKey,
-            label,
-            icon: config.icon,
-            description: config.description
-          })
         }
         break
 
@@ -302,6 +298,12 @@ export function InterventionActionButtons({
             icon: UserCheck,
             description: 'Clôturer définitivement l\'intervention',
             requiresComment: false
+          })
+          actions.push({
+            key: 'modify_planning',
+            label: 'Modifier la planification',
+            icon: Edit,
+            description: 'Modifier la planification de l\'intervention'
           })
         }
         if (userRole === 'prestataire') {
@@ -377,8 +379,71 @@ export function InterventionActionButtons({
         break
     }
 
+    // Quote actions for prestataire — decoupled from status, based on requires_quote flag
+    if (userRole === 'prestataire' && intervention.requires_quote) {
+      if (currentUserQuote) {
+        if (currentUserQuote.status === 'pending') {
+          const isQuoteRequest = !currentUserQuote.amount || currentUserQuote.amount === 0
+
+          if (isQuoteRequest) {
+            actions.push({
+              key: 'submit_quote',
+              label: 'Soumettre une estimation',
+              icon: FileText,
+              description: 'Soumettre votre estimation pour cette intervention'
+            })
+          } else {
+            actions.push(
+              {
+                key: 'edit_quote',
+                label: 'Modifier l\'estimation',
+                icon: Edit3,
+                description: 'Modifier votre estimation en attente d\'évaluation'
+              },
+              {
+                key: 'cancel_quote',
+                label: 'Annuler l\'estimation',
+                icon: Trash2,
+                description: 'Annuler votre estimation actuelle'
+              }
+            )
+          }
+        } else if (currentUserQuote.status === 'sent') {
+          actions.push(
+            {
+              key: 'edit_quote',
+              label: 'Modifier l\'estimation',
+              icon: Edit3,
+              description: 'Modifier votre estimation envoyée'
+            },
+            {
+              key: 'cancel_quote',
+              label: 'Annuler l\'estimation',
+              icon: Trash2,
+              description: 'Annuler votre estimation'
+            }
+          )
+        } else if (currentUserQuote.status === 'accepted') {
+          actions.push({
+            key: 'view_quote',
+            label: 'Voir l\'estimation',
+            icon: FileText,
+            description: 'Consulter votre estimation approuvée'
+          })
+        }
+      } else {
+        // No quote yet from this provider — show submit button
+        actions.push({
+          key: 'submit_quote',
+          label: 'Soumettre une estimation',
+          icon: FileText,
+          description: 'Proposer votre estimation pour cette intervention'
+        })
+      }
+    }
+
     // Actions communes disponibles selon le contexte
-    if (['approuvee', 'demande_de_devis', 'planification', 'planifiee'].includes(intervention.status)) {
+    if (['approuvee', 'planification', 'planifiee'].includes(intervention.status)) {
       if (userRole === 'gestionnaire') {
         actions.push({
           key: 'cancel',
@@ -446,12 +511,12 @@ export function InterventionActionButtons({
 
         case 'process_quotes':
           // Naviguer vers l'onglet estimations pour traiter les estimations reçues
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
+          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=devis`)
           return
 
         case 'view_quotes':
           // Naviguer vers l'onglet estimations en mode consultation
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
+          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=devis`)
           return
 
         case 'waiting_quotes':
@@ -462,7 +527,7 @@ export function InterventionActionButtons({
           if (onOpenQuoteModal) {
             onOpenQuoteModal()
           } else {
-            window.location.href = `/prestataire/interventions/${intervention.id}?action=quote`
+            navigateTo(`/prestataire/interventions/${intervention.id}?action=quote`)
           }
           return
 
@@ -472,7 +537,7 @@ export function InterventionActionButtons({
           } else if (onOpenQuoteModal) {
             onOpenQuoteModal()
           } else {
-            window.location.href = `/prestataire/interventions/${intervention.id}?action=quote`
+            navigateTo(`/prestataire/interventions/${intervention.id}?action=quote`)
           }
           return
 
@@ -489,35 +554,28 @@ export function InterventionActionButtons({
           return
 
         case 'view_quote':
-          window.location.href = `/prestataire/interventions/${intervention.id}#quotes`
+          navigateTo(`/prestataire/interventions/${intervention.id}#quotes`)
           return
 
         case 'start_planning':
         case 'propose_slots':
+        case 'modify_planning':
           if (onProposeSlots) {
             onProposeSlots()
             return
           }
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=execution`
+          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=execution`)
           return
 
         case 'confirm_availabilities':
-          onActionComplete?.('execution')
-          return
-
         case 'modify_availabilities':
         case 'add_availabilities':
-          // Open modal via callback (for prestataire)
-          if (onProposeSlots) {
-            onProposeSlots()
-            return
-          }
-          // Fallback redirection for gestionnaire
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          // Open MultiSlotResponseModal (same as confirm_slot for locataire)
+          setShowSlotConfirmationModal(true)
           return
 
         case 'reschedule':
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=time-slots`)
           return
 
         case 'start_work':
@@ -529,7 +587,7 @@ export function InterventionActionButtons({
           break
 
         case 'modify_schedule':
-          window.location.href = `/locataire/interventions/${intervention.id}?action=modify-schedule`
+          navigateTo(`/locataire/interventions/${intervention.id}?action=modify-schedule`)
           return
 
         case 'reject_schedule':
@@ -627,6 +685,50 @@ export function InterventionActionButtons({
       setIsProcessing(true)
       setError(null)
 
+      // Upload voice note first if present (before closing intervention)
+      if (data.voiceNote) {
+        const formData = new FormData()
+        formData.append('file', data.voiceNote)
+        formData.append('interventionId', intervention.id)
+        formData.append('description', 'Note vocale - rapport de fin de travaux')
+
+        const uploadResponse = await fetch('/api/upload-intervention-document', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json()
+          logger.error({ error: uploadResult.error }, '❌ Voice note upload failed')
+          setError(uploadResult.error || "Erreur lors de l'upload de la note vocale")
+          return false
+        }
+        logger.info({}, '✅ Voice note uploaded successfully')
+      }
+
+      // Upload media files (photos/videos) if present
+      if (data.mediaFiles && data.mediaFiles.length > 0) {
+        for (const file of data.mediaFiles) {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('interventionId', intervention.id)
+          formData.append('description', `Pièce jointe - rapport de fin de travaux`)
+
+          const uploadResponse = await fetch('/api/upload-intervention-document', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json()
+            logger.error({ error: uploadResult.error, fileName: file.name }, '❌ Media file upload failed')
+            setError(uploadResult.error || `Erreur lors de l'upload de ${file.name}`)
+            return false
+          }
+          logger.info({ fileName: file.name }, '✅ Media file uploaded successfully')
+        }
+      }
+
       const result = await interventionActionsService.simpleCompleteIntervention(
         intervention.id,
         data
@@ -649,10 +751,46 @@ export function InterventionActionButtons({
   }
 
   // Simple tenant validation handlers - Appelle la nouvelle route API
-  const handleApproveWork = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
+  const handleApproveWork = async (data: { comments: string; photos: File[]; voiceNote: File | null }): Promise<boolean> => {
     try {
       setIsProcessing(true)
       setError(null)
+
+      // Upload voice note if present
+      if (data.voiceNote) {
+        const formData = new FormData()
+        formData.append('file', data.voiceNote)
+        formData.append('interventionId', intervention.id)
+        formData.append('description', 'Note vocale - validation locataire')
+        const uploadResponse = await fetch('/api/upload-intervention-document', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json()
+          setError(uploadResult.error || "Erreur lors de l'upload de la note vocale")
+          return false
+        }
+      }
+
+      // Upload photos if present
+      if (data.photos && data.photos.length > 0) {
+        for (const file of data.photos) {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('interventionId', intervention.id)
+          formData.append('description', 'Photo - validation locataire')
+          const uploadResponse = await fetch('/api/upload-intervention-document', {
+            method: 'POST',
+            body: formData,
+          })
+          if (!uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json()
+            setError(uploadResult.error || `Erreur lors de l'upload de ${file.name}`)
+            return false
+          }
+        }
+      }
 
       const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation-simple`, {
         method: 'POST',
@@ -684,10 +822,46 @@ export function InterventionActionButtons({
     }
   }
 
-  const handleRejectWork = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
+  const handleRejectWork = async (data: { comments: string; photos: File[]; voiceNote: File | null }): Promise<boolean> => {
     try {
       setIsProcessing(true)
       setError(null)
+
+      // Upload voice note if present
+      if (data.voiceNote) {
+        const formData = new FormData()
+        formData.append('file', data.voiceNote)
+        formData.append('interventionId', intervention.id)
+        formData.append('description', 'Note vocale - contestation locataire')
+        const uploadResponse = await fetch('/api/upload-intervention-document', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json()
+          setError(uploadResult.error || "Erreur lors de l'upload de la note vocale")
+          return false
+        }
+      }
+
+      // Upload photos if present
+      if (data.photos && data.photos.length > 0) {
+        for (const file of data.photos) {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('interventionId', intervention.id)
+          formData.append('description', 'Photo - contestation locataire')
+          const uploadResponse = await fetch('/api/upload-intervention-document', {
+            method: 'POST',
+            body: formData,
+          })
+          if (!uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json()
+            setError(uploadResult.error || `Erreur lors de l'upload de ${file.name}`)
+            return false
+          }
+        }
+      }
 
       const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation-simple`, {
         method: 'POST',
@@ -885,16 +1059,31 @@ export function InterventionActionButtons({
         isOpen={showSlotConfirmationModal}
         onClose={() => setShowSlotConfirmationModal(false)}
         slots={timeSlots
-          .filter(slot => slot.status === 'proposed' || slot.status === 'requested')
+          .filter(slot => slot.status !== 'cancelled' && slot.status !== 'rejected')
           .map(slot => ({
             id: slot.id,
             slot_date: slot.slot_date,
             start_time: slot.start_time,
             end_time: slot.end_time,
             notes: null,
-            proposer_name: undefined,
-            proposer_role: undefined,
-            responses: []
+            proposer_name: slot.proposed_by_user
+              ? (slot.proposed_by_user.name
+                || (slot.proposed_by_user.first_name
+                  ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`.trim()
+                  : slot.proposed_by_user.company_name) || undefined)
+              : undefined,
+            proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+            responses: slot.responses?.map(r => ({
+              user_id: r.user_id,
+              response: r.response as 'accepted' | 'rejected' | 'pending',
+              user: r.user ? {
+                name: r.user.name
+                  || (r.user.first_name
+                    ? `${r.user.first_name} ${r.user.last_name || ''}`.trim()
+                    : r.user.company_name || 'Utilisateur'),
+                role: r.user.role
+              } : undefined
+            })) || []
           }))}
         interventionId={intervention.id}
         onSuccess={onActionComplete}

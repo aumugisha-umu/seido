@@ -967,8 +967,6 @@ export async function notifyDocumentUploaded(params: {
   assignedTo?: string
 }) {
   try {
-    const { user, profile } = await getServerAuthContext('authenticated')
-
     logger.info({
       action: 'notifyDocumentUploaded',
       documentId: params.documentId,

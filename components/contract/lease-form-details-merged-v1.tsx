@@ -188,15 +188,6 @@ export default function LeaseFormDetailsMergedV1({
       setOverlapCheck(prev => ({ ...prev, isChecking: true }))
 
       try {
-        // 🔍 DEBUG: Log des paramètres d'appel
-        console.log('🔍 [OVERLAP-CHECK] Calling with:', {
-          lotId,
-          startDate,
-          durationMonths,
-          tenantUserIds,
-          existingContractId
-        })
-
         // Utilise la nouvelle action avec détection doublon/colocation
         const result = await checkContractOverlapWithDetails(
           lotId,
@@ -206,11 +197,7 @@ export default function LeaseFormDetailsMergedV1({
           existingContractId
         )
 
-        // 🔍 DEBUG: Log du résultat complet
-        console.log('🔍 [OVERLAP-CHECK] Result:', result)
-
         if (result.success && result.data) {
-          console.log('🔍 [OVERLAP-CHECK] Setting state with hasOverlap:', result.data.hasOverlap)
           setOverlapCheck({
             isChecking: false,
             hasOverlap: result.data.hasOverlap,
@@ -326,47 +313,179 @@ export default function LeaseFormDetailsMergedV1({
           </p>
         </div>
 
-        {/* Editable Reference with auto-suggestion */}
+        {/* Reference + Date + Duration — merged row */}
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="title" className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              Référence du bail
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-xs">
-                    <p className="text-xs">
-                      Format suggéré: BAIL-{'{LOT}'}-{'{DÉBUT}'}-{'{FIN}'}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </Label>
-            <Badge
-              variant="outline"
-              className="shrink-0 cursor-pointer hover:bg-primary/10 transition-colors"
-              onClick={() => onFieldChange('title', suggestedReference)}
-            >
-              Générer auto
-            </Badge>
+          <div className="flex flex-col lg:grid lg:grid-cols-[1fr_auto] gap-4 lg:gap-6">
+            {/* Left: Reference */}
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between gap-4">
+                <Label htmlFor="title" className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  Référence du bail
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p className="text-xs">
+                          Format suggéré: BAIL-{'{LOT}'}-{'{DÉBUT}'}-{'{FIN}'}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <Badge
+                  variant="outline"
+                  className="shrink-0 cursor-pointer hover:bg-primary/10 transition-colors"
+                  onClick={() => onFieldChange('title', suggestedReference)}
+                >
+                  Générer auto
+                </Badge>
+              </div>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => onFieldChange('title', e.target.value)}
+                placeholder={suggestedReference}
+                className="font-mono font-semibold text-primary bg-white/80"
+              />
+              <p className="text-xs text-muted-foreground">
+                Période: {formatDateShort(startDateObj)} → {formatDateShort(endDateObj)} ({durationMonths} mois)
+              </p>
+            </div>
+
+            {/* Right: Date + Duration side by side */}
+            <div className="flex gap-3 items-start lg:self-center">
+              {/* Date de début */}
+              <div className="space-y-1.5 w-44">
+                <Label htmlFor="startDate" icon={Calendar} required size="sm">
+                  Date de début
+                </Label>
+                <DatePicker
+                  value={startDate}
+                  onChange={(value) => onFieldChange('startDate', value)}
+                  placeholder="jj/mm/aaaa"
+                  className="w-full [&_input]:bg-white"
+                />
+                {startDate && durationMonths > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Fin : {endDateObj.toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </p>
+                )}
+              </div>
+
+              {/* Durée du bail */}
+              <div className="space-y-1.5 w-32">
+                <Label htmlFor="duration" icon={Clock} required size="sm">
+                  Durée
+                </Label>
+                <Select
+                  value={String(durationMonths)}
+                  onValueChange={(value) => onFieldChange('durationMonths', parseInt(value))}
+                >
+                  <SelectTrigger id="duration" className="bg-white">
+                    <SelectValue placeholder="Durée" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONTRACT_DURATION_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={String(option.value)}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
-          <Input
-            id="title"
-            value={title}
-            onChange={(e) => onFieldChange('title', e.target.value)}
-            placeholder={suggestedReference}
-            className="font-mono font-semibold text-primary bg-white/80"
-          />
-          <p className="text-xs text-muted-foreground">
-            Période: {formatDateShort(startDateObj)} → {formatDateShort(endDateObj)} ({durationMonths} mois)
-          </p>
         </div>
+
+        {/* Overlap alerts — outside the blue container */}
+        {overlapCheck.isChecking && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Vérification des contrats existants...
+          </div>
+        )}
+
+        {!overlapCheck.isChecking && overlapCheck.hasDuplicateTenant && (
+          <Alert variant="destructive" className="animate-in fade-in-50 duration-300">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle className="font-semibold">
+              Doublon détecté
+            </AlertTitle>
+            <AlertDescription>
+              <p className="mb-2">
+                Ce locataire a déjà un bail actif sur ce bien pour cette période.
+                Il s'agit peut-être d'un doublon.
+              </p>
+              <ul className="space-y-1">
+                {overlapCheck.duplicateTenantContracts.map((contract) => (
+                  <li key={contract.id} className="flex flex-wrap items-center gap-x-2 text-sm">
+                    <span className="font-medium">{contract.title}</span>
+                    <span>
+                      ({formatDateDisplay(contract.start_date)} → {formatDateDisplay(contract.end_date)})
+                    </span>
+                    <Badge variant="outline" className="text-xs">
+                      {contract.status === 'actif' ? 'Actif' : contract.status === 'a_venir' ? 'À venir' : contract.status}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-sm font-medium">
+                Veuillez sélectionner un autre locataire ou modifier les dates.
+              </p>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!overlapCheck.isChecking && overlapCheck.hasOverlap && !overlapCheck.hasDuplicateTenant && (
+          <Alert className="border-amber-200 bg-amber-50 animate-in fade-in-50 duration-300">
+            <Info className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800 font-semibold">
+              Bail existant sur cette période
+            </AlertTitle>
+            <AlertDescription className="text-amber-700">
+              <p className="mb-2">
+                Un bail existe déjà sur cette période. Si ce n&apos;est pas une colocation ou cohabitation,
+                utilisez la date suggérée ci-dessous.
+              </p>
+              <ul className="space-y-1">
+                {overlapCheck.overlappingContracts.map((contract) => (
+                  <li key={contract.id} className="flex flex-wrap items-center gap-x-2 text-sm">
+                    <span className="font-medium">{contract.title}</span>
+                    <span className="text-amber-600">
+                      ({formatDateDisplay(contract.start_date)} → {formatDateDisplay(contract.end_date)})
+                    </span>
+                    <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
+                      {contract.status === 'actif' ? 'Actif' : contract.status === 'a_venir' ? 'À venir' : contract.status}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+
+              {overlapCheck.nextAvailableDate && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-100"
+                  onClick={() => onFieldChange('startDate', overlapCheck.nextAvailableDate)}
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Première date disponible : {formatDateDisplay(overlapCheck.nextAvailableDate)}
+                </Button>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Separator />
 
-        {/* Section 1: Signataires (moved up) */}
+        {/* Section 1: Signataires */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Users className="h-4 w-4 text-primary" />
@@ -389,148 +508,6 @@ export default function LeaseFormDetailsMergedV1({
               onRemoveContact={(id) => onRemoveContact(id, 'garant')}
             />
           </div>
-        </div>
-
-        <Separator />
-
-        {/* Section 2: Dates & Duration */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Calendar className="h-4 w-4 text-primary" />
-            Dates et durée
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Start date */}
-            <div className="space-y-1.5">
-              <Label htmlFor="startDate" icon={Calendar} required size="sm">
-                Date de début
-              </Label>
-              <DatePicker
-                value={startDate}
-                onChange={(value) => onFieldChange('startDate', value)}
-                placeholder="Sélectionner une date"
-                className="w-full"
-              />
-              {/* Calculated end date display */}
-              {startDate && durationMonths > 0 && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <span>Date de fin :</span>
-                  <span className="font-medium text-foreground">
-                    {endDateObj.toLocaleDateString('fr-FR', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
-                  </span>
-                </p>
-              )}
-            </div>
-
-            {/* Duration */}
-            <div className="space-y-1.5">
-              <Label htmlFor="duration" icon={Clock} required size="sm">
-                Durée du bail
-              </Label>
-              <Select
-                value={String(durationMonths)}
-                onValueChange={(value) => onFieldChange('durationMonths', parseInt(value))}
-              >
-                <SelectTrigger id="duration">
-                  <SelectValue placeholder="Sélectionnez une durée" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CONTRACT_DURATION_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={String(option.value)}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Alerte de chevauchement - Vérification en cours */}
-          {overlapCheck.isChecking && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Vérification des contrats existants...
-            </div>
-          )}
-
-          {/* ALERTE 1: Erreur bloquante - Doublon locataire (priorité haute) */}
-          {!overlapCheck.isChecking && overlapCheck.hasDuplicateTenant && (
-            <Alert variant="destructive" className="animate-in fade-in-50 duration-300">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle className="font-semibold">
-                Doublon détecté
-              </AlertTitle>
-              <AlertDescription>
-                <p className="mb-2">
-                  Ce locataire a déjà un bail actif sur ce bien pour cette période.
-                  Il s'agit peut-être d'un doublon.
-                </p>
-                <ul className="space-y-1">
-                  {overlapCheck.duplicateTenantContracts.map((contract) => (
-                    <li key={contract.id} className="flex flex-wrap items-center gap-x-2 text-sm">
-                      <span className="font-medium">{contract.title}</span>
-                      <span>
-                        ({formatDateDisplay(contract.start_date)} → {formatDateDisplay(contract.end_date)})
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {contract.status === 'actif' ? 'Actif' : contract.status === 'a_venir' ? 'À venir' : contract.status}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-sm font-medium">
-                  Veuillez sélectionner un autre locataire ou modifier les dates.
-                </p>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* ALERTE 2: Warning - Chevauchement détecté (création autorisée) */}
-          {!overlapCheck.isChecking && overlapCheck.hasOverlap && !overlapCheck.hasDuplicateTenant && (
-            <Alert className="border-amber-200 bg-amber-50 animate-in fade-in-50 duration-300">
-              <Info className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-800 font-semibold">
-                Bail existant sur cette période
-              </AlertTitle>
-              <AlertDescription className="text-amber-700">
-                <p className="mb-2">
-                  Un bail existe déjà sur cette période. Si ce n&apos;est pas une colocation ou cohabitation,
-                  utilisez la date suggérée ci-dessous.
-                </p>
-                <ul className="space-y-1">
-                  {overlapCheck.overlappingContracts.map((contract) => (
-                    <li key={contract.id} className="flex flex-wrap items-center gap-x-2 text-sm">
-                      <span className="font-medium">{contract.title}</span>
-                      <span className="text-amber-600">
-                        ({formatDateDisplay(contract.start_date)} → {formatDateDisplay(contract.end_date)})
-                      </span>
-                      <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
-                        {contract.status === 'actif' ? 'Actif' : contract.status === 'a_venir' ? 'À venir' : contract.status}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-
-                {overlapCheck.nextAvailableDate && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-100"
-                    onClick={() => onFieldChange('startDate', overlapCheck.nextAvailableDate)}
-                  >
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Première date disponible : {formatDateDisplay(overlapCheck.nextAvailableDate)}
-                  </Button>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
 
         <Separator />
@@ -776,7 +753,7 @@ export default function LeaseFormDetailsMergedV1({
               saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
             } else {
               // In edit mode, show message
-              console.log('Créez d\'abord le contact depuis la page contacts, puis revenez ici.')
+              // no-op: user should create contact from contacts page first
             }
           }}
         />

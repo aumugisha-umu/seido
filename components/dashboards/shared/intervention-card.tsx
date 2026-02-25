@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, memo, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { usePrefetch } from "@/hooks/use-prefetch"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MapPin, Clock, Loader2, CheckCircle, Eye, MoreVertical, Flame, Calendar } from "lucide-react"
+import { MapPin, Clock, Loader2, CheckCircle, Eye, MoreVertical, Flame, Calendar, Edit } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getStatusColor,
@@ -99,7 +101,7 @@ interface InterventionCardProps {
  * />
  * ```
  */
-export function InterventionCard({
+export const InterventionCard = memo(function InterventionCard({
   intervention,
   userRole,
   userId,
@@ -130,11 +132,44 @@ export function InterventionCard({
   const actionMessage = intervention.status === 'planification' && pendingCount > 0
     ? `En attente de ${pendingCount} réponse${pendingCount > 1 ? 's' : ''}`
     : baseActionMessage
-  const actions = getRoleBasedActions(intervention.id, intervention.status, userRole)
+  // Determine if provider has a pending quote to act on
+  const hasPendingQuote = userRole === 'prestataire' && intervention.requires_quote && (
+    !intervention.quotes?.length ||
+    intervention.quotes.some((q: any) =>
+      (q.provider_id === userId || q.created_by === userId) &&
+      (q.status === 'pending' || q.status === 'draft')
+    ) ||
+    !intervention.quotes.some((q: any) => q.provider_id === userId || q.created_by === userId)
+  )
+  const actions = getRoleBasedActions(intervention.id, intervention.status, userRole, {
+    requiresQuote: intervention.requires_quote,
+    hasPendingQuote
+  })
+
+  // Override labels when user has already responded to all active slots
+  if (intervention.status === 'planification' && userId && intervention.timeSlots) {
+    const activeSlots = intervention.timeSlots.filter(
+      (s: any) => s.status === 'pending' || s.status === 'requested'
+    )
+    const hasRespondedToAll = activeSlots.length > 0 && activeSlots.every((slot: any) => {
+      const userResp = slot.responses?.find((r: any) => r.user_id === userId)
+      return userResp && userResp.response !== 'pending'
+    })
+
+    if (hasRespondedToAll) {
+      for (const action of actions) {
+        if (action.actionType === 'select_slot' || action.actionType === 'propose_timeslots') {
+          action.label = 'Modifier mes réponses'
+          action.icon = Edit
+        }
+      }
+    }
+  }
+
   const dotMenuActions = getDotMenuActions(intervention.id, intervention.status, userRole)
 
   // Generate intervention URL based on role
-  const getInterventionUrl = useCallback(() => {
+  const interventionUrl = useMemo(() => {
     switch (userRole) {
       case 'prestataire':
         return `/prestataire/interventions/${intervention.id}`
@@ -144,6 +179,12 @@ export function InterventionCard({
         return `/gestionnaire/interventions/${intervention.id}`
     }
   }, [userRole, intervention.id])
+
+  // For backwards compatibility, keep getInterventionUrl as a function
+  const getInterventionUrl = useCallback(() => interventionUrl, [interventionUrl])
+
+  // ✅ Prefetch on hover - page loads instantly when user clicks
+  const { onMouseEnter: prefetchOnEnter, onMouseLeave: prefetchOnLeave } = usePrefetch(interventionUrl)
 
   // Animation sequence for success
   const triggerSuccessAnimation = useCallback((actionType: string) => {
@@ -263,6 +304,8 @@ export function InterventionCard({
         isRemoving && !prefersReducedMotion && "slide-out-right",
         isRemoving && prefersReducedMotion && "opacity-0"
       )}
+      onMouseEnter={prefetchOnEnter}
+      onMouseLeave={prefetchOnLeave}
     >
       {/* Checkmark Overlay (appears on success) */}
       {showCheckmark && (
@@ -285,12 +328,11 @@ export function InterventionCard({
 
         {/* Title + Badges container */}
         <div className="flex-1 min-w-0">
-          <h3
-            className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-pointer"
-            onClick={() => router.push(getInterventionUrl())}
-          >
-            {intervention.title}
-          </h3>
+          <Link href={getInterventionUrl()} className="block">
+            <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-pointer">
+              {intervention.title}
+            </h3>
+          </Link>
           {/* Badges row - directly under title */}
           {/* Mobile: icon-only with tooltip | Desktop: icon + text */}
           <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap mt-1.5">
@@ -329,12 +371,14 @@ export function InterventionCard({
         <Button
           variant="outline"
           size="icon"
-          onClick={() => router.push(getInterventionUrl())}
+          asChild
           className="flex-shrink-0 h-9 w-9 border-border/60 bg-muted/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-accent"
           title="Voir les détails"
         >
-          <Eye className="h-5 w-5" aria-hidden="true" />
-          <span className="sr-only">Voir les détails</span>
+          <Link href={getInterventionUrl()}>
+            <Eye className="h-5 w-5" aria-hidden="true" />
+            <span className="sr-only">Voir les détails</span>
+          </Link>
         </Button>
 
         {/* Dot menu for secondary actions (Modify/Cancel) - only for gestionnaire on intermediate statuses */}
@@ -433,12 +477,20 @@ export function InterventionCard({
                 primaryActions.length === 1 ? "flex-col" : "flex-row"
               )}>
                 {primaryActions.map((action, idx) => {
-                  // Green background for primary workflow actions
-                  const isGreenAction = ['approve', 'process_request', 'finalize', 'validate_work', 'mark_completed', 'propose_slots', 'start_planning'].includes(action.actionType)
+                  // Green background for primary workflow actions (approve, finalize, etc.)
+                  const isGreenAction = ['approve', 'process_request', 'finalize', 'mark_completed', 'propose_slots', 'start_planning'].includes(action.actionType)
+                  // Use declared variant for destructive/primary actions, green override, or outline fallback
+                  const buttonVariant = isGreenAction
+                    ? toButtonVariant(action.variant)
+                    : action.variant === 'destructive'
+                      ? 'destructive' as const
+                      : action.variant === 'primary'
+                        ? 'default' as const
+                        : 'outline' as const
                   return (
                   <Button
                     key={idx}
-                    variant={isGreenAction ? toButtonVariant(action.variant) : 'outline'}
+                    variant={buttonVariant}
                     size="default"
                     onClick={() => handleActionClick(action)}
                     disabled={isLoading}
@@ -493,7 +545,10 @@ export function InterventionCard({
       })()}
     </div>
   )
-}
+})
+
+// ⚡ React.memo prevents re-renders when props haven't changed
+// This is especially important for intervention lists with many cards
 
 // Backward compatibility alias
 export { InterventionCard as PendingActionsCard }

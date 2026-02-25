@@ -4,6 +4,14 @@ import { CheckCircle } from "lucide-react"
 import AuthLogo from "@/components/ui/auth-logo"
 import { LoginForm } from "./login-form"
 import { logger } from '@/lib/logger'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Connexion | SEIDO',
+  description: 'Connectez-vous a votre espace de gestion locative SEIDO.',
+  robots: { index: false, follow: false },
+}
+
 /**
  * 🔐 PAGE LOGIN - SERVER COMPONENT (Migration Server Components)
  *

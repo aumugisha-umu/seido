@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { VoiceRecorder } from "./voice-recorder"
 
 interface TenantValidationSimpleProps {
   intervention: {
@@ -14,8 +15,8 @@ interface TenantValidationSimpleProps {
   }
   isOpen: boolean
   onClose: () => void
-  onApprove: (data: { comments: string; photos: File[] }) => Promise<boolean>
-  onReject: (data: { comments: string; photos: File[] }) => Promise<boolean>
+  onApprove: (data: { comments: string; photos: File[]; voiceNote: File | null }) => Promise<boolean>
+  onReject: (data: { comments: string; photos: File[]; voiceNote: File | null }) => Promise<boolean>
   isLoading?: boolean
   initialMode?: 'approve' | 'reject'
 }
@@ -32,6 +33,7 @@ export function TenantValidationSimple({
   const [mode, setMode] = useState<'approve' | 'reject'>(initialMode)
   const [comments, setComments] = useState('')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [voiceNote, setVoiceNote] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Synchroniser le mode quand initialMode change (ex: clic sur Valider vs Contester)
@@ -64,7 +66,8 @@ export function TenantValidationSimple({
     try {
       const data = {
         comments: comments.trim(),
-        photos: selectedFiles
+        photos: selectedFiles,
+        voiceNote
       }
 
       const success = mode === 'approve'
@@ -83,6 +86,7 @@ export function TenantValidationSimple({
     if (!isLoading) {
       setComments('')
       setSelectedFiles([])
+      setVoiceNote(null)
       setError(null)
       setMode(initialMode)
       onClose()
@@ -195,6 +199,21 @@ export function TenantValidationSimple({
                 Veuillez décrire précisément les problèmes constatés
               </p>
             )}
+          </div>
+
+          {/* Note vocale */}
+          <div className="space-y-2">
+            <Label>
+              Note vocale
+              <span className="text-sm text-gray-500 ml-2">(optionnel)</span>
+            </Label>
+            <VoiceRecorder
+              onRecordingComplete={(file) => setVoiceNote(file)}
+              onRecordingRemoved={() => setVoiceNote(null)}
+              disabled={isLoading}
+              maxDurationSeconds={300}
+              fileName={`Validation locataire - ${intervention.title}`}
+            />
           </div>
 
           {/* Upload de photos */}

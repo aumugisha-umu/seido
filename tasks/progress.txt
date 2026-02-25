@@ -1,83 +1,62 @@
-# Progress Log — Fix Conversation Participants Management
-# Started: 2026-02-06
-# Stories: 4 total
+# Progress Log — Session 2026-02-25
+# Features: Guide Utilisateur + Email Enhancements + RLS Fix
 ---
 
-## 2026-02-06 — US-001 ✅
+## 2026-02-25 — Guide Utilisateur In-App (12 stories, all passed)
+- Created `/gestionnaire/aide` page with Server Component + Client Component pattern
+- 9 sections: Premiers Pas, Dashboard, Patrimoine, Contacts, Contrats, Interventions, Emails, Parametres, FAQ
+- Desktop: sidebar nav + content area; Mobile: horizontal tabs + stacked cards
+- Search with fuzzy matching across sections and FAQ
+- 20 FAQ items across 5 categories
+- seo-copywriter + ui-designer review (scores 78 → 88+, 82 → 90+)
+- Files: `app/gestionnaire/(with-navbar)/aide/page.tsx`, `aide-client.tsx`
+- Learnings: Benefit-oriented titles drive engagement; progressive disclosure (3 layers) works well for guides
 
-**Story:** Modifier le trigger SQL add_team_managers_to_thread
-
-**Changes:**
-- Created migration: `supabase/migrations/20260206100000_remove_auto_add_all_managers_trigger.sql`
-- Dropped trigger `thread_add_managers` on `conversation_threads`
-- Dropped function `add_team_managers_to_thread()`
-
-**Learnings:**
-- Le trigger `add_assignment_to_conversation_participants` reste actif et gère correctement l'ajout via assignments
-- RLS (`can_view_conversation`) assure l'accès lecture même sans être participant explicite
-- Participants explicites = visibilité dans la liste + tracking des messages lus
-
-## 2026-02-06 — US-002 ✅ (UPDATED)
-
-**Story:** Création intervention locataire: gestionnaires liés au bien
-
-**Clarification reçue:** Les gestionnaires liés au lot/immeuble doivent être ajoutés (pas TOUS, mais ceux de lot_contacts + building_contacts)
-
-**Changes:**
-- Modifié `app/api/create-intervention/route.ts` (lignes 281-343)
-- Query `lot_contacts` pour gestionnaires du lot
-- Query `building_contacts` pour gestionnaires de l'immeuble parent (si applicable)
-- Dédoublonnage par user_id
-- Filtre: uniquement `role = 'gestionnaire'` avec `auth_user_id` (compte actif)
-- Ajout aux threads GROUP et TENANT_TO_MANAGERS
-
-**Learnings:**
-- Différence entre "TOUS les gestionnaires de l'équipe" (mauvais) vs "gestionnaires responsables du bien" (correct)
-- Les contacts sont définis via lot_contacts et building_contacts, pas via team membership
-
-## 2026-02-06 — US-003 ✅
-
-**Story:** Création intervention gestionnaire: seulement les assignés
-
-**Analysis:**
-- Vérifié `app/api/create-manager-intervention/route.ts`
-- Les gestionnaires sélectionnés sont insérés dans `intervention_assignments` (lignes 643-654)
-- Le trigger `add_assignment_to_conversation_participants` (CASE 3) s'active à chaque INSERT
-- Ce trigger ajoute SEULEMENT le gestionnaire assigné comme participant
-
-**Result:** Déjà fonctionnel grâce au trigger existant + US-001 qui a supprimé l'ajout automatique de TOUS les managers
-
-## 2026-02-06 — US-004 ✅
-
-**Story:** Ajout automatique au premier message
-
-**Changes:**
-- Modifié `lib/services/domain/conversation-service.ts` (lignes 319-332)
-- Ajout d'un bloc après la vérification d'accès dans `sendMessage()`
-- Récupère le thread et ses participants
-- Si l'utilisateur n'est pas déjà participant, l'ajoute automatiquement
-- Log informatif pour traçabilité
-
-**Learnings:**
-- Les gestionnaires ont accès via `checkThreadAccess` qui vérifie le team_id (pas besoin d'être participant)
-- L'ajout comme participant est nécessaire pour: affichage dans la liste, tracking des messages lus, compteurs non-lus
-- `addParticipant` est idempotent (ON CONFLICT DO NOTHING)
+## 2026-02-25 — RLS Fix: Gestionnaire team_id mismatch (critical bug)
+- ROOT CAUSE: `get_accessible_*_ids()` used `users.team_id` (stale, set once at signup)
+- INSERT policy uses `is_team_manager()` → checks `team_members` (works)
+- SELECT policy used `users.team_id` → doesn't match when user joined via invitation
+- FIX: Replaced `users.team_id` with `team_members` join in gestionnaire branch of 3 functions
+- For interventions: used denormalized `interventions.team_id` + `team_members` (simpler + faster)
+- Files: `20260225120000_fix_rls_gestionnaire_team_id_mismatch.sql`
+- Decision: team_members is the ONLY source of truth for team access; users.team_id is convenience only
+- Learnings: #084 (users.team_id is stale), #085 (INSERT/SELECT must use same source), #086 (users.role vs team_members.role)
 
 ---
 
-## ✅ FEATURE COMPLETE — Fix Conversation Participants Management
+## 2026-02-25 — US-004: Tighten storage RLS (team isolation)
+- Dropped 3 broad policies (any authenticated user could access any team's attachments)
+- Created 3 team-scoped policies using `get_team_id_from_document_path(name)` (reuses existing helper)
+- INSERT/SELECT: team_members check; DELETE: admin/gestionnaire only
+- Files: `20260225100000_tighten_email_attachments_rls.sql`
 
-**All 4 stories passed!**
+## 2026-02-25 — US-001: Download API endpoint (signed URLs)
+- Created `GET /api/emails/[id]/attachments/[attachmentId]`
+- Double validation: attachment→email (email_id), email→team (team_id)
+- Service role for cross-table checks, `createSignedUrl(path, 3600)`
+- Returns `{ signedUrl, filename, contentType, sizeBytes }`
+- Files: `app/api/emails/[id]/attachments/[attachmentId]/route.ts`
 
-| Story | Status | Summary |
-|-------|--------|---------|
-| US-001 | ✅ | Migration: supprimé trigger `add_team_managers_to_thread` |
-| US-002 | ✅ | Ajout des gestionnaires liés au lot/immeuble (lot_contacts + building_contacts) |
-| US-003 | ✅ | Déjà fonctionnel via trigger `add_assignment_to_conversation_participants` |
-| US-004 | ✅ | Ajout auto comme participant au premier message dans `sendMessage()` |
+## 2026-02-25 — US-005: File type icons
+- Added `getAttachmentIcon()` helper mapping mime_type to Lucide icons
+- PDF→FileText, Images→ImageIcon, Spreadsheets→Sheet, Default→Paperclip
+- Files: `email-detail.tsx`
 
-**Files changed:**
-- `supabase/migrations/20260206100000_remove_auto_add_all_managers_trigger.sql` (NEW)
-- `lib/services/domain/conversation-service.ts` (MODIFIED - US-004: auto-add on first message)
-- `app/api/create-intervention/route.ts` (MODIFIED - US-002: add property managers)
+## 2026-02-25 — US-002: Wire download button in UI
+- Added `handleDownloadAttachment`: fetch signed URL → programmatic `<a>` click download
+- Loading state: `Loader2` spinner while fetching, button disabled
+- Error handling: `toast.error` on failure
+- Files: `email-detail.tsx`
 
+## 2026-02-25 — US-003: Inline preview for images and PDFs
+- Added `handlePreviewAttachment` with cached image URLs in state
+- Images: fetch signed URL → show inline `<img>` thumbnail (max-w-sm, max-h-64) → click opens full-size
+- PDFs: fetch signed URL → `window.open()` in new tab
+- Non-previewable: download button only (no Eye icon)
+- Files: `email-detail.tsx`
+
+## Key Learnings
+- **Reuse existing RLS helpers**: `get_team_id_from_document_path()` works for any `{team_id}/...` path pattern
+- **Double validation pattern**: attachment→email + email→team gives defense-in-depth with generic 404
+- **Signed URL caching for images**: Store in React state to avoid re-fetching on re-render; PDFs open immediately so no cache needed
+- **Raw `<img>` for dynamic signed URLs**: `next/image` requires `remotePatterns` + known dimensions; signed URLs from Supabase Storage are dynamic and unpredictable

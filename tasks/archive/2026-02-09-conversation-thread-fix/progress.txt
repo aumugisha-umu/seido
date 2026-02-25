@@ -1,0 +1,22 @@
+# Progress Log — Fix Confirmation Sequencing
+# Started: 2026-02-09
+# Stories: 2 total
+---
+
+## US-001: Fix call order in use-intervention-planning hook (S) - DONE
+- Moved `updateInterventionAction` (line 207) BEFORE `programInterventionAction` (line 228)
+- Added `return` on assignment sync failure (fail-fast, line 218)
+- Added Step 1/Step 2 comments explaining the ordering rationale
+- Key learning: creation flow creates assignments first (line 669-725), then sets confirmation (line 727-768)
+- Planning modal was doing the opposite: scheduling first (with confirmation), then syncing assignments
+- Typecheck: 0 new errors (2 pre-existing quoteStats type mismatch)
+- Files: `hooks/use-intervention-planning.ts`
+
+## US-002: Verify confirmation persistence end-to-end (S) - DONE
+- createFixedSlot: status='pending' when requiresConfirmation=true (scheduling-service.ts line 124) ✅
+- determineInterventionStatus: returns 'planification' when requiresConfirmation=true (line 50) ✅
+- updateConfirmationRequirements: sets requires_participant_confirmation=true on intervention + requires_confirmation=true on assignments ✅
+- updateInterventionAction line 754 NOT triggered (hook doesn't pass confirmationRequiredUserIds) ✅
+- No code path resets flags after programInterventionAction ✅
+- Files: none modified (verification only)
+

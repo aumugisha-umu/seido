@@ -1,0 +1,377 @@
+import Stripe from 'stripe'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/database.types'
+import { SubscriptionRepository } from '../repositories/subscription.repository'
+import { StripeCustomerRepository } from '../repositories/stripe-customer.repository'
+import { FREE_TIER_LIMIT } from '@/lib/stripe'
+import { SubscriptionService, type SubscriptionStatus } from './subscription.service'
+
+// =============================================================================
+// Types
+// =============================================================================
+
+export interface WebhookResult {
+  status: number
+  message: string
+}
+
+// =============================================================================
+// StripeWebhookHandler — Processes Stripe events
+// =============================================================================
+
+export class StripeWebhookHandler {
+  private subRepo: SubscriptionRepository
+  private custRepo: StripeCustomerRepository
+
+  constructor(private readonly supabase: SupabaseClient<Database>) {
+    this.subRepo = new SubscriptionRepository(supabase)
+    this.custRepo = new StripeCustomerRepository(supabase)
+  }
+
+  // ── Main entry point ──────────────────────────────────────────────────
+
+  async handleEvent(event: Stripe.Event): Promise<WebhookResult> {
+    try {
+      // Idempotency check — skip if already processed
+      const alreadyProcessed = await this.checkAndRecordEvent(event.id, event.type)
+      if (alreadyProcessed) {
+        return { status: 200, message: `Event ${event.id} already processed` }
+      }
+
+      switch (event.type) {
+        case 'checkout.session.completed':
+          return await this.handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session)
+
+        case 'customer.subscription.created':
+          return await this.handleSubscriptionCreated(event.data.object as Stripe.Subscription)
+
+        case 'customer.subscription.updated':
+          return await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription)
+
+        case 'customer.subscription.deleted':
+          return await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
+
+        case 'customer.subscription.paused':
+          return await this.handleSubscriptionPaused(event.data.object as Stripe.Subscription)
+
+        case 'invoice.paid':
+          return await this.handleInvoicePaid(event.data.object as Stripe.Invoice)
+
+        case 'invoice.payment_failed':
+          return await this.handleInvoicePaymentFailed(event.data.object as Stripe.Invoice)
+
+        case 'charge.refunded':
+          return await this.handleChargeRefunded(event.data.object as Stripe.Charge)
+
+        default:
+          return { status: 200, message: `Unhandled event type: ${event.type}` }
+      }
+    } catch (error) {
+      // Return 500 so Stripe retries (exponential backoff up to 3 days)
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      return { status: 500, message: `Error processing ${event.type}: ${message}` }
+    }
+  }
+
+  // ── Idempotency ───────────────────────────────────────────────────────
+
+  private async checkAndRecordEvent(eventId: string, eventType: string): Promise<boolean> {
+    // Try to insert — if it already exists, it was already processed
+    const { error } = await this.supabase
+      .from('stripe_webhook_events')
+      .insert({
+        event_id: eventId,
+        event_type: eventType,
+      })
+
+    // Unique constraint violation = already processed
+    if (error?.code === '23505') {
+      return true
+    }
+
+    // Other errors = not processed, but we should log
+    if (error) {
+      throw new Error(`Failed to record webhook event: ${error.message}`)
+    }
+
+    return false
+  }
+
+  // ── Event Handlers ────────────────────────────────────────────────────
+
+  private async handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<WebhookResult> {
+    const teamId = session.metadata?.team_id
+    if (!teamId) {
+      return { status: 400, message: 'Missing team_id in checkout session metadata' }
+    }
+
+    if (session.payment_status !== 'paid') {
+      return { status: 200, message: 'Checkout payment not yet completed' }
+    }
+
+    // Subscription will be synced via subscription.created/updated webhooks
+    // Just ensure the customer mapping exists
+    if (session.customer && typeof session.customer === 'string') {
+      const { data: existing } = await this.custRepo.findByTeamId(teamId)
+      if (!existing) {
+        await this.custRepo.create({
+          team_id: teamId,
+          stripe_customer_id: session.customer,
+          email: session.customer_email ?? null,
+        })
+      }
+    }
+
+    // Send subscription-activated email (non-blocking)
+    try {
+      const { getSubscriptionEmailService } = await import('./subscription-email.service')
+      const emailService = getSubscriptionEmailService()
+
+      // Get team admin details
+      const { data: members } = await this.supabase
+        .from('team_members')
+        .select('user_id, users!inner(email, first_name)')
+        .eq('team_id', teamId)
+        .eq('role', 'admin')
+        .is('left_at', null)
+        .limit(1)
+
+      const member = members?.[0]
+      if (member?.users?.email) {
+        const { data: sub } = await this.subRepo.findByTeamId(teamId)
+        const { data: team } = await this.supabase
+          .from('teams')
+          .select('name')
+          .eq('id', teamId)
+          .limit(1)
+          .maybeSingle()
+
+        const item = session.line_items?.data?.[0]
+        const interval = item?.price?.recurring?.interval === 'year' ? 'annual' : 'monthly' as const
+        const periodEnd = sub?.current_period_end
+          ? new Date(sub.current_period_end).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+          : ''
+
+        await emailService.sendSubscriptionActivated(member.users.email, {
+          firstName: member.users.first_name || 'Gestionnaire',
+          teamName: team?.name || 'Votre equipe',
+          plan: interval,
+          lotCount: sub?.subscribed_lots ?? 0,
+          amountHT: (session.amount_total ?? 0) / 100,
+          nextRenewalDate: periodEnd,
+        })
+      }
+    } catch {
+      // Non-blocking — email failure should not affect checkout processing
+    }
+
+    return { status: 200, message: 'Checkout completed processed' }
+  }
+
+  private async handleSubscriptionCreated(subscription: Stripe.Subscription): Promise<WebhookResult> {
+    const teamId = subscription.metadata?.team_id
+    if (!teamId) {
+      return { status: 400, message: 'Missing team_id in subscription metadata' }
+    }
+
+    const item = subscription.items?.data?.[0]
+    const quantity = item?.quantity ?? 0
+
+    const status = SubscriptionService.mapStripeStatus(subscription.status)
+
+    await this.subRepo.upsertByTeamId(teamId, {
+      team_id: teamId,
+      stripe_subscription_id: subscription.id,
+      stripe_customer_id: typeof subscription.customer === 'string' ? subscription.customer : null,
+      price_id: item?.price?.id ?? null,
+      status,
+      subscribed_lots: quantity,
+      current_period_start: subscription.current_period_start
+        ? new Date(subscription.current_period_start * 1000).toISOString()
+        : null,
+      current_period_end: subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null,
+      cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+    })
+
+    return { status: 200, message: 'Subscription created processed' }
+  }
+
+  private async handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<WebhookResult> {
+    const teamId = subscription.metadata?.team_id
+
+    // Try to find by Stripe subscription ID first (out-of-order handling)
+    let targetTeamId = teamId
+    if (!targetTeamId) {
+      const { data: existing } = await this.subRepo.findByStripeSubscriptionId(subscription.id)
+      if (existing) {
+        targetTeamId = existing.team_id
+      }
+    }
+
+    if (!targetTeamId) {
+      return { status: 400, message: 'Cannot determine team_id for subscription update' }
+    }
+
+    const item = subscription.items?.data?.[0]
+    const quantity = item?.quantity ?? 0
+    const status = SubscriptionService.mapStripeStatus(subscription.status)
+
+    await this.subRepo.upsertByTeamId(targetTeamId, {
+      team_id: targetTeamId,
+      stripe_subscription_id: subscription.id,
+      stripe_customer_id: typeof subscription.customer === 'string' ? subscription.customer : null,
+      price_id: item?.price?.id ?? null,
+      status,
+      subscribed_lots: quantity,
+      current_period_start: subscription.current_period_start
+        ? new Date(subscription.current_period_start * 1000).toISOString()
+        : null,
+      current_period_end: subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null,
+      cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+      cancel_at: subscription.cancel_at
+        ? new Date(subscription.cancel_at * 1000).toISOString()
+        : null,
+      canceled_at: subscription.canceled_at
+        ? new Date(subscription.canceled_at * 1000).toISOString()
+        : null,
+    })
+
+    return { status: 200, message: 'Subscription updated processed' }
+  }
+
+  private async handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<WebhookResult> {
+    const teamId = subscription.metadata?.team_id
+    let targetTeamId = teamId
+
+    if (!targetTeamId) {
+      const { data: existing } = await this.subRepo.findByStripeSubscriptionId(subscription.id)
+      if (existing) {
+        targetTeamId = existing.team_id
+      }
+    }
+
+    if (!targetTeamId) {
+      return { status: 200, message: 'Subscription deleted but team not found — no-op' }
+    }
+
+    // Determine post-deletion status based on lot count
+    const { data: lotCount } = await this.subRepo.getLotCount(targetTeamId)
+    const newStatus: SubscriptionStatus = lotCount <= FREE_TIER_LIMIT ? 'free_tier' : 'read_only'
+
+    await this.subRepo.updateByTeamId(targetTeamId, {
+      status: newStatus,
+      stripe_subscription_id: null,
+      cancel_at_period_end: false,
+      ended_at: new Date().toISOString(),
+    })
+
+    return { status: 200, message: `Subscription deleted, team transitioned to ${newStatus}` }
+  }
+
+  private async handleSubscriptionPaused(subscription: Stripe.Subscription): Promise<WebhookResult> {
+    const teamId = subscription.metadata?.team_id
+    let targetTeamId = teamId
+
+    if (!targetTeamId) {
+      const { data: existing } = await this.subRepo.findByStripeSubscriptionId(subscription.id)
+      if (existing) {
+        targetTeamId = existing.team_id
+      }
+    }
+
+    if (!targetTeamId) {
+      return { status: 200, message: 'Subscription paused but team not found — no-op' }
+    }
+
+    await this.subRepo.updateByTeamId(targetTeamId, {
+      status: 'paused',
+    })
+
+    return { status: 200, message: 'Subscription paused processed' }
+  }
+
+  private async handleInvoicePaid(invoice: Stripe.Invoice): Promise<WebhookResult> {
+    const subscriptionId = typeof invoice.subscription === 'string'
+      ? invoice.subscription
+      : invoice.subscription?.id ?? null
+
+    // Find internal subscription record
+    let internalSubId: string | null = null
+    if (subscriptionId) {
+      const { data: sub } = await this.subRepo.findByStripeSubscriptionId(subscriptionId)
+      if (sub) {
+        internalSubId = sub.id
+      }
+    }
+
+    await this.supabase.from('stripe_invoices').upsert(
+      {
+        stripe_invoice_id: invoice.id,
+        subscription_id: internalSubId,
+        stripe_customer_id: typeof invoice.customer === 'string'
+          ? invoice.customer
+          : invoice.customer?.id ?? '',
+        amount_due: invoice.amount_due ?? 0,
+        amount_paid: invoice.amount_paid ?? 0,
+        amount_remaining: invoice.amount_remaining ?? 0,
+        currency: invoice.currency ?? 'eur',
+        status: invoice.status ?? 'draft',
+        hosted_invoice_url: invoice.hosted_invoice_url ?? null,
+        invoice_pdf: invoice.invoice_pdf ?? null,
+        period_start: invoice.period_start
+          ? new Date(invoice.period_start * 1000).toISOString()
+          : null,
+        period_end: invoice.period_end
+          ? new Date(invoice.period_end * 1000).toISOString()
+          : null,
+        paid_at: invoice.status === 'paid' ? new Date().toISOString() : null,
+      },
+      { onConflict: 'stripe_invoice_id' },
+    )
+
+    return { status: 200, message: 'Invoice paid processed' }
+  }
+
+  private async handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<WebhookResult> {
+    const subscriptionId = typeof invoice.subscription === 'string'
+      ? invoice.subscription
+      : invoice.subscription?.id ?? null
+
+    if (!subscriptionId) {
+      return { status: 200, message: 'Payment failed for non-subscription invoice — ignored' }
+    }
+
+    const { data: sub } = await this.subRepo.findByStripeSubscriptionId(subscriptionId)
+    if (!sub) {
+      return { status: 200, message: 'Subscription not found for failed payment — no-op' }
+    }
+
+    // Only transition to past_due if currently active
+    if (sub.status === 'active') {
+      await this.subRepo.updateByTeamId(sub.team_id, {
+        status: 'past_due',
+      })
+    }
+
+    return { status: 200, message: 'Invoice payment failed processed' }
+  }
+
+  private async handleChargeRefunded(charge: Stripe.Charge): Promise<WebhookResult> {
+    const refundAmount = charge.amount_refunded ?? 0
+    const isFullRefund = refundAmount === charge.amount
+
+    // Refund is tracked via idempotency insert (stripe_webhook_events).
+    // activity_logs requires team_id/user_id which charge doesn't carry.
+    // Billing UI queries stripe_invoices + Stripe API for refund details.
+
+    return { status: 200, message: `Charge refunded (${isFullRefund ? 'full' : 'partial'}) processed` }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+
+  // mapStripeStatus consolidated into SubscriptionService.mapStripeStatus()
+}

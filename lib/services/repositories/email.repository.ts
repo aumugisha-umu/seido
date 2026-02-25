@@ -154,8 +154,9 @@ export class EmailRepository extends BaseRepository<Email> {
             }
         }
 
-        // Order
-        query = query.order('received_at', { ascending: false });
+        // Order: sent folder uses sent_at (received_at is null for sent emails)
+        const orderColumn = folder === 'sent' ? 'sent_at' : 'received_at';
+        query = query.order(orderColumn, { ascending: false });
 
         // Pagination
         query = query.range(options.offset, options.offset + options.limit - 1);
@@ -168,6 +169,36 @@ export class EmailRepository extends BaseRepository<Email> {
             data: data || [],
             count: count || 0
         };
+    }
+
+    /**
+     * Fetches sent replies for thread enrichment
+     * Returns sent emails that are replies (have in_reply_to set),
+     * used to complete conversation threads in inbox/processed views.
+     */
+    async getSentRepliesForThreads(
+        teamId: string,
+        options?: { source?: string }
+    ): Promise<Email[]> {
+        // Select all fields EXCEPT body_html (heaviest field, ~5-50KB per email)
+        // body_html is not needed for thread enrichment — only threading headers + snippet
+        let query = this.supabase
+            .from(this.tableName)
+            .select('id, team_id, email_connection_id, direction, status, deleted_at, message_id, in_reply_to, in_reply_to_header, references, from_address, to_addresses, cc_addresses, bcc_addresses, subject, body_text, received_at, sent_at, created_at, building_id, lot_id, intervention_id')
+            .eq('team_id', teamId)
+            .eq('direction', 'sent')
+            .not('in_reply_to', 'is', null)
+            .is('deleted_at', null)
+            .order('sent_at', { ascending: false })
+            .limit(200);
+
+        if (options?.source && options.source !== 'all' && options.source !== 'notification_replies') {
+            query = query.eq('email_connection_id', options.source);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
     }
 
     /**

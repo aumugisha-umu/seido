@@ -47,6 +47,7 @@ import {
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import { createBrowserSupabaseClient } from '@/lib/services'
 import { logger } from '@/lib/logger'
+import { toast } from 'sonner'
 
 // ============================================================================
 // Types
@@ -127,7 +128,11 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
   const supabaseRef = useRef(createBrowserSupabaseClient())
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
+  const disconnectedSinceRef = useRef<number | null>(null)
+  const warningToastShownRef = useRef(false)
+  const warningCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const MAX_RECONNECT_ATTEMPTS = 5
+  const DISCONNECTED_WARNING_THRESHOLD_MS = 5000 // 5 seconds
 
   // ──────────────────────────────────────────────────────────────────────────
   // Event Dispatcher - Route les événements vers les handlers enregistrés
@@ -257,11 +262,18 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
             setIsConnected(true)
             setConnectionStatus('connected')
             reconnectAttemptsRef.current = 0 // Reset counter on successful connection
+            disconnectedSinceRef.current = null // Reset disconnected timer
+            warningToastShownRef.current = false // Reset warning flag
             logger.info(`[REALTIME] ✅ Connected to channel seido:${userId}`)
           } else if (status === 'CHANNEL_ERROR') {
             setIsConnected(false)
             setConnectionStatus('error')
             reconnectAttemptsRef.current++
+
+            // ✅ Track disconnection time for warning toast
+            if (!disconnectedSinceRef.current) {
+              disconnectedSinceRef.current = Date.now()
+            }
 
             // Log détaillé de l'erreur pour diagnostic
             const errorDetails = {
@@ -280,19 +292,35 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
               logger.warn(`[REALTIME] ⚠️ Connection issue (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`)
             }
 
+            // ✅ Show warning toast if disconnected for > 5 seconds
+            if (!warningToastShownRef.current && disconnectedSinceRef.current) {
+              const disconnectedDuration = Date.now() - disconnectedSinceRef.current
+              if (disconnectedDuration >= DISCONNECTED_WARNING_THRESHOLD_MS) {
+                warningToastShownRef.current = true
+                toast.warning('Connexion temps réel interrompue', {
+                  description: 'Les mises à jour en temps réel sont temporairement indisponibles. Reconnexion en cours...',
+                  duration: 5000
+                })
+              }
+            }
+
             // Retry avec backoff exponentiel (max 30s) si on n'a pas atteint la limite
             if (reconnectTimeoutRef.current) {
               clearTimeout(reconnectTimeoutRef.current)
             }
 
             if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-              // Backoff exponentiel: 2s, 4s, 8s, 16s, 30s (max)
-              const delay = Math.min(2000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000)
+              // Backoff exponentiel: 1s, 2s, 4s, 8s, 16s, max 30s
+              const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000)
               logger.info(`[REALTIME] 🔄 Reconnection scheduled in ${delay/1000}s...`)
               reconnectTimeoutRef.current = setTimeout(setupChannel, delay)
             } else {
               logger.error('[REALTIME] 🛑 Max reconnection attempts reached. Realtime disabled.')
               logger.info('[REALTIME] 💡 Check Supabase Dashboard → Database → Replication to enable Realtime on tables')
+              toast.error('Connexion temps réel désactivée', {
+                description: 'Les notifications en temps réel sont temporairement indisponibles. Rechargez la page pour réessayer.',
+                duration: 10000
+              })
             }
           } else if (status === 'CLOSED') {
             setIsConnected(false)

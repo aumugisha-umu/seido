@@ -203,7 +203,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(id, name, team_id),
+        building:building_id(id, name, team_id, address_id),
         lot_contacts(
           id,
           is_primary,
@@ -225,6 +225,23 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
+    // Batch-fetch address records (same pattern as findByIdWithRelations)
+    const addressIds = (data || []).flatMap(lot => [
+      lot.address_id,
+      lot.building?.address_id
+    ]).filter(Boolean) as string[]
+
+    const addresses: Record<string, any> = {}
+    if (addressIds.length > 0) {
+      const uniqueIds = [...new Set(addressIds)]
+      const { data: addressData } = await this.supabase
+        .from('addresses')
+        .select('*')
+        .in('id', uniqueIds)
+
+      addressData?.forEach(addr => { addresses[addr.id] = addr })
+    }
+
     // Post-process to extract tenants and calculate is_occupied
     const processedData = data?.map(lot => {
       const tenants = lot.lot_contacts?.filter((contact: LotContact) =>
@@ -240,6 +257,11 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
       return {
         ...lot,
+        address_record: lot.address_id ? addresses[lot.address_id] : null,
+        building: lot.building ? {
+          ...lot.building,
+          address_record: lot.building.address_id ? addresses[lot.building.address_id] : null
+        } : null,
         tenant: tenants.find((contact: LotContact) => contact.is_primary)?.user ||
           tenants[0]?.user || null,
         is_occupied: isOccupied,

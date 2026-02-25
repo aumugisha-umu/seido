@@ -13,8 +13,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { CalendarIcon } from 'lucide-react'
-import { format } from 'date-fns'
 
 // UI Components
 import {
@@ -36,13 +34,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Calendar } from '@/components/ui/calendar'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
+import { DatePicker, formatLocalDate } from '@/components/ui/date-picker'
 
 // ✅ Dynamic intervention types combobox
 import { InterventionTypeCombobox } from '@/components/intervention/intervention-type-combobox'
@@ -258,37 +250,17 @@ export function InterventionRequestForm({
             render={({ field }) => (
               <FormItem className="flex flex-col">
                 <FormLabel>Date souhaitée (optionnel)</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, 'dd/MM/yyyy')
-                        ) : (
-                          <span>Choisir une date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      disabled={(date) =>
-                        date < new Date(new Date().setHours(0, 0, 0, 0))
-                      }
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <FormControl>
+                  <DatePicker
+                    value={field.value ? formatLocalDate(field.value) : undefined}
+                    onChange={(iso) => {
+                      const [y, m, d] = iso.split('-').map(Number)
+                      field.onChange(new Date(y, m - 1, d))
+                    }}
+                    minDate={formatLocalDate(new Date())}
+                    className="w-full"
+                  />
+                </FormControl>
                 <FormDescription>
                   Date à laquelle vous souhaiteriez l'intervention
                 </FormDescription>

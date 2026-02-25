@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Ban } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -28,7 +29,7 @@ interface MarkAsIrrelevantDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSoftDelete: (emailId: string) => void
-  onBlacklist: (emailId: string, senderEmail: string, reason?: string) => void
+  onBlacklist: (emailId: string, senderEmail: string, reason?: string, archiveExisting?: boolean) => void
   onArchive?: () => void
 }
 
@@ -42,6 +43,7 @@ export function MarkAsIrrelevantDialog({
 }: MarkAsIrrelevantDialogProps) {
   const [action, setAction] = useState<ActionType>('soft_delete')
   const [reason, setReason] = useState('')
+  const [archiveExisting, setArchiveExisting] = useState(true)
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
@@ -52,13 +54,17 @@ export function MarkAsIrrelevantDialog({
         onArchive?.() // Auto-archive when marked as irrelevant
         toast.success('Email masqué et archivé')
       } else {
-        onBlacklist(email.id, email.sender_email, reason)
-        onArchive?.() // Auto-archive when blacklisted
-        toast.success(`🚫 ${email.sender_email} bloqué et archivé`)
+        onBlacklist(email.id, email.sender_email, reason, archiveExisting)
+        toast.success(
+          archiveExisting
+            ? `${email.sender_email} bloque — les emails existants seront archives`
+            : `${email.sender_email} bloque`
+        )
       }
       onOpenChange(false)
       setReason('')
       setAction('soft_delete')
+      setArchiveExisting(true)
     } catch (error) {
       toast.error('Échec du traitement de l\'action')
     } finally {
@@ -106,17 +112,30 @@ export function MarkAsIrrelevantDialog({
                 </p>
 
                 {action === 'blacklist' && (
-                  <div className="mt-3">
-                    <Label htmlFor="reason" className="text-xs">
-                      Raison facultative (pour référence de l'équipe) :
-                    </Label>
-                    <Textarea
-                      id="reason"
-                      placeholder="ex: Emails promotionnels, Spam, etc."
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      className="mt-1 h-20 text-sm"
-                    />
+                  <div className="mt-3 space-y-3">
+                    <div className="flex items-start space-x-2">
+                      <Checkbox
+                        id="archive-existing"
+                        checked={archiveExisting}
+                        onCheckedChange={(checked) => setArchiveExisting(checked === true)}
+                        className="mt-0.5"
+                      />
+                      <Label htmlFor="archive-existing" className="text-xs cursor-pointer leading-tight">
+                        Archiver aussi tous les emails existants de cet expediteur
+                      </Label>
+                    </div>
+                    <div>
+                      <Label htmlFor="reason" className="text-xs">
+                        Raison facultative (pour reference de l equipe) :
+                      </Label>
+                      <Textarea
+                        id="reason"
+                        placeholder="ex: Emails promotionnels, Spam, etc."
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        className="mt-1 h-20 text-sm"
+                      />
+                    </div>
                   </div>
                 )}
               </div>

@@ -1,0 +1,180 @@
+# Progress Log — Onboarding Checklist Redesign
+# Started: 2026-02-22
+# Stories: 4 total
+---
+
+## US-001: SSR onboarding data fetch (performance fix) ✅
+**Date:** 2026-02-22
+**Files:**
+- app/gestionnaire/(with-navbar)/dashboard/components/async-dashboard-content.tsx (added onboarding queries)
+- components/dashboards/manager/manager-dashboard-v2.tsx (added props + pass-through)
+- components/billing/onboarding-checklist.tsx (removed useEffect fetch, receives via props)
+**Changes:**
+- AsyncDashboardContent: queries subscriptions table for status, then 5 parallel count queries if trialing
+- ManagerDashboardV2: new props onboardingProgress + isTrialing, forwarded to OnboardingChecklist
+- OnboardingChecklist: removed useState(loading), removed useEffect with Promise.all, uses props directly
+- localStorage dismiss check uses lazy initializer: useState(() => localStorage.getItem(...))
+**Learnings:** SSR data pass eliminates client-side fetch waterfall — checklist appears in initial HTML stream instead of after hydration + 2 server action roundtrips
+
+## US-002: New step order, queries, and types ✅
+**Date:** 2026-02-22
+**Files:**
+- app/actions/subscription-actions.ts (interface + queries updated)
+- app/gestionnaire/(with-navbar)/dashboard/components/async-dashboard-content.tsx (SSR queries updated)
+- components/billing/onboarding-checklist.tsx (STEPS reordered, new icons)
+**Changes:**
+- OnboardingProgress: +hasAddedTenant, +hasContract, -hasUploadedDocument
+- New query: team_members where role='locataire' (count check)
+- New query: contracts where team_id (count check)
+- STEPS: 6 items in workflow order, hrefs now point to creation pages (e.g. /lots/nouveau, /contacts/nouveau)
+- Icons: +Users (locataire), +FileSignature (contrat)
+**Learnings:** Step URLs should deep-link to creation pages (not list pages) to reduce friction — user clicks step → lands directly in the creation form
+
+## US-003: Tutorial/didactic content per step ✅
+**Date:** 2026-02-22
+**Files:**
+- components/billing/onboarding-checklist.tsx (added whyItMatters + howItConnects + tutorial UI)
+**Changes:**
+- ChecklistStep type: +whyItMatters, +howItConnects fields
+- 6 steps populated with benefit-oriented French text
+- Tutorial panel: border-l-2 + lightbulb icon, shown for current (first incomplete) step only
+- Contract step: "Le contrat lie un locataire a un lot" (user requirement)
+- Also added US-004 changes: step numbers (1-6), current step primary highlight, icon on current step
+**Learnings:** Tutorial content on ONLY the current step avoids information overload (progressive disclosure) — showing all 6 tips would clutter the UI
+
+## US-004: Sequential flow UX + visual improvements ✅
+**Date:** 2026-02-22
+**Files:**
+- components/billing/onboarding-checklist.tsx (already done in US-003)
+**Changes:**
+- Step numbers: 1-6 displayed in circles for incomplete steps (replacing generic icons)
+- Current step: bg-primary/5 + border-primary/20 + font-semibold text-primary
+- Future steps: default muted styling, clickable
+- Icon shown on right side of current step (reinforces action)
+- CSS transition-all on buttons handles smooth re-render transitions
+**Learnings:** Step numbers > icons for sequential flows — numbers reinforce order and reduce ambiguity
+
+## Post-feature polish: Session-scoped dismiss + sidebar logout + checklist prefill
+**Date:** 2026-02-22
+**Files:**
+- components/billing/onboarding-checklist.tsx (sessionStorage + ?type= hrefs)
+- components/gestionnaire-sidebar.tsx (DropdownMenu → direct Link + LogOut button)
+**Changes:**
+- Onboarding dismiss: localStorage → sessionStorage (reappears on new tab/login)
+- Checklist hrefs: added ?type=locataire and ?type=prestataire to contact creation links
+- Sidebar footer: removed DropdownMenu, profile is now a direct Link, logout is a visible icon button
+- Cleaned up 6 unused DropdownMenu imports from sidebar
+**Learnings:**
+- sessionStorage = "dismiss for this session" pattern (vs localStorage = permanent)
+- Contact creation page already supports ?type= — just need to pass it from callers
+- Critical actions (logout) should never be hidden in dropdowns — direct icon buttons reduce friction
+
+---
+## FEATURE COMPLETE ✅ (+ post-feature polish)
+All 4/4 stories + 3 polish items. Lint: 0 new errors.
+Files changed: 5 (async-dashboard-content.tsx, manager-dashboard-v2.tsx, onboarding-checklist.tsx, subscription-actions.ts, gestionnaire-sidebar.tsx)
+
+---
+# Inbox Sub-folders + Toggle Processed
+# Started: 2026-02-22
+# Stories: 3 total
+
+## US-001: Sidebar collapsible sub-folders ✅
+**Date:** 2026-02-22
+**Files:** mailbox-sidebar.tsx
+**Changes:** Replaced flat "Boîte de réception" + "Traités" buttons with Collapsible parent containing "Non traités" (folder: inbox) and "Traités" (folder: processed) sub-items. Parent shows combined count badge.
+**Learnings:** Radix Collapsible + shadcn works well for nested sidebar navigation.
+
+## US-002: Toggle processed/unprocessed button + dialog ✅
+**Date:** 2026-02-22
+**Files:** email-detail.tsx, mark-as-processed-dialog.tsx, mail-client.tsx
+**Changes:**
+- email-detail.tsx: Button + dropdown toggle based on email.status ('read' → show unprocess, else → show process)
+- mark-as-processed-dialog.tsx: Added mode prop ('process'|'unprocess') — drives icon, title, description, button color
+- mail-client.tsx: Pass onMarkAsUnprocessed callback to EmailDetail
+- Added Circle icon import for "unprocess" visual
+**Learnings:** Parameterized dialog (mode prop) avoids duplicate components — one dialog, two behaviors.
+
+## US-003: Backend markAsUnprocessed service method ✅
+**Date:** 2026-02-22
+**Files:** email-client.service.ts, mail-client.tsx
+**Changes:** Added markAsUnprocessed() (sets status: 'unread') to EmailClientService. Added handleMarkAsUnprocessed handler with optimistic update in mail-client.tsx.
+**Learnings:** DB email status enum has no 'processed' value — 'read' = traité, 'unread' = non traité.
+
+---
+## FEATURE COMPLETE ✅
+All 3/3 stories. Lint: 0 new errors.
+Files changed: 5 (mailbox-sidebar.tsx, email-detail.tsx, mark-as-processed-dialog.tsx, mail-client.tsx, email-client.service.ts)
+
+---
+# Mail Sidebar — Linked Entities Fix
+# Started: 2026-02-23
+# Stories: 1 (bugfix)
+
+## BUG-001: SSR getLinkedEntities showing all entities instead of email-linked only ✅
+**Date:** 2026-02-23
+**Files:** app/gestionnaire/(with-navbar)/mail/page.tsx (lines 124-290)
+**Changes:**
+- Replaced 6 direct entity table queries (buildings, lots, contacts, contracts, interventions, companies) with RPC-first approach
+- Calls `get_distinct_linked_entities(p_team_id)` to get only IDs present in `email_links` junction table + counts
+- Groups by entity_type, fetches details only for linked IDs in parallel via Promise.all
+- JS fallback if RPC not deployed: queries email_links directly + deduplicates in JS
+- Real emailCount values instead of hardcoded 0
+- Added subtitle support for lots (building name) and contacts (email address)
+**Root cause:** SSR page.tsx was written as "fetch all entities" shortcut during initial implementation, while API endpoint was later optimized with proper junction-table filtering. The SSR path was never updated.
+**Learnings:** SSR initial load and API endpoint must always use the same data-fetch strategy — when adding or optimizing an API endpoint, check if an SSR equivalent exists and update both.
+
+---
+## BUGFIX COMPLETE ✅
+1/1 fix. Lint: 0 new errors.
+Files changed: 1 (page.tsx)
+
+---
+# Email Reply — Wire Up + CC + UX Polish
+# Started: 2026-02-23
+# Stories: 4 total
+
+## US-001: Auto-focus textarea when reply box opens ✅
+**Date:** 2026-02-23
+**Files:** email-detail.tsx
+**Changes:** Added useRef<HTMLTextAreaElement> + useEffect with 50ms setTimeout for DOM render timing.
+**Learnings:** Focus calls fail if DOM hasn't rendered the element yet — small delay (50ms) is reliable.
+
+## US-002: Wire reply to actually send via SMTP API ✅
+**Date:** 2026-02-23
+**Files:** email-detail.tsx, mail-client.tsx
+**Changes:**
+- Replaced handleReply stub (toast only) with real EmailClientService.sendEmail call
+- Uses email.email_connection_id to send from the correct account
+- Passes inReplyToEmailId for proper threading
+- Guards against duplicate "Re:" prefix
+- Loading state with Loader2 spinner on send button
+- Removed stub handleReply and onReply prop from mail-client.tsx
+**Learnings:** Reply sends from the account that received the email (via email_connection_id), not from a global default.
+
+## US-003: Add CC field to reply composer ✅
+**Date:** 2026-02-23
+**Files:** email-detail.tsx, types.ts, mail-client.tsx, email-client.service.ts, /api/emails/send/route.ts
+**Changes:**
+- Added cc_addresses to MailboxEmail interface and adaptEmail mapping
+- Added cc param through client service → API route → SMTPService
+- CC field UI: badges with X remove + input with Enter/comma/blur add
+- Pre-fills from email.cc_addresses when reply box opens
+**Learnings:** CC addresses must flow through 3 layers (client type → API route → SMTP) — all must accept the parameter.
+
+## US-004: French localization + show from-address ✅
+**Date:** 2026-02-23
+**Files:** email-detail.tsx
+**Changes:**
+- Header: "Répondre à sender_name" + "Brouillon" badge
+- From line: "De : recipient_email" (the address that received the email)
+- Labels: "À :", "Objet :", "Cc :"
+- Buttons: "Annuler", "Envoyer", "Envoi en cours..."
+- Placeholder: "Écrivez votre réponse..."
+**Learnings:** recipient_email = to_addresses[0] from original email = the from-address for replies.
+
+---
+## FEATURE COMPLETE ✅
+All 4/4 stories. Lint: 0 new errors.
+Files changed: 6 (email-detail.tsx, types.ts, mail-client.tsx, email-client.service.ts, /api/emails/send/route.ts, prd.json)
+

@@ -85,15 +85,25 @@ const nextConfig = {
     '@supabase/supabase-js',
     '@supabase/ssr',
     '@react-email/render',
-    '@react-email/components'
+    '@react-email/components',
+    'pino',
   ],
 
   experimental: {
+    // ✅ US-403: Partial Prerendering - static shells served from cache, dynamic content streamed
+    // Requires Suspense boundaries around dynamic parts (done in US-401)
+    // NOTE: ppr requires Next.js canary version. Enable when upgrading to canary:
+    // ppr: true,
     optimizePackageImports: [
       'lucide-react',
       '@radix-ui/react-dropdown-menu',
       '@radix-ui/react-dialog',
-      'date-fns'
+      '@radix-ui/react-popover',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-avatar',
+      'date-fns',
+      'recharts'  // ⚡ Added: ~150KB savings via tree-shaking
     ]
   },
 

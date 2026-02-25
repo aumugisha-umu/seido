@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import {
   Reply,
   Forward,
@@ -15,13 +16,20 @@ import {
   Ban,
   Download,
   CheckCircle2,
+  Circle,
   Link as LinkIcon,
   Home,
   FileText,
   User,
   Briefcase,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Loader2,
+  X,
+  Archive,
+  ImageIcon,
+  Sheet,
+  Eye
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -34,6 +42,7 @@ import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
 import DOMPurify from 'isomorphic-dompurify'
 import { useAuth } from '@/hooks/use-auth'
+import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { stripEmailQuotes, stripTextEmailQuotes } from '@/lib/utils/email-quote-stripper'
 import { MailboxEmail, Building, getConversationEmails } from './types'
 import { MarkAsIrrelevantDialog } from './mark-irrelevant-dialog'
@@ -46,6 +55,14 @@ import {
   EMAIL_LINK_DISPLAY_CONFIG,
   EmailLinkEntityType
 } from '@/lib/types/email-links'
+import { AttachmentPreviewModal } from './attachment-preview-modal'
+
+const getAttachmentIcon = (mimeType: string) => {
+  if (mimeType === 'application/pdf') return FileText
+  if (mimeType.startsWith('image/')) return ImageIcon
+  if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType === 'text/csv') return Sheet
+  return Paperclip
+}
 
 interface EmailDetailProps {
   email: MailboxEmail
@@ -58,9 +75,11 @@ interface EmailDetailProps {
   onLinkBuilding?: (buildingId: string, lotId?: string) => void
   onCreateIntervention?: () => void
   onSoftDelete?: (emailId: string) => void
-  onBlacklist?: (emailId: string, senderEmail: string, reason?: string) => void
+  onBlacklist?: (emailId: string, senderEmail: string, reason?: string, archiveExisting?: boolean) => void
   onMarkAsProcessed?: () => void
+  onMarkAsUnprocessed?: () => void
   onLinksUpdated?: () => void
+  onReplySent?: (sentEmailId: string) => void
 }
 
 export function EmailDetail({
@@ -76,22 +95,66 @@ export function EmailDetail({
   onSoftDelete,
   onBlacklist,
   onMarkAsProcessed,
-  onLinksUpdated
+  onMarkAsUnprocessed,
+  onLinksUpdated,
+  onReplySent
 }: EmailDetailProps) {
-  const [showReplyBox, setShowReplyBox] = useState(false)
+  type BoxMode = 'hidden' | 'reply' | 'forward'
+  const [boxMode, setBoxMode] = useState<BoxMode>('hidden')
   const [replyText, setReplyText] = useState('')
+  const [forwardTo, setForwardTo] = useState('')
+  const [isSendingReply, setIsSendingReply] = useState(false)
+  const [ccAddresses, setCcAddresses] = useState<string[]>([])
+  const [ccInput, setCcInput] = useState('')
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
   const [showMarkDialog, setShowMarkDialog] = useState(false)
   const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [showProcessedDialog, setShowProcessedDialog] = useState(false)
   const [showQuotedContent, setShowQuotedContent] = useState(false)
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null)
+  const [previewAttachment, setPreviewAttachment] = useState<{ id: string; filename: string; file_size: number; mime_type: string } | null>(null)
+
+  const handleDownloadAttachment = useCallback(async (attachmentId: string, filename: string) => {
+    setDownloadingAttachmentId(attachmentId)
+    try {
+      const response = await fetch(`/api/emails/${email.id}/attachments/${attachmentId}`)
+      if (!response.ok) throw new Error('Erreur lors du téléchargement')
+      const data = await response.json()
+      const link = document.createElement('a')
+      link.href = data.signedUrl
+      link.download = filename
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch {
+      toast.error('Impossible de télécharger la pièce jointe')
+    } finally {
+      setDownloadingAttachmentId(null)
+    }
+  }, [email.id])
 
   // Get current user from auth context
   const { user } = useAuth()
   const currentUserId = user?.id
   const userRole = user?.role as 'gestionnaire' | 'admin' | undefined
 
-  // Debug: Log teamId prop
-  console.log('🔍 [EMAIL-DETAIL] teamId prop received:', teamId)
+  // Auto-focus textarea + init CC when box opens
+  useEffect(() => {
+    if (boxMode === 'reply') {
+      setCcAddresses(email.cc_addresses?.filter(Boolean) || [])
+      setCcInput('')
+    } else if (boxMode === 'forward') {
+      setCcAddresses([])
+      setCcInput('')
+    }
+    if (boxMode !== 'hidden') {
+      const timer = setTimeout(() => {
+        replyTextareaRef.current?.focus()
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [boxMode, email.cc_addresses])
 
   // Email links state with in-memory cache to avoid re-fetching same email
   const [emailLinks, setEmailLinks] = useState<EmailLinkWithDetails[]>([])
@@ -236,38 +299,105 @@ export function EmailDetail({
   const hasHtmlContent = sanitizedBody && sanitizedBody.trim() !== ''
   const textContent = email.body_text || email.snippet || ''
 
-  const handleReply = () => {
-    if (replyText.trim()) {
-      onReply?.(replyText)
-      setReplyText('')
-      setShowReplyBox(false)
-      toast.success('Réponse envoyée !')
+  const handleAddCc = (value: string) => {
+    const addresses = value.split(/[,;\s]+/).map(a => a.trim()).filter(a => a.includes('@'))
+    const newAddresses = addresses.filter(a => !ccAddresses.includes(a))
+    if (newAddresses.length > 0) {
+      setCcAddresses(prev => [...prev, ...newAddresses])
+    }
+    setCcInput('')
+  }
+
+  const handleRemoveCc = (address: string) => {
+    setCcAddresses(prev => prev.filter(a => a !== address))
+  }
+
+  const handleCcKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      if (ccInput.trim()) {
+        handleAddCc(ccInput)
+      }
+    }
+  }
+
+  const buildForwardBody = (em: MailboxEmail): string => {
+    let formattedDate = em.received_at
+    try {
+      formattedDate = format(new Date(em.received_at), 'PPPp', { locale: fr })
+    } catch {
+      // Keep original string if parsing fails
+    }
+    const body = em.body_text || ''
+    return `\n\n---------- Message transféré ----------\nDe : ${em.sender_name} (${em.sender_email})\nDate : ${formattedDate}\nObjet : ${em.subject}\n\n${body}`
+  }
+
+  const handleSend = async () => {
+    if (!replyText.trim() || !email.email_connection_id) return
+    if (boxMode === 'forward' && !forwardTo.trim()) return
+
+    setIsSendingReply(true)
+    try {
+      if (boxMode === 'reply') {
+        const result = await EmailClientService.sendEmail({
+          emailConnectionId: email.email_connection_id,
+          to: email.sender_email,
+          cc: ccAddresses.length > 0 ? ccAddresses : undefined,
+          subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
+          body: replyText,
+          inReplyToEmailId: email.id,
+        })
+        setReplyText('')
+        setBoxMode('hidden')
+        toast.success('Réponse envoyée !')
+        if (result.emailId) {
+          onReplySent?.(result.emailId)
+        }
+      } else if (boxMode === 'forward') {
+        const result = await EmailClientService.sendEmail({
+          emailConnectionId: email.email_connection_id,
+          to: forwardTo.trim(),
+          cc: ccAddresses.length > 0 ? ccAddresses : undefined,
+          subject: email.subject.startsWith('Fwd:') ? email.subject : `Fwd: ${email.subject}`,
+          body: replyText,
+        })
+        setReplyText('')
+        setForwardTo('')
+        setBoxMode('hidden')
+        toast.success('Email transféré !')
+        if (result.emailId) {
+          onReplySent?.(result.emailId)
+        }
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erreur lors de l\'envoi'
+      console.error('Send error:', error)
+      toast.error(message)
+    } finally {
+      setIsSendingReply(false)
     }
   }
 
   const handleLinkBuilding = (buildingId: string, lotId?: string) => {
     onLinkBuilding?.(buildingId, lotId)
-    console.log('Linked to building:', buildingId, 'lot:', lotId)
   }
 
   const handleSoftDelete = (emailId: string) => {
     onSoftDelete?.(emailId)
-    console.log('Soft deleted email:', emailId)
   }
 
-  const handleBlacklist = (emailId: string, senderEmail: string, reason?: string) => {
-    onBlacklist?.(emailId, senderEmail, reason)
-    console.log('Blacklisted:', senderEmail, 'reason:', reason)
+  const handleBlacklist = (emailId: string, senderEmail: string, reason?: string, archiveExisting?: boolean) => {
+    onBlacklist?.(emailId, senderEmail, reason, archiveExisting)
   }
 
-  // Check if this email is a conversation parent or child
-  const isConversationParent = email.is_parent && email.conversation_id
-  const isConversationChild = email.conversation_id && !email.is_parent
-  
-  // Only show conversation thread if it's the parent email
-  const conversationEmails = isConversationParent 
-    ? getConversationEmails(email.conversation_id, allEmails)
+  // Check if this email belongs to a conversation (parent or child)
+  const isInConversation = !!email.conversation_id
+
+  // Show conversation thread for ANY email in the conversation, not just the parent
+  const conversationEmails = isInConversation
+    ? getConversationEmails(email.conversation_id!, allEmails)
     : null
+  const showConversationThread = conversationEmails && conversationEmails.length > 1
 
   // For conversations, the header shows the parent email's subject (which is already the selected email)
 
@@ -284,9 +414,17 @@ export function EmailDetail({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowReplyBox(!showReplyBox)}
+              onClick={() => {
+                if (boxMode === 'reply') {
+                  setBoxMode('hidden')
+                } else {
+                  setBoxMode('reply')
+                  setReplyText('')
+                  setForwardTo('')
+                }
+              }}
               aria-label="Répondre à cet email"
-              aria-expanded={showReplyBox}
+              aria-expanded={boxMode === 'reply'}
               className="px-2 md:group-hover/header:px-3 transition-all"
             >
               <Reply className="h-4 w-4" aria-hidden="true" />
@@ -296,7 +434,17 @@ export function EmailDetail({
               variant="outline"
               size="sm"
               aria-label="Transférer cet email"
+              aria-expanded={boxMode === 'forward'}
               className="px-2 md:group-hover/header:px-3 transition-all"
+              onClick={() => {
+                if (boxMode === 'forward') {
+                  setBoxMode('hidden')
+                } else {
+                  setBoxMode('forward')
+                  setReplyText(buildForwardBody(email))
+                  setForwardTo('')
+                }
+              }}
             >
               <Forward className="h-4 w-4" aria-hidden="true" />
               <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">Transférer</span>
@@ -313,11 +461,17 @@ export function EmailDetail({
               variant="outline"
               size="sm"
               onClick={() => setShowProcessedDialog(true)}
-              aria-label="Marquer comme traité"
+              aria-label={email.status === 'read' ? 'Marquer comme non traité' : 'Marquer comme traité'}
               className="px-2 md:group-hover/header:px-3 transition-all"
             >
-              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">Marquer comme traité</span>
+              {email.status === 'read' ? (
+                <Circle className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              )}
+              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">
+                {email.status === 'read' ? 'Marquer comme non traité' : 'Marquer comme traité'}
+              </span>
             </Button>
 
             {/* More actions */}
@@ -337,12 +491,20 @@ export function EmailDetail({
                   {emailLinks.length > 0 ? 'Gérer les liaisons' : 'Lier à une entité'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowProcessedDialog(true)}>
-                  <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Marquer comme traité
+                  {email.status === 'read' ? (
+                    <Circle className="mr-2 h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                  )}
+                  {email.status === 'read' ? 'Marquer comme non traité' : 'Marquer comme traité'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onCreateIntervention}>
                   <Wrench className="mr-2 h-4 w-4" aria-hidden="true" />
                   Créer une intervention
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onArchive}>
+                  <Archive className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Archiver
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowMarkDialog(true)}>
                   <Ban className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -441,7 +603,7 @@ export function EmailDetail({
 
       {/* Zone 2: Contenu Central - Scrollable & Épuré */}
       <div className="flex-1 overflow-y-auto bg-white dark:bg-background min-h-0">
-        {isConversationParent && conversationEmails ? (
+        {showConversationThread ? (
           // Display conversation thread
           <div className="max-w-4xl mx-auto px-8 py-6">
             <ConversationThread emails={conversationEmails} />
@@ -511,80 +673,158 @@ export function EmailDetail({
                   Pieces jointes ({email.attachments.length})
                 </h3>
                 <div className="space-y-3">
-                  {email.attachments.map((attachment) => (
-                    <div
-                      key={attachment.id}
-                      className="flex items-center justify-between p-3 hover:bg-card/50 rounded-lg transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {attachment.filename}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(attachment.file_size / 1024).toFixed(1)} KB
-                          </p>
+                  {email.attachments.map((attachment) => {
+                    const AttachmentIcon = getAttachmentIcon(attachment.mime_type)
+                    return (
+                    <div key={attachment.id}>
+                      <div className="flex items-center justify-between p-3 hover:bg-card/50 rounded-lg transition-colors">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <AttachmentIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {attachment.filename}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {(attachment.file_size / 1024).toFixed(1)} KB
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Prévisualiser ${attachment.filename}`}
+                            onClick={() => setPreviewAttachment(attachment)}
+                          >
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Télécharger ${attachment.filename}`}
+                            disabled={downloadingAttachmentId === attachment.id}
+                            onClick={() => handleDownloadAttachment(attachment.id, attachment.filename)}
+                          >
+                            {downloadingAttachmentId === attachment.id
+                              ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                              : <Download className="h-4 w-4" aria-hidden="true" />
+                            }
+                          </Button>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0"
-                        aria-label={`Télécharger ${attachment.filename}`}
-                      >
-                        <Download className="h-4 w-4" aria-hidden="true" />
-                      </Button>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Reply Box (si ouvert) */}
-            {showReplyBox && (
-              <div className="mt-6">
-                <div className="p-6 bg-card border border-border rounded-lg shadow-sm space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-foreground">Reply to {email.sender_name}</h3>
-                    <Badge variant="secondary">Draft</Badge>
+          </div>
+        )}
+
+        {/* Reply / Forward Box - Outside the conditional so it works for both conversation threads and single emails */}
+        {boxMode !== 'hidden' && (
+          <div className="max-w-4xl mx-auto px-6 py-4">
+            <div className="p-6 bg-card border border-border rounded-lg shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-foreground">
+                  {boxMode === 'reply' ? `Répondre à ${email.sender_name}` : 'Transférer'}
+                </h3>
+                <Badge variant="secondary">Brouillon</Badge>
+              </div>
+
+              <div className="space-y-2">
+                {email.recipient_email && (
+                  <div className="text-sm text-muted-foreground">
+                    <strong>De :</strong> {email.recipient_email}
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">
-                      <strong>To:</strong> {email.sender_email}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      <strong>Subject:</strong> Re: {email.subject}
+                )}
+                {boxMode === 'reply' ? (
+                  <div className="text-sm text-muted-foreground">
+                    <strong>À :</strong> {email.sender_email}
+                  </div>
+                ) : (
+                  <div className="text-sm">
+                    <div className="flex items-center gap-2">
+                      <strong className="text-muted-foreground shrink-0">À :</strong>
+                      <Input
+                        type="email"
+                        placeholder="destinataire@example.com"
+                        value={forwardTo}
+                        onChange={(e) => setForwardTo(e.target.value)}
+                        className="h-7 text-sm flex-1 min-w-[200px]"
+                      />
                     </div>
                   </div>
-
-                  <Textarea
-                    placeholder="Type your reply..."
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    className="min-h-[200px]"
-                  />
-
-                  <div className="flex gap-2 justify-end">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowReplyBox(false)}
-                      aria-label="Cancel reply"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleReply}
-                      disabled={!replyText.trim()}
-                      aria-label="Send reply email"
-                    >
-                      Send Reply
-                    </Button>
+                )}
+                <div className="text-sm text-muted-foreground">
+                  <strong>Objet :</strong> {boxMode === 'reply' ? 'Re' : 'Fwd'}: {email.subject}
+                </div>
+                {/* CC field */}
+                <div className="text-sm">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <strong className="text-muted-foreground shrink-0">Cc :</strong>
+                    {ccAddresses.map(addr => (
+                      <Badge key={addr} variant="secondary" className="text-xs gap-1">
+                        {addr}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCc(addr)}
+                          className="hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                    <Input
+                      type="email"
+                      placeholder="Ajouter un CC..."
+                      value={ccInput}
+                      onChange={(e) => setCcInput(e.target.value)}
+                      onKeyDown={handleCcKeyDown}
+                      onBlur={() => { if (ccInput.trim()) handleAddCc(ccInput) }}
+                      className="h-7 text-sm flex-1 min-w-[150px] max-w-[250px] border-dashed"
+                    />
                   </div>
                 </div>
               </div>
-            )}
+
+              <Textarea
+                ref={replyTextareaRef}
+                placeholder={boxMode === 'reply' ? 'Écrivez votre réponse...' : 'Ajoutez un message...'}
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                className="min-h-[200px]"
+              />
+
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setBoxMode('hidden')}
+                  disabled={isSendingReply}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  onClick={handleSend}
+                  disabled={
+                    !replyText.trim() ||
+                    isSendingReply ||
+                    !email.email_connection_id ||
+                    (boxMode === 'forward' && !forwardTo.trim())
+                  }
+                >
+                  {isSendingReply ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Envoi en cours...
+                    </>
+                  ) : (
+                    boxMode === 'reply' ? 'Envoyer' : 'Transférer'
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -619,6 +859,7 @@ export function EmailDetail({
         open={showLinkDialog}
         onOpenChange={setShowLinkDialog}
         emailId={email.id}
+        conversationEmailIds={conversationEmails?.map(e => e.id) ?? [email.id]}
         teamId={teamId}
         currentLinks={emailLinks}
         onLinksUpdated={() => {
@@ -627,15 +868,27 @@ export function EmailDetail({
         }}
       />
 
-      {/* Mark as Processed Dialog */}
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        emailId={email.id}
+        attachment={previewAttachment}
+      />
+
+      {/* Mark as Processed / Unprocessed Dialog */}
       <MarkAsProcessedDialog
         open={showProcessedDialog}
         onOpenChange={setShowProcessedDialog}
+        mode={email.status === 'read' ? 'unprocess' : 'process'}
         onConfirm={() => {
-          onMarkAsProcessed?.()
-          // Email will move to "Traités" folder (status: read)
+          if (email.status === 'read') {
+            onMarkAsUnprocessed?.()
+          } else {
+            onMarkAsProcessed?.()
+          }
         }}
-        isConversation={isConversationParent}
+        isConversation={showConversationThread}
       />
     </div>
   )

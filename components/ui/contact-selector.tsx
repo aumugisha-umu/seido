@@ -79,6 +79,7 @@ interface ContactSelectorProps {
     email: string
     role: string
     provider_category?: string
+    has_account?: boolean
   }>
   selectedContactIds?: string[]
   ineligibleContactIds?: string[]
@@ -215,8 +216,13 @@ const ContactSelector = ({
                 ineligibilityReason={ineligibilityReason}
                 keepOpen={true} // Toujours garder ouvert pour la multi-sélection
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span>{contact.name}</span>
+                  {contact.has_account === false && (
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500">
+                      Non invité
+                    </Badge>
+                  )}
                   {contact.isCurrentUser && (
                     <Badge variant="secondary" className="text-xs">Vous</Badge>
                   )}

@@ -49,14 +49,9 @@ export const shouldShowAlertBadge = (
       // Demande - nécessite approbation/rejet
       if (status === 'demande') return true
       
-      // Approuvée - nécessite planification ou demande de devis
+      // Approuvée - nécessite planification
       if (status === 'approuvee') return true
-      
-      // Demande de devis - alerte si des quotes sont en attente ("sent" ou "pending")
-      if (status === 'demande_de_devis') {
-        return quotes.some(q => q.status === 'sent' || q.status === 'pending')
-      }
-      
+
       // Cloturée par prestataire - nécessite validation gestionnaire ou demande de validation locataire
       if (status === 'cloturee_par_prestataire') return true
       
@@ -77,17 +72,21 @@ export const shouldShowAlertBadge = (
       return false
 
     case 'prestataire':
-      // Demande de devis - alerte si quote liée à ce prestataire en attente
-      if (status === 'demande_de_devis' && userId) {
-        return quotes.some(q => 
-          (q.provider_id === userId || q.created_by === userId) && 
+      // Quote pending — alert if requires_quote and provider has pending/draft quote or no quote yet
+      if ((intervention as any).requires_quote && userId) {
+        const hasProviderQuote = quotes.some(q =>
+          q.provider_id === userId || q.created_by === userId
+        )
+        const hasPendingQuote = quotes.some(q =>
+          (q.provider_id === userId || q.created_by === userId) &&
           (q.status === 'pending' || q.status === 'draft')
         )
+        if (!hasProviderQuote || hasPendingQuote) return true
       }
-      
+
       // Planification - nécessite proposition de créneaux
       if (status === 'planification') return true
-      
+
       // Planifiée - alerte si dans moins de 24h
       if (status === 'planifiee' && scheduled_date) {
         const scheduledTime = new Date(scheduled_date).getTime()
@@ -123,8 +122,7 @@ export const hasAnyAlertAction = (
         // Statuts nécessitant une action urgente du gestionnaire
         return [
           'demande',                      // À valider/rejeter
-          'approuvee',                    // À planifier ou demander devis
-          'demande_de_devis',             // Examiner les devis
+          'approuvee',                    // À planifier
           'cloturee_par_prestataire',     // Valider ou demander validation locataire
           'cloturee_par_locataire'        // Finaliser
         ].includes(status)
@@ -138,12 +136,10 @@ export const hasAnyAlertAction = (
       
       case 'prestataire':
         // Statuts nécessitant une action du prestataire
-        return [
-          'demande_de_devis',             // Soumettre un devis
-          'devis-a-fournir',              // Variante frontend de demande_de_devis
-          'planification',                // Proposer créneaux
-          'planifiee'                     // Préparer intervention
-        ].includes(status)
+        if (['planification', 'planifiee'].includes(status)) return true
+        // Quote-based alert (requires_quote flag on action data)
+        if ((action as any).requires_quote) return true
+        return false
 
       default:
         return false
@@ -172,7 +168,6 @@ export const filterPendingActions = <T extends { status: string }>(
         return [
           'demande',
           'approuvee',
-          'demande_de_devis',
           'cloturee_par_prestataire',
           'cloturee_par_locataire'
         ].includes(status)
@@ -184,12 +179,11 @@ export const filterPendingActions = <T extends { status: string }>(
         ].includes(status)
       
       case 'prestataire':
-        return [
-          'demande_de_devis',
-          'devis-a-fournir',
-          'planification',
-          'planifiee'
-        ].includes(status)
+        // Status-based pending actions
+        if (['planification', 'planifiee'].includes(status)) return true
+        // Quote-based pending: requires_quote flag on intervention
+        if ((intervention as any).requires_quote) return true
+        return false
 
       default:
         return false

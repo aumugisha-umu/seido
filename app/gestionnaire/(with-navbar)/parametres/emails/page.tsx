@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { BlacklistManager } from '../../mail/components/blacklist-manager'
+import type { BlacklistEntry } from '../../mail/components/types'
 import { EmailConnectionForm } from './components/email-connection-form'
 import { EmailConnectionList } from './components/email-connection-list'
 import { toast } from 'sonner'
@@ -40,7 +41,8 @@ interface EmailConnection {
 export default function EmailSettingsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [blacklist, setBlacklist] = useState([])
+  const [blacklist, setBlacklist] = useState<BlacklistEntry[]>([])
+  const [isLoadingBlacklist, setIsLoadingBlacklist] = useState(true)
   const [connections, setConnections] = useState<EmailConnection[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -126,19 +128,46 @@ export default function EmailSettingsPage() {
     }
   }
 
-  useEffect(() => {
-    fetchConnections()
+  const fetchBlacklist = useCallback(async () => {
+    setIsLoadingBlacklist(true)
+    try {
+      const response = await fetch('/api/emails/blacklist')
+      if (!response.ok) throw new Error('Failed to fetch blacklist')
+      const data = await response.json()
+      setBlacklist(data.entries || [])
+    } catch (error) {
+      console.error('Failed to fetch blacklist:', error)
+      setBlacklist([])
+    } finally {
+      setIsLoadingBlacklist(false)
+    }
   }, [])
 
-  const handleUnblock = (blacklistId: string) => {
-    // Dummy implementation
+  useEffect(() => {
+    fetchConnections()
+    fetchBlacklist()
+  }, [fetchBlacklist])
+
+  const handleUnblock = useCallback(async (blacklistId: string) => {
+    // Optimistic removal
+    const previous = blacklist
     setBlacklist(prev => prev.filter(entry => entry.id !== blacklistId))
-    console.log('Unblocked blacklist entry:', blacklistId)
-  }
+    try {
+      const response = await fetch('/api/emails/blacklist', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blacklistId })
+      })
+      if (!response.ok) throw new Error('Unblock failed')
+      toast.success('Expediteur debloque')
+    } catch (error) {
+      setBlacklist(previous)
+      toast.error('Echec du deblocage')
+    }
+  }, [blacklist])
 
   const handleAddManual = () => {
-    toast.info('Manual blacklist entry modal would open here (dummy action)')
-    console.log('Add manual blacklist entry')
+    toast.info('Fonctionnalite a venir : ajout manuel d\'un expediteur bloque')
   }
 
   const handleConnectionAdded = () => {
@@ -208,11 +237,17 @@ export default function EmailSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <BlacklistManager
-                blacklist={blacklist}
-                onUnblock={handleUnblock}
-                onAddManual={handleAddManual}
-              />
+              {isLoadingBlacklist ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <BlacklistManager
+                  blacklist={blacklist}
+                  onUnblock={handleUnblock}
+                  onAddManual={handleAddManual}
+                />
+              )}
             </CardContent>
           </Card>
         </div>

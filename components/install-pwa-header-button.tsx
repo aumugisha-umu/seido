@@ -20,12 +20,10 @@ export function InstallPWAHeaderButton() {
   useEffect(() => {
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault()
-      console.log('✅ [PWA-HEADER] beforeinstallprompt event fired!')
       setInstallPrompt(e as BeforeInstallPromptEvent)
     }
 
     const handleAppInstalled = () => {
-      console.log('✅ [PWA-HEADER] App installed successfully')
       setIsInstalled(true)
       setInstallPrompt(null)
     }
@@ -33,7 +31,6 @@ export function InstallPWAHeaderButton() {
     // Check if already installed (display mode standalone)
     const checkIfInstalled = () => {
       if (window.matchMedia('(display-mode: standalone)').matches) {
-        console.log('✅ [PWA-HEADER] App already installed (standalone mode)')
         setIsInstalled(true)
         return true
       }
@@ -55,13 +52,9 @@ export function InstallPWAHeaderButton() {
   const handleInstallClick = async () => {
     if (!installPrompt) return
 
-    console.log('📲 [PWA-HEADER] User clicked install from header')
-
     try {
       await installPrompt.prompt()
       const { outcome } = await installPrompt.userChoice
-
-      console.log(`📊 [PWA-HEADER] User choice: ${outcome}`)
 
       if (outcome === 'accepted') {
         setInstallPrompt(null)

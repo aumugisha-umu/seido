@@ -229,7 +229,7 @@ input[autocomplete="cc-number"],
   --chart-5: oklch(0.3588 0.1354 278.6973);
   /* #34d399 */
   --radius: 0.5rem;
-  --sidebar: oklch(0.9670 0.0029 264.5419);
+  --sidebar: oklch(1.0000 0 0);
   /* #f0f4ff */
   --sidebar-foreground: oklch(0.2795 0.0368 260.0310);
   /* #000000 */
@@ -292,8 +292,8 @@ input[autocomplete="cc-number"],
   /* 40px - 10 en Tailwind */
   --dashboard-padding-y: 1.5rem;
   /* 24px - 6 en Tailwind */
-  --dashboard-section-gap: 2rem;
-  /* 32px - 8 en Tailwind */
+  --dashboard-section-gap: 1rem;
+  /* 16px - 4 en Tailwind */
   --dashboard-header-gap: 1rem;
   /* 16px - 4 en Tailwind */
 
@@ -811,8 +811,15 @@ input[autocomplete="cc-number"],
      ============================================ */
 
   /* Dashboard Block - Main container */
+  /* Mobile: no height constraint → natural scroll via <main overflow-y-auto> */
+  /* Desktop (lg+): min-h-full → dashboard grows beyond viewport if needed, parent scrolls */
   .dashboard {
-    @apply min-h-screen bg-slate-50 font-sans;
+    @apply bg-slate-50 font-sans;
+  }
+  @media (min-width: 1024px) {
+    .dashboard {
+      @apply min-h-full;
+    }
   }
 
   /* Dashboard Container - Manages external padding */
@@ -847,9 +854,9 @@ input[autocomplete="cc-number"],
     margin-bottom: var(--dashboard-section-gap);
   }
 
-  /* Dashboard Content - Main content section (no bottom margin as it's the last element) */
+  /* Dashboard Content - Main content section, fills remaining vertical space */
   .dashboard__content {
-    /* No margin-bottom - last element */
+    @apply flex-1 min-h-0 flex flex-col;
   }
 
   /* Sticky footer base styles (without negative margins) */
@@ -1121,7 +1128,7 @@ input:-webkit-autofill:active {
 
 .unified-modal__footer {
   @apply flex items-center gap-3 p-4 border-t border-slate-100
-         flex-shrink-0 bg-slate-50/50;
+         flex-shrink-0 bg-white;
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -1148,6 +1155,11 @@ input:-webkit-autofill:active {
          data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
 }
 
+.unified-modal__content--2xl {
+  @apply w-full max-w-5xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+         data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
+}
+
 .unified-modal__content--full {
   @apply w-[95vw] max-w-7xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
          data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
@@ -1164,9 +1176,10 @@ input:-webkit-autofill:active {
     @apply max-w-[calc(100%-2rem)];
   }
 
-  /* lg, xl, full deviennent bottom sheet */
+  /* lg, xl, 2xl, full deviennent bottom sheet */
   .unified-modal__content--lg,
   .unified-modal__content--xl,
+  .unified-modal__content--2xl,
   .unified-modal__content--full {
     @apply top-auto bottom-0 left-0 right-0
            translate-x-0 translate-y-0
@@ -1178,6 +1191,7 @@ input:-webkit-autofill:active {
 
   .unified-modal__content--lg[data-state="closed"],
   .unified-modal__content--xl[data-state="closed"],
+  .unified-modal__content--2xl[data-state="closed"],
   .unified-modal__content--full[data-state="closed"] {
     animation-name: slideDown !important;
   }

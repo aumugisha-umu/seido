@@ -3,6 +3,7 @@
 import { Plus, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { PageActions } from "@/components/page-actions"
 import { ContractsNavigator } from "@/components/contracts/contracts-navigator"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { logger } from '@/lib/logger'
@@ -100,36 +101,14 @@ export function ContratsPageClient({
   return (
     <div className="h-full flex flex-col overflow-hidden layout-container">
       <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
-        {/* Page Header */}
-        <div className="mb-4 lg:mb-6 flex-shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">
-                Contrats
-              </h1>
-              <p className="text-muted-foreground">
-                Gérez vos contrats et baux
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/import')}
-              >
-                <Upload className="h-4 w-4" />
-                <span>Importer</span>
-              </Button>
-              <Button
-                className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/contrats/nouveau')}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Nouveau contrat</span>
-              </Button>
-            </div>
-          </div>
-        </div>
+        <PageActions>
+          <Button variant="outline" className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/import')}>
+            <Upload className="h-4 w-4" /><span>Importer</span>
+          </Button>
+          <Button className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/contrats/nouveau')}>
+            <Plus className="h-4 w-4" /><span>Nouveau contrat</span>
+          </Button>
+        </PageActions>
 
         {/* Card wrapper - Structure exacte du dashboard */}
         <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">

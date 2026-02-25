@@ -113,10 +113,6 @@ export function IndependentLotInputCardV2({
 
   // Handle address field changes from AddressFieldsWithMap (manual field edits)
   const handleAddressFieldsChange = useCallback((fields: AddressFields) => {
-    console.log('📝 [LOT-CARD] handleAddressFieldsChange called:', {
-      lotId: lot.id,
-      fields
-    })
     // STALE CLOSURE FIX: Always update all fields without comparison
     // Comparisons against captured lot.* values can fail due to stale closures
     onUpdate('street', fields.street)
@@ -128,32 +124,15 @@ export function IndependentLotInputCardV2({
   // Handle geocode result from AddressFieldsWithMap (autocomplete selection)
   // STALE CLOSURE FIX: Always update all fields without comparison
   const handleGeocodeResult = useCallback((result: GeocodeResult | null) => {
-    console.log('🗺️ [LOT-CARD] handleGeocodeResult called:', {
-      lotId: lot.id,
-      hasResult: !!result,
-      hasFields: !!result?.fields,
-      fields: result?.fields,
-      latitude: result?.latitude,
-      longitude: result?.longitude
-    })
-
     if (result) {
       // If result includes fields (from autocomplete), update the lot data
       if (result.fields) {
-        console.log('✅ [LOT-CARD] Updating address fields:', {
-          lotId: lot.id,
-          street: result.fields.street,
-          postalCode: result.fields.postalCode,
-          city: result.fields.city,
-          country: result.fields.country
-        })
         // ATOMIC UPDATE: Update all address fields at once without comparisons
         // This avoids stale closure issues where captured lot.* values are outdated
         onUpdate('street', result.fields.street)
         onUpdate('postalCode', result.fields.postalCode)
         onUpdate('city', result.fields.city)
         onUpdate('country', result.fields.country)
-        console.log('✅ [LOT-CARD] onUpdate calls completed for all fields')
       } else {
         console.warn('⚠️ [LOT-CARD] result.fields is missing!', { result })
       }

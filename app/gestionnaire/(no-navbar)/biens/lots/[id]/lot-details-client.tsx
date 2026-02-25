@@ -18,7 +18,9 @@ import { DocumentsSection } from "@/components/intervention/documents-section"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
+import { toast } from 'sonner'
 import { deleteLotAction } from './actions'
+import { getSubscriptionStatus } from '@/app/actions/subscription-actions'
 import type { Lot } from '@/lib/services'
 // Stats badges removed from overview
 import { LotContactsGridPreview } from '@/components/ui/lot-contacts-grid-preview'
@@ -27,6 +29,8 @@ import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
 import type { ContractWithRelations } from '@/lib/types/contract.types'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
+import { PropertyDocumentsPanel } from '@/components/documents'
+import { LOT_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
 
 // Helper function to get French label for lot category
 function getCategoryLabel(category: string): string {
@@ -79,8 +83,8 @@ interface Intervention {
 }
 
 interface LotAddress {
-  latitude: number
-  longitude: number
+  latitude: number | null
+  longitude: number | null
   formatted_address: string | null
 }
 
@@ -152,6 +156,25 @@ export default function LotDetailsClient({
 
       if (!deleteResult.success) {
         throw new Error(deleteResult.error?.message || 'Failed to delete lot')
+      }
+
+      // Check if user is overpaying after lot deletion
+      try {
+        const subResult = await getSubscriptionStatus()
+        if (subResult.success && subResult.data &&
+          subResult.data.subscribed_lots > subResult.data.actual_lots &&
+          subResult.data.has_stripe_subscription) {
+          toast.info('Vous payez encore pour des lots supprim\u00e9s', {
+            description: 'Ajustez votre abonnement dans le portail de facturation.',
+            action: {
+              label: 'G\u00e9rer',
+              onClick: () => router.push('/gestionnaire/settings/billing'),
+            },
+            duration: 10000,
+          })
+        }
+      } catch {
+        // Non-blocking — subscription check failure should not break delete flow
       }
 
       // Redirect to building page or buildings list
@@ -523,7 +546,7 @@ export default function LotDetailsClient({
             )}
 
             {/* Section 1.6: Map Preview (if coordinates available) */}
-            {lotAddress && (
+            {lotAddress && lotAddress.latitude && lotAddress.longitude && (
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-3 px-1 flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
@@ -718,23 +741,36 @@ export default function LotDetailsClient({
 
             {/* Documents Tab */}
             <TabContentWrapper value="documents">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-medium text-foreground">Documents du lot</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Documents liés aux interventions réalisées dans ce lot
-                </p>
-              </div>
-            </div>
+              <div className="space-y-6">
+                {/* Property documents (PEB, conformité, etc.) */}
+                <PropertyDocumentsPanel
+                  entityType="lot"
+                  entityId={lot.id}
+                  teamId={teamId}
+                  slotConfigs={LOT_DOCUMENT_SLOTS}
+                />
 
-              <DocumentsSection
-                interventions={transformInterventionsForDocuments(interventionsWithDocs)}
-                loading={false}
-                emptyMessage="Aucun document trouvé"
-                emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
-                onDocumentView={handleDocumentView}
-                onDocumentDownload={handleDocumentDownload}
-              />
+                {/* Intervention documents */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-lg font-medium text-foreground">Documents d&apos;intervention</h2>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Documents liés aux interventions réalisées dans ce lot
+                      </p>
+                    </div>
+                  </div>
+
+                  <DocumentsSection
+                    interventions={transformInterventionsForDocuments(interventionsWithDocs)}
+                    loading={false}
+                    emptyMessage="Aucun document trouvé"
+                    emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
+                    onDocumentView={handleDocumentView}
+                    onDocumentDownload={handleDocumentDownload}
+                  />
+                </div>
+              </div>
             </TabContentWrapper>
 
             {/* Emails Tab */}

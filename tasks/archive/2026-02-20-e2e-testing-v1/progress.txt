@@ -1,0 +1,11 @@
+# Progress Log — E2E Testing Infrastructure + Document Upload & Intervention Validation
+# Started: 2026-02-20
+# Stories: 6 total
+---
+
+## Pre-existing work (from previous session)
+- Fixed 4 critical bugs in use-multi-lot-document-upload.ts (camelCase→snake_case, error swallowing, missing document ID extraction, missing title field)
+- Created E2E infrastructure files: vitest.e2e.config.ts, test-accounts.ts, browser.ts, auth.ts, selectors.ts, smoke.e2e.ts
+- First run against Vercel preview: 3/5 passed, 2/5 failed (login helper incompatible with SEIDO client-side redirect pattern)
+- Root cause identified: login uses useActionState + window.location.href redirect, not server-side navigation
+

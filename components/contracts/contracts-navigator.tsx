@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ContractCard } from './contract-card'
@@ -10,10 +9,10 @@ import { ContractsListView } from './contracts-list-view'
 import { deleteContract } from '@/app/actions/contract-actions'
 import { toast } from 'sonner'
 import { useViewMode } from '@/hooks/use-view-mode'
-import { Search, LayoutGrid, List, FileText, AlertTriangle, Archive, CheckCircle } from 'lucide-react'
+import { Search, LayoutGrid, List, FileText, AlertTriangle, Archive, CheckCircle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { logger } from '@/lib/logger'
-import type { ContractWithRelations, ContractsNavigatorProps, ContractStatus } from '@/lib/types/contract.types'
+import type { ContractWithRelations, ContractsNavigatorProps } from '@/lib/types/contract.types'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +42,7 @@ const parseLocalDate = (dateStr: string): Date => {
   return new Date(year, month - 1, day)
 }
 
-type TabId = 'actifs' | 'expire_bientot' | 'termines' | 'tous'
+type TabId = 'actifs' | 'a_venir' | 'expire_bientot' | 'termines' | 'tous'
 
 interface Tab {
   id: TabId
@@ -58,6 +57,12 @@ const TABS: Tab[] = [
     label: 'Actifs',
     icon: CheckCircle,
     filter: (c) => c.status === 'actif'
+  },
+  {
+    id: 'a_venir',
+    label: 'À venir',
+    icon: Clock,
+    filter: (c) => c.status === 'a_venir'
   },
   {
     id: 'expire_bientot',

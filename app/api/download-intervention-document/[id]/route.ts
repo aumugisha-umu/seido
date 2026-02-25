@@ -376,7 +376,6 @@ function generateDownloadPage(downloadUrl: string, filename: string): string {
         document.body.removeChild(link);
 
         window.URL.revokeObjectURL(blobUrl);
-        console.log('Téléchargement déclenché avec succès');
       } catch (error) {
         console.error('Erreur lors du téléchargement:', error);
         manualLink.style.color = '#ef4444';

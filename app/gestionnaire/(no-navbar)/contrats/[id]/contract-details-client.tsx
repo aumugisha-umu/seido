@@ -188,9 +188,8 @@ export default function ContractDetailsClient({
       {/* Unified Header using DetailPageHeader */}
       <DetailPageHeader
         onBack={() => router.push('/gestionnaire/contrats')}
-        backButtonText="Contrats"
+        backButtonText="Retour"
         title={contract.title}
-        subtitle={locationInfo}
         badges={[getStatusBadge()]}
         metadata={[
           { icon: Calendar, text: `${new Date(contract.start_date).toLocaleDateString('fr-FR')} - ${new Date(contract.end_date).toLocaleDateString('fr-FR')}` },

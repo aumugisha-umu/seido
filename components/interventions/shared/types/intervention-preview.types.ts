@@ -68,7 +68,7 @@ export interface Participant {
 /**
  * Statut d'un devis
  */
-export type QuoteStatus = 'pending' | 'sent' | 'approved' | 'rejected'
+export type QuoteStatus = 'draft' | 'pending' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
 
 /**
  * Devis pour une intervention
@@ -254,6 +254,8 @@ export interface QuotesCardProps {
   onRejectQuote?: (quoteId: string) => void
   /** Annuler une demande de devis (statut pending) */
   onCancelQuote?: (quoteId: string) => void
+  /** Répondre à une demande de devis (prestataire: ouvrir la modale d'estimation) */
+  onRespondToQuote?: () => void
   isLoading?: boolean
   className?: string
 }
@@ -266,6 +268,8 @@ export interface PlanningCardProps {
   scheduledDate?: string
   /** Heure de début du créneau confirmé (format HH:MM ou HH:MM:SS) */
   scheduledStartTime?: string
+  /** Type de planification choisi par le gestionnaire */
+  schedulingType?: 'fixed' | 'slots' | 'flexible' | null
   userRole: UserRole
   currentUserId: string
   onAddSlot?: () => void
@@ -358,8 +362,10 @@ export interface InterventionDetailsCardProps {
     scheduledEndTime?: string | null
     /** Mode date fixe (selected_by_manager) - ne pas afficher l'heure de fin */
     isFixedScheduling?: boolean
-    /** Statut du planning: pending (rien), proposed (créneaux proposés), scheduled (confirmé), completed */
-    status: 'pending' | 'proposed' | 'scheduled' | 'completed'
+    /** Type de planification choisi par le gestionnaire */
+    schedulingType?: 'fixed' | 'slots' | 'flexible' | null
+    /** Statut du planning: pending (rien), proposed (créneaux proposés), responded (répondu à tous), scheduled (confirmé), completed */
+    status: 'pending' | 'proposed' | 'responded' | 'scheduled' | 'completed'
     /** Nombre de créneaux proposés (pour status='proposed') */
     proposedSlotsCount?: number
     /** Nombre total de devis (tous statuts confondus) */
@@ -369,7 +375,7 @@ export interface InterventionDetailsCardProps {
     /** Nombre de devis reçus (statut sent) */
     receivedQuotesCount?: number
     /** Statut des devis */
-    quotesStatus: 'pending' | 'received' | 'approved'
+    quotesStatus: 'none' | 'pending' | 'received' | 'approved'
     /** Montant du devis validé */
     selectedQuoteAmount?: number | null
     /** Statistiques de réponses aux créneaux (pour afficher X/Y dans la vue générale) */
@@ -407,6 +413,18 @@ export interface InterventionDetailsCardProps {
   onOpenChat?: (participantId: string, threadType: 'group' | 'tenant_to_managers' | 'provider_to_managers') => void
   /** Callback pour naviguer vers l'onglet Planning */
   onNavigateToPlanning?: () => void
+  /** Callback to open the MultiSlotResponseModal (prestataire: respond to proposed slots) */
+  onOpenSlotResponseModal?: () => void
+  /** Callback to open the QuoteSubmissionModal (prestataire: submit estimation) */
+  onOpenQuoteModal?: () => void
+  /** Number of proposed slots awaiting current user's response */
+  pendingSlotsForUser?: number
+  /** Whether the intervention requires a quote from this provider */
+  requiresQuote?: boolean
+  /** Whether the current user has already submitted a quote */
+  hasSubmittedQuote?: boolean
+  /** Sections à afficher. Si non fourni, toutes les sections avec données sont affichées (rétrocompatible) */
+  sections?: Array<'participants' | 'description' | 'location' | 'instructions' | 'planning' | 'creator'>
   className?: string
 }
 

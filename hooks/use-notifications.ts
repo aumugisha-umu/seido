@@ -36,6 +36,9 @@ interface UseNotificationsOptions {
   limit?: number
   autoRefresh?: boolean
   refreshInterval?: number
+  // ⚡ SSR Support: Accept pre-fetched data from Server Component
+  initialData?: Notification[]
+  initialUnreadCount?: number
 }
 
 interface UseNotificationsReturn {
@@ -51,9 +54,6 @@ interface UseNotificationsReturn {
 
 export const useNotifications = (options: UseNotificationsOptions = {}): UseNotificationsReturn => {
   const { user, loading: authLoading } = useAuth()
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   const {
     teamId,
@@ -62,8 +62,17 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
     type,
     limit = 50,
     autoRefresh = false,
-    refreshInterval = 30000 // 30 seconds
+    refreshInterval = 30000, // 30 seconds
+    // ⚡ SSR Support
+    initialData,
+    initialUnreadCount
   } = options
+
+  // ⚡ Use initial data from SSR if provided, skip loading state
+  const hasInitialData = initialData !== undefined
+  const [notifications, setNotifications] = useState<Notification[]>(initialData || [])
+  const [loading, setLoading] = useState(!hasInitialData)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchNotifications = async () => {
     // Attendre que l'auth soit prête avant de fetch
@@ -187,8 +196,12 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
     }
   }
 
-  // Fetch initial data (authLoading dependency ensures re-fetch when auth completes)
+  // ⚡ Skip initial fetch if SSR data provided, only refetch on filter changes
   useEffect(() => {
+    // If we have initial data from SSR, skip the first fetch
+    if (hasInitialData && notifications.length > 0) {
+      return
+    }
     fetchNotifications()
   }, [user?.id, teamId, read, type, limit, authLoading, scope])
 

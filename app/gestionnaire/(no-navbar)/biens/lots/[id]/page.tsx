@@ -1,5 +1,6 @@
 // Server Component - loads data server-side
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import type { Metadata } from 'next'
 import {
   createServerLotService,
   createServerInterventionService,
@@ -9,12 +10,59 @@ import {
   createServerSupabaseClient
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
+import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
+import { SubscriptionRepository } from '@/lib/services/repositories/subscription.repository'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import LotDetailsClient from './lot-details-client'
 import { logger } from '@/lib/logger'
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
+
+type PageProps = {
+  params: Promise<{ id: string }>
+}
+
+/**
+ * ✅ Dynamic SEO Metadata for Lot Detail Page
+ * - Title includes lot reference for better SEO
+ * - Description includes building name and category
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params
+
+  try {
+    const supabase = await createServerSupabaseClient()
+
+    // Lightweight query just for metadata
+    const { data: lot } = await supabase
+      .from('lots')
+      .select('reference, category, building:building_id(name)')
+      .eq('id', id)
+      .single()
+
+    if (!lot) {
+      return {
+        title: 'Lot non trouvé | SEIDO',
+        description: 'Ce lot n\'existe pas ou vous n\'avez pas les permissions nécessaires.'
+      }
+    }
+
+    const buildingName = lot.building?.name || ''
+    const buildingSuffix = buildingName ? ` - ${buildingName}` : ''
+
+    return {
+      title: `${lot.reference}${buildingSuffix} | SEIDO`,
+      description: `Détails du lot : ${lot.reference}. Catégorie : ${lot.category || 'Non spécifié'}. Gestion des contacts et interventions.`
+    }
+  } catch {
+    return {
+      title: 'Lot | SEIDO',
+      description: 'Détails du lot'
+    }
+  }
+}
 
 // Loading skeleton while data is fetched
 function LotDetailsLoading() {
@@ -65,11 +113,33 @@ export default async function LotDetailsPage({
   const startTime = Date.now()
   const { id } = await params
 
-  // 🚨 SECURITY FIX: Cette page n'avait AUCUNE authentification!
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { team } = await getServerAuthContext('gestionnaire')
+  const { team, supabase } = await getServerAuthContext('gestionnaire')
 
-  logger.info('🏠 [LOT-PAGE-SERVER] Loading lot details', {
+  // ✅ Subscription restriction: block access to locked lots
+  let isLotLocked = false
+  try {
+    const subscriptionService = createSubscriptionService(supabase)
+    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
+    const subscriptionInfo = await subscriptionService.getSubscriptionInfo(team.id, serviceRoleRepo)
+
+    if (subscriptionInfo) {
+      const accessibleLotIds = await subscriptionService.getAccessibleLotIds(team.id, subscriptionInfo, supabase)
+      if (accessibleLotIds && !accessibleLotIds.includes(id)) {
+        isLotLocked = true
+      }
+    }
+  } catch (error) {
+    // Fail open: if subscription check fails, allow access
+    logger.warn('[LOT-PAGE-SERVER] Subscription check failed, allowing access', { lotId: id, error })
+  }
+
+  if (isLotLocked) {
+    logger.info('[LOT-PAGE-SERVER] Access blocked: lot is locked by subscription restriction', { lotId: id, teamId: team.id })
+    redirect('/gestionnaire/biens')
+  }
+
+  logger.info('[LOT-PAGE-SERVER] Loading lot details', {
     lotId: id,
     timestamp: new Date().toISOString()
   })
@@ -315,23 +385,23 @@ export default async function LotDetailsPage({
     }
 
     // Step 5: Load address (lot's own or fallback to building's)
-    let lotAddress: { latitude: number; longitude: number; formatted_address: string | null } | null = null
+    let lotAddress: { latitude: number | null; longitude: number | null; formatted_address: string | null } | null = null
     const supabase = await createServerSupabaseClient()
 
     // First, try to use address_record from the lot (already fetched by repository via JOIN)
     const addressRecord = (lot as any).address_record
-    if (addressRecord && addressRecord.latitude && addressRecord.longitude) {
+    if (addressRecord && (addressRecord.latitude || addressRecord.formatted_address || addressRecord.street)) {
       logger.info('📍 [LOT-PAGE-SERVER] Step 5: Using address_record from lot...', {
         addressId: addressRecord.id,
-        hasCoordinates: true
+        hasCoordinates: !!(addressRecord.latitude && addressRecord.longitude)
       })
       lotAddress = {
-        latitude: addressRecord.latitude,
-        longitude: addressRecord.longitude,
+        latitude: addressRecord.latitude ?? null,
+        longitude: addressRecord.longitude ?? null,
         formatted_address: addressRecord.formatted_address
       }
       logger.info('✅ [LOT-PAGE-SERVER] Lot address loaded from address_record', {
-        hasCoordinates: true,
+        hasCoordinates: !!(addressRecord.latitude && addressRecord.longitude),
         elapsed: `${Date.now() - startTime}ms`
       })
     }
@@ -342,18 +412,18 @@ export default async function LotDetailsPage({
       })
       const { data: addressData } = await supabase
         .from('addresses')
-        .select('latitude, longitude, formatted_address')
+        .select('latitude, longitude, formatted_address, street')
         .eq('id', (lot as any).address_id)
         .single()
 
-      if (addressData && addressData.latitude && addressData.longitude) {
+      if (addressData && (addressData.latitude || addressData.formatted_address || addressData.street)) {
         lotAddress = {
-          latitude: addressData.latitude,
-          longitude: addressData.longitude,
+          latitude: addressData.latitude ?? null,
+          longitude: addressData.longitude ?? null,
           formatted_address: addressData.formatted_address
         }
         logger.info('✅ [LOT-PAGE-SERVER] Lot address loaded via direct query', {
-          hasCoordinates: true,
+          hasCoordinates: !!(addressData.latitude && addressData.longitude),
           elapsed: `${Date.now() - startTime}ms`
         })
       }
@@ -365,18 +435,18 @@ export default async function LotDetailsPage({
       const buildingRecord = (lot as any).building
       const buildingAddressRecord = buildingRecord?.address_record
 
-      if (buildingAddressRecord && buildingAddressRecord.latitude && buildingAddressRecord.longitude) {
+      if (buildingAddressRecord && (buildingAddressRecord.latitude || buildingAddressRecord.formatted_address || buildingAddressRecord.street)) {
         logger.info('📍 [LOT-PAGE-SERVER] Step 5b: Using building.address_record from lot...', {
           buildingId: lot.building_id,
           addressId: buildingAddressRecord.id
         })
         lotAddress = {
-          latitude: buildingAddressRecord.latitude,
-          longitude: buildingAddressRecord.longitude,
+          latitude: buildingAddressRecord.latitude ?? null,
+          longitude: buildingAddressRecord.longitude ?? null,
           formatted_address: buildingAddressRecord.formatted_address
         }
         logger.info('✅ [LOT-PAGE-SERVER] Building address loaded from address_record', {
-          hasCoordinates: true,
+          hasCoordinates: !!(buildingAddressRecord.latitude && buildingAddressRecord.longitude),
           elapsed: `${Date.now() - startTime}ms`
         })
       } else {
@@ -397,14 +467,14 @@ export default async function LotDetailsPage({
             .eq('id', buildingData.address_id)
             .single()
 
-          if (addressData && addressData.latitude && addressData.longitude) {
+          if (addressData && (addressData.latitude || addressData.formatted_address)) {
             lotAddress = {
-              latitude: addressData.latitude,
-              longitude: addressData.longitude,
+              latitude: addressData.latitude ?? null,
+              longitude: addressData.longitude ?? null,
               formatted_address: addressData.formatted_address
             }
             logger.info('✅ [LOT-PAGE-SERVER] Building address loaded via direct query', {
-              hasCoordinates: true,
+              hasCoordinates: !!(addressData.latitude && addressData.longitude),
               elapsed: `${Date.now() - startTime}ms`
             })
           }

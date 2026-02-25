@@ -7,7 +7,12 @@ import { createActivityLogger } from '@/lib/activity-logger'
 // Helper function to determine document type from file type and name
 function getDocumentType(mimeType: string, filename: string): string {
   const lowerFilename = filename.toLowerCase()
-  
+
+  // Audio (voice notes)
+  if (mimeType.startsWith('audio/')) {
+    return 'note_vocale'
+  }
+
   // Photos
   if (mimeType.startsWith('image/')) {
     if (lowerFilename.includes('avant')) return 'photo_avant'
@@ -66,11 +71,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Construire l'objet pour validation Zod
+    // Strip codec suffix (e.g. "audio/webm;codecs=opus" → "audio/webm") for Zod enum validation
+    const normalizedMimeType = file.type.split(';')[0].trim()
+
     const requestData = {
       interventionId: formData.get('interventionId') as string,
       fileName: file.name,
       fileSize: file.size,
-      fileType: file.type,
+      fileType: normalizedMimeType,
       description: formData.get('description') as string | undefined
     }
 
@@ -127,16 +135,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique filename and storage path
+    // Path format: {team_id}/{intervention_id}/{filename} — team_id first for RLS path-based checks
     const uniqueFilename = generateUniqueFilename(validatedData.fileName)
-    const storagePath = `interventions/${validatedData.interventionId}/${uniqueFilename}`
+    const storagePath = `${intervention.team_id}/${validatedData.interventionId}/${uniqueFilename}`
 
     logger.info({ storagePath: storagePath }, "☁️ Uploading to Supabase Storage:")
 
     // Upload file to Supabase Storage
+    // Use normalized MIME type to pass bucket's allowed_mime_types check
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('intervention-documents')
+      .from('documents')
       .upload(storagePath, file, {
-        contentType: file.type,
+        contentType: normalizedMimeType,
         upsert: false // Don't overwrite if file exists
       })
 
@@ -158,9 +168,9 @@ export async function POST(request: NextRequest) {
         filename: uniqueFilename,
         original_filename: validatedData.fileName,
         file_size: validatedData.fileSize,
-        mime_type: validatedData.fileType,
+        mime_type: normalizedMimeType,
         storage_path: uploadData.path,
-        storage_bucket: 'intervention-documents',
+        storage_bucket: 'documents',
         document_type: getDocumentType(validatedData.fileType, validatedData.fileName),
         uploaded_by: userProfile.id,
         description: validatedData.description || `Document ajouté pour l'intervention`
@@ -177,7 +187,7 @@ export async function POST(request: NextRequest) {
       // Try to clean up the uploaded file if metadata storage fails
       try {
         await supabase.storage
-          .from('intervention-documents')
+          .from('documents')
           .remove([uploadData.path])
       } catch (cleanupError) {
         logger.error({ error: cleanupError }, "⚠️ Error cleaning up uploaded file:")

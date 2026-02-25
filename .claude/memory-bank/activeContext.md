@@ -1,237 +1,126 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Fix ensureInterventionConversationThreads + Stabilisation Conversations
-**Branch:** `preview`
-**Sprint:** Multi-Team Support + Google Maps Integration (Jan-Feb 2026)
-**Dernière analyse:** Bugfix critique conversation threads - 2026-02-04
+**Objectif:** Stripe Subscription Integration Complete + Billing Audit Fixes
+**Branch:** `feature/stripe-subscription`
+**Sprint:** Stripe Billing + Lot Access Restriction (Feb 2026)
+**Derniere analyse:** Billing audit fixes complete, 77 learnings in AGENTS.md — 2026-02-22
 
 ---
 
-## ✅ COMPLETE: Fix ensureInterventionConversationThreads (2026-02-04)
+## ✅ COMPLETE: Stripe Subscription Integration (2026-02-21/22)
 
-### Contexte
-Code review de `ensureInterventionConversationThreads` dans `conversation-actions.ts` a révélé 3 problèmes : 1 bug critique, 1 inefficacité, 1 gap fonctionnel.
+Full billing system with trial management, subscription gates, and billing UI:
 
-### Modifications Effectuées
+| Category | Details |
+|----------|---------|
+| **Stories** | 48 billing stories + 13 debugging fixes + 6 audit fixes |
+| **Test Coverage** | 249 test cases (218 unit + 15 integration + 16 E2E) |
+| **DB Migrations** | 4 (subscriptions, stripe_customers, stripe_invoices, webhook_events) |
+| **UI Components** | 11 billing components in components/billing/ |
+| **CRON Jobs** | 4 (trial-expiration, trial-notifications, behavioral-triggers, cleanup-webhook-events) |
+| **Webhook Handler** | 8 Stripe event types supported |
+| **Services** | SubscriptionService with lazy sync from Stripe API |
 
-| Fix | Fichier | Description |
-|-----|---------|-------------|
-| **Fix 1 (CRITIQUE)** | `conversation-actions.ts:836` | Supprimé `.is('deleted_at', null)` sur `intervention_assignments` — colonne inexistante, la requête échouait silencieusement = zéro threads créés |
-| **Fix 2 (Efficacité)** | `conversation-actions.ts:858-884` | Capture directe de `groupThreadId` au lieu de re-query DB après création |
-| **Fix 3 (Gap fonctionnel)** | `conversation-actions.ts:948-994` | Ajout `else` branches pour `tenants_group` et `providers_group` existants — nouveaux participants ajoutés aux threads group existants |
+**Key Features:**
+- Trial management (14-day trial, 2 properties free)
+- Subscription gates (server-side on lot detail/edit, building detail interventions)
+- Trial overage banner (dismissible, amber theme)
+- Locked lot cards (semi-transparent overlay + "Déverrouiller" button)
+- Intervention action guards on locked lots
+- Billing settings page with Stripe portal integration
 
-### Pattern addParticipant Idempotent
-
-```typescript
-// addParticipant utilise ON CONFLICT DO NOTHING
-// → Appeler pour un user déjà participant = no-op inoffensif
-// → Pas besoin de vérifier l'existence avant ajout
-await conversationRepo.addParticipant(existingGroupThread.id, newUser.id)
-```
-
-### Leçon: Colonnes Fantômes Supabase
-
-```typescript
-// ⚠️ PIÈGE: Supabase PostgREST peut échouer silencieusement
-// si on filtre sur une colonne inexistante
-.from('intervention_assignments')
-.is('deleted_at', null)  // ← deleted_at N'EXISTE PAS sur cette table!
-// → Résultat: erreur ou empty array, JAMAIS de données
-```
+**New Patterns:**
+- Layered fail: service-level = fail-closed, page-level = fail-open
+- CRUD access checklist when restricting entities
+- canAddProperty(count) for batch quota checks
+- CSS overlay for locked card dimming (not parent opacity)
 
 ---
 
-## ✅ COMPLETE: Simplification Statut "Approuvée" (2026-02-03)
+## ✅ COMPLETE: Billing Audit Fixes (2026-02-22)
 
-### Modifications Effectuées
+6 stories fixing critical gaps discovered during TDD audit:
 
-| Fichier | Modification |
-|---------|--------------|
-| `lib/intervention-action-utils.ts` | Un seul bouton "Planifier" (suppression "Demander estimation") |
-| `lib/intervention-utils.ts` | Message "En attente de planification" (au lieu de "assignation prestataire") |
-| `components/intervention/modals/programming-modal-FINAL.tsx` | ContactSelector réels au lieu de mockups inline |
-| `intervention-detail-client.tsx` | Réactivation ProgrammingModal + props managers/tenants |
-| `interventions-page-client.tsx` | Props minimales pour ProgrammingModal depuis liste |
-| `intervention-card.tsx` | Callback `onOpenProgrammingModal` pour action start_planning |
-| `pending-actions-section.tsx` | Propagation callback vers InterventionCard |
+| Story | Title | Fix |
+|-------|-------|-----|
+| US-049 | mapStripeStatus consolidation | Single source in subscription-helpers.ts |
+| US-050 | Paused status handling | Added to checkReadOnly/checkCanAddProperty |
+| US-051 | Lot edit page gate | Added subscription check |
+| US-052 | updateCompleteProperty quota check | canAddProperty(count) for multi-lot ops |
+| US-053 | getAccessibleLotIds fail-closed | Return empty array on error (security) |
+| US-054 | BillingErrorBoundary + hasError | Graceful degradation in useSubscription |
 
-### Pattern ContactSelector dans Modal
-
-```typescript
-// Dans ProgrammingModal - Section Participants
-<ContactSelector
-  ref={contactSelectorRef}
-  mode="multiple"
-  hideUI={true}  // Pas d'affichage direct, utilise openContactModal()
-  {...}
-/>
-
-// Ouvrir le sélecteur depuis un bouton
-<Button onClick={() => contactSelectorRef.current?.openContactModal()}>
-  + Ajouter
-</Button>
-```
-
-### Logique Locataires par Lot
-
-Pour les interventions sur bâtiment entier (`lot_id = null`):
-- Affichage groupé par lot avec switch individuel
-- `excludedLotIds` pour exclure certains lots
-- Badge "Non invité" pour locataires sans `auth_id`
-
-### État des Handlers
-
-| Handler | État |
-|---------|------|
-| `onManagerToggle` | ⚠️ Fonction vide - affichage seulement |
-| `onTenantToggle` | ⚠️ Fonction vide - affichage seulement |
-| `onLotToggle` | ⚠️ Fonction vide - affichage seulement |
-
-**Note:** La modification interactive des participants nécessiterait une gestion d'état supplémentaire.
+**AGENTS.md:** 77 learnings total (was 71). New #072-#077.
 
 ---
 
-## ✅ COMPLETE: Fix Infinite Refresh Loop (2026-02-03)
+## ✅ COMPLETE: Cancel Modal Wiring (2026-02-21)
 
-### Symptôme
-La page de détail d'intervention entrait en boucle infinie de refresh, rendant l'interface inutilisable.
+Wired the pre-built cancellation infrastructure into the gestionnaire intervention detail page:
+- Imported `useInterventionCancellation` hook + `CancelConfirmationModal` (dynamic)
+- Replaced `case 'cancel': // TODO` stub with `cancellationHook.handleCancellationAction()`
+- Rendered modal in JSX after ApprovalModal block
+- Un-skipped E2E cancel test in `intervention-workflow.e2e.ts`
 
-### Root Cause Analysée
-
-**Flux de la boucle infinie:**
-```
-1. ChatInterface monte → useEffect (300ms delay)
-2. markThreadAsReadAction() appelé
-3. Server action fait revalidatePath()
-4. Cache invalidé → page re-render
-5. ChatInterface remonte → useEffect se re-déclenche
-6. RETOUR À 1 → BOUCLE ∞
-```
-
-**Problème aggravant:** Dans `useInterventionApproval`, double refresh:
-1. `onSuccess()` → `handleRefresh()` → `router.refresh()`
-2. 500ms plus tard → `router.refresh()` ENCORE
-
-### Fix Appliqué
-
-| Fichier | Modification |
-|---------|--------------|
-| `hooks/use-intervention-approval.ts` | Un seul refresh: soit callback, soit setTimeout (exclusif) |
-| `components/chat/chat-interface.tsx` | Ajout `markedAsReadThreadsRef` pour tracker les threads déjà lus |
-
-**Pattern utilisé:** `useRef<Set<string>>` pour déduplication des appels sans provoquer de re-render.
+**Pattern:** Same headless hook + dynamic modal as ApprovalModal (consistent codebase pattern).
 
 ---
 
-## ✅ COMPLETE: Push Subscription Security Fix (2026-02-02)
+## ✅ COMPLETE: E2E Testing Infrastructure V2 (2026-02-20/21)
 
-### Contexte
-Les push subscriptions n'étaient pas sauvegardées en base malgré l'API retournant 200.
+Full Puppeteer + Vitest E2E test suite with Page Object Model pattern:
 
-### Root Causes Identifiées
+| Test File | Tests | Wizard | Duration |
+|-----------|-------|--------|----------|
+| smoke.e2e.ts | 4 | N/A | ~15s |
+| building-creation.e2e.ts | 8 | Building (5-step) | ~40s |
+| lot-creation.e2e.ts | 12 | Lot (5-step, 2 modes) | ~50s |
+| contract-creation.e2e.ts | 1 | Contract (5-step) | ~43s |
+| **Total** | **25** | | |
 
-| Issue | Description |
-|-------|-------------|
-| **RLS Silent Block** | Supabase avec anon key peut bloquer silencieusement les inserts via RLS |
-| **No Null Check** | `.single()` retourne `null` si RLS bloque, pas d'erreur |
-| **Client userId** | Utilisait `userId` du client au lieu de `userProfile.id` authentifié |
-
-### Fix Appliqué
-
-**Fichier:** `app/api/push/subscribe/route.ts`
-
-| Ligne | Avant | Après |
-|-------|-------|-------|
-| 38 | `user_id: userId` | `user_id: userProfile.id` |
-| 58-65 | *(absent)* | Check `if (!data)` pour détecter RLS silent blocks |
-| Logs | `userId` | `userProfileId: userProfile.id` (cohérence) |
-
-### Code Ajouté
-```typescript
-// ✅ Check for null data - RLS may silently block inserts
-if (!data) {
-  logger.error({ userProfileId: userProfile.id }, '❌ [PUSH-SUBSCRIBE] Insert blocked (RLS or constraint)')
-  return NextResponse.json(
-    { error: 'Subscription not created - permission denied' },
-    { status: 500 }
-  )
-}
-```
-
-### Commit
-`4d8a8e8` fix(push-subscribe): enhance security by using userProfile.id for subscriptions
+**Infrastructure:**
+- `tests/e2e/setup/global-setup.ts` — API-based Supabase auth, cookie encoding
+- `tests/e2e/helpers/browser.ts` — Puppeteer browser management (no userDataDir)
+- `tests/e2e/helpers/cookies.ts` — Cookie consent + PWA banner dismissal
+- `tests/e2e/pages/*.page.ts` — 5 Page Object Models (dashboard, login, 3 wizards)
+- `tests/fixtures/test-accounts.ts` — Test credentials with env var overrides
+- `tests/fixtures/test-document.pdf` — 316-byte valid PDF for upload tests
 
 ---
 
-## ✅ COMPLETE: Quote Notifications Multi-Canal (2026-02-02)
+## ✅ COMPLETE: Unified Documents Bucket (2026-02-20)
 
-### État Avant/Après
+Consolidated 3 storage buckets into 1 `documents` bucket:
 
-| Route | Avant | Après |
-|-------|-------|-------|
-| `intervention-quote-request` | ❌❌❌ | ✅✅✅ (Email + In-App + Push) |
-| `intervention-quote-submit` | ✅✅❌ | ✅✅✅ (Push ajouté) |
-| `quotes/[id]/approve` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
-| `quotes/[id]/reject` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
+| Story | Title | Status |
+|-------|-------|--------|
+| US-001 | Create `documents` bucket + storage RLS | Done |
+| US-002 | Point all 3 upload routes to `documents` | Done |
+| US-003 | Download/view routes dual-bucket support | Done (no changes needed) |
+| US-004 | E2E: Building creation with doc upload | Done (8/8 green) |
+| US-005 | E2E: Lot creation with doc upload | Done (12/12 green) |
+| US-006 | E2E: Contract creation with doc upload | Done (1/1 green) |
 
-### Nouvelles Actions Créées
-
-| Action | Description |
-|--------|-------------|
-| `notifyQuoteRequested` | In-app + Push pour prestataire quand demande de devis |
-| `notifyQuoteApproved` | In-app + Push pour prestataire quand devis approuvé |
-| `notifyQuoteRejected` | In-app + Push pour prestataire quand devis refusé |
-| `notifyQuoteSubmittedWithPush` | In-app + Push pour gestionnaires quand devis soumis |
-
-### Bug Fix: URLs Push Notifications
-**Problème:** Les push notifications pointaient toujours vers `/gestionnaire/interventions/...`
-**Solution:** `sendRoleAwarePushNotifications()` groupe par rôle et envoie l'URL appropriée
+**Key fix:** upload-contract-document/route.ts switched to service role client for storage operations.
 
 ---
 
-## ✅ COMPLETE: PWA Notification Prompt (2026-02-02)
+## ✅ COMPLETE: Lot Wizard Server Component Refactoring (2026-02-20)
 
-### Comportement Implémenté
-
-| Événement | Action |
-|-----------|--------|
-| **Installation PWA** | Auto-demande permission (existant, conservé) |
-| **Ouverture PWA + notif désactivées** | Modale de rappel à chaque ouverture |
-| **Permission "denied"** | Guide vers paramètres système (iOS, Chrome, etc.) |
-| **Changement dans paramètres** | Auto-détection au focus + subscription automatique |
-
-### Fichiers Créés
-
-| Fichier | Description |
-|---------|-------------|
-| `hooks/use-notification-prompt.tsx` | Hook de détection |
-| `components/pwa/notification-permission-modal.tsx` | Modal UI |
-| `components/pwa/notification-settings-guide.tsx` | Instructions paramètres |
-| `contexts/notification-prompt-context.tsx` | Provider global |
+Extracted 2914-line page.tsx into `lot-creation-form.tsx` (client) + `page.tsx` (server).
 
 ---
 
-## ✅ COMPLETE: Web/PWA Notification Unification (2026-02-02)
+## ✅ COMPLETE: Independent Lots Address Display Fix (2026-02-20)
 
-### Changements Majeurs
+Batch address fetch in `lot.repository.ts:findByTeam()` after JOIN removal optimization.
 
-| Composant | Avant | Après |
-|-----------|-------|-------|
-| **PushNotificationToggle** | Web uniquement | Web + PWA unifié |
-| **NotificationPrompt** | PWA modal séparé | Intégré dans toggle |
-| **Settings Guide** | N/A | Instructions par plateforme |
+---
 
-### Pattern Architecture
-```
-NotificationPromptProvider (layout.tsx)
-    └── useNotificationPrompt (hook)
-            ├── isPWA detection
-            ├── permission state
-            └── hasDBSubscription check
-                    └── NotificationPermissionModal
-                            └── NotificationSettingsGuide (si denied)
-```
+## ✅ COMPLETE: Blog Section + SEO (2026-02-19, committed)
+
+6 stories via Ralph. 2 articles published.
 
 ---
 
@@ -250,99 +139,72 @@ demande -> rejetee (terminal)
         -> annulee (terminal - possible a chaque etape)
 ```
 
----
-
-## Multi-Equipe - Etat Actuel
-
-### Corrections Appliquees (Phase 7+)
-
-| Phase | Description | Status |
-|-------|-------------|--------|
-| Phase 5 | API routes: `.single()` → `.limit(1)` | ✅ |
-| Phase 6 | Browser side: auth-service.ts multi-profil | ✅ |
-| Phase 7 | RLS: `get_my_profile_ids()` | ✅ |
-| Phase 8 | Conversations: `can_view_conversation()` multi-profil | ✅ |
-| Phase 9 | Participants: Trigger `thread_add_managers` | ✅ |
-| Phase 10 | Filtrage auth_id contacts invités | ✅ |
-| **Phase 11** | **Push subscription security fix** | ✅ NEW |
+### Quote Statuts (7 valeurs DB)
+```
+draft -> pending -> sent -> accepted (terminal positif)
+                        -> rejected (terminal negatif)
+                        -> expired (terminal timeout)
+                        -> cancelled (terminal annule)
+```
 
 ---
 
 ## Prochaines Etapes
 
-### Debug Immédiat
-- [ ] Identifier cause blocage page paramètres
-- [ ] Vérifier déploiement Vercel réussi
-- [ ] Tester push subscription après fix
+### A faire immediatement
+- [ ] Run full test suite to validate Stripe integration: `npm test && npm run test:integration && npm run test:e2e`
+- [ ] Merge feature/stripe-subscription to main (PR creation)
+- [ ] Plan: Google Maps Integration Phase 2-3
+- [ ] Plan: More blog articles (content marketing pipeline)
 
-### Google Maps Integration
-- [x] Phase 1: Table addresses centralisée ✅
-- [x] Phase 4: Map display component (LocalisationTab) ✅
-- [ ] Phase 2: Composant AddressInput avec Places API
-- [ ] Phase 3: Geocoding service automatique
+### Fonctionnalites a Venir
+- [ ] Google Maps Integration Phase 2-3
+- [ ] More blog articles (content marketing pipeline)
+- [ ] PPR activation quand Next.js canary disponible
+- [ ] Dashboard analytics avancé
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-02-03)
+## Metriques Systeme (Mise a jour 2026-02-22)
 
 | Composant | Valeur |
 |-----------|--------|
 | **Tables DB** | **44** |
-| **Migrations** | **155** |
-| **API Routes** | **113** (10 domaines) |
-| **Pages** | **87** (5+ route groups) |
-| **Composants** | **358** |
-| **Hooks** | **61** |
-| **Services domain** | **32** |
-| **Repositories** | **22** |
+| **Migrations** | **174** (+7: 4 Stripe, 2 trial init, 1 signup fix) |
+| **API Routes** | **120** (+6: 4 CRON, 1 webhook, 1 settings) |
+| **Pages** | **89** (+1: billing settings) |
+| **Composants** | **381** (+11: billing UI) |
+| **Hooks** | **70** (+2: useSubscription, useStrategicNotification) |
+| **Services domain** | **34** (+2: subscription, subscription-email) |
+| **Repositories** | **21** (+2: subscription, stripe-customer) |
 | Statuts intervention | 9 |
+| Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
+| **AGENTS.md Learnings** | **77** (+6: #072-#077, Stripe billing patterns) |
+| **systemPatterns.md Patterns** | **29** |
+| **E2E Test Files** | **8** (smoke, building, lot, contract, 4 intervention) |
+| **E2E Page Objects** | **8** (dashboard, login, 3 wizards, 3 intervention) |
+| **E2E Total Tests** | **25+** (wizard tests) + intervention workflow tests |
+| **Unit Test Files** | **12** (+5: Stripe tests) |
+| **Integration Test Files** | **5** (+1: Stripe) |
+| **Blog articles** | **2** (Jan 2026, Feb 2026) |
 
 ---
 
-## Points de Vigilance - Push Subscriptions
-
-### Pattern RLS Silent Block
-```typescript
-// ⚠️ Supabase avec anon key peut bloquer silencieusement via RLS
-const { data, error } = await supabase
-  .from('push_subscriptions')
-  .upsert({...})
-  .select()
-  .single()
-
-// ❌ INCORRECT - Ne vérifie que error
-if (error) { /* ... */ }
-
-// ✅ CORRECT - Vérifie aussi data null
-if (error) { /* ... */ }
-if (!data) { /* RLS blocked silently! */ }
-```
-
-### Pattern userProfile.id vs client userId
-```typescript
-// ✅ CORRECT - Utiliser l'ID authentifié du serveur
-user_id: userProfile.id
-
-// ❌ RISQUÉ - Utiliser l'ID fourni par le client
-user_id: userId  // (même si validé, préférer l'ID serveur)
-```
-
----
-
-*Derniere mise a jour: 2026-02-04 18:10*
-*Focus: Fix critique ensureInterventionConversationThreads (deleted_at fantôme + efficacité + gap participants)*
-
-## Commits Recents (preview branch)
+## Commits Recents (feature/stripe-subscription branch)
 
 | Hash | Description |
 |------|-------------|
-| `55e969a` | fix(notifications): fix push notification URL routing and add debug logs |
-| `514af5d` | feat(notifications): enhance PWA notification system and fix push subscription security |
-| `4d8a8e8` | fix(push-subscribe): enhance security by using userProfile.id for subscriptions |
-| `61fd200` | docs(rails-architecture): cleanup obsolete intervention statuses |
+| `78b1a37` | feat(stripe): billing audit fixes + lot access restriction + trial overage banner |
+| `12e0ee2` | feat(stripe): TDD plan with 48 stories, deep audit, Stripe setup complete |
+| `875bd28` | feat(e2e+docs): E2E testing infrastructure V2, unified documents bucket, lot wizard refactor |
+| `9ca9940` | feat(blog): complete blog section — 6 stories, ~15 files (Ralph methodology) |
+
+---
+
+*Derniere mise a jour: 2026-02-22 (Stripe subscription integration complete)*
+*Focus: Stripe billing feature-complete, ready to merge*
 
 ## Files Recently Modified
-### 2026-02-06 19:47:55 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-02-06-conversation-participants-retrospective.md`
+### 2026-02-25 21:10:29 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/supabase/migrations/20260225120000_fix_rls_gestionnaire_team_id_mismatch.sql`

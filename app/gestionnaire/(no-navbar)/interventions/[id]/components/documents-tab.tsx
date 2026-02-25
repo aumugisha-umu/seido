@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -80,6 +81,7 @@ export function DocumentsTab({
   documents,
   canManage = false
 }: DocumentsTabProps) {
+  const router = useRouter()
   const { user } = useAuth()
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [validatingId, setValidatingId] = useState<string | null>(null)
@@ -102,7 +104,7 @@ export function DocumentsTab({
       if (error) throw error
 
       toast.success(isValidated ? 'Document validé' : 'Validation retirée')
-      window.location.reload() // Refresh to update the list
+      router.refresh() // Refresh to update the list
     } catch (error) {
       console.error('Error validating document:', error)
       toast.error('Erreur lors de la validation')
@@ -129,7 +131,7 @@ export function DocumentsTab({
       if (error) throw error
 
       toast.success('Document supprimé')
-      window.location.reload() // Refresh to update the list
+      router.refresh() // Refresh to update the list
     } catch (error) {
       console.error('Error deleting document:', error)
       toast.error('Erreur lors de la suppression')
@@ -336,7 +338,7 @@ export function DocumentsTab({
           interventionId={interventionId}
           onUploadComplete={() => {
             setUploadDialogOpen(false)
-            window.location.reload()
+            router.refresh()
           }}
         />
       )}

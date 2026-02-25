@@ -24,23 +24,21 @@ import {
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { DatePicker } from '@/components/ui/date-picker'
 import { TimePicker24h } from '@/components/ui/time-picker-24h'
 import {
   Calendar,
   Clock,
+  Check,
+  X,
   CheckCircle2,
   XCircle,
   MessageSquare,
   Loader2,
   AlertCircle,
   Plus,
-  Trash2,
+  ArrowRight,
   User,
   HelpCircle
 } from 'lucide-react'
@@ -49,15 +47,18 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar as CalendarWidget } from '@/components/ui/calendar'
 import { toast } from 'sonner'
 import {
   acceptTimeSlotAction,
   rejectTimeSlotAction,
-  withdrawResponseAction
+  withdrawResponseAction,
+  proposeTimeSlotsAction,
+  cancelTimeSlotAction
 } from '@/app/actions/intervention-actions'
 import { cn } from '@/lib/utils'
+import { formatDateShort, formatTimeRange } from '@/components/interventions/shared/utils/helpers'
 
 // ============================================================================
 // MULTI-SLOT-RESPONSE-MODAL - Composant BEM Modulaire
@@ -173,6 +174,8 @@ interface MultiSlotResponseModalProps {
   interventionId: string
   /** Current user's existing responses (keyed by slot ID) */
   existingResponses?: Record<string, { response: SlotResponseType; reason?: string }>
+  /** Slot IDs proposed by the current user — will be cancelled if user accepts an existing slot */
+  userProposedSlotIds?: string[]
   onSuccess?: () => void
 }
 
@@ -218,7 +221,7 @@ function ResponseIndicators({ slot }: { slot: TimeSlot }) {
         </button>
       </HoverCardTrigger>
 
-      <HoverCardContent className="w-72" align="end" side="top">
+      <HoverCardContent className="w-72 z-[10000]" align="end" side="top">
         <div className="space-y-3">
           <p className="text-sm font-semibold border-b pb-2">Réponses au créneau</p>
 
@@ -273,133 +276,202 @@ function ResponseIndicators({ slot }: { slot: TimeSlot }) {
 // SLOT CARD COMPONENT
 // ============================================================================
 
-interface SlotCardProps {
+interface ModalSlotCardProps {
   slot: TimeSlot
   response: SlotResponse
   onResponseChange: (response: SlotResponseType) => void
   disabled: boolean
-  isOnlySlot: boolean
 }
 
-function SlotCard({ slot, response, onResponseChange, disabled, isOnlySlot }: SlotCardProps) {
+function ModalSlotCard({ slot, response, onResponseChange, disabled }: ModalSlotCardProps) {
   const isPast = new Date(`${slot.slot_date}T${slot.start_time}`) < new Date()
+  const isDisabled = disabled || isPast
 
   return (
     <div className={cn(
-      "p-4 rounded-lg border transition-all",
+      "p-3 rounded-lg border transition-colors",
       response.response === 'accept' && "border-green-300 bg-green-50/50",
       response.response === 'reject' && "border-orange-300 bg-orange-50/50",
-      response.response === 'pending' && "border-slate-200 bg-slate-50/50",
+      response.response === 'pending' && "border-slate-200 bg-white",
       isPast && "opacity-60"
     )}>
-      {/* Slot info */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-sm font-medium">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            {slot.start_time.substring(0, 5)} - {slot.end_time.substring(0, 5)}
-          </div>
-          {slot.proposer_name && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <User className="h-3.5 w-3.5" />
-              <span>{slot.proposer_name}</span>
-              {slot.proposer_role && (
-                <Badge variant="secondary" className="text-xs capitalize">
-                  {slot.proposer_role}
-                </Badge>
-              )}
-            </div>
-          )}
+      {/* Line 1: Date + Time */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-1">
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-sm font-medium">{formatDateShort(slot.slot_date)}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <ResponseIndicators slot={slot} />
-          {isPast && (
-            <Badge variant="destructive" className="text-xs">Expiré</Badge>
-          )}
+        <span className="text-slate-300">•</span>
+        <div className="flex items-center gap-1">
+          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            {formatTimeRange(slot.start_time, slot.end_time)}
+          </span>
         </div>
       </div>
 
-      {/* Response selection */}
-      <RadioGroup
-        value={response.response}
-        onValueChange={(value) => onResponseChange(value as SlotResponseType)}
-        className="flex gap-2"
-        disabled={disabled || isPast}
-      >
-        <label
-          className={cn(
-            "flex-1 flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors",
-            response.response === 'accept'
-              ? "border-green-500 bg-green-100"
-              : "border-slate-200 hover:bg-slate-50",
-            (disabled || isPast) && "cursor-not-allowed opacity-50"
-          )}
-        >
-          <RadioGroupItem value="accept" className="sr-only" />
-          <CheckCircle2 className={cn(
-            "h-4 w-4",
-            response.response === 'accept' ? "text-green-600" : "text-slate-400"
-          )} />
-          <span className={cn(
-            "text-sm font-medium",
-            response.response === 'accept' ? "text-green-700" : "text-slate-600"
-          )}>
-            Accepter
-          </span>
-        </label>
-
-        <label
-          className={cn(
-            "flex-1 flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors",
-            response.response === 'reject'
-              ? "border-orange-500 bg-orange-100"
-              : "border-slate-200 hover:bg-slate-50",
-            (disabled || isPast) && "cursor-not-allowed opacity-50"
-          )}
-        >
-          <RadioGroupItem value="reject" className="sr-only" />
-          <XCircle className={cn(
-            "h-4 w-4",
-            response.response === 'reject' ? "text-orange-600" : "text-slate-400"
-          )} />
-          <span className={cn(
-            "text-sm font-medium",
-            response.response === 'reject' ? "text-orange-700" : "text-slate-600"
-          )}>
-            Refuser
-          </span>
-        </label>
-
-        {!isOnlySlot && (
-          <label
-            className={cn(
-              "flex-1 flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors",
-              response.response === 'pending'
-                ? "border-slate-400 bg-slate-100"
-                : "border-slate-200 hover:bg-slate-50",
-              (disabled || isPast) && "cursor-not-allowed opacity-50"
-            )}
-          >
-            <RadioGroupItem value="pending" className="sr-only" />
-            <div className={cn(
-              "h-4 w-4 rounded-full border-2",
-              response.response === 'pending' ? "border-slate-500" : "border-slate-300"
-            )} />
-            <span className={cn(
-              "text-sm font-medium",
-              response.response === 'pending' ? "text-slate-700" : "text-slate-500"
-            )}>
-              En attente
-            </span>
-          </label>
+      {/* Line 2: Proposer name (left) + Response indicators (right) */}
+      <div className="flex items-center justify-between mb-2">
+        {slot.proposer_name ? (
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <User className="h-3.5 w-3.5" />
+            <span>{slot.proposer_name}</span>
+          </div>
+        ) : (
+          <div />
         )}
-      </RadioGroup>
+        <ResponseIndicators slot={slot} />
+      </div>
+
+      {/* Line 3: "Ma réponse" banner (always shown) */}
+      <div
+        className={cn(
+          'flex items-center gap-2 px-3 py-2 rounded-md mb-2 text-sm',
+          response.response === 'accept'
+            ? 'bg-green-50 text-green-700 border border-green-200'
+            : response.response === 'reject'
+              ? 'bg-red-50 text-red-700 border border-red-200'
+              : 'bg-amber-50 text-amber-700 border border-amber-200'
+        )}
+      >
+        {response.response === 'accept' && <CheckCircle2 className="h-4 w-4 flex-shrink-0" />}
+        {response.response === 'reject' && <XCircle className="h-4 w-4 flex-shrink-0" />}
+        {response.response === 'pending' && <HelpCircle className="h-4 w-4 flex-shrink-0" />}
+        <span className="font-medium">
+          Ma réponse : {response.response === 'accept' ? 'Accepté' : response.response === 'reject' ? 'Refusé' : 'En attente'}
+        </span>
+      </div>
+
+      {/* Line 4: Action buttons (toggle behavior) */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onResponseChange(response.response === 'accept' ? 'pending' : 'accept')}
+          disabled={isDisabled}
+          className={cn(
+            "flex-1",
+            response.response === 'accept'
+              ? "bg-green-100 text-green-700 border-green-300 hover:bg-green-50"
+              : "text-green-700 border-green-300 hover:bg-green-50"
+          )}
+        >
+          <Check className="h-4 w-4 mr-1" />
+          Accepter
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onResponseChange(response.response === 'reject' ? 'pending' : 'reject')}
+          disabled={isDisabled}
+          className={cn(
+            "flex-1",
+            response.response === 'reject'
+              ? "bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-50"
+              : "text-orange-700 border-orange-300 hover:bg-orange-50"
+          )}
+        >
+          <X className="h-4 w-4 mr-1" />
+          Refuser
+        </Button>
+      </div>
     </div>
   )
 }
 
 // ============================================================================
-// PROPOSE SLOTS SECTION
+// SLOT FORMAT HELPERS
+// ============================================================================
+
+function formatSlotDate(dateStr: string): string {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+  } catch {
+    return dateStr
+  }
+}
+
+function formatSlotDateLong(dateStr: string): string {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long' })
+  } catch {
+    return dateStr
+  }
+}
+
+// ============================================================================
+// TIME SLOT POPOVER CONTENT
+// ============================================================================
+
+function TimeSlotPopoverContent({ onAdd, onCancel }: {
+  onAdd: (slot: { date: string; startTime: string; endTime: string }) => void
+  onCancel: () => void
+}) {
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const dateStr = selectedDate
+    ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+    : ''
+
+  const isValid = dateStr && startTime && endTime
+
+  return (
+    <div className="space-y-4">
+      <div className="text-sm font-medium text-slate-900">Nouveau créneau</div>
+
+      <CalendarWidget
+        mode="single"
+        selected={selectedDate}
+        onSelect={setSelectedDate}
+        disabled={{ before: today }}
+        className="rounded-md border border-slate-200"
+      />
+
+      <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-3">
+        <TimePicker24h value={startTime} onChange={setStartTime} contentClassName="z-[10001]" />
+        <ArrowRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
+        <TimePicker24h value={endTime} onChange={setEndTime} contentClassName="z-[10001]" />
+      </div>
+
+      {dateStr && (startTime || endTime) && (
+        <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm">
+          <span className="font-medium text-purple-900">{formatSlotDateLong(dateStr)}</span>
+          {startTime && endTime && (
+            <span className="text-purple-600 ml-2">{startTime} - {endTime}</span>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="text-xs">
+          Annuler
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          disabled={!isValid}
+          onClick={() => { if (isValid) onAdd({ date: dateStr, startTime, endTime }) }}
+          className="text-xs bg-purple-600 hover:bg-purple-700"
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          Ajouter
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// PROPOSE SLOTS SECTION (Pill-chip + Popover pattern)
 // ============================================================================
 
 interface ProposeSlotsProps {
@@ -409,70 +481,72 @@ interface ProposeSlotsProps {
 }
 
 function ProposeSlots({ proposedSlots, onSlotsChange, disabled }: ProposeSlotsProps) {
-  const addSlot = () => {
-    onSlotsChange([...proposedSlots, { date: '', startTime: '09:00', endTime: '12:00' }])
+  const [popoverOpen, setPopoverOpen] = useState(false)
+
+  const addSlot = (slot: { date: string; startTime: string; endTime: string }) => {
+    onSlotsChange([...proposedSlots, slot])
   }
 
   const removeSlot = (index: number) => {
     onSlotsChange(proposedSlots.filter((_, i) => i !== index))
   }
 
-  const updateSlot = (index: number, field: keyof ProposedSlot, value: string) => {
-    const updated = [...proposedSlots]
-    updated[index] = { ...updated[index], [field]: value }
-    onSlotsChange(updated)
-  }
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Proposer d&apos;autres créneaux (optionnel)</Label>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={addSlot}
-          disabled={disabled}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Ajouter
-        </Button>
+    <div className="space-y-3 p-4 bg-purple-50/30 border border-purple-200 rounded-lg">
+      <Label className="text-sm font-medium text-slate-900">
+        Proposer d&apos;autres créneaux ({proposedSlots.length})
+      </Label>
+
+      {/* Slot pills + Add button */}
+      <div className="flex flex-wrap items-center gap-2">
+        {proposedSlots.map((slot, index) => (
+          <div
+            key={index}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm group hover:bg-purple-100 transition-colors"
+          >
+            <Calendar className="h-3.5 w-3.5 text-purple-600 flex-shrink-0" />
+            <span className="font-medium text-purple-900">{formatSlotDate(slot.date)}</span>
+            <span className="text-purple-600">{slot.startTime} - {slot.endTime}</span>
+            <button
+              type="button"
+              onClick={() => removeSlot(index)}
+              disabled={disabled}
+              className="ml-1 p-0.5 rounded-full text-purple-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              className="border-dashed border-purple-300 text-purple-700 hover:bg-purple-50 hover:text-purple-800 h-9"
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Ajouter un créneau
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-4 z-[10000]" align="start" side="top">
+            <TimeSlotPopoverContent
+              onAdd={(slot) => {
+                addSlot(slot)
+                setPopoverOpen(false)
+              }}
+              onCancel={() => setPopoverOpen(false)}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {proposedSlots.length > 0 && (
-        <div className="space-y-2">
-          {proposedSlots.map((slot, index) => (
-            <div key={index} className="flex items-center gap-2 p-3 rounded-lg border bg-slate-50">
-              <DatePicker
-                value={slot.date}
-                onChange={(value) => updateSlot(index, 'date', value)}
-                minDate={new Date().toISOString().split('T')[0]}
-                className="flex-1"
-                disabled={disabled}
-              />
-              <TimePicker24h
-                value={slot.startTime}
-                onChange={(value) => updateSlot(index, 'startTime', value)}
-                disabled={disabled}
-              />
-              <span className="text-muted-foreground">-</span>
-              <TimePicker24h
-                value={slot.endTime}
-                onChange={(value) => updateSlot(index, 'endTime', value)}
-                disabled={disabled}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => removeSlot(index)}
-                disabled={disabled}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+      {/* Empty state */}
+      {proposedSlots.length === 0 && (
+        <div className="text-center py-4 text-sm text-slate-500 bg-white rounded border-2 border-dashed border-slate-200">
+          Cliquez sur &quot;Ajouter un créneau&quot; pour proposer des disponibilités.
         </div>
       )}
     </div>
@@ -489,6 +563,7 @@ export function MultiSlotResponseModal({
   slots,
   interventionId,
   existingResponses,
+  userProposedSlotIds,
   onSuccess
 }: MultiSlotResponseModalProps) {
   // ============================================================================
@@ -527,17 +602,6 @@ export function MultiSlotResponseModal({
   // ============================================================================
   // COMPUTED VALUES
   // ============================================================================
-
-  const groupedSlots = useMemo(() => {
-    return slots.reduce((acc, slot) => {
-      const dateKey = slot.slot_date
-      if (!acc[dateKey]) {
-        acc[dateKey] = []
-      }
-      acc[dateKey].push(slot)
-      return acc
-    }, {} as Record<string, TimeSlot[]>)
-  }, [slots])
 
   const allRejected = useMemo(() => {
     const responses = Object.values(slotResponses)
@@ -652,7 +716,29 @@ export function MultiSlotResponseModal({
         }
       }
 
-      // TODO: Handle proposed slots if needed (call proposeTimeSlotsAction)
+      // Submit proposed slots if any (only when all rejected)
+      if (proposedSlots.length > 0) {
+        const slotsForAction = proposedSlots.map(s => ({
+          date: s.date,
+          start_time: s.startTime,
+          end_time: s.endTime,
+        }))
+        const proposeResult = await proposeTimeSlotsAction(interventionId, slotsForAction)
+        if (!proposeResult.success) {
+          throw new Error(proposeResult.error || 'Erreur lors de la proposition de créneaux')
+        }
+      }
+
+      // Cancel previously-proposed counter-slots if user now accepts an existing slot
+      if (hasAccepted && userProposedSlotIds && userProposedSlotIds.length > 0) {
+        for (const proposedSlotId of userProposedSlotIds) {
+          try {
+            await cancelTimeSlotAction(proposedSlotId, interventionId)
+          } catch (err) {
+            console.warn('Failed to cancel proposed slot:', proposedSlotId, err)
+          }
+        }
+      }
 
       toast.success(
         hasAccepted
@@ -676,7 +762,9 @@ export function MultiSlotResponseModal({
     existingResponses,
     interventionId,
     globalComment,
+    proposedSlots,
     hasAccepted,
+    userProposedSlotIds,
     onClose,
     onSuccess
   ])
@@ -710,7 +798,7 @@ export function MultiSlotResponseModal({
     <UnifiedModal
       open={isOpen}
       onOpenChange={handleClose}
-      size="lg"
+      size="2xl"
       preventCloseOnOutsideClick={submitting}
       preventCloseOnEscape={submitting}
     >
@@ -726,29 +814,18 @@ export function MultiSlotResponseModal({
 
       <UnifiedModalBody className="max-h-[60vh] overflow-y-auto">
         <div className="space-y-4">
-          {/* Slots grouped by date */}
-          {Object.entries(groupedSlots).map(([date, dateSlots]) => (
-            <Card key={date}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  {format(new Date(date), 'EEEE d MMMM yyyy', { locale: fr })}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {dateSlots.map(slot => (
-                  <SlotCard
-                    key={slot.id}
-                    slot={slot}
-                    response={slotResponses[slot.id] || { slotId: slot.id, response: 'pending' }}
-                    onResponseChange={(response) => handleSlotResponse(slot.id, response)}
-                    disabled={submitting}
-                    isOnlySlot={isOnlySlot}
-                  />
-                ))}
-              </CardContent>
-            </Card>
-          ))}
+          {/* Flat responsive grid of slot cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {slots.map(slot => (
+              <ModalSlotCard
+                key={slot.id}
+                slot={slot}
+                response={slotResponses[slot.id] || { slotId: slot.id, response: 'pending' }}
+                onResponseChange={(response) => handleSlotResponse(slot.id, response)}
+                disabled={submitting}
+              />
+            ))}
+          </div>
 
           <Separator />
 

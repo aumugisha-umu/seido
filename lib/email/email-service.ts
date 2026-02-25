@@ -162,15 +162,11 @@ export const emailService = {
       // Import dynamique pour éviter les problèmes SSR
       const { default: SignupConfirmationEmail } = await import('@/emails/templates/auth/signup-confirmation')
 
-      console.log('📧 [EMAIL-SERVICE] Rendering signup confirmation template for:', to)
+      logger.info({ to }, '[EMAIL-SERVICE] Rendering signup confirmation template')
       // ✅ await le rendu car renderEmail() est async maintenant
       const { html, text } = await renderEmail(SignupConfirmationEmail(props))
 
-      console.log('✅ [EMAIL-SERVICE] Template rendered successfully', {
-        to,
-        htmlLength: html.length,
-        textLength: text?.length || 0
-      })
+      logger.debug({ to, htmlLength: html.length, textLength: text?.length || 0 }, '[EMAIL-SERVICE] Template rendered successfully')
 
       return sendEmailWithRetry({
         to,

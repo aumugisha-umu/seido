@@ -7,7 +7,8 @@
  * - Estimations reçues (quotes with amount - ready for approval/rejection)
  */
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -36,6 +37,13 @@ export function QuotesTab({
   quotes,
   canManage = false
 }: QuotesTabProps) {
+  const router = useRouter()
+
+  // ⚡ Optimized refresh instead of full page reload
+  const handleDataChange = useCallback(() => {
+    router.refresh()
+  }, [router])
+
   // Séparer les demandes (amount = 0) et les estimations reçues (amount > 0)
   const pendingRequests = quotes.filter(q =>
     q.status === 'pending' && (!q.amount || q.amount === 0)
@@ -148,7 +156,7 @@ export function QuotesTab({
                       }}
                       userContext="gestionnaire"
                       showActions={canManage}
-                      onDataChange={() => window.location.reload()}
+                      onDataChange={handleDataChange}
                     />
                   ))}
                 </div>
@@ -242,7 +250,7 @@ function RequestCard({ quote }: RequestCardProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => console.log('View provider profile:', quote.provider_id)}
+              onClick={() => { /* TODO: navigate to provider profile */ }}
               className="text-xs h-7"
             >
               Voir profil

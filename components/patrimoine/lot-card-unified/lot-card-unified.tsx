@@ -1,7 +1,10 @@
 "use client"
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LotCardHeader, LotCardBadges, calculateOccupancy, countContacts } from "./lot-card-header"
 import { LotCardActions } from "./lot-card-actions"
@@ -33,6 +36,7 @@ export function LotCardUnified({
   isSelected = false,
   isExpanded: controlledExpanded,
   defaultExpanded = false,
+  isLocked = false,
   showBuilding = false,
   showInterventionsCount = false,
   buildingContext,
@@ -46,6 +50,8 @@ export function LotCardUnified({
   customActions = { showDropdown: true },
   className,
 }: LotCardUnifiedProps) {
+  const router = useRouter()
+
   // Internal expansion state (only used if not controlled)
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -95,6 +101,9 @@ export function LotCardUnified({
 
   // Handle card click (for selection mode or expand)
   const handleCardClick = useCallback((e: React.MouseEvent) => {
+    // Locked lots: block all interaction
+    if (isLocked) return
+
     // Don't trigger if clicking on a button or interactive element
     if ((e.target as HTMLElement).closest('button, a, [role="button"]')) {
       return
@@ -105,14 +114,15 @@ export function LotCardUnified({
         onSelect(lot.id, lot.building?.id)
       }
     }
-  }, [mode, onSelect, isSelected, lot.id, lot.building?.id])
+  }, [isLocked, mode, onSelect, isSelected, lot.id, lot.building?.id])
 
   // Handle header click (for expandable variant)
   const handleHeaderClick = useCallback(() => {
+    if (isLocked) return
     if (variant === "expandable") {
       handleToggleExpand()
     }
-  }, [variant, handleToggleExpand])
+  }, [isLocked, variant, handleToggleExpand])
 
   // Keyboard accessibility
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -127,34 +137,39 @@ export function LotCardUnified({
   }, [mode, onSelect, isSelected, lot.id, lot.building?.id, variant, handleToggleExpand])
 
   return (
-    <div 
-      ref={cardRef} 
-      tabIndex={-1} 
+    <div
+      ref={cardRef}
+      tabIndex={-1}
       className={cn(
         "outline-none w-full h-full",
-        expanded && variant === "expandable" && "col-span-full"
+        expanded && variant === "expandable" && !isLocked && "col-span-full"
       )}
     >
       <Card
         className={cn(
           BLOCK,
-          "group hover:shadow-md hover:border-primary/30 transition-all duration-200 h-full bg-white p-0",
-          isOccupied ? "border-l-4 border-l-green-500" : "border-l-4 border-l-gray-300",
-          mode === "select" && "cursor-pointer",
-          isSelected && "ring-2 ring-blue-500 bg-blue-50",
+          "relative h-full bg-white p-0 transition-all duration-200",
+          isLocked
+            ? "border-l-4 border-l-gray-300"
+            : cn(
+                "group hover:shadow-md hover:border-primary/30",
+                isOccupied ? "border-l-4 border-l-green-500" : "border-l-4 border-l-gray-300",
+              ),
+          mode === "select" && !isLocked && "cursor-pointer",
+          isSelected && !isLocked && "ring-2 ring-blue-500 bg-blue-50",
           className
         )}
         onClick={handleCardClick}
-        role={mode === "select" || variant === "expandable" ? "button" : undefined}
-        tabIndex={mode === "select" || variant === "expandable" ? 0 : undefined}
-        onKeyDown={mode === "select" || variant === "expandable" ? handleKeyDown : undefined}
+        role={!isLocked && (mode === "select" || variant === "expandable") ? "button" : undefined}
+        tabIndex={!isLocked && (mode === "select" || variant === "expandable") ? 0 : undefined}
+        onKeyDown={!isLocked && (mode === "select" || variant === "expandable") ? handleKeyDown : undefined}
       >
       {/* Card Header - Always visible */}
       <CardHeader
         className={cn(
           `${BLOCK}__header`,
           "p-4",
-          variant === "expandable" && "cursor-pointer hover:bg-gray-50/50 transition-colors"
+          !isLocked && variant === "expandable" && "cursor-pointer hover:bg-gray-50/50 transition-colors"
         )}
         onClick={handleHeaderClick}
       >
@@ -167,17 +182,19 @@ export function LotCardUnified({
             contactsCount={contactsCount}
           />
 
-          {/* Right: Actions */}
-          <LotCardActions
-            lot={lot}
-            mode={mode}
-            isSelected={isSelected}
-            isExpanded={expanded}
-            variant={variant}
-            onSelect={onSelect}
-            onToggleExpand={handleToggleExpand}
-            showDropdown={customActions.showDropdown}
-          />
+          {/* Right: Actions (hidden when locked) */}
+          {!isLocked && (
+            <LotCardActions
+              lot={lot}
+              mode={mode}
+              isSelected={isSelected}
+              isExpanded={expanded}
+              variant={variant}
+              onSelect={onSelect}
+              onToggleExpand={handleToggleExpand}
+              showDropdown={customActions.showDropdown}
+            />
+          )}
         </div>
 
         {/* Badges row */}
@@ -190,8 +207,8 @@ export function LotCardUnified({
         />
       </CardHeader>
 
-      {/* Expanded Content - Contact sections + Contracts */}
-      {variant === "expandable" && expanded && (
+      {/* Expanded Content - Contact sections + Contracts (disabled when locked) */}
+      {!isLocked && variant === "expandable" && expanded && (
         <CardContent className={cn(`${BLOCK}__expanded`, "pt-0 pb-3 px-3")}>
           <LotCardExpandedContent
             lot={lot}
@@ -203,6 +220,23 @@ export function LotCardUnified({
             readOnly={mode === "select"}
           />
         </CardContent>
+      )}
+
+      {/* Lock overlay: semi-transparent cover + "Déverrouiller" CTA */}
+      {isLocked && (
+        <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-end pr-4 z-10 rounded-lg">
+          <Button
+            size="sm"
+            className="bg-amber-600 hover:bg-amber-700 text-white shadow-md"
+            onClick={(e) => {
+              e.stopPropagation()
+              router.push('/gestionnaire/settings/billing')
+            }}
+          >
+            <Lock className="h-3.5 w-3.5 mr-1.5" />
+            D&eacute;verrouiller
+          </Button>
+        </div>
       )}
       </Card>
     </div>

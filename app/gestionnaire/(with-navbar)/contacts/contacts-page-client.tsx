@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Upload, Plus, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { PageActions } from "@/components/page-actions"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -381,33 +382,14 @@ export function ContactsPageClient({
   return (
     <div className="h-full flex flex-col overflow-hidden layout-container">
       <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
-        {/* Page Header */}
-        <div className="mb-4 lg:mb-6 flex-shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">
-                Contacts
-              </h1>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/import')}
-              >
-                <Upload className="h-4 w-4" />
-                <span>Importer</span>
-              </Button>
-              <Button
-                className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/contacts/nouveau')}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Nouveau contact</span>
-              </Button>
-            </div>
-          </div>
-        </div>
+        <PageActions>
+          <Button variant="outline" className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/import')}>
+            <Upload className="h-4 w-4" /><span>Importer</span>
+          </Button>
+          <Button className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/contacts/nouveau')}>
+            <Plus className="h-4 w-4" /><span>Nouveau contact</span>
+          </Button>
+        </PageActions>
 
         {/* Error Alert */}
         {error && (

@@ -1,0 +1,221 @@
+{
+  "project": "SEIDO",
+  "featureName": "Guide Utilisateur In-App",
+  "branchName": "preview",
+  "description": "Guide utilisateur complet dans la section Aides, structure en premiers pas + guides par section + FAQ, oriente benefices pour le gestionnaire immobilier belge",
+  "createdAt": "2026-02-25",
+  "prdSource": "tasks/prd-guide-utilisateur.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Route et page de base pour /gestionnaire/aide",
+      "description": "As a gestionnaire, I want to access the Aides page from the sidebar so that I can find help about the application",
+      "acceptanceCriteria": [
+        "Route /gestionnaire/aide renders successfully",
+        "Page title shows 'Aides' via topbar mapping (already done)",
+        "Server Component uses getServerAuthContext('gestionnaire')",
+        "Client component shell with basic layout",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Created page.tsx (Server Component with getServerAuthContext) + aide-client.tsx shell."
+    },
+    {
+      "id": "US-002",
+      "title": "Structure de navigation du guide (sidebar desktop + tabs mobile)",
+      "description": "As a gestionnaire, I want to navigate between guide sections easily so that I can find help for specific features",
+      "acceptanceCriteria": [
+        "Sidebar navigation with 9 sections (Premiers Pas, Dashboard, Patrimoine, Contacts, Contrats, Interventions, Emails, Parametres, FAQ)",
+        "Horizontal scrollable tabs on mobile (< 768px)",
+        "Active section highlighted with primary color",
+        "Smooth scroll to section on click",
+        "Search input filters visible sections by title/content keywords",
+        "Responsive: sidebar hidden on mobile, tabs hidden on desktop",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Sidebar nav (desktop, 56-64w) + horizontal pill tabs (mobile). Active highlight with primary color. Fuzzy search filters sections. ScrollArea for sidebar, smooth scrollIntoView for section navigation."
+    },
+    {
+      "id": "US-003",
+      "title": "Contenu Premiers Pas — Quick wins en 10 minutes",
+      "description": "As a new gestionnaire, I want a getting started guide so that I can see value within 10 minutes",
+      "acceptanceCriteria": [
+        "3 cards: Ajoutez votre premier immeuble, Creez vos contacts, Lancez votre premiere intervention",
+        "Each card has: Lucide icon, benefit title, 1-2 line description, CTA link to app section",
+        "Step-by-step accordion within each card (3-5 steps)",
+        "Cards stack vertically on mobile",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "3 QuickStartCard components with icon, benefit title, description, expandable steps, and CTA links to /gestionnaire/biens, /contacts, /interventions. Grid 3-col on lg, 2-col on sm, 1-col on mobile."
+    },
+    {
+      "id": "US-004",
+      "title": "Guide section Dashboard — Pilotez en temps reel",
+      "description": "As a gestionnaire, I want to understand the dashboard so that I can monitor my portfolio at a glance",
+      "acceptanceCriteria": [
+        "Benefit title: Pilotez votre portefeuille en temps reel",
+        "Value proposition explaining how dashboard solves '2h/jour searching for info'",
+        "KPIs explained (occupancy rate, ongoing interventions, contracts, activity log)",
+        "Usage tips in accordion",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "4 KPI FeatureCards (occupation, interventions, contracts, activity) + accordion with 3 usage tips."
+    },
+    {
+      "id": "US-005",
+      "title": "Guide section Patrimoine — Retrouvez n'importe quel bien",
+      "description": "As a gestionnaire, I want to understand property management so that I can organize my portfolio efficiently",
+      "acceptanceCriteria": [
+        "Benefit title: Retrouvez n'importe quel bien en 5 secondes",
+        "Dual-tab navigation explained (Immeubles/Lots)",
+        "Building and lot creation guide",
+        "Occupation tracking explanation",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "2 FeatureCards (Immeubles/Lots tabs) + 3 accordion items (create building, create lot, occupation tracking)."
+    },
+    {
+      "id": "US-006",
+      "title": "Guide section Contacts — Fini les contacts perdus",
+      "description": "As a gestionnaire, I want to understand contact management so that I can centralize all my contacts",
+      "acceptanceCriteria": [
+        "Benefit title: Fini les contacts perdus dans WhatsApp",
+        "3 contact types explained (tenants, providers, owners)",
+        "Invitation system walkthrough",
+        "Company management guide",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "3 FeatureCards for contact types + 2 accordion items (invitations system, company management)."
+    },
+    {
+      "id": "US-007",
+      "title": "Guide section Contrats — Plus jamais oublier une echeance",
+      "description": "As a gestionnaire, I want to understand contract management so that I never miss a renewal",
+      "acceptanceCriteria": [
+        "Benefit title: Plus jamais oublier une echeance",
+        "Automatic status workflow explained (a_venir -> actif -> expire)",
+        "Contract creation guide",
+        "Expiration alerts explanation",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Visual status flow with StatusBadge + ChevronRight. 2 accordion items (create contract, alerts)."
+    },
+    {
+      "id": "US-008",
+      "title": "Guide section Interventions — Reduisez vos appels de 70%",
+      "description": "As a gestionnaire, I want to understand the full intervention workflow so that I can reduce daily calls and manage efficiently",
+      "acceptanceCriteria": [
+        "Benefit title: Reduisez vos appels de 70%",
+        "9-status workflow explained with visual flow",
+        "Quote system (requires_quote) walkthrough",
+        "Time slot scheduling guide",
+        "Multi-thread conversation explanation",
+        "Document attachment guide",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Most comprehensive section. Visual workflow (5 key statuses). 4 FeatureCards (quotes, scheduling, conversations, documents). 4 accordion items with step-by-step guides. Conversation thread types (group, private provider, private tenant) explained."
+    },
+    {
+      "id": "US-009",
+      "title": "Guide section Emails — Vos emails classes automatiquement",
+      "description": "As a gestionnaire, I want to understand email integration so that I can link emails to my entities",
+      "acceptanceCriteria": [
+        "Benefit title: Vos emails classes automatiquement",
+        "Gmail integration setup guide",
+        "Entity linking explanation (interventions, properties, contacts)",
+        "Reply tracking walkthrough",
+        "Blacklist management",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "4 FeatureCards (entity linking, reply tracking, blacklist, multi-accounts). 2 accordion items (Gmail setup, email linking)."
+    },
+    {
+      "id": "US-010",
+      "title": "Guide section Parametres — Deleguez sans perdre le controle",
+      "description": "As a gestionnaire, I want to understand settings so that I can configure the app to my needs",
+      "acceptanceCriteria": [
+        "Benefit title: Deleguez sans perdre le controle",
+        "Email connections management",
+        "Subscription/billing explanation",
+        "User profile settings",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "4 FeatureCards (email connections, subscription, profile, notifications)."
+    },
+    {
+      "id": "US-011",
+      "title": "Section FAQ interactive",
+      "description": "As a gestionnaire, I want a searchable FAQ so that I can quickly find answers to common questions",
+      "acceptanceCriteria": [
+        "5 categories: General, Facturation, Securite, Mobile, Integrations",
+        "At least 15 Q&A covering major topics",
+        "Accordion with single-open mode",
+        "Search filters FAQ items by keyword match",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "15 FAQ items across 5 categories. Search filters with highlight. Category icons. Empty state for no results. Single-open accordion mode."
+    },
+    {
+      "id": "US-012",
+      "title": "Polish et coherence finale (copy + UI review)",
+      "description": "Final review pass with copywriter and UI designer agents for tone, clarity, visual hierarchy, and mobile testing",
+      "acceptanceCriteria": [
+        "All text reviewed for tone (vouvoiement, benefit-oriented, specific numbers)",
+        "Visual hierarchy consistent (typography, spacing, colors)",
+        "Smooth navigation between all sections",
+        "Mobile layout verified (tabs, stacked cards, touch targets >= 44px)",
+        "Typecheck passes (npm run lint)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-003", "US-004", "US-005", "US-006", "US-007", "US-008", "US-009", "US-010", "US-011"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Applied fixes from both reviews: touch targets 44px, ARIA labels (search, tabs, sidebar), role=tab on mobile, scroll-mt-16, typography scaling (text-xs sm:text-sm), 20 FAQ questions (added: import data, invite team, tenant portal, export data, support SLA), tighter copy (subtitles, CTAs), benefit-oriented CTAs, footer with response time"
+    }
+  ]
+}

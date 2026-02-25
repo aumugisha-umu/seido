@@ -534,12 +534,15 @@ export class ConversationRepository {
 
   /**
    * Get unread message count for user
+   * ✅ OPTIMIZED: Reduced from N+1 queries to 3 batch queries
    */
   async getUnreadCount(userId: string): Promise<{ success: boolean; data?: number; error?: any }> {
     try {
       validateUUID(userId)
 
-      // Get all threads user participates in
+      // ════════════════════════════════════════════════════════════════════
+      // Query 1: Get all threads user participates in with message_count
+      // ════════════════════════════════════════════════════════════════════
       const { data: participations, error: participationError } = await this.supabase
         .from('conversation_participants')
         .select(`
@@ -555,30 +558,71 @@ export class ConversationRepository {
         return createErrorResponse(handleError(participationError, 'conversation:getUnreadCount'))
       }
 
+      if (!participations || participations.length === 0) {
+        return createSuccessResponse(0)
+      }
+
+      // Collect message IDs we need timestamps for
+      const lastReadMessageIds: string[] = []
+      for (const p of participations) {
+        if (p.last_read_message_id) {
+          lastReadMessageIds.push(p.last_read_message_id)
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 2: Batch fetch all last_read message timestamps
+      // ════════════════════════════════════════════════════════════════════
+      const messageTimestamps = new Map<string, string>()
+      if (lastReadMessageIds.length > 0) {
+        const { data: messages } = await this.supabase
+          .from('conversation_messages')
+          .select('id, created_at')
+          .in('id', lastReadMessageIds)
+
+        for (const msg of messages || []) {
+          messageTimestamps.set(msg.id, msg.created_at)
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 3: Get all messages for all threads to count client-side
+      // ════════════════════════════════════════════════════════════════════
+      const threadIds = participations.map(p => p.thread_id)
+      const { data: allMessages } = await this.supabase
+        .from('conversation_messages')
+        .select('thread_id, created_at')
+        .in('thread_id', threadIds)
+        .is('deleted_at', null)
+
+      // Group messages by thread
+      const messagesByThread = new Map<string, string[]>()
+      for (const msg of allMessages || []) {
+        if (!messagesByThread.has(msg.thread_id)) {
+          messagesByThread.set(msg.thread_id, [])
+        }
+        messagesByThread.get(msg.thread_id)!.push(msg.created_at)
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Calculate total unread count client-side
+      // ════════════════════════════════════════════════════════════════════
       let totalUnread = 0
 
-      // Calculate unread for each thread
-      for (const participation of participations || []) {
+      for (const participation of participations) {
+        const threadMessages = messagesByThread.get(participation.thread_id) || []
+
         if (!participation.last_read_message_id) {
           // Never read any messages in this thread
-          totalUnread += participation.thread?.message_count || 0
+          totalUnread += threadMessages.length
         } else {
           // Count messages after last read
-          const { count, error } = await this.supabase
-            .from('conversation_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('thread_id', participation.thread_id)
-            .is('deleted_at', null)
-            .gt('created_at', (
-              await this.supabase
-                .from('conversation_messages')
-                .select('created_at')
-                .eq('id', participation.last_read_message_id)
-                .single()
-            ).data?.created_at || '')
-
-          if (!error && count) {
-            totalUnread += count
+          const lastReadTimestamp = messageTimestamps.get(participation.last_read_message_id)
+          if (lastReadTimestamp) {
+            const unreadInThread = threadMessages.filter(
+              created_at => created_at > lastReadTimestamp
+            ).length
+            totalUnread += unreadInThread
           }
         }
       }

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Users,
   User,
@@ -28,6 +29,7 @@ export interface BaseContact {
   phone?: string | null
   company?: string | null
   speciality?: string
+  has_account?: boolean
 }
 
 /**
@@ -347,7 +349,14 @@ export function ContactSection({
                   )}
 
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{contact.name}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-sm truncate">{contact.name}</span>
+                      {contact.has_account === false && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 shrink-0">
+                          Non invité
+                        </Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-gray-500 truncate">{contact.email}</div>
                     {contact.phone && (
                       <div className="text-xs text-gray-500 truncate">{contact.phone}</div>
@@ -379,6 +388,7 @@ export function ContactSection({
               onAddContact()
             }}
             className={`w-full text-xs ${colorScheme.buttonBorder} ${colorScheme.buttonText} ${colorScheme.buttonHover} h-8`}
+            data-testid={`add-contact-btn-${sectionType}`}
           >
             {contacts.length > 0 ? (
               <>

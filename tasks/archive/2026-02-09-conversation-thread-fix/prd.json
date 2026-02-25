@@ -1,0 +1,44 @@
+{
+  "project": "SEIDO",
+  "featureName": "Fix confirmation sequencing — Assignments must exist before setting confirmation flags",
+  "branchName": "preview",
+  "description": "Fix the sequencing bug where updateConfirmationRequirements() runs inside programInterventionAction (Step A) before updateInterventionAction syncs assignments (Step B). Result: confirmation flags are set on rows that get deleted/recreated, losing the data. The creation flow does it correctly: create assignments FIRST, then set flags.",
+  "createdAt": "2026-02-09",
+  "prdSource": "Bug report: confirmation data not saved correctly for fixed date appointments",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix call order in use-intervention-planning hook",
+      "description": "As a gestionnaire, I want my confirmation selections to be correctly saved when scheduling a fixed date intervention, so that the selected participants actually receive a confirmation request.",
+      "acceptanceCriteria": [
+        "In use-intervention-planning.ts: updateInterventionAction (assignment sync) is called BEFORE programInterventionAction",
+        "programInterventionAction's updateConfirmationRequirements() finds the synced assignment rows and correctly sets requires_confirmation=true + confirmation_status='pending'",
+        "If assignment sync fails, scheduling is not attempted (fail-fast)",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Moved updateInterventionAction (assignment sync) before programInterventionAction in handleProgrammingConfirm. Added fail-fast return if sync fails. Now mirrors creation flow order: assignments exist → then confirmation flags set on them."
+    },
+    {
+      "id": "US-002",
+      "title": "Verify confirmation persistence end-to-end",
+      "description": "As a developer, I want to verify the full data flow from UI toggle → server action → DB write → display, confirming that intervention.requires_participant_confirmation=true, slot.status='pending', and assignments.requires_confirmation=true are all set for a fixed date with confirmation required.",
+      "acceptanceCriteria": [
+        "createFixedSlot: status='pending' when requiresConfirmation=true (already correct in scheduling-service.ts)",
+        "determineInterventionStatus: returns 'planification' when requiresConfirmation=true (already correct)",
+        "updateConfirmationRequirements: sets requires_participant_confirmation=true on intervention + requires_confirmation=true on selected assignments",
+        "No other code path resets these flags after they are set",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Verified full E2E path: createFixedSlot status='pending' (line 124), determineInterventionStatus returns 'planification' (line 50), updateConfirmationRequirements sets intervention flag + assignment flags (lines 238-266). updateInterventionAction line 754 not triggered (confirmationRequiredUserIds not passed from hook). No code path resets flags after programInterventionAction."
+    }
+  ]
+}

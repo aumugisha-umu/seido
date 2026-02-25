@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { uploadContractDocumentSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { createActivityLogger } from '@/lib/activity-logger'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 
 // Generate unique filename to avoid conflicts
 function generateUniqueFilename(originalFilename: string): string {
@@ -43,6 +44,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Extract optional expiry date
+    const expiryDate = formData.get('expiryDate') as string | null
+
     // Build object for Zod validation
     const requestData = {
       contractId: formData.get('contractId') as string,
@@ -50,7 +54,8 @@ export async function POST(request: NextRequest) {
       fileSize: file.size,
       fileType: file.type,
       documentType: formData.get('documentType') as string || 'autre',
-      description: formData.get('description') as string | undefined
+      description: formData.get('description') as string | undefined,
+      expiryDate: expiryDate || undefined
     }
 
     // ZOD VALIDATION
@@ -113,9 +118,13 @@ export async function POST(request: NextRequest) {
 
     logger.info({ storagePath }, '☁️ Uploading to Supabase Storage')
 
+    // Use service role client for storage upload + DB insert (bypasses storage RLS).
+    // Auth is already verified above via getApiAuthContext() + team membership check.
+    const serviceClient = createServiceRoleSupabaseClient()
+
     // Upload file to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('contract-documents')
+    const { data: uploadData, error: uploadError } = await serviceClient.storage
+      .from('documents')
       .upload(storagePath, file, {
         contentType: file.type,
         upsert: false // Don't overwrite if file exists
@@ -131,7 +140,7 @@ export async function POST(request: NextRequest) {
     logger.info({ path: uploadData.path }, '✅ File uploaded to storage')
 
     // Store document metadata in database
-    const { data: document, error: docError } = await supabase
+    const { data: document, error: docError } = await serviceClient
       .from('contract_documents')
       .insert({
         contract_id: validatedData.contractId,
@@ -141,10 +150,11 @@ export async function POST(request: NextRequest) {
         file_size: validatedData.fileSize,
         mime_type: validatedData.fileType,
         storage_path: uploadData.path,
-        storage_bucket: 'contract-documents',
+        storage_bucket: 'documents',
         document_type: validatedData.documentType,
         uploaded_by: userProfile.id,
-        description: validatedData.description || `Document ${validatedData.documentType}`
+        description: validatedData.description || `Document ${validatedData.documentType}`,
+        ...(validatedData.expiryDate ? { expiry_date: validatedData.expiryDate } : {})
       })
       .select(`
         *,
@@ -157,8 +167,8 @@ export async function POST(request: NextRequest) {
 
       // Try to clean up the uploaded file if metadata storage fails
       try {
-        await supabase.storage
-          .from('contract-documents')
+        await serviceClient.storage
+          .from('documents')
           .remove([uploadData.path])
       } catch (cleanupError) {
         logger.error({ error: cleanupError }, '⚠️ Error cleaning up uploaded file')
@@ -187,8 +197,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate signed URL for immediate access
-    const { data: signedUrlData } = await supabase.storage
-      .from('contract-documents')
+    const { data: signedUrlData } = await serviceClient.storage
+      .from('documents')
       .createSignedUrl(uploadData.path, 3600) // 1 hour expiry
 
     logger.info({}, '🎉 Contract document upload completed successfully')

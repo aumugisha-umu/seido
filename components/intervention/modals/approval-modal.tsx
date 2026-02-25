@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Check, X, MapPin, User, Paperclip, Clock, ChevronLeft, Flame, Wrench, Image as ImageIcon } from "lucide-react"
+import { Check, X, MapPin, User, Paperclip, Clock, ChevronLeft, Flame, Wrench, Image as ImageIcon, ExternalLink, Download, FileText } from "lucide-react"
+import { createBrowserSupabaseClient } from "@/lib/services"
+import type { Database } from "@/lib/database.types"
 import { Button } from "@/components/ui/button"
 import {
   UnifiedModal,
@@ -19,6 +21,7 @@ import {
 } from "@/lib/intervention-utils"
 
 type ModalState = 'decision' | 'approve' | 'reject'
+type Document = Database['public']['Tables']['intervention_documents']['Row']
 
 interface ApprovalModalProps {
   isOpen: boolean
@@ -32,6 +35,7 @@ interface ApprovalModalProps {
   onActionChange: (action: "approve" | "reject") => void
   onConfirm: (action?: "approve" | "reject") => void
   isLoading?: boolean
+  documents?: Document[]
 }
 
 export const ApprovalModal = ({
@@ -46,6 +50,7 @@ export const ApprovalModal = ({
   onActionChange,
   onConfirm,
   isLoading = false,
+  documents,
 }: ApprovalModalProps) => {
   const [modalState, setModalState] = useState<ModalState>('decision')
   const [isTransitioning, setIsTransitioning] = useState(false)
@@ -134,6 +139,46 @@ export const ApprovalModal = ({
   // Creator name
   const creatorName = intervention.creator_name || intervention.tenant || 'Locataire'
 
+  // Handler pour ouvrir dans un nouvel onglet
+  const handleOpenDocument = async (document: Document) => {
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { data } = supabase.storage
+        .from(document.storage_bucket || 'intervention-documents')
+        .getPublicUrl(document.storage_path)
+      window.open(data.publicUrl, '_blank')
+    } catch (error) {
+      console.error('Error opening document:', error)
+    }
+  }
+
+  // Handler pour télécharger
+  const handleDownloadDocument = async (document: Document) => {
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { data, error } = await supabase.storage
+        .from(document.storage_bucket || 'intervention-documents')
+        .download(document.storage_path)
+
+      if (error) throw error
+
+      const url = URL.createObjectURL(data)
+      const a = window.document.createElement('a')
+      a.href = url
+      a.download = document.original_filename || document.filename
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading document:', error)
+    }
+  }
+
+  // Helper pour l'icône selon le type MIME
+  const getFileIcon = (mimeType: string | null) => {
+    if (mimeType?.startsWith('image/')) return ImageIcon
+    return FileText
+  }
+
   return (
     <UnifiedModal
       open={isOpen}
@@ -198,18 +243,57 @@ export const ApprovalModal = ({
               )}
 
               {/* Attachments */}
-              {hasFiles && (
-                <div className="flex items-center gap-2 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                  <div className="p-1.5 bg-blue-100 rounded">
-                    <ImageIcon className="h-4 w-4 text-blue-600" aria-hidden="true" />
+              {hasFiles && documents && documents.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <Paperclip className="h-4 w-4" />
+                    <span>{documents.length} pièce{documents.length > 1 ? 's' : ''} jointe{documents.length > 1 ? 's' : ''}</span>
                   </div>
-                  <div className="flex-1">
-                    <span className="text-sm font-medium text-blue-900">
-                      {filesCount > 0 ? `${filesCount} pièce${filesCount > 1 ? 's' : ''} jointe${filesCount > 1 ? 's' : ''}` : 'Pièces jointes'}
-                    </span>
-                    <p className="text-xs text-blue-700">Photos ou documents ajoutés à la demande</p>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {documents.map((doc) => {
+                      const FileIcon = getFileIcon(doc.mime_type)
+                      return (
+                        <div
+                          key={doc.id}
+                          className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-lg border border-slate-200"
+                        >
+                          <div className="p-1.5 bg-white rounded border border-slate-200">
+                            <FileIcon className="h-4 w-4 text-slate-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-700 truncate">
+                              {doc.original_filename || doc.filename}
+                            </p>
+                            {doc.file_size && (
+                              <p className="text-xs text-slate-500">
+                                {(doc.file_size / 1024).toFixed(0)} KB
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleOpenDocument(doc)}
+                              title="Ouvrir dans un nouvel onglet"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleDownloadDocument(doc)}
+                              title="Télécharger"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <Paperclip className="h-4 w-4 text-blue-500" aria-hidden="true" />
                 </div>
               )}
 
@@ -396,7 +480,6 @@ export const ApprovalModal = ({
                   id="internal-comment-reject"
                   value={internalComment}
                   onChange={(e) => {
-                    console.log('📝 [MODAL] Internal comment changed:', e.target.value)
                     onInternalCommentChange(e.target.value)
                   }}
                   placeholder="Notes internes (non visibles par le locataire)..."

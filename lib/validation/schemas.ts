@@ -533,7 +533,6 @@ export const submitQuoteSchema = z.object({
   amount: z.number().positive().max(1000000), // max 1M EUR
   description: z.string().min(10, 'La description du devis doit contenir au moins 10 caractères').max(5000).trim(),
   validUntil: dateStringSchema.optional(),
-  estimatedDuration: z.number().int().min(1).max(480).optional(), // minutes
 })
 
 /**
@@ -592,8 +591,14 @@ export const uploadInterventionDocumentSchema = z.object({
     'image/png',
     'image/webp',
     'image/gif',
+    // ✅ Audio (notes vocales)
+    'audio/webm',
+    'audio/mp4',
+    'audio/ogg',
+    'audio/wav',
+    'audio/mpeg',
   ], {
-    errorMap: () => ({ message: 'Format de fichier invalide. Seuls PDF, DOC, DOCX, XLS, XLSX, JPEG, PNG, WEBP, GIF sont autorisés' })
+    errorMap: () => ({ message: 'Format de fichier invalide. Formats autorisés : PDF, DOC, DOCX, XLS, XLSX, JPEG, PNG, WEBP, GIF, WebM, MP4, OGG, WAV, MP3' })
   }),
   description: z.string().max(2000).trim().optional(),
 })
@@ -638,6 +643,7 @@ export const uploadContractDocumentSchema = z.object({
     'autre',
   ]).optional().default('autre'),
   description: z.string().max(2000).trim().optional(),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format').optional().nullable(),
 })
 
 /**

@@ -64,7 +64,9 @@ export const ACTION_STYLES = {
     'confirm_slot',         // Locataire confirms a time slot
     'request_quotes',       // Gestionnaire requests quotes from providers
     'start_planning',       // Gestionnaire starts planning process (same level as request_quotes)
-    'add_availabilities'    // Prestataire/Locataire adds availability slots
+    'add_availabilities',   // Prestataire/Locataire adds availability slots
+    'confirm_availabilities', // Prestataire confirms/responds to proposed slots
+    'modify_availabilities'   // Prestataire modifies responses to proposed slots
   ],
 
   // === TONAL (Secondary) ===

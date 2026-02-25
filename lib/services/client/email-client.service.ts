@@ -18,7 +18,8 @@ export class EmailClientService {
         search?: string,
         limit: number = 50,
         offset: number = 0,
-        source?: string
+        source?: string,
+        signal?: AbortSignal
     ): Promise<{ emails: Email[]; total: number }> {
         const params = new URLSearchParams();
         if (folder) params.append('folder', folder);
@@ -27,7 +28,7 @@ export class EmailClientService {
         params.append('offset', offset.toString());
         if (source) params.append('source', source);
 
-        const response = await fetch(`/api/emails?${params.toString()}`);
+        const response = await fetch(`/api/emails?${params.toString()}`, { signal });
         if (!response.ok) {
             throw new Error('Failed to fetch emails');
         }
@@ -57,6 +58,7 @@ export class EmailClientService {
     static async sendEmail(data: {
         emailConnectionId: string;
         to: string | string[];
+        cc?: string[];
         subject: string;
         body: string;
         inReplyToEmailId?: string;
@@ -142,6 +144,14 @@ export class EmailClientService {
     }
 
     static async markAsUnread(emailId: string): Promise<void> {
+        await this.updateEmail(emailId, { status: 'unread' });
+    }
+
+    static async markAsProcessed(emailId: string): Promise<void> {
+        await this.updateEmail(emailId, { status: 'read' });
+    }
+
+    static async markAsUnprocessed(emailId: string): Promise<void> {
         await this.updateEmail(emailId, { status: 'unread' });
     }
 

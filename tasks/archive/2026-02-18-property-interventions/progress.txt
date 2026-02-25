@@ -1,0 +1,174 @@
+# Progress Log — Enhanced DatePicker: Month/Year Dropdowns + Manual Input
+# Started: 2026-02-10
+# Stories: 3 total — 3 DONE
+---
+
+## US-001: Enable month/year dropdown on base Calendar + DatePicker (S) — DONE
+- Files: components/ui/calendar.tsx
+- Changes: captionLayout default "label" -> "dropdown", added fr locale, startMonth/endMonth +-10 years
+- Learning: react-day-picker v9 supports captionLayout="dropdown" natively — just change the default
+
+## US-002: Add manual date text input to DatePicker (M) — DONE
+- Files: components/ui/date-picker.tsx
+- Changes: Replaced Button with editable <input> + auto-mask (dd/MM/yyyy), parseFrenchDate validation, red border on error, blur revert
+- Exported parseLocalDate + formatLocalDate for consumer files
+- Learning: applyDateMask strips non-digits then re-inserts slashes — simpler than tracking cursor position
+
+## US-003: Update direct Calendar usages / unify to DatePicker (S) — DONE
+- Files: components/interventions/intervention-create-form.tsx, intervention-request-form.tsx, app/gestionnaire/(with-navbar)/parametres/emails/components/email-connection-form.tsx
+- Changes: Replaced 4 Popover+Button+Calendar blocks with shared <DatePicker>. Cleaned unused imports.
+- Kept Calendar as-is in: programming-modal-FINAL.tsx, assignment-section-v2.tsx, multi-slot-response-modal.tsx (inline with TimePickers), time-slot-proposer.tsx (mode="multiple")
+- Learning: Don't force DatePicker where Calendar is used inline in compound UIs — those need direct Calendar for layout flexibility
+- Learning: react-hook-form Date <-> ISO string bridge: `formatLocalDate(field.value)` for value, `new Date(y, m-1, d)` from ISO for onChange
+
+---
+
+## 2026-02-11 — ParticipantsRow Polish: Tooltips, Badge Consistency, Contacts Icon
+- Implemented: Tooltip on "Participants" and "Contacts" labels, ContactRound icon for Contacts, unified Badge variant/sizing, separate counts (withAccount.length vs contacts.length)
+- Files: components/interventions/shared/layout/participants-row.tsx
+- Learnings: Tooltip for brief explanatory labels + HoverCard for rich interactive content = layered disclosure pattern. TooltipProvider per-tooltip avoids shared open/close state.
+- Decision: ContactRound at h-3.5 (not h-4 like Users) — proportionally balanced due to different visual weight
+
+## 2026-02-11 — Intervention Workflow Polish (40 files, in progress)
+- Implemented: scheduling-service.ts (327 lines), planning hook enhancements (assignmentMode, providerInstructions, confirmationRequired), ProgrammingModal workflow refinements, approval-modal improvements, multi-slot-response-modal updates
+- Files: lib/services/domain/scheduling-service.ts (NEW), hooks/use-intervention-planning.ts, components/intervention/modals/*, app/*/interventions/[id]/components/intervention-detail-client.tsx (3 roles)
+- Decision: New domain service extracts scheduling logic from scattered components → single source of truth for intervention planning rules
+
+## 2026-02-11 — Fix SECURITY DEFINER Views (Supabase Linter)
+- Implemented: Single migration converting 5 views from SECURITY DEFINER to SECURITY INVOKER
+- Files: supabase/migrations/20260211100000_fix_security_definer_views.sql (NEW)
+- Views fixed: contracts_active, lots_active, buildings_active, lots_with_contacts, activity_logs_with_user
+- Learnings: ALTER VIEW SET (security_invoker = on) is non-destructive — no DROP/RECREATE needed. Migrations may not explicitly set SECURITY DEFINER but DB state can diverge.
+- Decision: Used ALTER VIEW instead of DROP+RECREATE to avoid cascading dependency issues and GRANT re-application
+
+## 2026-02-12 — Voice Recorder Polish + Document Handlers + ReportsCard
+- Implemented: 3 fixes — (1) dynamic voice note filename "Rapport audio - [titre]", (2) mediaFiles upload loop in closure handler, (3) shared ReportsCard component for all 3 roles
+- Files: hooks/use-audio-recorder.ts, components/intervention/voice-recorder.tsx, components/intervention/simple-work-completion-modal.tsx, components/intervention/intervention-action-buttons.tsx, components/interventions/shared/cards/reports-card.tsx (NEW), 3x page.tsx, 3x detail-client.tsx, prestataire+locataire signed URL handlers
+- Learnings: File objects silently lost in JSON.stringify — must upload via FormData before service calls. console.log stubs are invisible bugs — grep all role views after implementing for one. intervention_reports had no display component in detail pages.
+- Decision: ReportsCard as shared component above DocumentsCard (prestataire/locataire) or in Documents tab (gestionnaire). Sequential upload for mediaFiles (fail-fast over parallel).
+
+## 2026-02-13 — Fix: Building-level Interventions Invisible to Locataire + Closure Button Modal Bypass
+- Implemented: (1) Restored missing `intervention_assignments` branch for locataire in `get_accessible_intervention_ids()` — lost during `20260211170000` rewrite. (2) Fixed `cloturee_par_locataire` action button using `apiRoute` instead of `href`, bypassing finalization modal.
+- Files: supabase/migrations/20260213120000_fix_rls_gestionnaire_intervention_access.sql (updated via repair workflow), lib/intervention-action-utils.ts
+- Learnings: Multi-role SECURITY DEFINER functions are rewritten frequently and branches silently disappear. Must diff old vs new per-role before replacing. Action buttons with `apiRoute` execute directly; use `href` when a modal is needed.
+- Decision: Updated the existing untracked migration (repair + re-push) instead of creating a new one — keeps migration count manageable.
+
+## 2026-02-16 — Intervention Workflow Polish: 7 Themes (40 files)
+
+### Theme 1: Suppression complète du statut `demande_de_devis`
+- Files: intervention-action-buttons.tsx, intervention-action-utils.ts, intervention-alert-utils.ts, intervention-action-styles.ts
+- Change: Toutes les actions de devis sont maintenant basées sur `intervention.requires_quote` flag, pas sur un statut d'intervention
+- Learning: Decoupler les actions de devis du workflow principal → plus flexible, un prestataire peut soumettre un devis depuis n'importe quel statut
+
+### Theme 2: Migration `approved` → `accepted` (DB enum alignment)
+- Files: quote-status-mapper.ts, quote-card.tsx, integrated-quotes-card.tsx, integrated-quotes-section.tsx, intervention-preview.types.ts, quotes-card.tsx, gestionnaire detail-client.tsx
+- Change: DbQuoteStatus aligné sur le vrai enum DB (7 valeurs: draft, pending, sent, accepted, rejected, expired, cancelled)
+- Learning: Toujours vérifier le vrai enum DB avant d'utiliser des valeurs de statut en frontend
+
+### Theme 3: Refactoring finalization-context API
+- Files: app/api/intervention/[id]/finalization-context/route.ts
+- Change: Nested PostgREST select → 6 requêtes parallèles séparées (pattern AGENTS.md #004)
+- Learning: Les nested selects avec RLS retournent silencieusement null → toujours utiliser Promise.all
+
+### Theme 4: Quote submission simplification
+- Files: quote-submission-form.tsx (-726 lines), quote-submission-modal.tsx (-42 lines), intervention-quote-submit/route.ts
+- Change: Toute la logique time slots retirée du formulaire de devis. Time slots gérés exclusivement via Planning tab
+- Learning: Séparation des concerns — estimation ≠ planification, même si les deux étaient dans le même formulaire
+
+### Theme 5: InterventionDetailsCard enrichi
+- Files: intervention-details-card.tsx, intervention-preview.types.ts
+- Change: Nouvelles props (onOpenSlotResponseModal, onOpenQuoteModal, pendingSlotsForUser, requiresQuote, hasSubmittedQuote, sections filter). Planning status accepte 'responded'
+- Learning: Les composants shared cards doivent supporter des callbacks role-spécifiques via props optionnelles
+
+### Theme 6: Dashboard simplification + list view quotes
+- Files: locataire-dashboard-hybrid.tsx, provider-dashboard-v2.tsx, intervention-card.tsx, interventions-list-view-v1.tsx
+- Change: PendingActionsSection supprimé des dashboards (tab "À traiter" suffit). Menu "Gérer devis" ajouté pour prestataire dans la list view
+- Learning: Réduire les sections dupliquées (pending actions header + navigator tab = redondant)
+
+### Theme 7: Quote modals + UI polish
+- Files: gestionnaire detail-client.tsx, unified-modal-header.tsx, unified-modal.types.ts, time-slot-utils.ts, participants-row.tsx
+- Change: QuoteApprovalModal/QuoteRejectionModal remplacent les fetch directs. UnifiedModalHeader reçoit prop `badge`. Labels prestataire unifiés "Gérer planification". Tabs renommés "Planning et Estimations"
+- Learning: Les actions destructives (approuver/rejeter devis) méritent une modale de confirmation, pas un fetch direct
+
+### Fix: Finalization Modal Planning & Estimation Display
+- Files: finalization-modal-live.tsx, finalization-context/route.ts
+- Change: `'confirmed'` → `'selected'`, filter proposed slots, `selected_by_manager` for fixed scheduling, removed "Informations générales" title
+- Learning: Cross-référencer la vue fonctionnelle (General tab) pour diagnostiquer les bugs d'affichage
+
+## 2026-02-17 — Fix: Lease-created interventions missing conversation threads
+- Implemented: Replaced raw bulk INSERT into `intervention_assignments` with `assignUserAction()` calls (same flow as gestionnaire UI). Added `'locataire'` to `assignUser()` role type + validation in intervention-service.
+- Files: app/actions/intervention-actions.ts (lines 333-348), lib/services/domain/intervention-service.ts (lines 611, 649-655)
+- Learnings: Raw INSERT bypasses service-layer side effects (threads, messages, participants). Always use centralized actions for operations with business logic. `Promise.allSettled` over `Promise.all` for non-blocking multi-assignment.
+- Decision: Reuse existing `assignUserAction` rather than duplicating thread creation logic — DRY principle, single source of truth for assignment pipeline.
+
+## 2026-02-17 — Property Interventions Step (Buildings & Lots) — 5 stories DONE
+
+### US-001: Property Intervention Templates (M)
+- Files: lib/constants/property-interventions.ts (NEW, 358 lines)
+- Templates: 6 building (chaudière, ascenseur, incendie, PEB, nettoyage, espaces verts), 2 lot (chaudière, PEB), 0 lot_in_building
+- Dynamic scheduling: expiry-based options prepended when document has expiryDate, otherwise creation-relative
+- Missing doc generator: createMissingPropertyDocumentIntervention() for each unchecked recommended document
+
+### US-002: PropertyInterventionsStep Component (M)
+- Files: components/property-interventions-step.tsx (NEW, 333 lines)
+- Pattern: same as LeaseInterventionsStep — InterventionScheduleRow + ContactSelector hideUI ref
+- Features: toggle, date change, scheduling option change, contact assignment (manager/provider)
+- Adapts header/description per entityType
+
+### US-003: Building Creation Integration (M)
+- Files: building-creation-form.tsx, lib/step-configurations.ts
+- Changes: 4 steps → 5 steps, step 4 = PropertyInterventionsStep entityType="building"
+- Passes missingRecommendedTypes + documentExpiryDates from buildingDocUpload
+
+### US-004: Building Intervention DB Creation (S)
+- Files: building-creation-form.tsx (handleFinish)
+- Pattern: Promise.allSettled + createInterventionAction with useServiceRole:true
+- Assignments passed from scheduledInterventions.assignedUsers
+
+### US-005: Lot Creation Integration (M)
+- Files: lots/nouveau/page.tsx, lib/step-configurations.ts
+- Changes: 4 steps → 5 steps, 3 creation modes all create interventions
+- Helper: createInterventionsForLot avoids duplication across submit paths
+- entityType adapts: lot_in_building (has building) vs lot (standalone)
+- Collects expiry dates from multiple upload hooks (single + multi)
+
+### Learnings
+- PropertyInterventionTemplate mirrors LeaseInterventionTemplate but pivots on document expiry instead of lease start/end
+- resolveSchedulingOptions() pattern: prepend dynamic expiry options, use first as default
+- LOT_IN_BUILDING gets no standard interventions (managed at building level) but still generates missing doc interventions
+- ContactSelector hideUI + ref.openContactModal() = reusable assignment modal with zero visible UI
+- 3 lot creation modes (existing building, independent, legacy single) each need their own submit path but share createInterventionsForLot helper
+
+## 2026-02-17 — Stripe Subscription: Complete Design Review + User Stories (Ralph)
+
+### Session: Design Audit (2 passes) + Ralph Final Review
+- Implemented: Complete review of Stripe integration docs, 36 user stories, prd.json
+- Files: docs/stripe/2026-01-30-stripe-subscription-design.md (updated), docs/stripe/2026-01-30-stripe-subscription-implementation-plan.md (updated), docs/stripe/2026-02-17-stripe-user-stories.md (NEW), docs/stripe/prd.json (NEW)
+- Decisions:
+  - Trial starts at team creation (signup gestionnaire), 30 days, no card required
+  - App-managed trial (no Stripe subscription during trial)
+  - Billing access: team_members role=admin only
+  - Read-only impacts all roles (locataire/prestataire see clear message)
+  - Coupons: percentage only, flexible duration, managed via Stripe Dashboard
+  - Prices displayed HT (hors taxes), VAT added at Checkout
+  - Double billing page: summary in settings + dedicated /gestionnaire/abonnement
+  - Lot deletion: notification + Portal link (no auto-reduce)
+  - Beta users: 30-day trial from deployment date
+  - Portal: full self-service including cancellation
+- Corrections identified (C1-C11): subscriptions table = CREATE not ALTER, admin client name, email template path, RLS role scope, etc.
+- Learnings: Always verify codebase state before writing implementation plans. App-managed trial pattern for no-card trials.
+
+## 2026-02-18 — Fix: Building Interventions Tab Showing 0 Interventions
+- Implemented: New `getByBuildingWithLots(buildingId, lotIds)` method in intervention-service.ts using Supabase `.or()` filter to fetch both building-level AND lot-level interventions in 1 query. Replaced `getByLotIds(lotIds)` call in building detail page.tsx. Removed `if (lots.length > 0)` guard so buildings with 0 lots still show building-level interventions.
+- Files: lib/services/domain/intervention-service.ts (+30 lines), app/gestionnaire/(no-navbar)/biens/immeubles/[id]/page.tsx (7 lines changed)
+- Learnings: XOR constraints (`building_id XOR lot_id`) mean querying only one column misses the other half. SQL `NULL IN (...)` is always UNKNOWN/false. Use `.or()` to combine both sides.
+- Decision: Single `.or()` query over two separate queries + merge — simpler, no deduplication needed, consistent response shape.
+
+## 2026-02-18 — Fix: Code Review Critical+High Findings (3C + 7H + 2Q)
+- Implemented: Fixed 12 issues across 9 files from 5-agent code review
+- Critical fixes: (C1) Temporal dead zone — moved useMultiLotDocumentUpload after useState declarations, (C2) Removed duplicate Badge/getLotCategoryConfig imports + cleaned inline import() type assertion, (C3) Verified XOR constraint → no change needed (false positive)
+- High fixes: (H1) Multi-lot interventions now loop ALL lots not just [0], (H2) Staged documents now uploaded for ALL lots in both multi-lot branches, (H3) Added expiry_date to ContractDocument/Insert/Update types, (H4) Added Zod validation for expiryDate + routed through validatedData, (H5) Added schedulingOptions+defaultSchedulingOption to ResolvedLeaseInterventionTemplate, (H6) Added gestionnaire role validation in assignUser(), (H7) Added VALID_ASSIGNMENT_ROLES filter before casting
+- Quick fixes: (Q1) Trailing space "Immeuble " → "Immeuble", (Q2) Removed unused CUSTOM_DATE_OPTION export
+- Files: lots/nouveau/page.tsx, contract.types.ts, upload-contract-document/route.ts, schemas.ts, lease-interventions.ts, intervention-service.ts, intervention-actions.ts, step-configurations.ts
+- Learnings: TDZ in hook ordering (useState must precede dependent hooks), Zod schema drift (raw input bypassed validation), multi-lot [0] trap (post-creation effects for single entity in bulk flow), always verify DB CHECK constraints before changing query patterns
+- Decision: Dismissed C3 after reading migration SQL — XOR is strict, existing code correct

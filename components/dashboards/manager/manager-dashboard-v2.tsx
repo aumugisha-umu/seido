@@ -27,7 +27,6 @@ import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/k
 import { useToast } from "@/hooks/use-toast"
 import { GestionnaireFAB } from "@/components/ui/fab"
 import { PeriodSelector, getDefaultPeriod, type Period } from "@/components/ui/period-selector"
-import { OnboardingButton, OnboardingModal } from "@/components/onboarding"
 import { OnboardingChecklist } from "@/components/billing/onboarding-checklist"
 import { useSubscription } from "@/hooks/use-subscription"
 import { useStrategicNotification } from "@/hooks/use-strategic-notification"
@@ -223,7 +222,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
             <div className="dashboard__container pb-24 lg:pb-6 flex flex-col lg:h-full">
                 {/* Header Actions (rendered in topbar via portal) */}
                 <PageActions>
-                    <OnboardingButton />
                     <div className="hidden sm:block">
                         <PeriodSelector
                             value={period.value}
@@ -372,9 +370,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                 onCreateLot={navigateToNewLot}
                 onCreateContact={navigateToNewContact}
             />
-
-            {/* Onboarding Modal - Auto-opens on first visit */}
-            <OnboardingModal />
         </div>
     )
 }

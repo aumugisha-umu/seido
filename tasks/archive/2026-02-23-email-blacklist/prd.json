@@ -1,0 +1,83 @@
+{
+  "project": "SEIDO",
+  "featureName": "Fix Email Blacklist — API + Settings + Archive Existing",
+  "branchName": "preview",
+  "description": "Fix the broken email blacklist flow: create the missing API endpoint, fix the handler parameter mismatch, wire the settings page to display/manage blocked senders, and add a checkbox to archive all existing emails from a blocked sender.",
+  "createdAt": "2026-02-23",
+  "prdSource": "inline",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create /api/emails/blacklist route (POST + GET + DELETE)",
+      "description": "As a gestionnaire, I want the blacklist API endpoint to exist so that blocking/unblocking senders actually persists to the database.",
+      "acceptanceCriteria": [
+        "POST /api/emails/blacklist creates entry via EmailBlacklistRepository.addToBlacklist()",
+        "POST accepts { senderEmail, reason?, archiveExisting? } and resolves team_id + user_id from auth",
+        "GET /api/emails/blacklist returns team blacklist with blocked_by user name joined",
+        "DELETE /api/emails/blacklist with { blacklistId } removes entry via removeFromBlacklist()",
+        "When archiveExisting=true, all emails from that sender in the team are archived (status='archived')",
+        "Auth uses getApiAuthContext() + team_members check (same pattern as /api/emails/route.ts)",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Created app/api/emails/blacklist/route.ts with GET+POST+DELETE. Service role for bulk archive. Joined users table for blocked_by name."
+    },
+    {
+      "id": "US-002",
+      "title": "Fix handleBlacklist in mail-client.tsx — pass all params",
+      "description": "As a gestionnaire, I want the blacklist button in the 'mark as irrelevant' dialog to properly call the API with emailId, senderEmail, reason, and archiveExisting flag.",
+      "acceptanceCriteria": [
+        "handleBlacklist signature matches (emailId: string, senderEmail: string, reason?: string)",
+        "API call sends { senderEmail, reason } to POST /api/emails/blacklist",
+        "After successful blacklist, the current email is soft-deleted from UI state",
+        "The email counts are updated (inbox decremented)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Fixed signature from (address: string) to (emailId, senderEmail, reason, archiveExisting). Optimistic UI removal + rollback on failure."
+    },
+    {
+      "id": "US-003",
+      "title": "Add 'archive existing emails' checkbox to mark-irrelevant dialog",
+      "description": "As a gestionnaire, when I block a sender, I want an option to also archive all their existing emails in my inbox so I don't have to manually clean them up.",
+      "acceptanceCriteria": [
+        "Checkbox appears when 'blacklist' radio is selected",
+        "Checkbox label: 'Archiver aussi tous les emails existants de cet expéditeur'",
+        "Checkbox state (archiveExisting) is passed through onBlacklist callback",
+        "handleBlacklist sends archiveExisting to the API",
+        "When archiveExisting=true, emails from that sender are removed from UI state",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added Checkbox component to dialog, archiveExisting state (default true), propagated through callback chain: dialog → email-detail → mail-client → API."
+    },
+    {
+      "id": "US-004",
+      "title": "Wire settings page to fetch and display blacklist",
+      "description": "As a gestionnaire, I want the email settings page to show all blocked senders so I can review and unblock them.",
+      "acceptanceCriteria": [
+        "Settings page fetches GET /api/emails/blacklist on mount",
+        "BlacklistManager displays all entries with sender_email, reason, blocked_by name, date",
+        "Unblock button calls DELETE /api/emails/blacklist and removes from UI",
+        "Loading state shown while fetching",
+        "Empty state shows when no blocked senders",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added fetchBlacklist() with useCallback, typed state as BlacklistEntry[], real handleUnblock with DELETE API + optimistic update. Loading spinner while fetching."
+    }
+  ]
+}

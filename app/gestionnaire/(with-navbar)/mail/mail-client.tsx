@@ -11,7 +11,7 @@
  * - Pagination
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { MailboxSidebar, LinkedEntities, LinkedEntity, EmailConnection, NotificationReplyGroup } from './components/mailbox-sidebar'
 import { EmailList } from './components/email-list'
@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
 import { LinkedEmail } from '@/lib/types/email-links'
-import { MailboxEmail, Building, generateConversationId, extractSenderName, extractEmailAddress } from './components/types'
+import { MailboxEmail, Building, Lot, generateConversationId, extractSenderName, extractEmailAddress } from './components/types'
 import { ComposeEmailModal } from './components/compose-email-modal'
 import { useRealtimeEmailsV2 } from '@/hooks/use-realtime-emails-v2'
 import { useEmailPolling } from '@/hooks/use-email-polling'
@@ -96,9 +96,9 @@ const findEntityName = (type: string, id: string, entities: LinkedEntities): str
   return entity?.name || 'Entité'
 }
 
-const adaptEmail = (email: Email, buildings: Building[]): MailboxEmail => {
-  const building = buildings.find(b => b.id === email.building_id)
-  const lot = building?.lots.find(l => l.id === email.lot_id)
+const adaptEmail = (email: Email, buildingMap: Map<string, Building>, lotMap: Map<string, { lot: Lot; buildingName?: string }>): MailboxEmail => {
+  const building = email.building_id ? buildingMap.get(email.building_id) : undefined
+  const lotEntry = email.lot_id ? lotMap.get(email.lot_id) : undefined
 
   const conversationId = generateConversationId(
     email.id,
@@ -132,7 +132,7 @@ const adaptEmail = (email: Email, buildings: Building[]): MailboxEmail => {
     building_id: email.building_id || undefined,
     building_name: building?.name,
     lot_id: email.lot_id || undefined,
-    lot_name: lot?.name,
+    lot_name: lotEntry?.lot.name,
     labels: [],
     direction: email.direction,
     status: email.status,
@@ -194,9 +194,32 @@ export function MailClient({
   const [totalEmails, setTotalEmails] = useState(initialTotalEmails)
   const [offset, setOffset] = useState(50)
   const LIMIT = 50
+  const CACHE_TTL = 60_000 // 60 seconds
+
+  // Folder cache: stale-while-revalidate pattern
+  // Stores emails + total per folder:source key, with timestamp for TTL
+  const folderCacheRef = useRef<Map<string, { emails: Email[]; total: number; timestamp: number }>>(
+    new Map([['inbox:all', { emails: initialEmails, total: initialTotalEmails, timestamp: Date.now() }]])
+  )
+
+  // AbortController: cancel in-flight requests on rapid folder switching
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Pre-built Maps for O(1) lookup in adaptEmail (replaces O(n) Array.find per email)
+  const { buildingMap, lotMap } = useMemo(() => {
+    const bMap = new Map<string, Building>()
+    const lMap = new Map<string, { lot: Lot; buildingName?: string }>()
+    for (const b of buildings) {
+      bMap.set(b.id, b)
+      for (const l of b.lots) {
+        lMap.set(l.id, { lot: l, buildingName: b.name })
+      }
+    }
+    return { buildingMap: bMap, lotMap: lMap }
+  }, [buildings])
 
   // Derived state
-  const emails = useMemo(() => realEmails.map(e => adaptEmail(e, buildings)), [realEmails, buildings])
+  const emails = useMemo(() => realEmails.map(e => adaptEmail(e, buildingMap, lotMap)), [realEmails, buildingMap, lotMap])
   const selectedEmail = emails.find(e => e.id === selectedEmailId)
 
   // ============================================================================
@@ -207,6 +230,10 @@ export function MailClient({
     teamId,
     showToast: true,
     onNewEmail: (newEmail) => {
+      // Invalidate cache for the folder receiving the new email
+      if (newEmail.direction === 'received') invalidateCache('inbox')
+      if (newEmail.direction === 'sent') invalidateCache('sent')
+
       if (currentFolder === 'inbox' && newEmail.direction === 'received') {
         setRealEmails(prev => [newEmail, ...prev])
         setCounts(prev => ({ ...prev, inbox: prev.inbox + 1 }))
@@ -278,17 +305,66 @@ export function MailClient({
     }
   }, [])
 
+  // Invalidate cache for a specific folder or all folders
+  const invalidateCache = useCallback((folder?: string) => {
+    if (folder) {
+      // Invalidate all source variants for this folder
+      for (const key of folderCacheRef.current.keys()) {
+        if (key.startsWith(`${folder}:`)) {
+          folderCacheRef.current.delete(key)
+        }
+      }
+    } else {
+      folderCacheRef.current.clear()
+    }
+  }, [])
+
   const fetchEmails = useCallback(async (isLoadMore = false, sourceOverride?: string) => {
-    setIsLoading(true)
+    const source = sourceOverride ?? selectedSource
+    const cacheKey = `${currentFolder}:${source}`
+
+    // Stale-while-revalidate: show cached data instantly, then refresh in background
+    if (!isLoadMore) {
+      const cached = folderCacheRef.current.get(cacheKey)
+      const isFresh = cached && (Date.now() - cached.timestamp < CACHE_TTL)
+
+      if (cached) {
+        // Instantly display cached data (< 1ms)
+        setRealEmails(cached.emails)
+        setTotalEmails(cached.total)
+        setOffset(LIMIT)
+        if (cached.emails.length > 0) {
+          setSelectedEmailId(cached.emails[0].id)
+        } else {
+          setSelectedEmailId(undefined)
+        }
+
+        // If cache is fresh, skip network request entirely
+        if (isFresh) return
+        // If stale, continue to background refresh (no loading spinner)
+      }
+    }
+
+    // Cancel previous in-flight request (rapid folder switching protection)
+    if (!isLoadMore) {
+      abortControllerRef.current?.abort()
+      abortControllerRef.current = new AbortController()
+    }
+    const signal = abortControllerRef.current?.signal
+
+    // Only show loading spinner if no cache hit (cold fetch)
+    const hasCacheHit = !isLoadMore && folderCacheRef.current.has(cacheKey)
+    if (!hasCacheHit) setIsLoading(true)
+
     try {
       const currentOffset = isLoadMore ? offset : 0
-      const source = sourceOverride ?? selectedSource
       const data = await EmailClientService.getEmails(
         currentFolder,
         undefined,
         LIMIT,
         currentOffset,
-        source !== 'all' ? source : undefined
+        source !== 'all' ? source : undefined,
+        signal
       )
 
       if (isLoadMore) {
@@ -298,24 +374,46 @@ export function MailClient({
         setRealEmails(data.emails)
         setOffset(LIMIT)
         if (data.emails.length > 0) {
-          setSelectedEmailId(data.emails[0].id)
+          setSelectedEmailId(prev => {
+            // Keep current selection if it exists in new data (avoid jarring jumps on background refresh)
+            if (prev && data.emails.some(e => e.id === prev)) return prev
+            return data.emails[0].id
+          })
         } else {
           setSelectedEmailId(undefined)
         }
+
+        // Update cache with fresh data
+        folderCacheRef.current.set(cacheKey, {
+          emails: data.emails,
+          total: data.total,
+          timestamp: Date.now()
+        })
       }
 
       setTotalEmails(data.total)
 
+      // Update current folder count from response total (avoids redundant fetchCounts API call)
       if (!isLoadMore) {
-        fetchCounts()
+        setCounts(prev => {
+          const folderKey = currentFolder === 'inbox' ? 'inbox'
+            : currentFolder === 'processed' ? 'processed'
+            : currentFolder === 'sent' ? 'sent'
+            : currentFolder === 'archive' ? 'archive'
+            : null
+          if (folderKey) return { ...prev, [folderKey]: data.total }
+          return prev
+        })
       }
     } catch (error) {
+      // Silently ignore aborted requests (user switched folder before response arrived)
+      if (error instanceof DOMException && error.name === 'AbortError') return
       console.error('Failed to fetch emails:', error)
-      toast.error('Échec du chargement des emails')
+      if (!hasCacheHit) toast.error('Échec du chargement des emails')
     } finally {
       setIsLoading(false)
     }
-  }, [offset, selectedSource, currentFolder, fetchCounts])
+  }, [offset, selectedSource, currentFolder])
 
   const fetchFullEmail = useCallback(async (emailId: string): Promise<Email | null> => {
     try {
@@ -459,6 +557,7 @@ export function MailClient({
       const result = await response.json()
       if (result.success) {
         toast.success(`${result.newEmails || 0} nouveaux emails synchronisés`)
+        invalidateCache()
         resetKnownEmails()
         fetchEmails(false)
         fetchLinkedEntities()
@@ -494,6 +593,8 @@ export function MailClient({
     try {
       await EmailClientService.archiveEmail(selectedEmailId)
       toast.success('Email archivé')
+      invalidateCache('inbox')
+      invalidateCache('archive')
       setCounts(prev => ({
         ...prev,
         inbox: Math.max(0, prev.inbox - 1),
@@ -517,6 +618,7 @@ export function MailClient({
     try {
       await EmailClientService.deleteEmail(selectedEmailId)
       toast.success('Email supprimé')
+      invalidateCache(currentFolder)
       setCounts(prev => ({
         ...prev,
         inbox: Math.max(0, prev.inbox - 1)
@@ -526,7 +628,7 @@ export function MailClient({
       setSelectedEmailId(emailToDelete?.id)
       toast.error('Échec de la suppression')
     }
-  }, [selectedEmailId, realEmails])
+  }, [selectedEmailId, realEmails, currentFolder, invalidateCache])
 
   const handleLinkBuilding = useCallback(async (buildingId: string, lotId?: string) => {
     if (!selectedEmailId) return
@@ -578,6 +680,7 @@ export function MailClient({
     try {
       await EmailClientService.deleteEmail(emailId)
       toast.success('Email supprimé')
+      invalidateCache(currentFolder)
       setCounts(prev => ({
         ...prev,
         inbox: Math.max(0, prev.inbox - 1)
@@ -587,7 +690,7 @@ export function MailClient({
       if (wasSelected) setSelectedEmailId(emailId)
       toast.error('Échec de la suppression')
     }
-  }, [realEmails, selectedEmailId])
+  }, [realEmails, selectedEmailId, currentFolder, invalidateCache])
 
   const handleBlacklist = useCallback(async (emailId: string, senderEmail: string, reason?: string, archiveExisting?: boolean) => {
     // Optimistic: remove the current email from the UI
@@ -628,6 +731,8 @@ export function MailClient({
 
       // Also soft-delete the triggering email
       await EmailClientService.deleteEmail(emailId).catch(() => {})
+      invalidateCache('inbox')
+      invalidateCache('archive')
     } catch (error) {
       // Rollback on failure
       setRealEmails(previousEmails)
@@ -643,6 +748,8 @@ export function MailClient({
         e.id === selectedEmailId ? { ...e, status: 'read' as const } : e
       ))
       toast.success('Email marqué comme traité')
+      invalidateCache('inbox')
+      invalidateCache('processed')
       setCounts(prev => ({
         ...prev,
         inbox: Math.max(0, prev.inbox - 1),
@@ -651,7 +758,7 @@ export function MailClient({
     } catch (error) {
       toast.error('Échec du marquage')
     }
-  }, [selectedEmailId])
+  }, [selectedEmailId, invalidateCache])
 
   const handleMarkAsUnprocessed = useCallback(async () => {
     if (!selectedEmailId) return
@@ -661,6 +768,8 @@ export function MailClient({
         e.id === selectedEmailId ? { ...e, status: 'unread' as const } : e
       ))
       toast.success('Email marqué comme non traité')
+      invalidateCache('inbox')
+      invalidateCache('processed')
       setCounts(prev => ({
         ...prev,
         inbox: prev.inbox + 1,
@@ -669,7 +778,7 @@ export function MailClient({
     } catch (error) {
       toast.error('Échec du marquage')
     }
-  }, [selectedEmailId])
+  }, [selectedEmailId, invalidateCache])
 
   const handleConversationSelect = useCallback((conversationId: string) => {
     const conversationEmails = emails

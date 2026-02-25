@@ -44,52 +44,36 @@ export async function GET() {
         const countStart = Date.now();
         const countPromises: Promise<void>[] = [];
 
-        // Counts per connection
-        let totalCounts: Record<string, number> = {};
-        let unreadCounts: Record<string, number> = {};
+        // Counts per connection — use head-only count queries (no row transfer)
+        const totalCounts: Record<string, number> = {};
+        const unreadCounts: Record<string, number> = {};
 
         if (connectionIds.length > 0) {
-            // Total emails per connection
-            countPromises.push(
-                supabase
-                    .from('emails')
-                    .select('email_connection_id')
-                    .in('email_connection_id', connectionIds)
-                    .is('deleted_at', null)
-                    .then(({ data: counts }) => {
-                        if (counts) {
-                            totalCounts = counts.reduce((acc, email) => {
-                                const connId = email.email_connection_id;
-                                if (connId) {
-                                    acc[connId] = (acc[connId] || 0) + 1;
-                                }
-                                return acc;
-                            }, {} as Record<string, number>);
-                        }
-                    })
-            );
-
-            // Unread emails per connection (inbox)
-            countPromises.push(
-                supabase
-                    .from('emails')
-                    .select('email_connection_id')
-                    .in('email_connection_id', connectionIds)
-                    .eq('direction', 'received')
-                    .eq('status', 'unread')
-                    .is('deleted_at', null)
-                    .then(({ data: counts }) => {
-                        if (counts) {
-                            unreadCounts = counts.reduce((acc, email) => {
-                                const connId = email.email_connection_id;
-                                if (connId) {
-                                    acc[connId] = (acc[connId] || 0) + 1;
-                                }
-                                return acc;
-                            }, {} as Record<string, number>);
-                        }
-                    })
-            );
+            // Parallel count queries per connection (head:true = no data transfer)
+            for (const connId of connectionIds) {
+                countPromises.push(
+                    supabase
+                        .from('emails')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('email_connection_id', connId)
+                        .is('deleted_at', null)
+                        .then(({ count }) => {
+                            totalCounts[connId] = count || 0;
+                        })
+                );
+                countPromises.push(
+                    supabase
+                        .from('emails')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('email_connection_id', connId)
+                        .eq('direction', 'received')
+                        .eq('status', 'unread')
+                        .is('deleted_at', null)
+                        .then(({ count }) => {
+                            unreadCounts[connId] = count || 0;
+                        })
+                );
+            }
         }
 
         // Count webhook inbound emails (notification replies) - email_connection_id IS NULL

@@ -206,19 +206,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Stripe billing feature-complete, ready to merge*
 
 ## Files Recently Modified
-### 2026-02-24 17:01:29 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/seido-rails-architecture.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/00-getting-started.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/08-realtime-api.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/seido-data-flow-architecture-analysis.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/03-data-models.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/05-authorization.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/01-overview-personas.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/06-state-machines.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/04-database-migrations.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/12-appendices.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/07-services-jobs.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/02-tech-stack.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/10-deployment-devops.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/09-testing.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/rails/11-production-quality.md`
+### 2026-02-25 21:10:29 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/supabase/migrations/20260225120000_fix_rls_gestionnaire_team_id_mismatch.sql`

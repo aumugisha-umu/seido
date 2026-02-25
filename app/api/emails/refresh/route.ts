@@ -38,7 +38,7 @@ export async function GET(request: Request) {
       // Inbox: Unread received emails
       supabaseAdmin
         .from('emails')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('team_id', teamId)
         .eq('direction', 'received')
         .eq('status', 'unread')
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
       // Processed: Read received emails
       supabaseAdmin
         .from('emails')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('team_id', teamId)
         .eq('direction', 'received')
         .eq('status', 'read')
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
       // Sent
       supabaseAdmin
         .from('emails')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('team_id', teamId)
         .eq('direction', 'sent')
         .is('deleted_at', null),
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
       // Archive
       supabaseAdmin
         .from('emails')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('team_id', teamId)
         .eq('status', 'archived')
         .is('deleted_at', null),

@@ -51,8 +51,6 @@ export interface UseNotificationPromptReturn {
   enableNotifications: () => Promise<boolean>
   /** Rafraîchir l'état (après retour des paramètres système) */
   refreshPermissionState: () => Promise<void>
-  /** 🎯 Indique que le flow notification est terminé (pour coordination avec OnboardingModal) */
-  hasCompletedNotificationFlow: boolean
 }
 
 export function useNotificationPrompt(): UseNotificationPromptReturn {
@@ -68,8 +66,6 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
   const [error, setError] = useState<string | null>(null)
   // 🎯 FIX: Prevent modal from showing during initialization
   const [isInitializing, setIsInitializing] = useState(true)
-  // 🎯 Coordination avec OnboardingModal : true quand le flow notification est terminé
-  const [hasCompletedFlow, setHasCompletedFlow] = useState(false)
 
   const previousPermissionRef = useRef<NotificationPermission>('default')
   const hasInitialized = useRef(false)
@@ -92,8 +88,6 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
         logger.info('🔔 [NotificationPrompt] Push not supported on this device')
         // 🎯 FIX: Mark initialization complete even when not supported
         setIsInitializing(false)
-        // 🎯 Flow terminé car notifications non supportées
-        setHasCompletedFlow(true)
         return
       }
 
@@ -132,11 +126,6 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
         hasSubscription ||           // Déjà subscrit
         recentlyDismissed ||         // Dismiss récent
         currentPermission === 'denied' // Permission refusée
-
-      if (willNotShowModal) {
-        setHasCompletedFlow(true)
-        logger.info('🔔 [NotificationPrompt] Flow already complete - no modal needed')
-      }
 
       logger.info('🔔 [NotificationPrompt] Initialized', {
         platform: detectedPlatform,
@@ -227,8 +216,6 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
     setDismissed()
     setIsDismissed(true)
     setState('idle')
-    // 🎯 Marquer le flow comme terminé pour déclencher OnboardingModal
-    setHasCompletedFlow(true)
   }, [])
 
   // Activer les notifications (pour PWA ou web push direct)
@@ -261,9 +248,6 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
 
       // Effacer le dismiss pour ne pas le réafficher
       clearDismissed()
-
-      // 🎯 Marquer le flow comme terminé pour déclencher OnboardingModal
-      setHasCompletedFlow(true)
 
       logger.info('🔔 [NotificationPrompt] Notifications enabled and verified in DB')
       return true
@@ -315,6 +299,5 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
     dismissModal,
     enableNotifications,
     refreshPermissionState,
-    hasCompletedNotificationFlow: hasCompletedFlow
   }
 }

@@ -18,7 +18,8 @@ export class EmailClientService {
         search?: string,
         limit: number = 50,
         offset: number = 0,
-        source?: string
+        source?: string,
+        signal?: AbortSignal
     ): Promise<{ emails: Email[]; total: number }> {
         const params = new URLSearchParams();
         if (folder) params.append('folder', folder);
@@ -27,7 +28,7 @@ export class EmailClientService {
         params.append('offset', offset.toString());
         if (source) params.append('source', source);
 
-        const response = await fetch(`/api/emails?${params.toString()}`);
+        const response = await fetch(`/api/emails?${params.toString()}`, { signal });
         if (!response.ok) {
             throw new Error('Failed to fetch emails');
         }

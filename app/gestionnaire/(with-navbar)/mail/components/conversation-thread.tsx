@@ -5,9 +5,19 @@ import { Card, CardContent } from '@/components/ui/card'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import DOMPurify from 'isomorphic-dompurify'
-import { useMemo, useState } from 'react'
-import { Paperclip, ChevronDown, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { useMemo, useState, useCallback } from 'react'
+import { Paperclip, ChevronDown, ChevronRight, ArrowUpRight, ArrowDownLeft, Download, Loader2, FileText, ImageIcon, Sheet, Eye } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import { stripEmailQuotes, stripTextEmailQuotes } from '@/lib/utils/email-quote-stripper'
+import { AttachmentPreviewModal } from './attachment-preview-modal'
+
+const getAttachmentIcon = (mimeType: string) => {
+  if (mimeType === 'application/pdf') return FileText
+  if (mimeType.startsWith('image/')) return ImageIcon
+  if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType === 'text/csv') return Sheet
+  return Paperclip
+}
 
 interface ConversationThreadProps {
   emails: MailboxEmail[]
@@ -15,11 +25,32 @@ interface ConversationThreadProps {
 
 function EmailThreadItem({ email }: { email: MailboxEmail }) {
   const [showQuotedContent, setShowQuotedContent] = useState(false)
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null)
+  const [previewAttachment, setPreviewAttachment] = useState<{ id: string; filename: string; file_size: number; mime_type: string } | null>(null)
+
+  const handleDownloadAttachment = useCallback(async (attachmentId: string, filename: string) => {
+    setDownloadingAttachmentId(attachmentId)
+    try {
+      const response = await fetch(`/api/emails/${email.id}/attachments/${attachmentId}`)
+      if (!response.ok) throw new Error('Erreur lors du telechargement')
+      const data = await response.json()
+      const link = document.createElement('a')
+      link.href = data.signedUrl
+      link.download = filename
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch {
+      toast.error('Impossible de telecharger la piece jointe')
+    } finally {
+      setDownloadingAttachmentId(null)
+    }
+  }, [email.id])
 
   const isSent = email.direction === 'sent'
 
-  // Fallback chain: body_html → body_text → snippet → empty
-  // This handles cases where HTML is empty (plain-text email replies)
+  // Fallback chain: body_html -> body_text -> snippet -> empty
   const sanitizedBody = useMemo(() => {
     const content = email.body_html || email.body_text || email.snippet || ''
     if (!content.trim()) return ''
@@ -36,7 +67,6 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
     if (sanitizedBody && sanitizedBody.trim() !== '') {
       return stripEmailQuotes(sanitizedBody)
     }
-    // Fallback: strip from plain text
     const textContent = email.body_text || email.snippet || ''
     if (textContent) {
       return stripTextEmailQuotes(textContent)
@@ -44,7 +74,6 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
     return { cleanHtml: '', hasQuotedContent: false }
   }, [sanitizedBody, email.body_text, email.snippet])
 
-  // Determine if we have displayable content
   const hasHtmlContent = sanitizedBody && sanitizedBody.trim() !== ''
   const textFallback = email.body_text || email.snippet || ''
 
@@ -124,26 +153,62 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
         {/* Attachments */}
         {email.has_attachments && email.attachments.length > 0 && (
           <div className="mt-4 pt-4 border-t">
-            <div className="text-sm font-medium mb-2">Pi\u00e8ces jointes :</div>
+            <div className="text-sm font-medium mb-2">
+              Pi&#232;ces jointes ({email.attachments.length})
+            </div>
             <div className="space-y-2">
-              {email.attachments.map((attachment) => (
-                <div
-                  key={attachment.id}
-                  className="flex items-center gap-2 p-2 border rounded hover:bg-muted cursor-pointer"
-                >
-                  <Paperclip className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm truncate">{attachment.filename}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {(attachment.file_size / 1024).toFixed(1)} KB
+              {email.attachments.map((attachment) => {
+                const AttachmentIcon = getAttachmentIcon(attachment.mime_type)
+                return (
+                  <div key={attachment.id}>
+                    <div className="flex items-center justify-between p-2 border rounded hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <AttachmentIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{attachment.filename}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {(attachment.file_size / 1024).toFixed(1)} KB
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Pr\u00e9visualiser ${attachment.filename}`}
+                          onClick={() => setPreviewAttachment(attachment)}
+                        >
+                          <Eye className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`T\u00e9l\u00e9charger ${attachment.filename}`}
+                          disabled={downloadingAttachmentId === attachment.id}
+                          onClick={() => handleDownloadAttachment(attachment.id, attachment.filename)}
+                        >
+                          {downloadingAttachmentId === attachment.id
+                            ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            : <Download className="h-4 w-4" aria-hidden="true" />
+                          }
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
       </CardContent>
+
+      {/* Attachment Preview Modal — rendered per thread item for independent state */}
+      <AttachmentPreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        emailId={email.id}
+        attachment={previewAttachment}
+      />
     </Card>
   )
 }

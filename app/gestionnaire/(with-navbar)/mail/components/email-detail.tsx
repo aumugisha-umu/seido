@@ -26,7 +26,10 @@ import {
   ChevronRight,
   Loader2,
   X,
-  Archive
+  Archive,
+  ImageIcon,
+  Sheet,
+  Eye
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -52,6 +55,14 @@ import {
   EMAIL_LINK_DISPLAY_CONFIG,
   EmailLinkEntityType
 } from '@/lib/types/email-links'
+import { AttachmentPreviewModal } from './attachment-preview-modal'
+
+const getAttachmentIcon = (mimeType: string) => {
+  if (mimeType === 'application/pdf') return FileText
+  if (mimeType.startsWith('image/')) return ImageIcon
+  if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType === 'text/csv') return Sheet
+  return Paperclip
+}
 
 interface EmailDetailProps {
   email: MailboxEmail
@@ -100,6 +111,28 @@ export function EmailDetail({
   const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [showProcessedDialog, setShowProcessedDialog] = useState(false)
   const [showQuotedContent, setShowQuotedContent] = useState(false)
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<string | null>(null)
+  const [previewAttachment, setPreviewAttachment] = useState<{ id: string; filename: string; file_size: number; mime_type: string } | null>(null)
+
+  const handleDownloadAttachment = useCallback(async (attachmentId: string, filename: string) => {
+    setDownloadingAttachmentId(attachmentId)
+    try {
+      const response = await fetch(`/api/emails/${email.id}/attachments/${attachmentId}`)
+      if (!response.ok) throw new Error('Erreur lors du téléchargement')
+      const data = await response.json()
+      const link = document.createElement('a')
+      link.href = data.signedUrl
+      link.download = filename
+      link.target = '_blank'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch {
+      toast.error('Impossible de télécharger la pièce jointe')
+    } finally {
+      setDownloadingAttachmentId(null)
+    }
+  }, [email.id])
 
   // Get current user from auth context
   const { user } = useAuth()
@@ -640,32 +673,48 @@ export function EmailDetail({
                   Pieces jointes ({email.attachments.length})
                 </h3>
                 <div className="space-y-3">
-                  {email.attachments.map((attachment) => (
-                    <div
-                      key={attachment.id}
-                      className="flex items-center justify-between p-3 hover:bg-card/50 rounded-lg transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {attachment.filename}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(attachment.file_size / 1024).toFixed(1)} KB
-                          </p>
+                  {email.attachments.map((attachment) => {
+                    const AttachmentIcon = getAttachmentIcon(attachment.mime_type)
+                    return (
+                    <div key={attachment.id}>
+                      <div className="flex items-center justify-between p-3 hover:bg-card/50 rounded-lg transition-colors">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <AttachmentIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {attachment.filename}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {(attachment.file_size / 1024).toFixed(1)} KB
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Prévisualiser ${attachment.filename}`}
+                            onClick={() => setPreviewAttachment(attachment)}
+                          >
+                            <Eye className="h-4 w-4" aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Télécharger ${attachment.filename}`}
+                            disabled={downloadingAttachmentId === attachment.id}
+                            onClick={() => handleDownloadAttachment(attachment.id, attachment.filename)}
+                          >
+                            {downloadingAttachmentId === attachment.id
+                              ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                              : <Download className="h-4 w-4" aria-hidden="true" />
+                            }
+                          </Button>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="shrink-0"
-                        aria-label={`Télécharger ${attachment.filename}`}
-                      >
-                        <Download className="h-4 w-4" aria-hidden="true" />
-                      </Button>
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -817,6 +866,14 @@ export function EmailDetail({
           fetchEmailLinks(true) // Force refresh to update cache
           onLinksUpdated?.()
         }}
+      />
+
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        isOpen={!!previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+        emailId={email.id}
+        attachment={previewAttachment}
       />
 
       {/* Mark as Processed / Unprocessed Dialog */}

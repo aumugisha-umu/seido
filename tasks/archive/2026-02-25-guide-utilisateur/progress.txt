@@ -1,0 +1,56 @@
+# Progress Log — Email Thread Linking + Entity View Unification
+# Started: 2026-02-24
+# Stories: 2/2 complete
+---
+
+## 2026-02-24 — Thread batch linking + entity view conversation grouping fix
+
+### Fix 1: Batch-link all thread emails to entity
+- Modified `link-to-entity-dialog.tsx`: added `conversationEmailIds` prop, `handleSave()` iterates all thread IDs with `Promise.allSettled` + 409 tolerance
+- Modified `email-detail.tsx`: passes `conversationEmails?.map(e => e.id)` to dialog
+- Files: `link-to-entity-dialog.tsx`, `email-detail.tsx`
+
+### Fix 2: Unify entity-filtered view with inbox conversation grouping
+- Root cause: `LinkedEmail` type missing threading headers (`message_id`, `in_reply_to_header`, `references`)
+- `adaptLinkedEmailToEmail()` mapped all to `null` → `generateConversationId()` fell back to standalone mode
+- Fixed in 3 layers: type definition, repository SELECT, adapter mapping
+- Files: `lib/types/email-links.ts`, `lib/services/repositories/email-link.repository.ts`, `mail-client.tsx`
+- **Key Learning**: Lightweight DTOs that strip algorithm-critical fields cause silent degradation — no errors, just broken grouping
+
+### Previous session (2026-02-23)
+---
+
+## 2026-02-23 — US-001: Create /api/emails/blacklist route
+- Created `app/api/emails/blacklist/route.ts` (GET + POST + DELETE)
+- POST: validates auth, resolves team_id, creates blacklist entry via repository, optional bulk archive
+- GET: returns entries with blocked_by user name via JOIN on users(first_name, last_name)
+- DELETE: removes entry by blacklistId
+- Service role client for all DB ops (bypass RLS, consistent with /api/emails/route.ts pattern)
+- Duplicate key constraint handled gracefully (returns alreadyBlocked: true)
+- **Learning**: `users` table has `first_name` + `last_name`, NOT `full_name`
+
+## 2026-02-23 — US-002: Fix handleBlacklist in mail-client.tsx
+- Fixed signature: `(address: string)` → `(emailId, senderEmail, reason?, archiveExisting?)`
+- Optimistic UI: removes email immediately, rolls back on API failure
+- Calls soft-delete on triggering email after successful blacklist
+- When archiveExisting: removes ALL emails from sender in UI state + updates counts
+
+## 2026-02-23 — US-003: Archive existing emails checkbox
+- Added `archiveExisting` state (default: true) to mark-irrelevant-dialog
+- Checkbox with label "Archiver aussi tous les emails existants de cet expediteur"
+- Propagated through full callback chain: dialog → email-detail → mail-client → API
+- API bulk-archives via `update().eq('from_address', email).neq('status', 'archived')`
+
+## 2026-02-23 — US-004: Wire settings page blacklist
+- Added fetchBlacklist() with useCallback, typed state as BlacklistEntry[]
+- Loads on mount alongside fetchConnections()
+- Real handleUnblock: DELETE /api/emails/blacklist with optimistic UI + rollback
+- Loading spinner while fetching
+- **Learning**: Previous code had `useState([])` untyped — always type state arrays
+
+## Files Changed
+- NEW: `app/api/emails/blacklist/route.ts`
+- MODIFIED: `app/gestionnaire/(with-navbar)/mail/components/mark-irrelevant-dialog.tsx`
+- MODIFIED: `app/gestionnaire/(with-navbar)/mail/components/email-detail.tsx`
+- MODIFIED: `app/gestionnaire/(with-navbar)/mail/mail-client.tsx`
+- MODIFIED: `app/gestionnaire/(with-navbar)/parametres/emails/page.tsx`

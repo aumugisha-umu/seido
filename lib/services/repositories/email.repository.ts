@@ -180,9 +180,11 @@ export class EmailRepository extends BaseRepository<Email> {
         teamId: string,
         options?: { source?: string }
     ): Promise<Email[]> {
+        // Select all fields EXCEPT body_html (heaviest field, ~5-50KB per email)
+        // body_html is not needed for thread enrichment — only threading headers + snippet
         let query = this.supabase
             .from(this.tableName)
-            .select('*')
+            .select('id, team_id, email_connection_id, direction, status, deleted_at, message_id, in_reply_to, in_reply_to_header, references, from_address, to_addresses, cc_addresses, bcc_addresses, subject, body_text, received_at, sent_at, created_at, building_id, lot_id, intervention_id')
             .eq('team_id', teamId)
             .eq('direction', 'sent')
             .not('in_reply_to', 'is', null)

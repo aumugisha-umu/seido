@@ -292,6 +292,23 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
 }
 
 async function getNotificationReplyGroups(supabase: any, teamId: string): Promise<NotificationReplyGroup[]> {
+  // Try RPC first (SQL GROUP BY — much faster than fetching all rows)
+  try {
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc('get_notification_reply_groups', { p_team_id: teamId })
+
+    if (!rpcError && rpcData) {
+      return rpcData.map((row: { intervention_id: string; intervention_title: string; email_count: number }) => ({
+        interventionId: row.intervention_id,
+        interventionTitle: row.intervention_title || 'Intervention',
+        count: row.email_count
+      }))
+    }
+  } catch {
+    // RPC not deployed yet — fall through to JS fallback
+  }
+
+  // JS fallback: fetch all and group client-side (will be removed after RPC deployment)
   const { data, error } = await supabase
     .from('emails')
     .select(`
@@ -307,9 +324,7 @@ async function getNotificationReplyGroups(supabase: any, teamId: string): Promis
     return []
   }
 
-  // Group by intervention
   const groupMap = new Map<string, { interventionId: string; interventionTitle: string; count: number }>()
-
   data.forEach((email: any) => {
     const id = email.intervention_id
     if (!groupMap.has(id)) {

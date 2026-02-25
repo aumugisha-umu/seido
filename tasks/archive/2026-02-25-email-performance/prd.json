@@ -1,0 +1,137 @@
+{
+  "project": "SEIDO",
+  "featureName": "Email Module Performance Optimization",
+  "branchName": "preview",
+  "description": "Optimize email section loading speed when navigating between folders. Client-side folder caching, redundant API call elimination, query optimizations, and request lifecycle management.",
+  "createdAt": "2026-02-25",
+  "prdSource": "tasks/prd-email-performance.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Client-side folder cache with stale-while-revalidate",
+      "description": "As a gestionnaire navigating between email folders, I want previously loaded folders to display instantly, so that I don't wait for a full re-fetch every time I switch back.",
+      "acceptanceCriteria": [
+        "Switching to a previously-visited folder shows data in < 50ms (from cache)",
+        "Fresh data loads silently in background within 1s",
+        "Cache invalidates correctly when user archives/deletes/marks an email",
+        "Cache expires after 60 seconds (stale data protection)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Implemented stale-while-revalidate folder cache via useRef<Map>. Cache key: folder:source. TTL 60s. Fresh cache = skip network entirely. Stale cache = show cached + background refresh without spinner. Selection preserved on background refresh. Cache invalidated on: archive, delete, soft-delete, blacklist, mark processed/unprocessed, sync, realtime new emails."
+    },
+    {
+      "id": "US-002",
+      "title": "Eliminate redundant fetchCounts on folder switch",
+      "description": "As a developer optimizing API calls, I want to remove the redundant fetchCounts() call on every folder switch, so that we save 4 unnecessary count queries per navigation.",
+      "acceptanceCriteria": [
+        "Folder switch triggers exactly 1 API call (GET /api/emails), not 2",
+        "Current folder count updates correctly from the response total",
+        "Other folder counts still update via 60s polling",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Removed fetchCounts() call from fetchEmails(). Current folder count now updated from response total via setCounts with folderKey mapping. fetchCounts dependency removed from useCallback array."
+    },
+    {
+      "id": "US-003",
+      "title": "AbortController for request cancellation on rapid folder switching",
+      "description": "As a user rapidly clicking between folders, I want previous in-flight requests to be cancelled, so that stale responses don't overwrite fresh data.",
+      "acceptanceCriteria": [
+        "Rapid folder switching only renders the last-clicked folder's data",
+        "No console errors from aborted requests",
+        "AbortError is silently caught (not shown as toast error)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added AbortController ref. fetchEmails aborts previous request before new one. AbortError silently caught (no toast, no console.error). Signal passed through EmailClientService.getEmails(signal)."
+    },
+    {
+      "id": "US-004",
+      "title": "Building Map for O(1) lookup in adaptEmail",
+      "description": "As a developer optimizing rendering, I want adaptEmail() to use a pre-built Map instead of Array.find(), so that email adaptation is O(n) instead of O(n*m).",
+      "acceptanceCriteria": [
+        "adaptEmail uses Map.get() instead of Array.find()",
+        "Building/lot display still works correctly",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Created buildingMap + lotMap via useMemo. adaptEmail signature changed to accept Maps. O(1) lookup via Map.get(). Lot import added from types."
+    },
+    {
+      "id": "US-005",
+      "title": "Optimize count queries — select('id') instead of select('*')",
+      "description": "As a developer optimizing DB queries, I want count queries to use select('id') instead of select('*'), so that PostgreSQL query planner can use covering indexes.",
+      "acceptanceCriteria": [
+        "All count queries use select('id') not select('*')",
+        "Counts still return correct values",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Changed 8 select('*') to select('id') in counts/route.ts (4) and refresh/route.ts (4). head:true still used."
+    },
+    {
+      "id": "US-006",
+      "title": "Optimize connections email count — head-only queries",
+      "description": "As a developer eliminating N-row transfers, I want per-connection email counts to use head-only count queries, so that we don't transfer thousands of rows just to count them.",
+      "acceptanceCriteria": [
+        "No full row fetches for counting — only head:true or RPC",
+        "Connection list still shows correct total and unread counts",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Replaced bulk fetch + JS reduce with per-connection head:true count queries in Promise.all. 2 queries per connection (total + unread). Zero row transfer."
+    },
+    {
+      "id": "US-007",
+      "title": "Optimize notification reply groups — SQL GROUP BY via RPC",
+      "description": "As a developer optimizing SSR queries, I want notification reply groups to use SQL GROUP BY, so that we don't fetch all intervention-linked emails just to count them.",
+      "acceptanceCriteria": [
+        "RPC returns top 20 intervention groups with counts",
+        "JavaScript fallback still works if RPC fails",
+        "SSR sidebar shows correct notification reply groups",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Created RPC get_notification_reply_groups() in migration 20260225000000. SSR page.tsx tries RPC first, falls back to JS grouping. SECURITY DEFINER + GRANT to authenticated + service_role."
+    },
+    {
+      "id": "US-008",
+      "title": "Scope sent replies fetch — exclude body_html",
+      "description": "As a developer reducing payload size, I want sent replies to be fetched with limited columns, so that we don't transfer 200 full email bodies on every inbox load.",
+      "acceptanceCriteria": [
+        "Sent replies don't include body_html",
+        "Conversation threading still works correctly (grouping by references/in_reply_to)",
+        "Email snippets still display for sent replies in conversation view",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Replaced select('*') with explicit column list excluding body_html in getSentRepliesForThreads(). All threading headers (message_id, in_reply_to_header, references) + body_text for snippets preserved."
+    }
+  ]
+}

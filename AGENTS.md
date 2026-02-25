@@ -154,3 +154,34 @@ When adding a new learning via `sp-compound`, use this format:
 - Update "Total Learnings" count in the header
 - If the learning is a new category, create a new `###` section
 - Keep descriptions concise but actionable — write for the next agent, not yourself
+
+---
+
+## Cursor Cloud specific instructions
+
+### Environment
+
+- **`.env.local`** is generated at VM startup from injected secrets (env vars). All required secrets (Supabase, Resend, Redis, Google Maps, Stripe, etc.) are provided via the Cursor Secrets panel and written into `.env.local` by the update script.
+- The app connects to a **remote Supabase** instance — there is no local database. Do not attempt to run `supabase start` or Docker-based DB setups.
+- Node.js 22 and npm 10 are available. The project uses `package-lock.json` (npm).
+
+### Running services
+
+| Service | Command | Port | Notes |
+|---------|---------|------|-------|
+| Next.js dev server | `npx next dev` | 3000 | Use `npx next dev` directly (the `npm run dev` script pipes through pino-pretty which can cause issues with background processes) |
+
+### Common commands
+
+Refer to `CLAUDE.md` "Development Commands" section for the canonical list. Key ones:
+
+- **Lint:** `npm run lint`
+- **Tests:** `npm test` (vitest). 7 pre-existing test failures as of Feb 2026 (string mismatches in thread welcome messages and email notification tests).
+- **TypeScript check:** `npx tsc --noEmit` (targeted: `npx tsc --noEmit path/to/file.tsx`)
+- **Dev server:** `npx next dev` (port 3000)
+
+### Gotchas
+
+- The `npm run dev` script pipes output through `pino-pretty`. When running as a background process, use `npx next dev` directly instead to avoid pipe-related hangs.
+- Port 3000 may already be in use from a prior session. Check with `netstat -tlnp | grep 3000` before starting.
+- The CLAUDE.md rule "INTERDICTION ABSOLUE de lancer `npm run build`" applies — do not run builds unless explicitly requested by the user.

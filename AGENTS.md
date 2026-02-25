@@ -180,8 +180,15 @@ Refer to `CLAUDE.md` "Development Commands" section for the canonical list. Key 
 - **TypeScript check:** `npx tsc --noEmit` (targeted: `npx tsc --noEmit path/to/file.tsx`)
 - **Dev server:** `npx next dev` (port 3000)
 
+### Test account
+
+- Credentials are injected as `TEST_LOGIN_EMAIL` and `TEST_LOGIN_PASSWORD` env vars.
+- The test user (Arthur Umugisha) has the **Gestionnaire** role and lands on `/gestionnaire/dashboard` after login.
+- The account has 1 building ("Immeuble 1" with 5 vacant lots) and no active interventions/contracts.
+
 ### Gotchas
 
 - The `npm run dev` script pipes output through `pino-pretty`. When running as a background process, use `npx next dev` directly instead to avoid pipe-related hangs.
 - Port 3000 may already be in use from a prior session. Check with `netstat -tlnp | grep 3000` before starting.
 - The CLAUDE.md rule "INTERDICTION ABSOLUE de lancer `npm run build`" applies — do not run builds unless explicitly requested by the user.
+- **Intervention creation "Non autorisé" error:** The multi-step intervention creation wizard (building select, details, participants, review) works end-to-end in the UI, but the final API call to create the intervention may return "Non autorisé" due to Supabase RLS policies on the remote database. This is a database permission issue, not an environment problem.

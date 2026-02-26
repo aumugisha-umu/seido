@@ -144,7 +144,7 @@ export const ApprovalModal = ({
     try {
       const supabase = createBrowserSupabaseClient()
       const { data } = supabase.storage
-        .from(document.storage_bucket || 'intervention-documents')
+        .from(document.storage_bucket || 'documents')
         .getPublicUrl(document.storage_path)
       window.open(data.publicUrl, '_blank')
     } catch (error) {
@@ -157,7 +157,7 @@ export const ApprovalModal = ({
     try {
       const supabase = createBrowserSupabaseClient()
       const { data, error } = await supabase.storage
-        .from(document.storage_bucket || 'intervention-documents')
+        .from(document.storage_bucket || 'documents')
         .download(document.storage_path)
 
       if (error) throw error

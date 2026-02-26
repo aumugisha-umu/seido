@@ -1,5 +1,5 @@
 import type React from "react"
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import { AdminLayoutClient } from "./layout-client"
 import { FrillWidget } from "@/components/frill-widget"
 import { PWABannerWrapper } from "@/components/pwa/pwa-banner-wrapper"
@@ -21,7 +21,7 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   // ✅ Authentification commune à toutes les pages
-  await requireRole(['admin'])
+  await getServerAuthContext('admin')
 
   return (
     <PWABannerWrapper>

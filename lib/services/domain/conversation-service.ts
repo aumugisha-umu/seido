@@ -269,7 +269,7 @@ export class ConversationService {
           for (const attachment of message.attachments) {
             if (attachment.storage_path) {
               const { data, error } = await this.conversationRepo.supabase.storage
-                .from('intervention-documents')
+                .from(attachment.storage_bucket || 'documents')
                 .createSignedUrl(attachment.storage_path, 3600) // 1 hour expiry
 
               if (data && !error) {

@@ -42,7 +42,14 @@ const { data: { user } } = await supabase.auth.getUser()
 // ... 10+ lignes de code duplique
 ```
 
-> Source: lib/server-context.ts - 21 pages migrees vers ce pattern
+> Source: lib/server-context.ts - ALL pages/layouts migrated (2026-02-26)
+>
+> **Server Actions**: Use `getServerActionAuthContextOrNull('role')` + null-check:
+> ```typescript
+> const authContext = await getServerActionAuthContextOrNull('gestionnaire')
+> if (!authContext) return { success: false, error: 'Authentication required' }
+> const { profile, team } = authContext
+> ```
 
 ### 2. Repository Pattern (OBLIGATOIRE)
 

@@ -192,8 +192,8 @@ export default function EditBuildingClient({
     if (subscriptionStatus.status === 'trialing') return false
     // Count only new lots (existing ones are already counted in actual_lots)
     const newLotCount = lots.filter(l => l.id.startsWith('lot-new-')).length
-    if (subscriptionStatus.is_free_tier) return (subscriptionStatus.actual_lots + newLotCount) >= FREE_TIER_LIMIT
-    if (subscriptionStatus.subscribed_lots > 0) return (subscriptionStatus.actual_lots + newLotCount) >= subscriptionStatus.subscribed_lots
+    if (subscriptionStatus.is_free_tier) return (subscriptionStatus.actual_lots + newLotCount) > FREE_TIER_LIMIT
+    if (subscriptionStatus.subscribed_lots > 0) return (subscriptionStatus.actual_lots + newLotCount) > subscriptionStatus.subscribed_lots
     return false
   }
 

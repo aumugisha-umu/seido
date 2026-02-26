@@ -371,22 +371,27 @@ export function InterventionsNavigator({
     return filterFn ? filterFn() : filteredInterventions
   }
 
-  // Get empty state config for a tab
+  // Get empty state config for a tab (role-aware)
   const getEmptyStateForTab = (tabId: string) => {
     if (emptyStateConfig) return emptyStateConfig
 
+    // Locataire-specific: "Nouvelle demande" button text + correct URL
+    const locataireButton: Partial<EmptyStateConfig> = userContext === 'locataire'
+      ? { createButtonText: "Nouvelle demande", createButtonAction: () => window.location.href = "/locataire/interventions/nouvelle-demande" }
+      : {}
+
     const configs: Record<string, EmptyStateConfig> = {
-      toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici" },
-      demandes_group: { title: "Aucune demande", description: "Les demandes en attente apparaîtront ici" },
-      en_cours_group: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
+      toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici", ...locataireButton },
+      demandes_group: { title: "Aucune demande", description: "Les demandes en attente apparaîtront ici", ...locataireButton },
+      en_cours_group: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici", ...locataireButton },
       cloturees_group: { title: "Aucune intervention clôturée", description: "Les interventions terminées apparaîtront ici" },
-      actions_en_attente: { title: "Aucune action en attente", description: "Toutes vos interventions sont à jour" },
-      en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
+      actions_en_attente: { title: "Aucune action en attente", description: "Toutes vos interventions sont à jour", showCreateButton: false },
+      en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici", ...locataireButton },
       terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici" },
-      // Prestataire presets
-      prestataire_en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
-      prestataire_terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici" },
-      prestataire_toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici" }
+      // Prestataire presets (no create button)
+      prestataire_en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici", showCreateButton: false },
+      prestataire_terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici", showCreateButton: false },
+      prestataire_toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici", showCreateButton: false }
     }
     return configs[tabId] || { title: "Aucune donnée", description: "" }
   }
@@ -457,15 +462,18 @@ export function InterventionsNavigator({
   // Build tabs based on preset
   const tabs = useMemo(() => {
     if (tabsPreset === 'dashboard') {
-      // Dashboard tabs: always show "À traiter" first (even with 0 count)
-      return [
-        {
+      // Dashboard tabs: hide "À traiter" when no pending actions
+      const dashboardTabs = []
+      if (pendingActionsCount > 0) {
+        dashboardTabs.push({
           id: "actions_en_attente",
           label: "À traiter",
           icon: AlertTriangle,
           count: pendingActionsCount,
           content: renderTabContent("actions_en_attente")
-        },
+        })
+      }
+      dashboardTabs.push(
         {
           id: "en_cours",
           label: "En cours",
@@ -480,7 +488,8 @@ export function InterventionsNavigator({
           count: getFilteredByTab("terminees").length,
           content: renderTabContent("terminees")
         }
-      ]
+      )
+      return dashboardTabs
     }
 
     if (tabsPreset === 'prestataire') {
@@ -543,9 +552,9 @@ export function InterventionsNavigator({
     ]
   }, [tabsPreset, filteredInterventions, pendingActionsCount, mounted, viewMode])
 
-  // Default tab
+  // Default tab — show "En cours" when no pending actions on dashboard
   const defaultTab = tabsPreset === 'dashboard'
-    ? "actions_en_attente"
+    ? (pendingActionsCount > 0 ? "actions_en_attente" : "en_cours")
     : tabsPreset === 'prestataire'
     ? "prestataire_en_cours"
     : "toutes"

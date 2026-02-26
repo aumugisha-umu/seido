@@ -10,7 +10,6 @@ export class EmailClientService {
      * @param offset - Pagination offset
      * @param source - Email source filter:
      *   - 'all': All sources (default)
-     *   - 'notification_replies': Webhook inbound only
      *   - UUID: Specific email connection ID
      */
     static async getEmails(

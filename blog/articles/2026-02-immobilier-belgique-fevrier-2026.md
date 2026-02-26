@@ -1,15 +1,15 @@
 ---
-title: "Gestion immobiliere Belgique fevrier 2026 : 8 changements cles"
+title: "L'essentiel immo #2 — Fevrier 2026"
 slug: "immobilier-belgique-fevrier-2026"
 date: "2026-02-15"
 author: "Equipe Seido"
 category: "Reglementation"
 tags: ["grille des loyers", "bruxelles", "copropriete", "renovation energetique", "fibre optique", "precompte immobilier", "gestion immobiliere", "gestionnaire immobilier", "vices caches"]
-description: "Grille des loyers deconnectee, precompte immobilier en hausse, fibre en copropriete, renovation energetique chiffree : ce que les gestionnaires doivent savoir en fevrier 2026."
+description: "75% des loyers bruxellois depassent la grille, precompte +118% en 10 ans, fibre en copro, renovation energetique : 8 alertes pour gestionnaires."
 reading_time: "12 min"
 ---
 
-# Gestion immobiliere Belgique : 8 changements reglementaires de fevrier 2026
+# L'essentiel immo #2 — Fevrier 2026
 
 *Gestionnaires immobiliers, proprietaires-bailleurs : 75% des loyers bruxellois depassent la grille officielle. Le precompte immobilier a bondi de +118% en 10 ans dans certaines communes. Les renovations energetiques prennent 8 ans en moyenne. Fevrier 2026 livre des donnees chiffrees — et quelques surprises juridiques — pour piloter votre gestion locative en connaissance de cause.*
 
@@ -59,8 +59,6 @@ Les proprietaires restent **libres de fixer le loyer**. Ce n'est qu'en cas de pl
 
 > **Avec Seido**, l'historique des loyers et des baux successifs est centralise pour chaque lot. En cas de contestation ou de passage devant la Commission paritaire, vous disposez d'un dossier structure avec l'evolution des loyers, les travaux realises et les justificatifs — un argument solide pour defendre votre politique locative. [Centraliser vos baux →](#)
 >
-> *Essai gratuit 14 jours — sans carte bancaire.*
-
 ---
 
 ## 2. Precompte immobilier a Bruxelles : l'explosion silencieuse des additionnels communaux
@@ -161,8 +159,6 @@ L'accompagnement par des architectes ou entreprises specialisees en copropriete,
 
 > **Seido pour les coproprietes** : planifier une renovation energetique sur 8 ans necessite un suivi rigoureux. Avec Seido, chaque etape est documentee — des premiers devis aux decisions d'AG, en passant par le suivi des travaux et la gestion des prestataires. Les coproprietaires ont acces a l'avancement en temps reel, ce qui facilite les votes et accelere les decisions. [Planifier vos renovations →](#)
 >
-> *Essai gratuit 14 jours — sans carte bancaire.*
-
 ---
 
 ## 5. Vices caches : la copropriete ne peut pas agir a la place des coproprietaires

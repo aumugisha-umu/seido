@@ -1,5 +1,5 @@
 import type React from "react"
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import { PrestataireLayoutClient } from "./layout-client"
 import { FrillWidget } from "@/components/frill-widget"
 import { RealtimeWrapper } from "@/components/realtime-wrapper"
@@ -16,6 +16,7 @@ import { PWABannerWrapper } from "@/components/pwa/pwa-banner-wrapper"
  *   - (no-navbar): Sans DashboardHeader (pages gèrent leur propre header)
  *
  * ✅ RealtimeWrapper fournit le contexte Realtime centralisé
+ * ✅ getServerAuthContext (cache()) — child pages reuse the cached result
  */
 
 export default async function PrestataireLayout({
@@ -23,8 +24,7 @@ export default async function PrestataireLayout({
 }: {
   children: React.ReactNode
 }) {
-  // ✅ Authentification commune à toutes les pages
-  const { profile } = await requireRole(['prestataire'])
+  const { profile } = await getServerAuthContext('prestataire')
 
   return (
     <PWABannerWrapper>

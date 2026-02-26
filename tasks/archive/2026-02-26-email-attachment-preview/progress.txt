@@ -1,0 +1,71 @@
+# Progress Log — Session 2026-02-25
+# Features: Guide Utilisateur + Email Enhancements + RLS Fix
+---
+
+## 2026-02-25 — Guide Utilisateur In-App (12 stories, all passed)
+- Created `/gestionnaire/aide` page with Server Component + Client Component pattern
+- 9 sections: Premiers Pas, Dashboard, Patrimoine, Contacts, Contrats, Interventions, Emails, Parametres, FAQ
+- Desktop: sidebar nav + content area; Mobile: horizontal tabs + stacked cards
+- Search with fuzzy matching across sections and FAQ
+- 20 FAQ items across 5 categories
+- seo-copywriter + ui-designer review (scores 78 → 88+, 82 → 90+)
+- Files: `app/gestionnaire/(with-navbar)/aide/page.tsx`, `aide-client.tsx`
+- Learnings: Benefit-oriented titles drive engagement; progressive disclosure (3 layers) works well for guides
+
+## 2026-02-25 — RLS Fix: Gestionnaire team_id mismatch (critical bug)
+- ROOT CAUSE: `get_accessible_*_ids()` used `users.team_id` (stale, set once at signup)
+- INSERT policy uses `is_team_manager()` → checks `team_members` (works)
+- SELECT policy used `users.team_id` → doesn't match when user joined via invitation
+- FIX: Replaced `users.team_id` with `team_members` join in gestionnaire branch of 3 functions
+- For interventions: used denormalized `interventions.team_id` + `team_members` (simpler + faster)
+- Files: `20260225120000_fix_rls_gestionnaire_team_id_mismatch.sql`
+- Decision: team_members is the ONLY source of truth for team access; users.team_id is convenience only
+- Learnings: #084 (users.team_id is stale), #085 (INSERT/SELECT must use same source), #086 (users.role vs team_members.role)
+
+---
+
+## 2026-02-25 — US-004: Tighten storage RLS (team isolation)
+- Dropped 3 broad policies (any authenticated user could access any team's attachments)
+- Created 3 team-scoped policies using `get_team_id_from_document_path(name)` (reuses existing helper)
+- INSERT/SELECT: team_members check; DELETE: admin/gestionnaire only
+- Files: `20260225100000_tighten_email_attachments_rls.sql`
+
+## 2026-02-25 — US-001: Download API endpoint (signed URLs)
+- Created `GET /api/emails/[id]/attachments/[attachmentId]`
+- Double validation: attachment→email (email_id), email→team (team_id)
+- Service role for cross-table checks, `createSignedUrl(path, 3600)`
+- Returns `{ signedUrl, filename, contentType, sizeBytes }`
+- Files: `app/api/emails/[id]/attachments/[attachmentId]/route.ts`
+
+## 2026-02-25 — US-005: File type icons
+- Added `getAttachmentIcon()` helper mapping mime_type to Lucide icons
+- PDF→FileText, Images→ImageIcon, Spreadsheets→Sheet, Default→Paperclip
+- Files: `email-detail.tsx`
+
+## 2026-02-25 — US-002: Wire download button in UI
+- Added `handleDownloadAttachment`: fetch signed URL → programmatic `<a>` click download
+- Loading state: `Loader2` spinner while fetching, button disabled
+- Error handling: `toast.error` on failure
+- Files: `email-detail.tsx`
+
+## 2026-02-25 — US-003: Inline preview for images and PDFs
+- Added `handlePreviewAttachment` with cached image URLs in state
+- Images: fetch signed URL → show inline `<img>` thumbnail (max-w-sm, max-h-64) → click opens full-size
+- PDFs: fetch signed URL → `window.open()` in new tab
+- Non-previewable: download button only (no Eye icon)
+- Files: `email-detail.tsx`
+
+## 2026-02-26 — Complete requireRole → getServerAuthContext migration
+- Migrated 7 files: 2 admin layouts, 4 proprietaire pages/layout, 1 gestionnaire server action file
+- Server Components: `requireRole(['role'])` → `getServerAuthContext('role')` (cache()-wrapped, team context)
+- Server Actions: `requireRole(['role'])` → `getServerActionAuthContextOrNull('role')` + null-check returning error
+- Key subtlety: new API takes string ('admin'), not array (['admin'])
+- Files: `app/admin/layout.tsx`, `app/admin/(with-navbar)/layout.tsx`, `app/proprietaire/layout.tsx`, `app/proprietaire/dashboard/page.tsx`, `app/proprietaire/interventions/page.tsx`, `app/proprietaire/biens/page.tsx`, `app/gestionnaire/(with-navbar)/dashboard/actions.ts`
+- Learnings: #087 (getServerAuthContext vs getServerActionAuthContextOrNull)
+- Decision: Leave `app/dashboard/page.tsx` as-is (uses `getUserProfile()` for role-based redirect router)
+
+## Key Learnings
+- **Reuse existing RLS helpers**: `get_team_id_from_document_path()` works for any `{team_id}/...` path pattern
+- **Double validation pattern**: attachment→email + email→team gives defense-in-depth with generic 404
+- **Signed URL caching for images**: Store in React state to avoid re-fetching on re-render; PDFs open immediately so no cache needed
+- **Raw `<img>` for dynamic signed URLs**: `next/image` requires `remotePatterns` + known dimensions; signed URLs from Supabase Storage are dynamic and unpredictable

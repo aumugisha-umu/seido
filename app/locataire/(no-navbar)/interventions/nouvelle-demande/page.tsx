@@ -1,10 +1,9 @@
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import { createServerTenantService } from "@/lib/services/domain/tenant.service"
 import NouvelleDemandePage from "./nouvelle-demande-client"
 
 export default async function NouvelleDemandServerPage() {
-  // Fetch user data server-side
-  const { user, profile } = await requireRole(['locataire'])
+  const { profile } = await getServerAuthContext('locataire')
 
   // Fetch tenant lots server-side
   const tenantService = await createServerTenantService()

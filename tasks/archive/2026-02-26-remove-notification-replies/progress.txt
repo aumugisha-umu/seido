@@ -1,0 +1,36 @@
+# Progress Log — Remove Notification Replies Sidebar
+# Started: 2026-02-26
+# Stories: 4/4 complete
+---
+
+## 2026-02-26 — US-001: Remove notification replies UI from sidebar
+- Removed: Reply icon import, NotificationReplyGroup type export, 4 props, isNotificationRepliesOpen state
+- Removed: "Réponses notifs" button (20 lines), "Réponses par intervention" section (54 lines)
+- Simplified: totalUnread (no longer adds notificationRepliesCount), visibility guard
+- Files: mailbox-sidebar.tsx
+
+## 2026-02-26 — US-002: Remove state/props from mail-client
+- Removed: NotificationReplyGroup import, 2 MailClientProps, 3 useState vars
+- Removed: entire handleInterventionClick handler (35 lines)
+- Cleaned: handleFolderChange, handleSourceChange (removed selectedInterventionId refs)
+- Cleaned: 4 sidebar props no longer passed
+- Files: mail-client.tsx
+
+## 2026-02-26 — US-003: Remove SSR fetching + delete API endpoint
+- DELETED: /api/emails/notification-replies/route.ts (100 lines)
+- Removed: getNotificationReplyGroups function (50 lines) from page.tsx
+- Simplified: getEmailConnections return type (no more notificationRepliesCount)
+- Removed: notification count query from /api/emails/connections/route.ts
+- Cleaned: Promise.all (5 → 4 items), MailClient props
+- Files: page.tsx, connections/route.ts
+
+## 2026-02-26 — US-004: Clean up repository source filter + JSDoc
+- Removed: 'notification_replies' branch from getEmailsByFolder source filter
+- Simplified: getSentRepliesForThreads condition
+- Updated: JSDoc in email-client.service.ts, emails/route.ts
+- Files: email.repository.ts, email-client.service.ts, emails/route.ts
+
+## Learnings
+- Webhook already handles full flow: store → link → conversation sync → notifications
+- "Réponses notifs" was legacy dead UI from before conversation sync existed
+- ~260 lines of dead code removed across 7 files + 1 API route deleted

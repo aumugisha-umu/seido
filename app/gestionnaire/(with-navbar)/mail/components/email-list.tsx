@@ -8,7 +8,6 @@ import { Search, SortDesc } from 'lucide-react'
 import { EmailListItem } from './email-list-item'
 import { MailboxEmail, groupEmailsByConversation, ConversationGroup } from './types'
 import { ConversationGroupComponent } from './conversation-group'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface EmailListProps {
   emails: MailboxEmail[]
@@ -76,7 +75,7 @@ export function EmailList({
   )
 
   return (
-    <div className="w-[400px] border-r flex flex-col h-full overflow-hidden flex-shrink-0" role="region" aria-label="Liste d'emails">
+    <div className="w-full flex flex-col h-full overflow-hidden" role="region" aria-label="Liste d'emails">
       {/* Search Bar - Sticky Header */}
       <div className="p-4 border-b space-y-3 flex-shrink-0 bg-card">
         <div className="relative">
@@ -129,7 +128,7 @@ export function EmailList({
       </div>
 
       {/* Email List with ScrollArea */}
-      <ScrollArea className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {groupedItems.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground" role="status">
             <p>Aucun email trouvé</p>
@@ -175,7 +174,7 @@ export function EmailList({
             <div ref={loadMoreRef} className="h-4 w-full" />
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       {/* Pagination / Count Display - Sticky Footer */}
       <div className="p-3 border-t text-xs text-muted-foreground text-center flex-shrink-0 bg-card">

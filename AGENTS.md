@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-25
-**Total Learnings:** 86
+**Last Updated:** 2026-02-26
+**Total Learnings:** 92
 
 ---
 
@@ -55,6 +55,48 @@
 **Example:** `get_accessible_intervention_ids()` — `user_record.role` comes from `users.role`, not `team_members.role`
 **When to Use:** Debugging access issues where a "team admin" can't see data they should
 **Added:** 2026-02-25 | **Source:** RLS debugging for team 320d8c6d
+
+#### Learning #087: Server Components use getServerAuthContext, Server Actions use getServerActionAuthContextOrNull
+**Problem:** Legacy `requireRole(['role'])` pattern duplicates auth + client creation sequentially, is not `cache()`-wrapped, and doesn't provide team context. In Server Actions, it throws a redirect on auth failure instead of returning an error to the client — breaking the `{ success: false, error }` contract.
+**Solution:** Server Components/layouts: use `getServerAuthContext('role')` — it's `cache()`-wrapped (React 19), parallelizes client+auth via `Promise.all`, and provides `team`, `activeTeamIds`, `sameRoleTeams`. Server Actions: use `getServerActionAuthContextOrNull('role')` + null-check that returns `{ success: false, error: 'Authentication required' }`. Note: the new API takes a **string** role, not an array — `'admin'` not `['admin']`.
+**Example:** `app/admin/(with-navbar)/layout.tsx`, `app/gestionnaire/(with-navbar)/dashboard/actions.ts`
+**When to Use:** ANY new page, layout, or server action that needs authentication. The ONLY file still using raw `requireRole` should be `lib/auth-dal.ts` (the library), `lib/server-context.ts` (which wraps it), and `app/actions/auth-actions.ts` (uses `requireGuest`).
+**Added:** 2026-02-26 | **Source:** Complete requireRole → getServerAuthContext migration across admin + proprietaire + gestionnaire actions
+
+#### Learning #088: Radix ScrollArea injects display:table — breaks text truncation
+**Problem:** Radix `<ScrollArea>` injects an inner `<div style="display: table; minWidth: 100%">` between the Viewport and content. `display: table` makes children expand to intrinsic width instead of being constrained by the parent — so `truncate` / `text-overflow: ellipsis` never triggers. Text renders at full width and gets hard-clipped by `overflow: hidden`.
+**Solution:** Replace `<ScrollArea>` with `<div className="overflow-y-auto">` when you only need vertical scrolling and text truncation must work. The custom Radix scrollbar thumb is cosmetic — native scrollbar is fine for lists.
+**Example:** `app/gestionnaire/(with-navbar)/mail/components/email-list.tsx:131`
+**When to Use:** Any scrollable list where child elements need `truncate` / ellipsis behavior
+**Added:** 2026-02-26 | **Source:** Email list text clipping bug in mail module
+
+#### Learning #089: Dead feature detection — when webhooks supersede UI
+**Problem:** After adding `syncEmailReplyToConversation()` to the inbound webhook, the "Réponses notifs" mail sidebar became a redundant duplicate view — same data already appeared in intervention conversation threads. ~260 lines of dead code (UI, state, props, API endpoint, SSR fetch, repository filter) persisted unnoticed.
+**Solution:** When adding a new automated pipeline (webhook → conversation sync → notifications), audit existing manual views that showed the same data. The checklist: (1) Does the new pipeline cover all the same data? (2) Are notifications already sent? (3) Is the old UI still the only way to access the data? If all "yes, yes, no" → the old UI is dead code.
+**Example:** Removed: `mailbox-sidebar.tsx` (NotificationReplyGroup section), `mail-client.tsx` (handleInterventionClick), `/api/emails/notification-replies/route.ts` (entire file), `page.tsx` (getNotificationReplyGroups)
+**When to Use:** After adding any automated data sync pipeline that duplicates an existing manual view
+**Added:** 2026-02-26 | **Source:** Remove notification replies sidebar cleanup
+
+#### Learning #090: Client/server operator divergence in quota checks — always align boundary operators
+**Problem:** Client-side `isAtLotLimit()` used `>=` (blocks AT the limit), while server-side `canAddProperty()` used `<=` (allows AT the limit). A user with exactly `subscribed_lots` lots was blocked by the client but allowed by the server. The forms also duplicated the server's limit logic instead of using the pre-computed `can_add_property` boolean from the subscription hook.
+**Solution:** Ensure boundary operators are semantically consistent. Server says `(actual + count) <= limit → allowed`, so client must say `(actual + batch) > limit → blocked`. When business logic exists on the server, the client should mirror the SAME operator direction. Better yet: use the server's `checkCanAddProperty()` action for definitive decisions.
+**Example:** `lot-creation-form.tsx:749`, `building-creation-form.tsx:507`, `edit-building-client.tsx:195` — all changed `>=` to `>`
+**When to Use:** Any client-side pre-check that mirrors a server-side quota/limit validation
+**Added:** 2026-02-26 | **Source:** Subscription limit false positive — modal showing at lot 134/155
+
+#### Learning #091: Trigger-maintained cached counters drift — prefer live counts for billing-critical logic
+**Problem:** `getLotCount()` read `billable_properties` from the `subscriptions` table (maintained by a trigger on `lots` INSERT/UPDATE OF deleted_at/DELETE). This counter drifted from reality (21-lot gap) because: (a) the trigger doesn't fire on `team_id` column changes, (b) bulk operations can bypass row-level triggers, (c) historical initialization during migration may have been incorrect.
+**Solution:** For billing-critical decisions (subscription limits, quota checks), use a live `COUNT(*)` query instead of a cached counter. Pattern: `supabase.from('lots').select('*', { count: 'exact', head: true }).eq('team_id', X).is('deleted_at', null)` — this returns only the count (no data transfer), is indexed, and is always accurate.
+**Example:** `lib/services/repositories/subscription.repository.ts:75` — changed from reading `billable_properties` to live count
+**When to Use:** Any cached counter used for access/billing decisions. Keep triggers for non-critical uses (dashboard stats, analytics) but never trust them for gate-keeping.
+**Added:** 2026-02-26 | **Source:** Subscription limit false positive — 21-lot gap between cached and real count
+
+#### Learning #092: Clone/duplicate functions bypass validations added to "add" functions
+**Problem:** `addLot()` in lot-creation-form had `isAtLotLimit()` check, but `duplicateLot()` and `addIndependentLot()` had NO limit check. Users could bypass the subscription limit by duplicating existing lots. Also, `isAtLotLimit()` only counted `lots.length` but ignored `independentLots.length` — independent lots mode had zero subscription enforcement.
+**Solution:** Whenever adding validation to a "create/add" function, audit ALL other functions that produce the same entity. Checklist: (1) duplicate/clone, (2) import/bulk-add, (3) alternative creation modes (independent lots vs building lots). All must share the same guard.
+**Example:** `lot-creation-form.tsx:799` (duplicateLot), `lot-creation-form.tsx:898` (addIndependentLot) — added `isAtLotLimit()` checks; `isAtLotLimit()` now counts `lots.length + independentLots.length`
+**When to Use:** Any time you add a validation gate (quota, permission, format) to a create function — search for duplicate/clone/import functions on the same entity
+**Added:** 2026-02-26 | **Source:** Subscription limit bypass via duplicate/independent lot creation
 
 ### Database & Queries
 

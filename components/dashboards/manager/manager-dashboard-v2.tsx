@@ -341,7 +341,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                 <div
                     ref={interventionsRef}
                     className={cn(
-                        "dashboard__content lg:order-3 transition-all duration-300 rounded-lg min-h-[400px]",
+                        "dashboard__content lg:order-3 lg:flex-1 flex flex-col min-h-0 transition-all duration-300 rounded-lg",
                         focusInterventions && "ring-2 ring-amber-400/60 ring-offset-2"
                     )}
                 >

@@ -52,7 +52,7 @@ export async function GET(request: Request) {
         const limit = parseInt(searchParams.get('limit') || '50');
         const offset = parseInt(searchParams.get('offset') || '0');
         const search = searchParams.get('search') || undefined;
-        const source = searchParams.get('source') || undefined; // 'all', 'notification_replies', or connection UUID
+        const source = searchParams.get('source') || undefined; // 'all' or connection UUID
 
         logger.info({ teamId, folder, limit, offset, search, source }, '[EMAILS-API] Fetching emails');
 

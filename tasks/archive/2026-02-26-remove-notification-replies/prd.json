@@ -1,0 +1,88 @@
+{
+  "project": "SEIDO",
+  "featureName": "Remove Notification Replies Sidebar (Dead Code Cleanup)",
+  "branchName": "preview",
+  "description": "Remove the 'Réponses notifs' button and 'Réponses par intervention' section from the mail sidebar. This is dead UI — email replies to notifications are already synced to intervention conversation threads (via syncEmailReplyToConversation) and managers already receive in-app + push + email notifications (via notifyManagers in the webhook). Clean up all supporting plumbing: state, props, API endpoints, SSR fetching, and repository filter code.",
+  "createdAt": "2026-02-26",
+  "prdSource": "inline",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Remove notification replies UI from mailbox sidebar",
+      "description": "As a gestionnaire, I no longer see the 'Réponses notifs' button or 'Réponses par intervention' collapsible section in the mail sidebar, because these replies now appear in intervention conversations.",
+      "acceptanceCriteria": [
+        "No 'Réponses notifs' button visible in the BOITES EMAIL section",
+        "No 'Réponses par intervention' collapsible section in the sidebar",
+        "NotificationReplyGroup type export removed from mailbox-sidebar.tsx",
+        "Props cleaned: notificationRepliesCount, notificationReplyGroups, selectedInterventionId, onInterventionClick removed",
+        "Reply import from lucide-react removed if no longer used",
+        "isNotificationRepliesOpen state removed",
+        "totalUnread calculation no longer includes notificationRepliesCount",
+        "Sidebar visibility condition no longer checks notificationRepliesCount",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Removed Reply icon import, NotificationReplyGroup type, 4 notification-reply props, isNotificationRepliesOpen state, 'Réponses notifs' button, entire 'Réponses par intervention' collapsible section. totalUnread simplified. Visibility guard simplified."
+    },
+    {
+      "id": "US-002",
+      "title": "Remove notification replies state and props from mail-client",
+      "description": "Clean up MailClient component: remove all notification-reply-related state, props, handlers, and sidebar prop passing.",
+      "acceptanceCriteria": [
+        "State removed: notificationRepliesCount, notificationReplyGroups, selectedInterventionId",
+        "Handler removed: handleInterventionClick",
+        "Props removed from MailClientProps: initialNotificationRepliesCount, initialNotificationReplyGroups",
+        "Sidebar props cleaned: no longer passes notificationRepliesCount, notificationReplyGroups, selectedInterventionId, onInterventionClick",
+        "fetchEmailConnections no longer reads/sets notificationRepliesCount",
+        "handleSourceChange and handleFolderChange no longer reference selectedInterventionId",
+        "'notification_replies' source filter removed from handleInterventionClick (entire handler gone)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Removed NotificationReplyGroup import, 2 props from MailClientProps, 3 state vars, entire handleInterventionClick handler, selectedInterventionId from folder/source handlers, 4 sidebar props."
+    },
+    {
+      "id": "US-003",
+      "title": "Remove notification replies SSR data fetching and API endpoint",
+      "description": "Clean up server-side: remove getNotificationReplyGroups from page.tsx, remove notificationRepliesCount from getEmailConnections, and delete the /api/emails/notification-replies API route.",
+      "acceptanceCriteria": [
+        "getNotificationReplyGroups function removed from page.tsx",
+        "notificationReplyGroups removed from Promise.all and MailClient props in page.tsx",
+        "getEmailConnections no longer queries/returns notificationRepliesCount",
+        "NotificationReplyGroup import removed from page.tsx",
+        "/api/emails/notification-replies/route.ts file deleted",
+        "/api/emails/connections/route.ts no longer counts/returns notificationRepliesCount",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Deleted /api/emails/notification-replies/route.ts. Removed getNotificationReplyGroups (50 lines). Simplified getEmailConnections return type. Removed notification count query from connections API. Cleaned Promise.all and MailClient props."
+    },
+    {
+      "id": "US-004",
+      "title": "Clean up notification_replies source filter in repository and client service",
+      "description": "Remove the 'notification_replies' source filter branch from the email repository and clean up the client service JSDoc.",
+      "acceptanceCriteria": [
+        "email.repository.ts: 'notification_replies' source filter branch removed from getEmailsByFolder",
+        "email.repository.ts: 'notification_replies' check removed from sent replies query",
+        "email-client.service.ts: JSDoc updated (no more 'notification_replies' option)",
+        "emails API route: JSDoc/comment about 'notification_replies' removed",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-003"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Removed 'notification_replies' branch from getEmailsByFolder source filter. Simplified sent replies query condition. Updated JSDoc in client service and API route."
+    }
+  ]
+}

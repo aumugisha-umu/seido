@@ -1,62 +1,93 @@
-# Progress Log — Session 2026-02-25
-# Features: Guide Utilisateur + Email Enhancements + RLS Fix
+# Progress Log — Fix Bucket Migration (documents bucket consolidation)
+# Started: 2026-02-26
+# Stories: 6/6 complete
 ---
 
-## 2026-02-25 — Guide Utilisateur In-App (12 stories, all passed)
-- Created `/gestionnaire/aide` page with Server Component + Client Component pattern
-- 9 sections: Premiers Pas, Dashboard, Patrimoine, Contacts, Contrats, Interventions, Emails, Parametres, FAQ
-- Desktop: sidebar nav + content area; Mobile: horizontal tabs + stacked cards
-- Search with fuzzy matching across sections and FAQ
-- 20 FAQ items across 5 categories
-- seo-copywriter + ui-designer review (scores 78 → 88+, 82 → 90+)
-- Files: `app/gestionnaire/(with-navbar)/aide/page.tsx`, `aide-client.tsx`
-- Learnings: Benefit-oriented titles drive engagement; progressive disclosure (3 layers) works well for guides
+## 2026-02-26 — US-001: Migrate file-service.ts to 'documents' bucket
+- CRITICAL FIX: This is the exact code path causing the tenant attachment 404
+- Changed: Upload bucket (line 54), getPublicUrl (line 69), DB insert storage_bucket (line 81), cleanup (line 104)
+- Changed: Storage path from `interventions/{id}/{file}` to `{team_id}/{id}/{file}` (RLS-compatible)
+- Added: storageBucket parameter to getSignedUrl() for backward compat
+- Changed: deleteInterventionDocument now reads storage_bucket from DB record
+- Added: Audio MIME types to validateFile() (matching 'documents' bucket config)
+- Files: lib/file-service.ts
 
-## 2026-02-25 — RLS Fix: Gestionnaire team_id mismatch (critical bug)
-- ROOT CAUSE: `get_accessible_*_ids()` used `users.team_id` (stale, set once at signup)
-- INSERT policy uses `is_team_manager()` → checks `team_members` (works)
-- SELECT policy used `users.team_id` → doesn't match when user joined via invitation
-- FIX: Replaced `users.team_id` with `team_members` join in gestionnaire branch of 3 functions
-- For interventions: used denormalized `interventions.team_id` + `team_members` (simpler + faster)
-- Files: `20260225120000_fix_rls_gestionnaire_team_id_mismatch.sql`
-- Decision: team_members is the ONLY source of truth for team access; users.team_id is convenience only
-- Learnings: #084 (users.team_id is stale), #085 (INSERT/SELECT must use same source), #086 (users.role vs team_members.role)
+## 2026-02-26 — US-002: Migrate conversations/upload to 'documents' bucket
+- Changed: Upload bucket, DB insert, cleanup, signed URL — all 5 references to 'intervention-documents'
+- Changed: Storage path from `interventions/{id}/{file}` to `{team_id}/{id}/{file}` using thread.team_id
+- Files: app/api/conversations/upload/route.ts
+
+## 2026-02-26 — US-003: Fix conversation-service.ts signed URLs
+- Changed: Hardcoded 'intervention-documents' → `attachment.storage_bucket || 'documents'`
+- Files: lib/services/domain/conversation-service.ts
+
+## 2026-02-26 — US-004: Fix intervention modifier page signed URLs
+- Changed: Hardcoded 'intervention-documents' → `doc.storage_bucket || 'documents'`
+- Files: app/gestionnaire/(no-navbar)/interventions/modifier/[id]/page.tsx
+
+## 2026-02-26 — US-005: Fix resend-inbound webhook email attachment uploads
+- DISCOVERY: Pre-existing mismatch! Webhook uploaded to 'intervention-documents' but download route reads from 'email-attachments'
+- Changed: Upload bucket from 'intervention-documents' to 'email-attachments' (matching download route)
+- Changed: Storage path to include team_id prefix for consistency
+- Files: app/api/webhooks/resend-inbound/route.ts
+
+## 2026-02-26 — US-006: DB migration for default bucket change
+- Created: 20260226100000_change_intervention_documents_default_bucket.sql
+- Changes DEFAULT from 'intervention-documents' to 'documents'
+- Updated column comment to document legacy bucket
+- Files: supabase/migrations/20260226100000_change_intervention_documents_default_bucket.sql
+
+## BONUS: Updated fallback defaults in all READ paths
+- Changed fallback from || 'intervention-documents' to || 'documents' in:
+  - view-intervention-document/route.ts
+  - download-intervention-document/route.ts
+  - download-intervention-document/[id]/route.ts
+  - approval-modal.tsx (2 occurrences)
+
+## Learnings
+- Partial bucket migration = silent 404s on upload paths that weren't migrated
+- file-service.ts (legacy) was the ACTUAL upload path for tenant intervention creation (via /api/create-intervention)
+- upload-intervention-document/route.ts (already migrated) is used for post-creation uploads, NOT during creation
+- Email attachments are a SEPARATE system from intervention documents (own table, own bucket, own download route)
+- Webhook had pre-existing bucket mismatch: wrote to intervention-documents, read from email-attachments
+- Path format matters for RLS: documents bucket needs {team_id}/ prefix, intervention-documents used interventions/ prefix
 
 ---
 
-## 2026-02-25 — US-004: Tighten storage RLS (team isolation)
-- Dropped 3 broad policies (any authenticated user could access any team's attachments)
-- Created 3 team-scoped policies using `get_team_id_from_document_path(name)` (reuses existing helper)
-- INSERT/SELECT: team_members check; DELETE: admin/gestionnaire only
-- Files: `20260225100000_tighten_email_attachments_rls.sql`
+# Progress Log — Fix Subscription Limit False Positives
+# Started: 2026-02-26
+# Bugs found: 6 | Fixed: 4 critical
+---
 
-## 2026-02-25 — US-001: Download API endpoint (signed URLs)
-- Created `GET /api/emails/[id]/attachments/[attachmentId]`
-- Double validation: attachment→email (email_id), email→team (team_id)
-- Service role for cross-table checks, `createSignedUrl(path, 3600)`
-- Returns `{ signedUrl, filename, contentType, sizeBytes }`
-- Files: `app/api/emails/[id]/attachments/[attachmentId]/route.ts`
+## Root Cause Analysis
+User had 155 subscribed lots, blocked at lot #134. Two combined causes:
+1. Off-by-one: client `>=` blocks AT limit, server `<=` allows AT limit
+2. Stale `billable_properties`: cached count in subscriptions table could drift from reality
 
-## 2026-02-25 — US-005: File type icons
-- Added `getAttachmentIcon()` helper mapping mime_type to Lucide icons
-- PDF→FileText, Images→ImageIcon, Spreadsheets→Sheet, Default→Paperclip
-- Files: `email-detail.tsx`
+## 2026-02-26 — BUG-001: Off-by-one in isAtLotLimit (>= → >)
+- Changed `>=` to `>` in all 3 forms to align with server-side `<=`
+- Server: `(actual + count) <= subscribed` = allowed → Client must: `(actual + batch) > subscribed` = blocked
+- Files: lot-creation-form.tsx, building-creation-form.tsx, edit-building-client.tsx
 
-## 2026-02-25 — US-002: Wire download button in UI
-- Added `handleDownloadAttachment`: fetch signed URL → programmatic `<a>` click download
-- Loading state: `Loader2` spinner while fetching, button disabled
-- Error handling: `toast.error` on failure
-- Files: `email-detail.tsx`
+## 2026-02-26 — BUG-002: Stale billable_properties cache
+- `getLotCount()` read cached `billable_properties` from subscriptions table
+- Trigger only fires on INSERT/UPDATE OF deleted_at/DELETE — misses team_id changes, bulk ops
+- FIX: Changed to live `COUNT(*)` on lots table with `head: true` (exact count, no data transfer)
+- Files: lib/services/repositories/subscription.repository.ts
 
-## 2026-02-25 — US-003: Inline preview for images and PDFs
-- Added `handlePreviewAttachment` with cached image URLs in state
-- Images: fetch signed URL → show inline `<img>` thumbnail (max-w-sm, max-h-64) → click opens full-size
-- PDFs: fetch signed URL → `window.open()` in new tab
-- Non-previewable: download button only (no Eye icon)
-- Files: `email-detail.tsx`
+## 2026-02-26 — BUG-003: duplicateLot bypasses limit check
+- `duplicateLot()` in lot-creation-form.tsx had NO `isAtLotLimit()` check
+- Added check + upgrade modal trigger
+- Files: lot-creation-form.tsx
 
-## Key Learnings
-- **Reuse existing RLS helpers**: `get_team_id_from_document_path()` works for any `{team_id}/...` path pattern
-- **Double validation pattern**: attachment→email + email→team gives defense-in-depth with generic 404
-- **Signed URL caching for images**: Store in React state to avoid re-fetching on re-render; PDFs open immediately so no cache needed
-- **Raw `<img>` for dynamic signed URLs**: `next/image` requires `remotePatterns` + known dimensions; signed URLs from Supabase Storage are dynamic and unpredictable
+## 2026-02-26 — BUG-004: addIndependentLot bypasses limit check
+- `addIndependentLot()` had NO limit check at all
+- Also: `isAtLotLimit()` didn't count `independentLots.length` — only counted `lots.length`
+- FIX: Added check to addIndependentLot + combined both arrays in isAtLotLimit
+- Files: lot-creation-form.tsx
+
+## Learnings
+- Three different limit operators across codebase: `<` (checkCanAddProperty private), `<=` (canAddProperty public), `>=` (client). Must be consistent
+- Cached counters (billable_properties) drift — prefer live counts for critical business logic
+- Duplicate/clone functions often bypass validations added to the "add" function
+- Independent lots mode was completely unprotected by subscription limits

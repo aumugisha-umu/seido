@@ -46,7 +46,7 @@ export function ConversationGroupComponent({
   const hasUnreadChildren = group.children.some(e => !e.is_read)
 
   return (
-    <div className="border-b">
+    <div className="border-b overflow-hidden">
       {/* Parent conversation row */}
       <div
         className={`

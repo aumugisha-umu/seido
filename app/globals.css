@@ -812,13 +812,13 @@ input[autocomplete="cc-number"],
 
   /* Dashboard Block - Main container */
   /* Mobile: no height constraint → natural scroll via <main overflow-y-auto> */
-  /* Desktop (lg+): min-h-full → dashboard grows beyond viewport if needed, parent scrolls */
+  /* Desktop (lg+): h-full → dashboard fills viewport, interventions section grows to fill remaining space */
   .dashboard {
     @apply bg-slate-50 font-sans;
   }
   @media (min-width: 1024px) {
     .dashboard {
-      @apply min-h-full;
+      @apply h-full;
     }
   }
 

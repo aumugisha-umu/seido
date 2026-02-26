@@ -6,9 +6,6 @@ import { logger } from '@/lib/logger';
 /**
  * GET /api/emails/connections
  * Returns all email connections for the team with unread counts.
- *
- * Also returns "notificationRepliesCount" - unread emails received via webhook
- * (email_connection_id IS NULL) for the "Réponses notifs" virtual box.
  */
 export async function GET() {
     const startTime = Date.now();
@@ -22,7 +19,7 @@ export async function GET() {
 
         if (!userProfile?.team_id) {
             logger.info('No team found for user, returning empty connections');
-            return NextResponse.json({ connections: [], notificationRepliesCount: 0 });
+            return NextResponse.json({ connections: [] });
         }
 
         const connectionRepo = new EmailConnectionRepository(supabase);
@@ -76,22 +73,6 @@ export async function GET() {
             }
         }
 
-        // Count webhook inbound emails (notification replies) - email_connection_id IS NULL
-        let notificationRepliesCount = 0;
-        countPromises.push(
-            supabase
-                .from('emails')
-                .select('id', { count: 'exact', head: true })
-                .eq('team_id', userProfile.team_id)
-                .is('email_connection_id', null)
-                .eq('direction', 'received')
-                .eq('status', 'unread')
-                .is('deleted_at', null)
-                .then(({ count }) => {
-                    notificationRepliesCount = count || 0;
-                })
-        );
-
         await Promise.all(countPromises);
         logger.debug({ elapsed: Date.now() - countStart }, '[PERF] Email count queries completed');
 
@@ -104,8 +85,7 @@ export async function GET() {
 
         logger.debug({ elapsed: Date.now() - startTime }, '[PERF] Total request time');
         return NextResponse.json({
-            connections: connectionsWithCount,
-            notificationRepliesCount
+            connections: connectionsWithCount
         });
     } catch (error: any) {
         console.error('Get connections error:', error);

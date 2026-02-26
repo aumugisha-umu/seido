@@ -1,5 +1,5 @@
 import type React from "react"
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import DashboardHeader from "@/components/dashboard-header"
 
 /**
@@ -11,7 +11,7 @@ export default async function WithNavbarLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, profile } = await requireRole(['admin'])
+  const { user, profile } = await getServerAuthContext('admin')
 
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitial = userName.charAt(0).toUpperCase()

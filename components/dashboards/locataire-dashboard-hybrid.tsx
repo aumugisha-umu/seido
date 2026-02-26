@@ -189,11 +189,11 @@ export default function LocataireDashboardHybrid({
               {canCreateIntervention && (
                 <Button
                   onClick={navigateToNewDemande}
-                  className="flex bg-primary hover:bg-primary/90 text-white font-medium h-9 px-3 sm:px-4 rounded-lg"
+                  className="flex font-medium h-9 px-3 sm:px-4 rounded-lg"
                 >
                   <Plus className="h-4 w-4 mr-1.5" />
-                  <span className="sm:hidden">Problème</span>
-                  <span className="hidden sm:inline">Signaler un problème</span>
+                  <span className="sm:hidden">Demande</span>
+                  <span className="hidden sm:inline">Nouvelle demande</span>
                 </Button>
               )}
               {/* Notifications Popover */}
@@ -416,7 +416,7 @@ export default function LocataireDashboardHybrid({
         {canCreateIntervention && (
           <Button
             onClick={navigateToNewDemande}
-            className="sm:hidden fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary hover:bg-primary/90 shadow-lg p-0"
+            className="sm:hidden fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg p-0"
             aria-label="Signaler un problème"
           >
             <Plus className="h-6 w-6" />

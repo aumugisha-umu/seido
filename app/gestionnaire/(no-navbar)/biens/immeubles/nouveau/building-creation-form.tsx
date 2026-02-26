@@ -504,8 +504,8 @@ export default function NewImmeubleePage({
   const isAtLotLimit = (): boolean => {
     if (!subscriptionStatus) return false
     if (subscriptionStatus.status === 'trialing') return false
-    if (subscriptionStatus.is_free_tier) return (subscriptionStatus.actual_lots + lots.length) >= FREE_TIER_LIMIT
-    if (subscriptionStatus.subscribed_lots > 0) return (subscriptionStatus.actual_lots + lots.length) >= subscriptionStatus.subscribed_lots
+    if (subscriptionStatus.is_free_tier) return (subscriptionStatus.actual_lots + lots.length) > FREE_TIER_LIMIT
+    if (subscriptionStatus.subscribed_lots > 0) return (subscriptionStatus.actual_lots + lots.length) > subscriptionStatus.subscribed_lots
     return false
   }
 

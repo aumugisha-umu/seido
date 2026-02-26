@@ -49,6 +49,15 @@ export function InterventionsList({
   // Limit interventions if maxItems is specified
   const displayedInterventions = maxItems ? interventions.slice(0, maxItems) : interventions
 
+  // Default empty state config (shared by compact and regular views)
+  const defaultEmptyConfig = {
+    title: "Aucune intervention",
+    description: "Les interventions apparaîtront ici",
+    showCreateButton: false,
+    createButtonText: "Créer une intervention",
+    createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
+  }
+
   // Handle action completion callback
   const handleActionComplete = (interventionId: string) => {
     logger.info('[InterventionsList] Action completed for intervention:', interventionId)
@@ -77,17 +86,7 @@ export function InterventionsList({
     }
 
     if (displayedInterventions.length === 0) {
-      const defaultEmptyConfig = {
-        title: "Aucune intervention",
-        description: "Les interventions apparaîtront ici",
-        showCreateButton: false,
-        createButtonText: "Créer une intervention",
-        createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
-      }
-
-      const config = { ...defaultEmptyConfig, ...emptyStateConfig }
-
-      return <InterventionsEmptyState {...config} />
+      return <InterventionsEmptyState {...{ ...defaultEmptyConfig, ...emptyStateConfig }} />
     }
 
     return (
@@ -173,17 +172,7 @@ export function InterventionsList({
   }
 
   if (displayedInterventions.length === 0) {
-    const defaultEmptyConfig = {
-      title: "Aucune intervention",
-      description: "Les interventions apparaîtront ici",
-      showCreateButton: false,
-      createButtonText: "Créer une intervention",
-      createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
-    }
-
-    const config = { ...defaultEmptyConfig, ...emptyStateConfig }
-
-    return <InterventionsEmptyState {...config} />
+    return <InterventionsEmptyState {...{ ...defaultEmptyConfig, ...emptyStateConfig }} />
   }
 
   // Horizontal scroll layout
@@ -204,9 +193,9 @@ export function InterventionsList({
     )
   }
 
-  // Default grid layout with vertical scroll, capped at ~2 rows of cards
+  // Default grid layout with vertical scroll, fills available space
   return (
-    <div className={`max-h-[600px] overflow-y-auto ${className}`}>
+    <div className={`flex-1 min-h-0 overflow-y-auto ${className}`}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
         {displayedInterventions.map((intervention) => (
           <InterventionCard

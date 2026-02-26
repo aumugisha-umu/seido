@@ -70,6 +70,10 @@
 - [x] **E2E Testing Infrastructure V2** (2026-02-20/21) - 25 E2E tests across 4 test files, 5 POMs, API-based auth, Puppeteer + Vitest
 - [x] **Contract Wizard E2E** (2026-02-21) - Full 5-step wizard test with doc upload, service role storage fix, 11 data-testid attrs added
 - [x] **Cancel Modal Wiring** (2026-02-21) - Wired pre-built cancellation hook+modal into gestionnaire detail page, un-skipped E2E cancel test
+- [x] **Guide Utilisateur In-App** (2026-02-25) - /gestionnaire/aide: 9 sections, 20 FAQ, search
+- [x] **RLS team_members Fix** (2026-02-25) - get_accessible_*_ids() use team_members, not stale users.team_id
+- [x] **Email Attachment Enhancements** (2026-02-25) - Preview modal, download, blacklist API, storage RLS
+- [x] **Auth Migration Complete** (2026-02-26) - ALL requireRole→getServerAuthContext across admin+proprietaire+actions
 
 ### Phase 6: Stripe Subscription Integration ✅ (Complete 2026-02-22)
 - [x] **Stripe Subscription System** (2026-02-21/22) - 48 stories + 13 debugging fixes + 6 audit fixes
@@ -77,6 +81,37 @@
 - [x] **Billing Audit Fixes** (2026-02-22) - mapStripeStatus consolidation, fail-closed patterns, error boundaries
 
 ## Sprint Actuel (Feb 2026)
+
+### 2026-02-26 - requireRole → getServerAuthContext Migration
+
+**Session: Complete auth pattern migration across admin + proprietaire + gestionnaire actions**
+
+| Change | Files | Pattern |
+|--------|-------|---------|
+| Admin layouts (2) | `app/admin/layout.tsx`, `app/admin/(with-navbar)/layout.tsx` | `getServerAuthContext('admin')` |
+| Proprietaire pages (4) | `layout.tsx`, `dashboard/page.tsx`, `interventions/page.tsx`, `biens/page.tsx` | `getServerAuthContext('proprietaire')` |
+| Gestionnaire actions (1) | `dashboard/actions.ts` (2 functions) | `getServerActionAuthContextOrNull('gestionnaire')` |
+
+**Result:** Zero `requireRole` usage in `app/` (excluding lib files and comments).
+**Learnings:** AGENTS.md #087 (Server Components vs Server Actions auth helpers)
+**Retrospective:** `docs/learnings/2026-02-26-auth-migration-requireRole-retrospective.md`
+
+---
+
+### 2026-02-25 - Guide Utilisateur + Email Enhancements + RLS Fix
+
+**Session: In-app user guide, email attachment enhancements, critical RLS fix**
+
+| Feature | Description | Files |
+|---------|-------------|-------|
+| Guide utilisateur | 9 sections, 20 FAQ, search | `app/gestionnaire/(with-navbar)/aide/` |
+| RLS fix | `get_accessible_*_ids()` → `team_members` source of truth | `20260225120000_fix_rls_*.sql` |
+| Email attachments | Preview modal, download, blacklist API | `mail/components/attachment-preview-modal.tsx` |
+| Storage RLS | Team-scoped email attachment policies | `20260225100000_tighten_email_attachments_rls.sql` |
+
+**Learnings:** AGENTS.md #084-#086 (RLS team_members patterns)
+
+---
 
 ### 2026-02-21/22 - Stripe Subscription Integration (Feature Complete)
 
@@ -336,7 +371,7 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **77** (+6: #072-#077, Stripe billing patterns) |
+| **AGENTS.md Learnings** | **87** (+10: #078-#087) |
 | **systemPatterns.md Patterns** | **29** |
 | **Shared Cards** | **15** |
 | **Quote Status Enum (DB)** | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
@@ -403,7 +438,10 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | **2026-02-20/21** | **E2E Testing Infrastructure V2** | **Full Puppeteer + Vitest suite with POM pattern** | **25 tests, 4 test files, 5 POMs, API auth, 11 data-testid attrs** |
 | **2026-02-21** | **Contract E2E + Storage Fix** | **Service role for storage uploads, useImperativeHandle retry** | **contract-wizard.page.ts, upload-contract-document/route.ts** |
 | **2026-02-21/22** | **Stripe Subscription Integration** | **Full billing system with trial, gates, UI** | **48+13+6 stories, 249 tests, 4 migrations, 11 components, 2 services, 2 repos, 4 CRON jobs** |
+| **2026-02-25** | **RLS team_members source of truth** | **users.team_id is stale, team_members is canonical** | **1 migration fixing 3 SECURITY DEFINER functions, 3 AGENTS.md learnings (#084-086)** |
+| **2026-02-25** | **Guide utilisateur in-app** | **Self-service support, reduce gestionnaire onboarding friction** | **9 sections, 20 FAQ, fuzzy search, responsive layout** |
+| **2026-02-26** | **requireRole → getServerAuthContext** | **Consistent auth pattern, cache() dedup, team context** | **7 files migrated, 0 requireRole in app/ pages, AGENTS.md #087** |
 
 ---
-*Derniere mise a jour: 2026-02-22*
-*Session: Stripe subscription integration complete (67 stories, 249 test cases)*
+*Derniere mise a jour: 2026-02-26*
+*Session: Auth migration complete, 87 learnings in AGENTS.md*

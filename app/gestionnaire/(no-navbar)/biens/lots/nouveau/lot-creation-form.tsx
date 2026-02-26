@@ -746,8 +746,9 @@ export default function LotCreationForm({
   const isAtLotLimit = (): boolean => {
     if (!subscriptionStatus) return false
     if (subscriptionStatus.status === 'trialing') return false
-    if (subscriptionStatus.is_free_tier) return (subscriptionStatus.actual_lots + lots.length) >= FREE_TIER_LIMIT
-    if (subscriptionStatus.subscribed_lots > 0) return (subscriptionStatus.actual_lots + lots.length) >= subscriptionStatus.subscribed_lots
+    const batchCount = lots.length + independentLots.length
+    if (subscriptionStatus.is_free_tier) return (subscriptionStatus.actual_lots + batchCount) > FREE_TIER_LIMIT
+    if (subscriptionStatus.subscribed_lots > 0) return (subscriptionStatus.actual_lots + batchCount) > subscriptionStatus.subscribed_lots
     return false
   }
 
@@ -796,6 +797,10 @@ export default function LotCreationForm({
   }
 
   const duplicateLot = (lotId: string) => {
+    if (isAtLotLimit()) {
+      setUpgradeModalOpen(true)
+      return
+    }
     const lotToDuplicate = lots.find(lot => lot.id === lotId)
     if (!lotToDuplicate) return
 
@@ -891,6 +896,10 @@ export default function LotCreationForm({
   // ========================================
 
   const addIndependentLot = () => {
+    if (isAtLotLimit()) {
+      setUpgradeModalOpen(true)
+      return
+    }
     const nextNumber = independentLots.length + 1
     const newLot: IndependentLot = {
       id: `independent-lot-${Date.now()}`,

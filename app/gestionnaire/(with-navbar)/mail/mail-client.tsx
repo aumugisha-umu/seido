@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { MailboxSidebar, LinkedEntities, LinkedEntity, EmailConnection, NotificationReplyGroup } from './components/mailbox-sidebar'
+import { MailboxSidebar, LinkedEntities, LinkedEntity, EmailConnection } from './components/mailbox-sidebar'
 import { EmailList } from './components/email-list'
 import { EmailDetail } from './components/email-detail'
 import { toast } from 'sonner'
@@ -45,9 +45,7 @@ interface MailClientProps {
   initialCounts: { inbox: number; processed: number; sent: number; drafts: number; archive: number }
   initialBuildings: Building[]
   initialEmailConnections: EmailConnection[]
-  initialNotificationRepliesCount: number
   initialLinkedEntities: LinkedEntities
-  initialNotificationReplyGroups: NotificationReplyGroup[]
   initialEmails: Email[]
   initialTotalEmails: number
 }
@@ -153,9 +151,7 @@ export function MailClient({
   initialCounts,
   initialBuildings,
   initialEmailConnections,
-  initialNotificationRepliesCount,
   initialLinkedEntities,
-  initialNotificationReplyGroups,
   initialEmails,
   initialTotalEmails
 }: MailClientProps) {
@@ -178,11 +174,6 @@ export function MailClient({
   // Email box source filter
   const [selectedSource, setSelectedSource] = useState<string>('all')
   const [emailConnections, setEmailConnections] = useState<EmailConnection[]>(initialEmailConnections)
-  const [notificationRepliesCount, setNotificationRepliesCount] = useState(initialNotificationRepliesCount)
-
-  // Notification replies grouped by intervention
-  const [notificationReplyGroups, setNotificationReplyGroups] = useState<NotificationReplyGroup[]>(initialNotificationReplyGroups)
-  const [selectedInterventionId, setSelectedInterventionId] = useState<string | null>(null)
 
   // Collapse state for email list column
   const [isEmailListCollapsed, setIsEmailListCollapsed] = useState(false)
@@ -289,7 +280,6 @@ export function MailClient({
       if (response.ok) {
         const data = await response.json()
         setEmailConnections(data.connections || [])
-        setNotificationRepliesCount(data.notificationRepliesCount || 0)
       }
     } catch (error) {
       console.error('Failed to fetch email connections:', error)
@@ -465,14 +455,12 @@ export function MailClient({
   const handleFolderChange = useCallback((folder: string) => {
     setCurrentFolder(folder)
     setEntityFilter(null)
-    setSelectedInterventionId(null)
     setSelectedSource('all')
   }, [])
 
   const handleSourceChange = useCallback((source: string) => {
     setSelectedSource(source)
     setEntityFilter(null)
-    setSelectedInterventionId(null)
     setOffset(0)
     fetchEmails(false, source)
   }, [fetchEmails])
@@ -503,43 +491,6 @@ export function MailClient({
       toast.error('Erreur lors du filtrage')
     }
   }, [linkedEntities])
-
-  const handleInterventionClick = useCallback(async (interventionId: string | null) => {
-    if (interventionId === null) {
-      setSelectedInterventionId(null)
-      setSelectedSource('notification_replies')
-      setEntityFilter(null)
-      setOffset(0)
-      fetchEmails(false, 'notification_replies')
-      return
-    }
-
-    setSelectedInterventionId(interventionId)
-    try {
-      const response = await fetch(`/api/entities/intervention/${interventionId}/emails`)
-      if (!response.ok) {
-        toast.error('Impossible de charger les emails liés')
-        return
-      }
-      const data = await response.json()
-      if (data.success) {
-        const adaptedEmails = data.emails.map((le: LinkedEmail) => adaptLinkedEmailToEmail(le))
-        setRealEmails(adaptedEmails)
-        setEntityFilter({
-          type: 'intervention',
-          id: interventionId,
-          name: findEntityName('intervention', interventionId, linkedEntities)
-        })
-        setTotalEmails(data.emails.length)
-        if (adaptedEmails.length > 0) {
-          setSelectedEmailId(adaptedEmails[0].id)
-        }
-      }
-    } catch (error) {
-      console.error('Error filtering by intervention:', error)
-      toast.error('Erreur lors du filtrage')
-    }
-  }, [linkedEntities, fetchEmails])
 
   const handleLoadMore = useCallback(() => {
     if (!isLoading && realEmails.length < totalEmails) {
@@ -821,7 +772,7 @@ export function MailClient({
 
       {/* White Card with Email Interface */}
       <div className="bg-card rounded-lg shadow-sm border border-border flex-1 min-h-0 overflow-hidden">
-        <div className="flex h-full">
+        <div className="flex h-full min-w-0">
           {/* Sidebar */}
           <MailboxSidebar
             currentFolder={currentFolder}
@@ -831,12 +782,8 @@ export function MailClient({
             onEntityClick={handleEntityClick}
             selectedEntity={entityFilter}
             emailConnections={emailConnections}
-            notificationRepliesCount={notificationRepliesCount}
             selectedSource={selectedSource}
             onSourceChange={handleSourceChange}
-            notificationReplyGroups={notificationReplyGroups}
-            selectedInterventionId={selectedInterventionId}
-            onInterventionClick={handleInterventionClick}
           />
 
           {/* Email List - collapsible */}
@@ -845,7 +792,7 @@ export function MailClient({
             isEmailListCollapsed ? "w-0 opacity-0" : "w-[400px] opacity-100"
           )}>
             {entityFilter && !isEmailListCollapsed && (
-              <div className="w-full px-3 py-2 bg-primary/5 border-b border-r flex items-center justify-between gap-2 flex-shrink-0">
+              <div className="w-full px-3 py-2 bg-primary/5 border-b flex items-center justify-between gap-2 flex-shrink-0">
                 <span className="text-sm text-muted-foreground truncate">
                   Filtré par : <span className="font-medium text-foreground">{entityFilter.name}</span>
                 </span>
@@ -872,10 +819,10 @@ export function MailClient({
             />
           </div>
 
-          {/* Toggle button */}
+          {/* Toggle button — subtle handle for panel collapse */}
           <button
             onClick={() => setIsEmailListCollapsed(!isEmailListCollapsed)}
-            className="h-full w-5 flex items-center justify-center hover:bg-muted border-r cursor-pointer group flex-shrink-0"
+            className="h-full w-6 flex items-center justify-center bg-muted/30 hover:bg-muted/70 active:bg-muted border-l cursor-pointer group flex-shrink-0 transition-colors"
             aria-label={isEmailListCollapsed ? "Afficher la liste d'emails" : "Masquer la liste d'emails"}
           >
             {isEmailListCollapsed ? (

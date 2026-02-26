@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { MessageSquare, ChevronUp, UserPlus, MessageSquarePlus, Loader2 } from 'lucide-react'
+import { MessageSquare, ChevronUp, UserPlus, MessageSquarePlus, Loader2, Maximize2, Minimize2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -80,6 +80,7 @@ export const InternalChatPanel = ({
   className
 }: InternalChatPanelProps) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const [thread, setThread] = useState<ThreadWithParticipants | null>(null)
   const [isLoadingThread, setIsLoadingThread] = useState(true)
   const [showStartModal, setShowStartModal] = useState(false)
@@ -120,6 +121,7 @@ export const InternalChatPanel = ({
   // Close panel and refetch when emailId changes
   useEffect(() => {
     setIsOpen(false)
+    setIsFullscreen(false)
     fetchThread()
   }, [fetchThread])
 
@@ -150,6 +152,10 @@ export const InternalChatPanel = ({
 
   const handleToggle = () => {
     if (thread) {
+      if (isOpen) {
+        // Collapsing: also reset fullscreen
+        setIsFullscreen(false)
+      }
       setIsOpen(!isOpen)
     }
   }
@@ -251,7 +257,9 @@ export const InternalChatPanel = ({
         className={cn(
           'sticky bottom-0 z-20 bg-card border-t transition-all duration-300 ease-in-out',
           isOpen
-            ? 'h-[400px] shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.15)] dark:shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.3)]'
+            ? isFullscreen
+              ? 'h-[calc(100vh-7rem)] shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.15)] dark:shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.3)]'
+              : 'h-[400px] shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.15)] dark:shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.3)]'
             : 'h-14 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.2)]',
           className
         )}
@@ -336,6 +344,21 @@ export const InternalChatPanel = ({
               <UserPlus className="h-4 w-4" />
             </Button>
 
+            {/* Fullscreen toggle - only visible when panel is open */}
+            {isOpen && (
+              <button
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                className="p-2 hover:bg-muted rounded-md transition-colors"
+                aria-label={isFullscreen ? 'Réduire la discussion' : 'Agrandir la discussion'}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Maximize2 className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+            )}
+
             {/* Toggle chevron */}
             <button
               onClick={handleToggle}
@@ -344,7 +367,7 @@ export const InternalChatPanel = ({
               <ChevronUp
                 className={cn(
                   'h-5 w-5 text-muted-foreground transition-transform duration-300',
-                  !isOpen && 'rotate-180'
+                  isOpen && 'rotate-180'
                 )}
               />
             </button>

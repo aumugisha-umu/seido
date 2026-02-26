@@ -146,6 +146,8 @@ export async function POST(request: NextRequest) {
     logger.info({ storagePath }, "☁️ Uploading to Supabase Storage")
 
     // Upload file to Supabase Storage (unified 'documents' bucket)
+    // Uses authenticated client — RLS on 'documents' bucket allows all team_members
+    // (including locataires/prestataires) via get_my_profile_ids()
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('documents')
       .upload(storagePath, file, {

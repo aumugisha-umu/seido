@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-02-26
-**Total Learnings:** 92
+**Total Learnings:** 95
 
 ---
 
@@ -98,6 +98,20 @@
 **When to Use:** Any time you add a validation gate (quota, permission, format) to a create function — search for duplicate/clone/import functions on the same entity
 **Added:** 2026-02-26 | **Source:** Subscription limit bypass via duplicate/independent lot creation
 
+#### Learning #093: Client-side storage.createSignedUrl() is unreliable — use server-side API routes
+**Problem:** `createBrowserSupabaseClient().storage.createSignedUrl()` uses the browser's JWT which can be stale (expired, not yet refreshed). The signed URL is generated locally but the actual RLS check happens at Supabase's CDN when the URL is accessed. Result: `fetch()` returns ok but the signed URL silently 403s, or the browser JWT is too old and the signing fails entirely — no error thrown, just a blank URL.
+**Solution:** Use server-side API routes (e.g., `/api/view-intervention-document`, `/api/download-intervention-document`) that call `getApiAuthContext()` with fresh cookies from the request. The server generates the signed URL with a valid service-side token. Client code just does `fetch('/api/...')` and gets a reliable signed URL back.
+**Example:** `components/interventions/shared/hooks/use-document-actions.tsx:48` — fetch API route instead of client-side storage call
+**When to Use:** Any document preview/download from client components. Never use `createBrowserSupabaseClient().storage` for signed URLs in onClick handlers.
+**Added:** 2026-02-26 | **Source:** Document preview/download buttons "nothing happens" across all roles
+
+#### Learning #094: HTML download attribute is ignored for cross-origin URLs
+**Problem:** Setting `<a href="https://supabase-storage.../file" download="filename.pdf">` does NOT trigger a download — the browser opens the file instead. The HTML `download` attribute is ignored when the URL is cross-origin (different domain than the page), which is always the case for Supabase storage URLs.
+**Solution:** Use the `download` option in Supabase's `createSignedUrl()`: `createSignedUrl(path, 3600, { download: fileName })`. This sets the `Content-Disposition: attachment; filename="..."` header SERVER-SIDE on the storage CDN response, which browsers always respect regardless of origin.
+**Example:** `app/api/download-intervention-document/route.ts:52` — `{ download: document.original_filename || true }`
+**When to Use:** Any file download from Supabase storage (or any cross-origin CDN). The `download` attribute on `<a>` tags only works for same-origin URLs.
+**Added:** 2026-02-26 | **Source:** Download buttons opening documents instead of downloading them
+
 ### Database & Queries
 
 #### Learning #004: PostgREST nested relations fail silently with RLS
@@ -129,6 +143,13 @@
 **Example:** `app/gestionnaire/(with-navbar)/mail/components/link-to-entity-dialog.tsx:handleSave()` — batch link loop with 409 filtering
 **When to Use:** Any "link to entity" action on an email that belongs to a conversation thread
 **Added:** 2026-02-24 | **Source:** Email thread entity-linking — link all thread emails at once
+
+#### Learning #095: Hook-as-ReactNode pattern for cross-role modal deduplication
+**Problem:** 3 role views (gestionnaire, locataire, prestataire) had ~50 lines each of identical document preview/download handlers + modal state management. Locataire/prestataire used `window.open()` while gestionnaire used `DocumentPreviewModal` — inconsistent UX. Extracting a "shared handler" still requires each consumer to wire modal state, `isOpen`, `onClose`, `document` props.
+**Solution:** Return a pre-wired ReactNode from a custom hook via `useMemo`. The hook manages ALL internal state (previewDocument, isPreviewModalOpen) and returns `{ handleViewDocument, handleDownloadDocument, previewModal }`. Consumers just destructure and render `{previewModal}` in their JSX — zero prop threading, zero state management. Trade-off: less per-role customization, but for unification that's the goal.
+**Example:** `components/interventions/shared/hooks/use-document-actions.tsx:113-120` — `previewModal = useMemo(() => <DocumentPreviewModal ... />)`
+**When to Use:** When 2+ role views need identical modal behavior with no per-role customization. Not suitable when each consumer needs different modal props or behavior.
+**Added:** 2026-02-26 | **Source:** Unify Document Preview & Download across all roles
 
 #### Learning #078: sessionStorage for "dismiss until next session" patterns
 **Problem:** Onboarding checklist dismiss stored in `localStorage` was permanent — users never saw it again even if steps were incomplete.

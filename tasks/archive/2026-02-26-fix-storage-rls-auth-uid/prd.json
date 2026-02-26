@@ -1,0 +1,77 @@
+{
+  "project": "SEIDO",
+  "featureName": "Fix Storage RLS auth.uid() vs users.id Mismatch + Revert Service Role Bypasses",
+  "branchName": "preview",
+  "description": "The 'documents' and 'email-attachments' bucket RLS policies (migrations 20260220150000 and 20260225100000) use tm.user_id = auth.uid() directly. But team_members.user_id stores users.id (database PK), NOT auth.uid() (Supabase Auth UUID). These are different UUIDs. The legacy 'intervention-documents' bucket policies correctly use get_current_user_id(). Fix: replace auth.uid() with get_my_profile_ids() in all affected policies, then revert the service role bypasses that were added as a workaround.",
+  "createdAt": "2026-02-26",
+  "prdSource": "inline",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix 'documents' bucket RLS policies — auth.uid() → get_my_profile_ids()",
+      "description": "As any user (gestionnaire, locataire, prestataire), when I upload/view/delete documents in the 'documents' bucket, the RLS policies correctly identify me through the users table bridge instead of comparing auth.uid() directly to team_members.user_id.",
+      "acceptanceCriteria": [
+        "INSERT policy uses tm.user_id IN (SELECT get_my_profile_ids()) instead of tm.user_id = auth.uid()",
+        "SELECT policy uses tm.user_id IN (SELECT get_my_profile_ids()) instead of tm.user_id = auth.uid()",
+        "DELETE policy uses tm.user_id IN (SELECT get_my_profile_ids()) instead of tm.user_id = auth.uid()",
+        "Migration file is valid SQL",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Fixed in migration 20260226110000. Replaced tm.user_id = auth.uid() with tm.user_id IN (SELECT get_my_profile_ids()) in INSERT, SELECT, DELETE policies. Kept documents_update unchanged (uses owner_id = auth.uid()::text which is correct for storage.objects)."
+    },
+    {
+      "id": "US-002",
+      "title": "Fix 'email-attachments' bucket RLS policies — auth.uid() → get_my_profile_ids()",
+      "description": "As a user processing or viewing email attachments, the RLS policies correctly identify me through the users table bridge.",
+      "acceptanceCriteria": [
+        "INSERT policy uses tm.user_id IN (SELECT get_my_profile_ids()) instead of tm.user_id = auth.uid()",
+        "SELECT policy uses tm.user_id IN (SELECT get_my_profile_ids()) instead of tm.user_id = auth.uid()",
+        "DELETE policy uses tm.user_id IN (SELECT get_my_profile_ids()) instead of tm.user_id = auth.uid()",
+        "Migration file is valid SQL",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Fixed in same migration 20260226110000. Same pattern as documents bucket — replaced auth.uid() with get_my_profile_ids()."
+    },
+    {
+      "id": "US-003",
+      "title": "Revert service role bypasses in upload routes",
+      "description": "As a security-conscious developer, the 3 upload routes should use the authenticated client for storage operations now that RLS is fixed, instead of bypassing RLS with service role.",
+      "acceptanceCriteria": [
+        "create-intervention/route.ts uses authenticated supabase client for storage upload (not service role)",
+        "upload-intervention-document/route.ts uses authenticated supabase client for storage upload (not service role)",
+        "conversations/upload/route.ts uses authenticated supabase client for storage upload (not service role)",
+        "Cleanup operations still use service role or authenticated client consistently",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Reverted all 3 routes to use authenticated supabase client. Removed createServiceRoleSupabaseClient import from upload-intervention-document and conversations/upload. create-intervention keeps import (still used for conversation threads). Added owner_id = auth.uid()::text to DELETE policies so uploaders can clean up their own files on error."
+    },
+    {
+      "id": "US-004",
+      "title": "Update MEMORY.md — correct team_members.role documentation",
+      "description": "Fix the incorrect assumption in MEMORY.md that team_members.role only has gestionnaire/admin. It actually includes all roles: admin, gestionnaire, locataire, prestataire, proprietaire.",
+      "acceptanceCriteria": [
+        "MEMORY.md correctly documents that team_member_role enum includes all 5 roles",
+        "RLS source of truth entry is accurate",
+        "New learning about auth.uid() vs users.id in storage RLS is documented"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-002", "US-003"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Corrected 'Two role systems' entry — team_members.role has ALL 5 roles. Added new 'Storage RLS: auth.uid() vs users.id' learning. Updated E2E entry to reflect that service role bypass is no longer needed."
+    }
+  ]
+}

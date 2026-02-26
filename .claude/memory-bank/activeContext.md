@@ -1,10 +1,27 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Auth migration complete + Guide utilisateur + Email enhancements + RLS fix
+**Objectif:** Document preview/download unification complete + Auth migration + Guide utilisateur + Email enhancements + RLS fix
 **Branch:** `preview`
-**Sprint:** Post-Stripe polish, auth consistency, content (Feb 2026)
-**Derniere analyse:** requireRole → getServerAuthContext migration complete, 87 learnings in AGENTS.md — 2026-02-26
+**Sprint:** Post-Stripe polish, auth consistency, UX unification (Feb 2026)
+**Derniere analyse:** Unify Document Preview & Download (4 stories via Ralph) complete, 95 learnings in AGENTS.md — 2026-02-26
+
+---
+
+## ✅ COMPLETE: Unify Document Preview & Download (2026-02-26)
+
+Created shared `useDocumentActions` hook replacing ~160 lines of duplicate logic across 3 role views.
+All roles now use in-app `DocumentPreviewModal` (locataire/prestataire had `window.open` before).
+Downloads use server-side `Content-Disposition: attachment` via API route.
+Learnings #093-#095 in AGENTS.md.
+
+---
+
+## ✅ COMPLETE: Storage Bucket Fix + RLS Auth UID (2026-02-26)
+
+Fixed 404 "Bucket not found" by migrating remaining code paths from `intervention-documents` to `documents` bucket.
+Fixed RLS `auth.uid()` vs `users.id` mismatch in storage policies via `get_my_profile_ids()`.
+Reverted service role bypasses in 3 upload routes back to authenticated client.
 
 ---
 
@@ -80,6 +97,7 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
+- [ ] Commit + push preview branch (git*)
 - [ ] Merge preview to main (PR creation)
 - [ ] Plan: Google Maps Integration Phase 2-3
 - [ ] Plan: More blog articles (content marketing pipeline)
@@ -97,17 +115,17 @@ draft -> pending -> sent -> accepted (terminal positif)
 | Composant | Valeur |
 |-----------|--------|
 | **Tables DB** | **44** |
-| **Migrations** | **175** (+1: RLS team_members fix) |
+| **Migrations** | **176** (+2: RLS team_members fix, storage auth fix) |
 | **API Routes** | **120** |
 | **Pages** | **90** (+1: guide utilisateur) |
 | **Composants** | **381** |
-| **Hooks** | **70** |
+| **Hooks** | **71** (+1: useDocumentActions) |
 | **Services domain** | **34** |
 | **Repositories** | **21** |
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **87** (+1: #087 auth migration) |
+| **AGENTS.md Learnings** | **95** (+8: #088-#092 billing, #093-#095 document preview) |
 | **systemPatterns.md Patterns** | **29** |
 | **E2E Test Files** | **8** |
 | **Blog articles** | **2** |
@@ -118,19 +136,18 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
+| `e16cbe7` | fix(billing+mail+auth+storage): subscription limit fix, mail cleanup, auth migration, bucket unification |
 | `557e447` | fix(pwa): restrict notification modal to authenticated app routes only |
 | `8e03601` | docs: compound learnings — RLS team_members source of truth (#084-#086) |
 | `107b327` | feat(aide+rls): in-app user guide, email enhancements, fix RLS team access |
 | `7a4af58` | feat(mail+docs): email module enhancements + architecture docs overhaul |
-| `c6300de` | feat(mail): redesign link-to-entity dialog with UnifiedModal + MD3 filter chips + inbox count fix |
 
 ---
 
-*Derniere mise a jour: 2026-02-26 (requireRole migration complete)*
-*Focus: Auth consistency complete, ready for next features*
+*Derniere mise a jour: 2026-02-26 (document preview unification complete)*
+*Focus: Unification complete, ready to commit + merge preview to main*
 
 ## Files Recently Modified
-### 2026-02-26 19:41:08 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-02-26-subscription-limit-false-positive-retrospective.md`
-- `C:/Users/arthu/.claude/projects/C--Users-arthu-Desktop-Coding-Seido-app/memory/MEMORY.md`
+### 2026-02-26 22:30:24 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`

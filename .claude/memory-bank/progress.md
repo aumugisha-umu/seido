@@ -74,6 +74,8 @@
 - [x] **RLS team_members Fix** (2026-02-25) - get_accessible_*_ids() use team_members, not stale users.team_id
 - [x] **Email Attachment Enhancements** (2026-02-25) - Preview modal, download, blacklist API, storage RLS
 - [x] **Auth Migration Complete** (2026-02-26) - ALL requireRole→getServerAuthContext across admin+proprietaire+actions
+- [x] **Storage Bucket + RLS Auth Fix** (2026-02-26) - 404 bucket fix, auth.uid()→get_my_profile_ids() in storage policies
+- [x] **Unify Document Preview & Download** (2026-02-26) - useDocumentActions shared hook, modal preview for all roles, 3 AGENTS.md learnings
 
 ### Phase 6: Stripe Subscription Integration ✅ (Complete 2026-02-22)
 - [x] **Stripe Subscription System** (2026-02-21/22) - 48 stories + 13 debugging fixes + 6 audit fixes
@@ -81,6 +83,47 @@
 - [x] **Billing Audit Fixes** (2026-02-22) - mapStripeStatus consolidation, fail-closed patterns, error boundaries
 
 ## Sprint Actuel (Feb 2026)
+
+### 2026-02-26 - Unify Document Preview & Download (Ralph, 4 stories)
+
+**Session: Shared hook + cross-role UX unification for document preview/download**
+
+| Story | Title | Impact |
+|-------|-------|--------|
+| US-001 | Create `useDocumentActions` hook | 128 lines, manages modal state + API calls |
+| US-002 | Refactor gestionnaire | −70 lines inline handlers |
+| US-003 | Refactor locataire | −45 lines, `window.open` → modal |
+| US-004 | Refactor prestataire | −45 lines, `window.open` → modal |
+
+**Root cause chain (from debugging):**
+1. Buttons "nothing happens" → client-side `createSignedUrl()` unreliable (stale JWT)
+2. Download opens doc → HTML `download` attr ignored cross-origin
+3. UX inconsistency → locataire/prestataire used `window.open`, gestionnaire used modal
+
+**Solutions:**
+- Server-side API routes (`/api/view-*`, `/api/download-*`) with `getApiAuthContext()`
+- `{ download: fileName }` option in `createSignedUrl()` for `Content-Disposition: attachment`
+- Shared `useDocumentActions` hook returning `{ handleViewDocument, handleDownloadDocument, previewModal }`
+
+**Files created:** `components/interventions/shared/hooks/use-document-actions.tsx`, `hooks/index.ts`
+**Files modified:** 3 role detail clients, download API route, shared/index.ts
+**Net impact:** ~160 lines duplication → 1 shared hook (128 lines) + 2 lines per consumer
+**Learnings:** AGENTS.md #093-#095 (client-side signedUrl, cross-origin download, hook-as-ReactNode)
+**Retrospective:** `docs/learnings/2026-02-26-unify-document-preview-download-retrospective.md`
+
+---
+
+### 2026-02-26 - Storage Bucket Fix + RLS Auth UID
+
+**Session: Fix 404 bucket errors and storage RLS auth.uid() mismatch**
+
+| Fix | Description | Files |
+|-----|-------------|-------|
+| Bucket migration | `intervention-documents` → `documents` in remaining code paths | 3 upload routes, 3 detail clients |
+| RLS auth fix | `auth.uid()` ≠ `users.id` in storage policies → use `get_my_profile_ids()` | Migration `20260226110000` |
+| Service role revert | Upload routes back to authenticated client (not service role) | 3 upload API routes |
+
+---
 
 ### 2026-02-26 - requireRole → getServerAuthContext Migration
 
@@ -360,18 +403,18 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | Repositories | **21** (+2: subscription, stripe-customer) |
 | Domain Services | **34** (+2: subscription, subscription-email) |
 | API Routes | **120** (+6: 4 CRON, 1 webhook, 1 settings) |
-| Hooks | **70** (+2: useSubscription, useStrategicNotification) |
+| Hooks | **71** (+3: useSubscription, useStrategicNotification, useDocumentActions) |
 | Components | **381** (+11: billing UI) |
 | Pages | **89** (+1: billing settings) |
 | Blog Articles | **2** (Jan 2026, Feb 2026) |
 | DB Tables | **44** |
 | DB Enums | 39 |
 | DB Functions | **79** (+5: subscription helpers) |
-| Migrations | **174** (+7: 4 Stripe, 2 trial init, 1 signup fix) |
+| Migrations | **176** (+9: 4 Stripe, 2 trial init, 1 signup fix, 1 RLS team_members, 1 storage auth) |
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **87** (+10: #078-#087) |
+| **AGENTS.md Learnings** | **95** (+18: #078-#095) |
 | **systemPatterns.md Patterns** | **29** |
 | **Shared Cards** | **15** |
 | **Quote Status Enum (DB)** | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
@@ -441,7 +484,9 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | **2026-02-25** | **RLS team_members source of truth** | **users.team_id is stale, team_members is canonical** | **1 migration fixing 3 SECURITY DEFINER functions, 3 AGENTS.md learnings (#084-086)** |
 | **2026-02-25** | **Guide utilisateur in-app** | **Self-service support, reduce gestionnaire onboarding friction** | **9 sections, 20 FAQ, fuzzy search, responsive layout** |
 | **2026-02-26** | **requireRole → getServerAuthContext** | **Consistent auth pattern, cache() dedup, team context** | **7 files migrated, 0 requireRole in app/ pages, AGENTS.md #087** |
+| **2026-02-26** | **Storage bucket + RLS auth fix** | **404 bucket not found, auth.uid() ≠ users.id** | **Migration, 3 upload routes, `get_my_profile_ids()` in storage policies** |
+| **2026-02-26** | **useDocumentActions shared hook** | **Unify document preview/download across 3 roles** | **1 hook, 3 consumers, ~160 lines duplication eliminated, AGENTS.md #093-#095** |
 
 ---
 *Derniere mise a jour: 2026-02-26*
-*Session: Auth migration complete, 87 learnings in AGENTS.md*
+*Session: Document preview unification complete, 95 learnings in AGENTS.md*

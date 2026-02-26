@@ -82,8 +82,8 @@ import { formatDate, formatTime, formatTimeRange } from '@/components/interventi
 import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
 // Modal pour répondre à un ou plusieurs créneaux (accepter/refuser)
 import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
-// Modal pour prévisualiser les documents
-import { DocumentPreviewModal } from '@/components/intervention/modals/document-preview-modal'
+// Hook partagé pour preview/download de documents
+import { useDocumentActions } from '@/components/interventions/shared'
 
 // Intervention components
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
@@ -176,7 +176,6 @@ import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 import { FinalizeMultiProviderButton } from '@/components/intervention/finalize-multi-provider-button'
 
 import type { Database } from '@/lib/database.types'
-import { createBrowserSupabaseClient } from '@/lib/services'
 
 // Type pour address_record retourné par Supabase via la relation address_id(*)
 type AddressRecord = Database['public']['Tables']['addresses']['Row'] | null
@@ -377,17 +376,8 @@ export function InterventionDetailClient({
   // État pour la modale d'upload de documents
   const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false)
 
-  // État pour la modale de prévisualisation de documents
-  const [previewDocument, setPreviewDocument] = useState<{
-    id: string
-    name: string
-    type?: string
-    size?: string
-    date?: string
-    url?: string
-    mimeType?: string
-  } | null>(null)
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
+  // Hook partagé pour preview/download de documents
+  const { handleViewDocument, handleDownloadDocument, previewModal } = useDocumentActions({ documents })
 
   // État pour le message initial dans le chat
   const [initialChatMessage, setInitialChatMessage] = useState<string | null>(null)
@@ -1573,82 +1563,8 @@ export function InterventionDetailClient({
     }
   }
 
-  // Handler pour visualiser un document (ouvre la modale de preview)
-  const handleViewDocument = async (documentId: string) => {
-    const doc = documents.find(d => d.id === documentId)
-    if (!doc) {
-      toast({ title: "Erreur", description: "Document non trouvé", variant: "destructive" })
-      return
-    }
-
-    try {
-      const supabase = createBrowserSupabaseClient()
-      // Le bucket est privé, on doit utiliser une URL signée (valide 1 heure)
-      const { data, error } = await supabase.storage
-        .from(doc.storage_bucket)
-        .createSignedUrl(doc.storage_path, 3600) // 1 heure de validité
-
-      if (error) throw error
-
-      // Ouvrir la modale de preview au lieu d'un nouvel onglet
-      const fileName = (doc as any).original_filename || doc.filename || 'Document'
-      setPreviewDocument({
-        id: doc.id,
-        name: fileName,
-        type: doc.document_type || undefined,
-        size: doc.file_size ? `${Math.round(doc.file_size / 1024)} KB` : undefined,
-        date: doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('fr-FR') : undefined,
-        url: data.signedUrl,
-        mimeType: doc.mime_type || undefined
-      })
-      setIsPreviewModalOpen(true)
-    } catch (error) {
-      console.error('Error previewing document:', error)
-      toast({ title: "Erreur", description: "Impossible d'ouvrir le document", variant: "destructive" })
-    }
-  }
-
-  // Handler pour télécharger depuis la modale de preview
-  const handleDownloadFromPreview = () => {
-    if (previewDocument) {
-      handleDownloadDocument(previewDocument.id)
-    }
-  }
-
-  // Handler pour télécharger un document
-  const handleDownloadDocument = async (documentId: string) => {
-    const doc = documents.find(d => d.id === documentId)
-    if (!doc) {
-      toast({ title: "Erreur", description: "Document non trouvé", variant: "destructive" })
-      return
-    }
-
-    try {
-      const supabase = createBrowserSupabaseClient()
-      const fileName = (doc as any).original_filename || doc.filename || 'document'
-
-      // Créer une URL signée avec l'option download pour forcer Content-Disposition: attachment
-      const { data, error } = await supabase.storage
-        .from(doc.storage_bucket)
-        .createSignedUrl(doc.storage_path, 3600, {
-          download: fileName
-        })
-
-      if (error) throw error
-
-      // Créer un élément <a> temporaire pour déclencher le téléchargement
-      const link = document.createElement('a')
-      link.href = data.signedUrl
-      link.download = fileName
-      link.style.display = 'none'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } catch (error) {
-      console.error('Error downloading document:', error)
-      toast({ title: "Erreur", description: "Impossible de télécharger le document", variant: "destructive" })
-    }
-  }
+  // handleViewDocument, handleDownloadDocument, and previewModal
+  // are provided by the useDocumentActions hook above
 
   // Handler pour ajouter un commentaire
   const handleAddComment = async (content: string) => {
@@ -2557,16 +2473,8 @@ export function InterventionDetailClient({
           }}
         />
 
-        {/* Modale de prévisualisation de documents */}
-        <DocumentPreviewModal
-          isOpen={isPreviewModalOpen}
-          onClose={() => {
-            setIsPreviewModalOpen(false)
-            setPreviewDocument(null)
-          }}
-          document={previewDocument}
-          onDownload={handleDownloadFromPreview}
-        />
+        {/* Modale de prévisualisation de documents (via hook partagé) */}
+        {previewModal}
 
         {/* Modals pour l'approbation/rejet */}
         {approvalHook.approvalModal.isOpen && (

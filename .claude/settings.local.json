@@ -54,7 +54,8 @@
       "Bash(npx supabase migration repair:*)",
       "Bash(npx supabase db push:*)",
       "Bash(npm run supabase:types:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(git diff:*)"
     ],
     "deny": [],
     "ask": []

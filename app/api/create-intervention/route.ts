@@ -529,6 +529,8 @@ export async function POST(request: NextRequest) {
             const documentType = (metadata as { documentType?: string }).documentType || 'photo_avant'
 
             // Upload file to storage and create database record
+            // Uses authenticated client — RLS on 'documents' bucket allows all team_members
+            // (including locataires/prestataires) via get_my_profile_ids()
             const uploadResult = await fileService.uploadInterventionDocument(supabase, file, {
               interventionId: intervention.id,
               uploadedBy: user.id,

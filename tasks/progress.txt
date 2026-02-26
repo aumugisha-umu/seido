@@ -1,93 +1,48 @@
-# Progress Log — Fix Bucket Migration (documents bucket consolidation)
+# Progress Log — Unify Document Preview & Download across all roles
 # Started: 2026-02-26
-# Stories: 6/6 complete
+# Stories: 4 total | All COMPLETE
 ---
 
-## 2026-02-26 — US-001: Migrate file-service.ts to 'documents' bucket
-- CRITICAL FIX: This is the exact code path causing the tenant attachment 404
-- Changed: Upload bucket (line 54), getPublicUrl (line 69), DB insert storage_bucket (line 81), cleanup (line 104)
-- Changed: Storage path from `interventions/{id}/{file}` to `{team_id}/{id}/{file}` (RLS-compatible)
-- Added: storageBucket parameter to getSignedUrl() for backward compat
-- Changed: deleteInterventionDocument now reads storage_bucket from DB record
-- Added: Audio MIME types to validateFile() (matching 'documents' bucket config)
-- Files: lib/file-service.ts
+## US-001: Create shared useDocumentActions hook ✅
+- Created `components/interventions/shared/hooks/use-document-actions.tsx`
+- Created barrel export `hooks/index.ts`, added `export * from './hooks'` to `shared/index.ts`
+- Hook returns `{ handleViewDocument, handleDownloadDocument, previewModal }`
+- Uses sonner toast (available via root SonnerToaster)
+- `previewModal` is a ready-to-render ReactNode wrapping DocumentPreviewModal
+- **Learning**: Returning a ReactNode from a hook via `useMemo` lets consumers just render `{previewModal}` without wiring any state/callbacks — keeps API surface minimal
 
-## 2026-02-26 — US-002: Migrate conversations/upload to 'documents' bucket
-- Changed: Upload bucket, DB insert, cleanup, signed URL — all 5 references to 'intervention-documents'
-- Changed: Storage path from `interventions/{id}/{file}` to `{team_id}/{id}/{file}` using thread.team_id
-- Files: app/api/conversations/upload/route.ts
+## US-002: Refactor gestionnaire ✅
+- Removed ~70 lines of inline handlers + state from intervention-detail-client.tsx
+- Replaced `DocumentPreviewModal` direct import with `useDocumentActions` from shared
+- Also removed unused `createBrowserSupabaseClient` import
+- **Learning**: gestionnaire was the reference implementation — modal preview already worked, just needed to extract into shared hook
 
-## 2026-02-26 — US-003: Fix conversation-service.ts signed URLs
-- Changed: Hardcoded 'intervention-documents' → `attachment.storage_bucket || 'documents'`
-- Files: lib/services/domain/conversation-service.ts
+## US-003: Refactor locataire ✅
+- Removed ~45 lines of inline handlers (including window.open) from intervention-detail-client.tsx
+- Added `useDocumentActions` import + `{previewModal}` in JSX
+- Locataire now gets modal preview instead of window.open — UX parity with gestionnaire
+- **Learning**: The window.open approach was a shortcut but broke UX consistency. API route + modal is both more secure (no exposed signed URLs in browser tab) and better UX
 
-## 2026-02-26 — US-004: Fix intervention modifier page signed URLs
-- Changed: Hardcoded 'intervention-documents' → `doc.storage_bucket || 'documents'`
-- Files: app/gestionnaire/(no-navbar)/interventions/modifier/[id]/page.tsx
-
-## 2026-02-26 — US-005: Fix resend-inbound webhook email attachment uploads
-- DISCOVERY: Pre-existing mismatch! Webhook uploaded to 'intervention-documents' but download route reads from 'email-attachments'
-- Changed: Upload bucket from 'intervention-documents' to 'email-attachments' (matching download route)
-- Changed: Storage path to include team_id prefix for consistency
-- Files: app/api/webhooks/resend-inbound/route.ts
-
-## 2026-02-26 — US-006: DB migration for default bucket change
-- Created: 20260226100000_change_intervention_documents_default_bucket.sql
-- Changes DEFAULT from 'intervention-documents' to 'documents'
-- Updated column comment to document legacy bucket
-- Files: supabase/migrations/20260226100000_change_intervention_documents_default_bucket.sql
-
-## BONUS: Updated fallback defaults in all READ paths
-- Changed fallback from || 'intervention-documents' to || 'documents' in:
-  - view-intervention-document/route.ts
-  - download-intervention-document/route.ts
-  - download-intervention-document/[id]/route.ts
-  - approval-modal.tsx (2 occurrences)
-
-## Learnings
-- Partial bucket migration = silent 404s on upload paths that weren't migrated
-- file-service.ts (legacy) was the ACTUAL upload path for tenant intervention creation (via /api/create-intervention)
-- upload-intervention-document/route.ts (already migrated) is used for post-creation uploads, NOT during creation
-- Email attachments are a SEPARATE system from intervention documents (own table, own bucket, own download route)
-- Webhook had pre-existing bucket mismatch: wrote to intervention-documents, read from email-attachments
-- Path format matters for RLS: documents bucket needs {team_id}/ prefix, intervention-documents used interventions/ prefix
+## US-004: Refactor prestataire ✅
+- Same pattern as locataire — removed inline handlers, added hook
+- Kept `createBrowserSupabaseClient` import (still used for quote upload handlers at ~lines 718/755)
+- **Learning**: When shared hook doesn't cover all use-cases (quote uploads use different storage logic), keep role-specific imports alongside shared ones
 
 ---
 
-# Progress Log — Fix Subscription Limit False Positives
-# Started: 2026-02-26
-# Bugs found: 6 | Fixed: 4 critical
----
+## Cross-Cutting Learnings
 
-## Root Cause Analysis
-User had 155 subscribed lots, blocked at lot #134. Two combined causes:
-1. Off-by-one: client `>=` blocks AT limit, server `<=` allows AT limit
-2. Stale `billable_properties`: cached count in subscriptions table could drift from reality
+### API Route vs Client-Side Storage
+- `createBrowserSupabaseClient().storage.createSignedUrl()` is unreliable: browser JWT can be stale, RLS checks at CDN level fail silently
+- Server-side API routes (`/api/view-intervention-document`, `/api/download-intervention-document`) with `getApiAuthContext()` are reliable and use fresh cookies
+- Cross-origin `download` HTML attribute is IGNORED — must use `{ download: fileName }` option in `createSignedUrl()` to set `Content-Disposition: attachment` server-side
 
-## 2026-02-26 — BUG-001: Off-by-one in isAtLotLimit (>= → >)
-- Changed `>=` to `>` in all 3 forms to align with server-side `<=`
-- Server: `(actual + count) <= subscribed` = allowed → Client must: `(actual + batch) > subscribed` = blocked
-- Files: lot-creation-form.tsx, building-creation-form.tsx, edit-building-client.tsx
+### Hook-as-Component Pattern
+- Returning a pre-wired ReactNode from a custom hook (via `useMemo`) eliminates state/callback prop threading
+- Consumer code goes from ~50 lines of wiring to 2 lines: destructure hook + render `{previewModal}`
+- Trade-off: less flexible (can't customize modal per-role), but for our use-case identical behavior is the goal
 
-## 2026-02-26 — BUG-002: Stale billable_properties cache
-- `getLotCount()` read cached `billable_properties` from subscriptions table
-- Trigger only fires on INSERT/UPDATE OF deleted_at/DELETE — misses team_id changes, bulk ops
-- FIX: Changed to live `COUNT(*)` on lots table with `head: true` (exact count, no data transfer)
-- Files: lib/services/repositories/subscription.repository.ts
-
-## 2026-02-26 — BUG-003: duplicateLot bypasses limit check
-- `duplicateLot()` in lot-creation-form.tsx had NO `isAtLotLimit()` check
-- Added check + upgrade modal trigger
-- Files: lot-creation-form.tsx
-
-## 2026-02-26 — BUG-004: addIndependentLot bypasses limit check
-- `addIndependentLot()` had NO limit check at all
-- Also: `isAtLotLimit()` didn't count `independentLots.length` — only counted `lots.length`
-- FIX: Added check to addIndependentLot + combined both arrays in isAtLotLimit
-- Files: lot-creation-form.tsx
-
-## Learnings
-- Three different limit operators across codebase: `<` (checkCanAddProperty private), `<=` (canAddProperty public), `>=` (client). Must be consistent
-- Cached counters (billable_properties) drift — prefer live counts for critical business logic
-- Duplicate/clone functions often bypass validations added to the "add" function
-- Independent lots mode was completely unprotected by subscription limits
+### Duplication Stats
+- Before: ~160 lines of duplicate logic across 3 files
+- After: 1 shared hook (128 lines) + 2 lines per consumer = ~134 lines total
+- Net reduction: ~26 lines, but more importantly: single source of truth

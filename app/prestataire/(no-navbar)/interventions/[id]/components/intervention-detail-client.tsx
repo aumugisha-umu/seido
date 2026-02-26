@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { createBrowserSupabaseClient } from '@/lib/services'
+import { useDocumentActions } from '@/components/interventions/shared'
 
 // Composants partagés pour le nouveau design
 import {
@@ -560,48 +561,8 @@ export function PrestataireInterventionDetailClient({
     setActiveTab('conversations')
   }
 
-  const handleViewDocument = async (documentId: string) => {
-    const doc = documents.find(d => d.id === documentId)
-    if (!doc) {
-      toast.error('Document non trouvé')
-      return
-    }
-    try {
-      const supabase = createBrowserSupabaseClient()
-      const { data, error } = await supabase.storage
-        .from(doc.storage_bucket)
-        .createSignedUrl(doc.storage_path, 3600)
-      if (error) throw error
-      window.open(data.signedUrl, '_blank')
-    } catch {
-      toast.error("Impossible d'ouvrir le document")
-    }
-  }
-
-  const handleDownloadDocument = async (documentId: string) => {
-    const doc = documents.find(d => d.id === documentId)
-    if (!doc) {
-      toast.error('Document non trouvé')
-      return
-    }
-    try {
-      const supabase = createBrowserSupabaseClient()
-      const fileName = doc.original_filename || doc.filename || 'document'
-      const { data, error } = await supabase.storage
-        .from(doc.storage_bucket)
-        .createSignedUrl(doc.storage_path, 3600, { download: fileName })
-      if (error) throw error
-      const link = document.createElement('a')
-      link.href = data.signedUrl
-      link.download = fileName
-      link.style.display = 'none'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } catch {
-      toast.error('Impossible de télécharger le document')
-    }
-  }
+  // Preview/download de documents via hook partagé (modal in-app)
+  const { handleViewDocument, handleDownloadDocument, previewModal } = useDocumentActions({ documents })
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -1222,6 +1183,9 @@ export function PrestataireInterventionDetailClient({
           handleRefresh()
         }}
       />
+
+      {/* Modale de prévisualisation de documents (via hook partagé) */}
+      {previewModal}
     </div>
   )
 }

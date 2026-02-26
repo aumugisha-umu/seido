@@ -1,106 +1,79 @@
 {
   "project": "SEIDO",
-  "featureName": "Fix Bucket Migration — Unify all storage paths to 'documents' bucket",
+  "featureName": "Unify Document Preview & Download across all roles",
   "branchName": "preview",
-  "description": "The unified 'documents' bucket migration (20260220150000) was partial. 6 critical code paths still reference the deleted/missing 'intervention-documents' bucket, causing 404 'Bucket not found' errors when viewing tenant-uploaded attachments. All upload paths, signed URL generators, and DB defaults must migrate to the 'documents' bucket with the new path format {team_id}/{entity_id}/{filename}.",
+  "description": "Currently gestionnaire uses an in-app DocumentPreviewModal for preview while locataire/prestataire use window.open (new tab). Download handlers are duplicated across 3 files with identical logic. Create a single shared hook useDocumentActions that provides view/download via API routes + manages the preview modal state, then use it in all 3 role views.",
   "createdAt": "2026-02-26",
   "prdSource": "inline",
   "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Migrate file-service.ts to 'documents' bucket (fixes tenant attachment bug)",
-      "description": "As a gestionnaire, when I open an attachment uploaded by a tenant during intervention creation, the document loads correctly instead of showing 'Bucket not found'.",
+      "title": "Create shared useDocumentActions hook",
+      "description": "As a developer, I want a single hook that provides handleViewDocument, handleDownloadDocument, preview modal state, and a renderPreviewModal helper — so all 3 role views use identical logic without duplication.",
       "acceptanceCriteria": [
-        "Upload uses .from('documents') instead of .from('intervention-documents')",
-        "Storage path follows new format: {team_id}/{intervention_id}/{filename}",
-        "DB insert writes storage_bucket: 'documents'",
-        "getPublicUrl, createSignedUrl, cleanup, and delete all use 'documents' bucket",
-        "Fallback for old records: getSignedUrl and deleteInterventionDocument read storage_bucket from document record when available",
-        "Lint passes"
+        "Hook exported from components/interventions/shared/hooks/use-document-actions.ts",
+        "handleViewDocument calls /api/view-intervention-document and opens DocumentPreviewModal",
+        "handleDownloadDocument calls /api/download-intervention-document and triggers file download",
+        "Hook manages previewDocument state + isPreviewModalOpen state internally",
+        "Hook exports a PreviewModal component ready to render (no wiring needed by consumer)",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 1,
+      "priority": 2,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "Migrated all 6 bucket references in file-service.ts. Path format changed from interventions/{id}/{file} to {team_id}/{id}/{file}. getSignedUrl now accepts storageBucket param. deleteInterventionDocument reads storage_bucket from DB record. Also added audio MIME types to validateFile()."
+      "notes": "Created components/interventions/shared/hooks/use-document-actions.tsx. Hook uses sonner toast (available via root layout SonnerToaster). Returns { handleViewDocument, handleDownloadDocument, previewModal }. previewModal is a ready-to-render ReactNode wrapping DocumentPreviewModal with all state wired."
     },
     {
       "id": "US-002",
-      "title": "Migrate conversations/upload to 'documents' bucket",
-      "description": "As a user, when I upload a chat attachment in a conversation thread, the file is stored in the unified 'documents' bucket with the correct path format.",
+      "title": "Refactor gestionnaire to use useDocumentActions",
+      "description": "As a gestionnaire, when I click preview/download on a document, it uses the shared hook instead of inline handlers — behavior unchanged (modal preview + download).",
       "acceptanceCriteria": [
-        "Upload uses .from('documents') instead of .from('intervention-documents')",
-        "Storage path follows new format: {team_id}/{intervention_id}/{filename} (team_id from thread)",
-        "DB insert writes storage_bucket: 'documents'",
-        "Cleanup and signed URL generation use 'documents' bucket",
-        "Lint passes"
+        "handleViewDocument and handleDownloadDocument removed from intervention-detail-client.tsx",
+        "previewDocument/isPreviewModalOpen state removed (managed by hook)",
+        "DocumentPreviewModal rendered via hook's PreviewModal component",
+        "handleDownloadFromPreview uses hook's handleDownloadDocument",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 1,
-      "dependsOn": [],
+      "priority": 3,
+      "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "notes": "Migrated all 5 bucket references. Path format now includes team_id from thread.team_id. Upload, DB insert, cleanup, and signed URL all use 'documents'."
+      "notes": "Removed ~70 lines of inline handlers + state. Replaced DocumentPreviewModal import with useDocumentActions from shared. Also removed unused createBrowserSupabaseClient import."
     },
     {
       "id": "US-003",
-      "title": "Fix conversation-service.ts signed URLs to use storage_bucket column",
-      "description": "As a user viewing chat attachments, signed URLs are generated from the correct bucket (read from the document's storage_bucket column) instead of being hardcoded.",
+      "title": "Refactor locataire to use useDocumentActions with modal preview",
+      "description": "As a locataire, when I click the eye icon on a document, it opens an in-app modal preview (instead of a new browser tab) — matching gestionnaire behavior.",
       "acceptanceCriteria": [
-        "enrichMessagesWithSignedUrls uses attachment.storage_bucket || 'documents' instead of hardcoded 'intervention-documents'",
-        "Old attachments in 'intervention-documents' bucket still work via fallback",
-        "New attachments in 'documents' bucket also work",
-        "Lint passes"
+        "handleViewDocument and handleDownloadDocument removed from intervention-detail-client.tsx",
+        "window.open replaced by modal preview via hook",
+        "DocumentPreviewModal rendered via hook's PreviewModal component",
+        "createBrowserSupabaseClient import already removed",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
       "passes": true,
-      "notes": "Changed hardcoded 'intervention-documents' to attachment.storage_bucket || 'documents' for dynamic bucket resolution."
+      "notes": "Removed ~45 lines of inline handlers. Added useDocumentActions hook + {previewModal} in JSX. Locataire now gets modal preview instead of window.open."
     },
     {
       "id": "US-004",
-      "title": "Fix intervention modifier page signed URLs",
-      "description": "As a gestionnaire editing an intervention, document previews load correctly from the bucket stored in the document record.",
+      "title": "Refactor prestataire to use useDocumentActions with modal preview",
+      "description": "As a prestataire, when I click the eye icon on a document, it opens an in-app modal preview (instead of a new browser tab) — matching gestionnaire behavior.",
       "acceptanceCriteria": [
-        "Signed URL generation uses doc.storage_bucket || 'documents' instead of hardcoded 'intervention-documents'",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "Changed hardcoded 'intervention-documents' to doc.storage_bucket || 'documents'."
-    },
-    {
-      "id": "US-005",
-      "title": "Fix resend-inbound webhook email attachment uploads",
-      "description": "As a system processing inbound emails, email attachments are stored in the 'email-attachments' bucket (matching the download route) instead of the deleted 'intervention-documents' bucket.",
-      "acceptanceCriteria": [
-        "Email attachment upload uses .from('email-attachments') (matching download route at /api/emails/[id]/attachments/[attachmentId])",
-        "Storage path includes team_id: {team_id}/{intervention_id}/email-attachments/{timestamp}_{filename}",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Fixed pre-existing mismatch: webhook was uploading to 'intervention-documents' but download route reads from 'email-attachments'. Now aligned. Path updated with team_id prefix."
-    },
-    {
-      "id": "US-006",
-      "title": "Create DB migration to change intervention_documents default bucket",
-      "description": "Change the intervention_documents.storage_bucket column default from 'intervention-documents' to 'documents' so any new records automatically use the correct bucket.",
-      "acceptanceCriteria": [
-        "New migration file changes DEFAULT to 'documents'",
-        "Types regenerated with npm run supabase:types (if default affects types)",
-        "Lint passes"
+        "handleViewDocument and handleDownloadDocument removed from intervention-detail-client.tsx",
+        "window.open replaced by modal preview via hook",
+        "DocumentPreviewModal rendered via hook's PreviewModal component",
+        "Lint passes (npm run lint)"
       ],
       "priority": 3,
-      "dependsOn": ["US-001", "US-002"],
-      "sizing": "XS",
+      "dependsOn": ["US-001"],
+      "sizing": "S",
       "passes": true,
-      "notes": "Created migration 20260226100000_change_intervention_documents_default_bucket.sql. Also updated column comment to document the legacy bucket."
+      "notes": "Same pattern as locataire. createBrowserSupabaseClient import kept (still used for quote upload handlers)."
     }
   ]
 }

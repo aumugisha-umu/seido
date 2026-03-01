@@ -43,6 +43,8 @@ export interface UseSubscriptionReturn {
   hasStripeSubscription: boolean
   /** Derived: days left in trial (null if not trialing) */
   daysLeftTrial: number | null
+  /** Derived: billing interval ('month' | 'year' | null) */
+  billingInterval: 'month' | 'year' | null
   /** Check if team can add property (calls server action) */
   checkCanAddProperty: () => Promise<CanAddPropertyResult | null>
   /** Check if team has payment method (calls server action) */
@@ -123,6 +125,7 @@ export function useSubscription(): UseSubscriptionReturn {
     isFreeTier: status?.is_free_tier ?? false,
     hasStripeSubscription: status?.has_stripe_subscription ?? false,
     daysLeftTrial: status?.days_left_trial ?? null,
+    billingInterval: status?.billing_interval ?? null,
     checkCanAddProperty,
     checkHasPaymentMethod,
   }

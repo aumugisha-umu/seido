@@ -2,7 +2,8 @@
 
 **Date** : 2026-03-01
 **Statut** : Design valide, pret pour implementation
-**Ref** : `docs/AI/ai-phone-assistant-plan.md` (plan technique v3.0)
+**Ref** : `docs/AI/ai-phone-assistant-plan.md` (plan technique v3.2)
+**Derniere review** : 2026-03-01 (audit documentation + securite)
 
 ---
 
@@ -89,8 +90,8 @@ Gestionnaire souscrit add-on ($15/mo)
   │     → elevenlabs_agent_id                   │
   │                                             │
   │  3. Importer numero dans ElevenLabs         │
-  │     POST /v1/convai/phone-numbers/create    │
-  │     body: { phone_number, label }           │
+  │     POST /v1/convai/phone-numbers           │
+  │     body: { phone_number, label, provider } │
   │     → elevenlabs_phone_number_id            │
   │                                             │
   │  4. Assigner agent au numero                │
@@ -106,11 +107,13 @@ Gestionnaire souscrit add-on ($15/mo)
 
 ```typescript
 // POST https://api.telnyx.com/v2/number_orders
+// IMPORTANT: requirement_group_id va DANS chaque phone_number, PAS au top-level
+// IMPORTANT: Utiliser REST direct (SDK Issue #289 — filtres ignores)
 {
-  "phone_numbers": [{ "phone_number": "+32XXXXXXXX" }],
   "connection_id": process.env.TELNYX_SIP_CONNECTION_ID,
   "customer_reference": `seido-team-${teamId}`,
-  "regulatory_requirements": [{
+  "phone_numbers": [{
+    "phone_number": "+32XXXXXXXX",
     "requirement_group_id": process.env.TELNYX_REQUIREMENT_GROUP_ID
   }]
 }
@@ -125,7 +128,8 @@ Gestionnaire souscrit add-on ($15/mo)
 ### ElevenLabs : Cloner l'agent
 
 ```typescript
-// POST https://api.eu.residency.elevenlabs.io/v1/convai/agents/create
+// POST https://api.elevenlabs.io/v1/convai/agents/create
+// ⚠️ EU residency (api.eu.residency.elevenlabs.io) = Enterprise plan uniquement
 {
   "name": `SEIDO - ${teamName}`,
   "conversation_config": {
@@ -155,24 +159,40 @@ Gestionnaire souscrit add-on ($15/mo)
 }
 ```
 
-> **Note API :** Le LLM identifier est `claude-haiku-4-5` (PAS `claude-haiku-4-5-20251001`).
-> L'import du numero (`POST /v1/convai/phone-numbers`) n'accepte PAS `agent_id` —
-> il faut un PATCH separe pour assigner l'agent.
+> **Notes API (verifiees mars 2026) :**
+> - LLM identifier : `claude-haiku-4-5` (PAS `claude-haiku-4-5-20251001`)
+> - Phone import : `POST /v1/convai/phone-numbers` (PAS `/create` — deprecie juillet 2025)
+> - Config SIP : `inbound_trunk` + `outbound_trunk` (PAS `inbound_trunk_config`/`provider_config`)
+> - Agent assign : PATCH separe obligatoire (le create n'accepte PAS `agent_id`)
+> - EU residency : `api.eu.residency.elevenlabs.io` = **Enterprise only**. Pro plan → `api.elevenlabs.io`
 
 ### ElevenLabs : Importer et assigner le numero
 
 ```typescript
-// Etape 1 : Importer le numero
-// POST https://api.eu.residency.elevenlabs.io/v1/convai/phone-numbers/create
+// Etape 1 : Importer le numero (endpoint actuel, pas /create)
+// POST https://api.elevenlabs.io/v1/convai/phone-numbers
 {
   "phone_number": "+32XXXXXXXX",
   "label": `SEIDO - ${teamName}`,
-  "provider": "sip_trunk"
+  "provider": "sip_trunk",
+  "inbound_trunk": {
+    "media_encryption": "disabled"
+    // NE PAS faire d'IP allowlist — ElevenLabs utilise des IPs dynamiques
+  },
+  "outbound_trunk": {
+    "address": "sip.telnyx.com",
+    "transport": "tls",
+    "media_encryption": "disabled",
+    "credentials": {
+      "username": process.env.TELNYX_SIP_USERNAME,
+      "password": process.env.TELNYX_SIP_PASSWORD
+    }
+  }
 }
 // → { phone_number_id: "phnum_xxx" }
 
-// Etape 2 : Assigner l'agent
-// PATCH https://api.eu.residency.elevenlabs.io/v1/convai/phone-numbers/{phone_number_id}
+// Etape 2 : Assigner l'agent (PATCH separe obligatoire)
+// PATCH https://api.elevenlabs.io/v1/convai/phone-numbers/{phone_number_id}
 {
   "agent_id": "agent_xxx"
 }
@@ -408,20 +428,54 @@ ElevenLabs Webhook (workspace-level)
 
 ```typescript
 // app/api/elevenlabs-webhook/route.ts
+// ⚠️ ElevenLabs webhook = ZERO retry. Si ce handler echoue, l'appel est perdu.
+// ⚠️ Auto-disable apres 10 echecs consecutifs.
+
 export async function POST(request: Request) {
-  // 1. Verifier signature webhook
-  const signature = request.headers.get('x-elevenlabs-signature')
-  if (!verifyWebhookSignature(signature, body)) {
-    return Response.json({ error: 'Invalid signature' }, { status: 401 })
+  // 0. Protection DoS
+  const contentLength = parseInt(request.headers.get('content-length') || '0', 10)
+  if (contentLength > 1_000_000) {
+    return Response.json({ error: 'Payload too large' }, { status: 413 })
   }
 
-  // 2. Extraire donnees
-  const { agent_id, conversation_id, transcript, ... } = body
+  // 1. Lire body en TEXT (pas json) — necessaire pour signature HMAC
+  const body = await request.text()
 
-  // 3. Trouver l'equipe
-  const phoneRecord = await db
+  // 2. Verifier signature HMAC-SHA256
+  // Header correct: "ElevenLabs-Signature" (PAS x-elevenlabs-signature)
+  // Format: "t=<timestamp>,v0=<signature>"
+  const signatureHeader = request.headers.get('ElevenLabs-Signature')
+  if (!signatureHeader) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const client = new ElevenLabs({ apiKey: process.env.ELEVENLABS_API_KEY })
+  let event
+  try {
+    event = client.webhooks.constructEvent(body, signatureHeader, WEBHOOK_SECRET)
+  } catch {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (event.type !== 'post_call_transcription') {
+    return Response.json({ ok: true })
+  }
+
+  const { agent_id, conversation_id, transcript } = event.data
+
+  // 3. Idempotence — skip si deja traite
+  const { data: existing } = await db
+    .from('ai_phone_calls')
+    .select('id')
+    .eq('elevenlabs_conversation_id', conversation_id)
+    .maybeSingle()
+
+  if (existing) return Response.json({ ok: true, already_processed: true })
+
+  // 4. Trouver l'equipe
+  const { data: phoneRecord } = await db
     .from('ai_phone_numbers')
-    .select('team_id')
+    .select('id, team_id')
     .eq('elevenlabs_agent_id', agent_id)
     .limit(1)
     .single()
@@ -431,42 +485,42 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Unknown agent' }, { status: 404 })
   }
 
-  // 4. Sauver l'appel
-  await db.from('ai_phone_calls').upsert({
-    team_id: phoneRecord.team_id,
-    phone_number_id: phoneRecord.id,
-    elevenlabs_conversation_id: conversation_id,
-    transcript,
-    status: 'pending'
-  }, { onConflict: 'elevenlabs_conversation_id' })
-
-  // 5. Extraire donnees structurees + creer intervention
-  await processCallTranscript(phoneRecord.team_id, conversation_id)
+  // 5. Sauver l'appel + extraire + creer intervention
+  await processCallTranscript(phoneRecord.team_id, phoneRecord.id, event.data)
 
   return Response.json({ success: true })
 }
 ```
 
-### Extraction structuree (Vercel AI SDK)
+### Extraction structuree (Vercel AI SDK 6.x)
 
 ```typescript
-import { generateText } from 'ai'
+import { generateText, Output, NoObjectGeneratedError } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
-import { Output } from 'ai'
+import { z } from 'zod'
 
-const extractedData = await generateText({
-  model: anthropic('claude-haiku-4-5'),
-  prompt: `Extract from this transcript: ${transcript}`,
-  experimental_output: Output.object({
-    schema: z.object({
-      caller_name: z.string(),
-      address: z.string(),
-      problem_description: z.string(),
-      urgency: z.enum(['normale', 'urgente']),
-      additional_notes: z.string().optional()
+// SDK 6.x: output (PAS experimental_output), result.output (PAS result.object)
+try {
+  const result = await generateText({
+    model: anthropic('claude-haiku-4-5'),
+    system: `Analyse ce transcript d'appel de maintenance. Extrais les infos structurees. Description TOUJOURS en francais.`,
+    prompt: transcriptText,
+    output: Output.object({
+      schema: z.object({
+        caller_name: z.string(),
+        address: z.string(),
+        problem_description: z.string(),
+        urgency: z.enum(['normale', 'urgente']),
+        additional_notes: z.string().optional()
+      })
     })
   })
-})
+  const extracted = result.output // type-safe
+} catch (error) {
+  if (NoObjectGeneratedError.isInstance(error)) {
+    // Fallback: creer intervention avec transcript brut
+  }
+}
 ```
 
 ### Idempotence
@@ -581,7 +635,10 @@ Si vide, cette section est omise du prompt.
 | Webhook | 1 endpoint workspace | N endpoints par agent (pas supporte) |
 | Prompt customisation | Instructions appendees (500 chars) | Full prompt editable (trop risque) |
 | Mode dev | Variables DEV_* | Sandbox Telnyx (n'existe pas) |
-| EU data residency | `api.eu.residency.elevenlabs.io` | US endpoint (RGPD non-conforme) |
+| EU data residency | `api.elevenlabs.io` (Pro), upgrade Enterprise pour EU residency | EU endpoint inaccessible sans Enterprise |
+| Telnyx webhook | Pas de webhook Telnyx | Webhook Telnyx active le mode "programmable" (degrade audio) |
+| Stripe billing | Billing Meters (`meterEvents.create`) | `createUsageRecord` (retire API 2025-03-31) |
+| Telnyx SDK | REST direct pour search + webhook | SDK (Issue #289 filtres, #302 ESM crash) |
 
 ---
 

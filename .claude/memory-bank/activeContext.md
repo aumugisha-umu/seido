@@ -148,5 +148,7 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Unification complete, ready to commit + merge preview to main*
 
 ## Files Recently Modified
-### 2026-03-01 21:14:02 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/AI/ai-phone-assistant-plan.md`
+### 2026-03-01 21:50:44 (Auto-updated)
+- `C:/Users/arthu/.claude/plans/glimmering-honking-patterson.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/billing/subscription-banners.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/billing/subscription-sidebar-card.tsx`

@@ -38,6 +38,7 @@ import { TeamSelector, TeamSelectorCompact } from "@/components/team-selector"
 import { useCurrentTeam } from "@/hooks/use-current-team"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
+import { SubscriptionSidebarCard } from "@/components/billing/subscription-sidebar-card"
 import type { Team } from "@/lib/services/core/service-types"
 
 interface NavigationItem {
@@ -263,6 +264,9 @@ export default function GestionnaireSidebar({
 
         {/* Spacer to push secondary nav to bottom */}
         <div className="flex-1" />
+
+        {/* Subscription status card */}
+        <SubscriptionSidebarCard />
 
         {/* Secondary navigation */}
         <SidebarSeparator />

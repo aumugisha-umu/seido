@@ -1,6 +1,6 @@
 # SEIDO AI Phone Assistant — Plan Complet
 
-**Version** : 3.1 — Mars 2026 (Telnyx SIP trunk + Self-Service Multi-Tenant)
+**Version** : 3.2 — Mars 2026 (Telnyx SIP trunk + Self-Service + Audit securite)
 **Statut** : Plan valide, pret pour implementation
 **Branche** : `feature/ai-phone-assistant`
 **Design self-service** : [`ai-phone-self-service-design.md`](./ai-phone-self-service-design.md)
@@ -451,9 +451,28 @@ const result = await generateText({
 })
 
 // result.output est type-safe (AI SDK 6.x — pas result.object)
+// result.usage contient inputTokens, outputTokens, totalTokens pour le billing tracking
+const extraction = result.output
 ```
 
-> **Note API SDK 6.x :** `generateObject` est deprecie. Utiliser `generateText` + `Output.object()`. Le resultat est dans `result.output` (pas `result.object`).
+```typescript
+// Gestion d'erreur — NoObjectGeneratedError si le LLM echoue a generer du JSON valide
+import { generateText, Output, NoObjectGeneratedError } from 'ai'
+
+try {
+  const result = await generateText({ ... })
+} catch (error) {
+  if (NoObjectGeneratedError.isInstance(error)) {
+    // error.text = texte brut genere par le LLM (pas du JSON valide)
+    // error.finishReason = 'length' si le LLM a manque de tokens
+    // error.usage = tokens consommes meme en cas d'echec
+    console.error('Extraction failed:', error.finishReason, error.text?.slice(0, 200))
+    // Fallback : creer l'intervention avec le transcript brut
+  }
+}
+```
+
+> **Note API SDK 6.x :** `generateObject` est deprecie (retire dans une future version majeure). Utiliser `generateText` + `Output.object()`. Le resultat est dans `result.output` (pas `result.object`). Token tracking dans `result.usage` / `result.totalUsage`.
 
 ---
 
@@ -689,56 +708,97 @@ USING (is_team_manager_or_admin(team_id));
 // app/api/elevenlabs-webhook/route.ts
 // Recoit le webhook de ElevenLabs a la fin de chaque appel
 // UN endpoint pour TOUS les agents du workspace
+//
+// ⚠️ IMPORTANT:
+// - Header correct: "ElevenLabs-Signature" (pas x-elevenlabs-signature)
+// - ElevenLabs n'a PAS de retry — si ce handler echoue, l'appel est perdu
+// - Repondre HTTP 200 rapidement, sinon auto-disable apres 10 echecs consecutifs
+
+import { timingSafeEqual, createHmac } from 'crypto'
+
+const MAX_PAYLOAD_SIZE = 1_000_000 // 1MB — protection DoS
 
 export async function POST(req: Request) {
-  // 1. Valider la signature HMAC du webhook (securite)
-  const signature = req.headers.get('x-elevenlabs-signature')
+  // 0. Protection DoS — rejeter les payloads trop gros
+  const contentLength = parseInt(req.headers.get('content-length') || '0', 10)
+  if (contentLength > MAX_PAYLOAD_SIZE) {
+    return Response.json({ error: 'Payload too large' }, { status: 413 })
+  }
+
+  // 1. Lire le body en TEXT (pas json) — necessaire pour verifier la signature
   const body = await req.text()
 
-  // Utiliser le SDK ElevenLabs: client.webhooks.constructEvent(body, signature, secret)
-  const client = new ElevenLabs({ apiKey: process.env.ELEVENLABS_API_KEY })
-  const event = client.webhooks.constructEvent(
-    body,
-    signature!,
-    process.env.ELEVENLABS_WEBHOOK_SECRET!
-  )
+  // 2. Valider la signature HMAC-SHA256 du webhook
+  // Header: "ElevenLabs-Signature" (format: "t=<timestamp>,v0=<signature>")
+  const signatureHeader = req.headers.get('ElevenLabs-Signature')
+  if (!signatureHeader) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-  // Ignorer les events non-transcription
+  // Utiliser le SDK ElevenLabs qui gere:
+  // - Verification signature HMAC-SHA256
+  // - Validation timestamp (anti-replay)
+  // - Parsing du payload
+  const client = new ElevenLabs({ apiKey: process.env.ELEVENLABS_API_KEY })
+  let event
+  try {
+    event = client.webhooks.constructEvent(
+      body,
+      signatureHeader,
+      process.env.ELEVENLABS_WEBHOOK_SECRET!
+    )
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err)
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // 3. Ignorer les events non-transcription (audio, failures)
   if (event.type !== 'post_call_transcription') {
     return Response.json({ ok: true })
   }
 
   const payload = event.data
-  // payload contient: agent_id, conversation_id, transcript[], metadata, analysis
+  // payload: agent_id, conversation_id, transcript[], metadata, analysis
+  // Ref: https://elevenlabs.io/docs/eleven-agents/workflows/post-call-webhooks
 
-  // 2. Identifier l'equipe via l'agent_id (reverse lookup multi-tenant)
-  const phoneNumber = await supabase
+  // 4. Idempotence — verifier si deja traite AVANT le traitement lourd
+  const { data: existing } = await supabase
+    .from('ai_phone_calls')
+    .select('id')
+    .eq('elevenlabs_conversation_id', payload.conversation_id)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing) {
+    return Response.json({ ok: true, already_processed: true })
+  }
+
+  // 5. Identifier l'equipe via l'agent_id (reverse lookup multi-tenant)
+  const { data: phoneNumber } = await supabase
     .from('ai_phone_numbers')
     .select('id, team_id')
     .eq('elevenlabs_agent_id', payload.agent_id)
     .limit(1)
     .single()
 
-  if (!phoneNumber.data) {
+  if (!phoneNumber) {
     console.error(`Unknown agent_id: ${payload.agent_id}`)
     return Response.json({ error: 'Unknown agent' }, { status: 404 })
   }
 
-  const teamId = phoneNumber.data.team_id
+  const teamId = phoneNumber.team_id
 
-  // 3. Identifier le locataire via caller ID
-  // Le caller phone est dans: payload.metadata.phone_call.body.from_number
+  // 6. Identifier le locataire via caller ID
   const callerPhone = payload.metadata?.phone_call?.body?.from_number
   const tenant = await identifyTenantByPhone(callerPhone, teamId)
 
-  // 4. Extraire les infos structurees via AI SDK
-  // Concatener le transcript en texte brut
+  // 7. Extraire les infos structurees via AI SDK
   const transcriptText = payload.transcript
     .map((t: { role: string; message: string }) => `${t.role}: ${t.message}`)
     .join('\n')
   const summary = await extractInterventionSummary(transcriptText)
 
-  // 5. Creer l'intervention
+  // 8. Creer l'intervention
   const intervention = await interventionService.create({
     team_id: teamId,
     lot_id: tenant?.lot_id ?? null,
@@ -750,7 +810,9 @@ export async function POST(req: Request) {
     requested_by: tenant?.id ?? null,
   })
 
-  // 6. Generer le PDF
+  // 9. Generer le PDF (upload vers Supabase Storage, retourner signed URL)
+  // Note: @react-pdf/renderer a un memory leak connu — serverless cold starts
+  // mitigent le probleme car chaque instance est ephemere
   const pdfPath = await generateCallReportPDF({
     intervention,
     transcript: transcriptText,
@@ -760,7 +822,7 @@ export async function POST(req: Request) {
     language: payload.metadata.main_language ?? 'fr',
   })
 
-  // 7. Stocker le log d'appel (upsert pour idempotence — UNIQUE(elevenlabs_conversation_id))
+  // 10. Stocker le log d'appel (upsert — UNIQUE(elevenlabs_conversation_id))
   await storeCallLog({
     team_id: teamId,
     phone_number_id: phoneNumber.id,
@@ -775,16 +837,24 @@ export async function POST(req: Request) {
     language: payload.metadata.main_language ?? 'fr',
   })
 
-  // 8. Mettre a jour le compteur de minutes
-  await incrementUsage(teamId, payload.metadata.call_duration_secs / 60)
+  // 11. Mettre a jour le compteur de minutes (Stripe Billing Meters)
+  await reportUsageToStripe(teamId, Math.ceil(payload.metadata.call_duration_secs / 60))
 
-  // 9. Notifier le gestionnaire
+  // 12. Notifier le gestionnaire
   await createInterventionNotification(intervention.id)
   await sendCallReportEmail(teamId, intervention, summary, pdfPath)
 
   return Response.json({ success: true, intervention_id: intervention.id })
 }
 ```
+
+> **Zero-retry mitigation :** ElevenLabs n'a PAS de retry webhook. Si le handler
+> echoue, l'appel est perdu. Pour se proteger :
+> 1. **Sauver le payload brut en DB** des la verification de signature (avant tout traitement)
+> 2. **Cron job de rattrapage** : `GET /v1/convai/conversations` pour lister les conversations
+>    des dernieres 24h et detecter les appels non traites
+> 3. **Monitoring** : Alerter si le nombre d'appels ElevenLabs (via API) diverge du nombre
+>    d'entrees dans `ai_phone_calls`
 
 ### 7.2 Service Telnyx — Provisioning numeros
 
@@ -818,27 +888,43 @@ export const telnyxPhoneService = {
 
   /**
    * Acheter un numero et l'assigner a la SIP connection
+   *
+   * IMPORTANT: requirement_group_id va DANS chaque objet phone_number, PAS au top-level
+   * IMPORTANT: Telnyx SDK number search (Issue #289) ignore les filtres → utiliser REST direct
    */
-  async purchaseNumber(phoneNumber: string, requirementGroupId?: string) {
-    const order = await telnyx.numberOrders.create({
-      phone_numbers: [{ phone_number: phoneNumber }],
-      connection_id: process.env.TELNYX_SIP_CONNECTION_ID!,
-      ...(requirementGroupId && { requirement_group_id: requirementGroupId }),
+  async purchaseNumber(phoneNumber: string) {
+    // Utiliser REST direct (SDK a des bugs connus avec les filtres)
+    const response = await fetch('https://api.telnyx.com/v2/number_orders', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        connection_id: process.env.TELNYX_SIP_CONNECTION_ID!,
+        phone_numbers: [{
+          phone_number: phoneNumber,
+          requirement_group_id: process.env.TELNYX_REQUIREMENT_GROUP_ID!,
+        }],
+      }),
     })
-    return order
+    return response.json()
   },
 
   /**
    * Liberer un numero
+   *
+   * IMPORTANT: C'est DELETE (pas POST /actions/delete)
+   * Le numero passe en hold period (2 semaines) puis aging (2 semaines)
+   * Verifier qu'aucun appel n'est en cours avant suppression
    */
   async releaseNumber(phoneNumberId: string) {
     await fetch(
-      `https://api.telnyx.com/v2/phone_numbers/${phoneNumberId}/actions/delete`,
+      `https://api.telnyx.com/v2/phone_numbers/${phoneNumberId}`,
       {
-        method: 'POST',
+        method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`,
-          'Content-Type': 'application/json',
         },
       }
     )
@@ -852,7 +938,12 @@ export const telnyxPhoneService = {
 // lib/services/domain/elevenlabs-agent.service.ts
 // Gere la creation et configuration des agents ElevenLabs via API
 
-const ELEVENLABS_API_URL = 'https://api.eu.residency.elevenlabs.io/v1/convai'
+// ⚠️ EU data residency (api.eu.residency.elevenlabs.io) = Enterprise plan uniquement
+// Sur plan Pro, utiliser l'endpoint standard : api.elevenlabs.io
+// Upgrader vers Enterprise quand le volume justifie le cout
+const ELEVENLABS_API_URL = process.env.ELEVENLABS_EU_RESIDENCY === 'true'
+  ? 'https://api.eu.residency.elevenlabs.io/v1/convai'
+  : 'https://api.elevenlabs.io/v1/convai'
 
 export const elevenlabsAgentService = {
   /**
@@ -888,8 +979,14 @@ export const elevenlabsAgentService = {
 
   /**
    * Importer un numero dans ElevenLabs via SIP trunk
+   *
+   * IMPORTANT (juillet 2025 migration) :
+   * - Endpoint: POST /v1/convai/phone-numbers (PAS /create — deprecie)
+   * - Config: inbound_trunk + outbound_trunk (PAS inbound_trunk_config/provider_config)
+   * - agent_id: doit etre assigne via un PATCH separe (pas dans le create)
    */
   async importPhoneNumber(phoneNumber: string, agentId: string) {
+    // Etape 1 : Importer le numero
     const response = await fetch(`${ELEVENLABS_API_URL}/phone-numbers`, {
       method: 'POST',
       headers: {
@@ -897,15 +994,14 @@ export const elevenlabsAgentService = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        provider: 'sip_trunk',
         phone_number: phoneNumber,
         label: `SEIDO ${phoneNumber}`,
-        inbound_trunk_config: {
-          allowed_addresses: ['0.0.0.0/0'], // Restreindre en prod
+        provider: 'sip_trunk',
+        inbound_trunk: {
+          // Ne PAS restreindre par IP — ElevenLabs utilise des IPs dynamiques pour RTP
           media_encryption: 'disabled',
-          remote_domains: ['sip.telnyx.com'],
         },
-        outbound_trunk_config: {
+        outbound_trunk: {
           address: 'sip.telnyx.com',
           transport: 'tls',
           media_encryption: 'disabled',
@@ -919,7 +1015,7 @@ export const elevenlabsAgentService = {
     const data = await response.json()
     // data.phone_number_id = "phnum_xxx"
 
-    // Assigner l'agent au numero
+    // Etape 2 : Assigner l'agent au numero (PATCH separe obligatoire)
     await fetch(`${ELEVENLABS_API_URL}/phone-numbers/${data.phone_number_id}`, {
       method: 'PATCH',
       headers: {
@@ -1044,25 +1140,33 @@ Les interventions creees par l'assistant IA affichent un badge special :
 
 | Aspect | Regle | Implementation |
 |--------|-------|----------------|
-| **Disclosure IA** | Informer le locataire que l'appel est gere par une IA | Etape 1 du script : "Je suis un assistant automatique" |
-| **Consentement enregistrement** | Base legale : Art. 6(1)(b) RGPD — necessite contractuelle | Mention dans l'accueil : "Cet appel sera transcrit pour creer votre demande" |
-| **Retention audio** | NE PAS stocker l'audio brut | ElevenLabs ne renvoie que le transcript texte (sauf webhook post_call_audio, qu'on n'ecoute pas) |
-| **Retention transcript** | Duree de l'intervention + 1 an | Cron job de nettoyage apres 1 an post-cloture |
+| **Disclosure IA** | EU AI Act Art. 50 : informer que l'appel est gere par une IA **au debut de chaque appel** | `first_message` de l'agent : "Je suis l'assistant vocal..." |
+| **Consentement enregistrement** | Art. 314bis Code penal belge : consentement **explicite** requis. Le silence n'est PAS un consentement valide. | Le `first_message` mentionne la transcription. **Si le locataire refuse, proposer : "Vous pouvez envoyer votre demande par email a [email]."** |
+| **Alternative non-enregistree** | Loi belge des telecoms : offrir une alternative si refus | Rediriger vers email ou formulaire web |
+| **Retention audio** | NE PAS stocker l'audio brut | Ne pas ecouter le webhook `post_call_audio`. ElevenLabs renvoie uniquement le transcript texte. |
+| **Retention transcript** | 6-12 mois proportionnel a la finalite (pas de duree fixe en RGPD) | Cron job de nettoyage apres 12 mois post-cloture intervention |
 | **Acces aux donnees** | Seul le gestionnaire de l'equipe | RLS policy sur ai_phone_calls |
-| **Droit a l'effacement** | Le locataire peut demander suppression | Prevu dans le workflow RGPD existant |
+| **Droit a l'effacement** | RGPD Art. 17 : le locataire peut demander suppression du transcript | Prevu dans le workflow RGPD existant |
+| **Classification EU AI Act** | **Risque limite** (pas de decision automatisee, pas de biometrie) | Obligation de transparence uniquement (disclosure IA) |
 
 ### 8.2 Securite technique
 
 | Mesure | Implementation |
 |--------|----------------|
-| Webhook ElevenLabs | Signature HMAC via header `elevenlabs-signature` — verification via SDK `constructEvent()` |
-| Telnyx webhook (optionnel) | Signature Ed25519 via headers `telnyx-signature-ed25519` + `telnyx-timestamp` — verification via SDK `telnyx.webhooks.constructEvent()` |
-| Telnyx SIP auth | Credentials digest (`seido-elevenlabs` + password) pour l'outbound. Inbound: validation via Remote Domains (`sip.telnyx.com`) + IP allowlist (configurable) |
-| API key storage | Variables d'environnement Vercel (TELNYX_API_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY, TELNYX_SIP_PASSWORD) |
-| Rate limiting | Upstash rate limiter sur /api/elevenlabs-webhook (existant) |
-| Caller ID spoofing | Ne jamais accorder d'acces eleve basee uniquement sur le caller ID |
-| Duree max appel | Cap a 8 minutes dans la config ElevenLabs |
-| Channel limit | 10 appels simultanes max dans Telnyx (protection couts) |
+| **Webhook ElevenLabs** | Header: **`ElevenLabs-Signature`** (majuscules). HMAC-SHA256. Format: `t=<timestamp>,v0=<signature>`. Verification via SDK `constructEvent()` qui gere signature + timestamp + parsing. **Zero retry** — un seul envoi. |
+| **Anti-replay** | Le SDK ElevenLabs valide le timestamp dans la signature. Completer par une verification manuelle: rejeter si age > 5 min. |
+| **Timing-safe comparison** | Le SDK utilise `timingSafeEqual` internement. Si verification manuelle, TOUJOURS utiliser `crypto.timingSafeEqual`. |
+| **Idempotence** | Verifier `UNIQUE(elevenlabs_conversation_id)` AVANT traitement. Upsert avec `onConflict`. |
+| **DoS protection** | Valider `Content-Length < 1MB` avant lecture du body. Rate limit Upstash sur `/api/elevenlabs-webhook`. |
+| **Telnyx webhook** | **NE PAS configurer** de webhook URL sur la SIP Connection — cela active le mode "programmable" qui degrade la qualite audio. Les post-call data viennent d'ElevenLabs. |
+| **Telnyx SIP auth** | Credentials digest (`seido-elevenlabs` + password) pour l'outbound. **NE PAS** faire d'IP allowlisting — ElevenLabs utilise des IPs dynamiques pour RTP. |
+| **API key storage** | Variables d'environnement Vercel (TELNYX_API_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY, TELNYX_SIP_PASSWORD) |
+| **Rate limiting** | Upstash sliding window (100 req/min) sur `/api/elevenlabs-webhook` |
+| **Caller ID spoofing** | Ne jamais accorder d'acces eleve basee uniquement sur le caller ID |
+| **Duree max appel** | Cap a 8 minutes dans la config ElevenLabs (`max_duration_seconds: 480`) |
+| **Channel limit** | 10 appels simultanes max dans Telnyx. **Attention :** ElevenLabs Pro = 20 concurrent calls pour TOUS les agents du workspace. |
+| **Error leakage** | Reponses generiques (`{ error: 'Unauthorized' }`) — jamais de stack traces ou details internes |
+| **Payload injection** | Tous les champs du webhook sont valides avec Zod AVANT insertion en DB |
 
 ### 8.3 EU AI Act
 
@@ -1111,11 +1215,24 @@ Le systeme est classe **risque minimal** car :
 
 ### 9.4 Implementation Stripe
 
-- Creer un nouveau `Price` metered dans Stripe pour l'add-on
-- Le compteur de minutes (`ai_phone_usage`) alimente Stripe Usage Records via `stripe.subscriptionItems.createUsageRecord()`
-- Depassement facture automatiquement via Stripe metered billing
-- **Note :** Le pricing `metered` (usage-based) rejette le parametre `quantity` — utiliser `stripe.subscriptionItems.createUsageRecord()` et non `stripe.subscriptionItems.update({ quantity })`. Voir MEMORY.md : "Metered rejects quantity param"
+- Creer un **Billing Meter** dans Stripe (`ai_voice_minutes`) + un Price associe
+- Reporter l'usage via **`stripe.billing.meterEvents.create()`** (PAS `createUsageRecord` — retire depuis API 2025-03-31)
+- Depassement facture automatiquement via Stripe Billing Meters
+- **Note :** Les meter events sont **asynchrones** — pas immediatement refletes sur la facture
+- **Constraints :** Valeurs entieres uniquement, timestamp dans les 35 derniers jours
+- Ecouter les erreurs : `v1.billing.meter.error_report_triggered` webhook
 - Page de gestion via le Stripe Customer Portal existant
+
+```typescript
+// Reporter l'usage apres chaque appel
+await stripe.billing.meterEvents.create({
+  event_name: 'ai_voice_minutes',
+  payload: {
+    value: Math.ceil(durationSeconds / 60), // Arrondi au-dessus, entiers uniquement
+    stripe_customer_id: team.stripe_customer_id,
+  },
+})
+```
 
 ---
 
@@ -1176,7 +1293,7 @@ Le systeme est classe **risque minimal** car :
   - Stocke le numero + IDs Telnyx/ElevenLabs dans `ai_phone_numbers`
 - Server action `deprovisionPhoneNumber(teamId)` pour liberation
   - Supprime le numero d'ElevenLabs (`DELETE /v1/convai/phone-numbers/{id}`)
-  - Libere le numero Telnyx (`POST /v2/phone_numbers/{id}/actions/delete`)
+  - Libere le numero Telnyx (`DELETE /v2/phone_numbers/{id}`) — PAS POST /actions/delete
   - Desactive l'entree dans `ai_phone_numbers`
 - Gestion d'erreur : numero indisponible, quota atteint, regulatory requirements pending
 - **Note Belgique :** Les numeros belges necessitent une `requirement_group_id` (adresse + justificatif). Pour le MVP, on utilise le requirement group deja valide.
@@ -1213,7 +1330,9 @@ Le systeme est classe **risque minimal** car :
 
 **Criteres d'acceptation :**
 - Route `POST /api/elevenlabs-webhook` qui :
-  - Valide la signature HMAC du webhook ElevenLabs (`elevenlabs-signature` header)
+  - Valide `Content-Length < 1MB` (protection DoS)
+  - Valide la signature HMAC-SHA256 via header **`ElevenLabs-Signature`** (SDK `constructEvent()`)
+  - Verifie l'idempotence via `elevenlabs_conversation_id` AVANT traitement
   - Filtre sur `event.type === 'post_call_transcription'` (ignore audio et failures)
   - Identifie l'equipe via l'agent_id du payload
   - Identifie le locataire via caller phone (`metadata.phone_call.body.from_number`)
@@ -1363,11 +1482,14 @@ Le systeme est classe **risque minimal** car :
 **En tant que** gestionnaire, **je veux** que le forfait telephone IA soit facture via Stripe **pour que** la facturation soit automatisee.
 
 **Criteres d'acceptation :**
-- Nouveau Stripe Price (metered) pour l'add-on telephone IA
+- Nouveau Stripe **Billing Meter** (`ai_voice_minutes`) + Price associe
 - Checkout flow pour activer l'add-on
-- Usage records envoyes a Stripe en fin de mois
+- Usage reporte via `stripe.billing.meterEvents.create()` (PAS `createUsageRecord` — retire)
+  - Valeurs entieres (arrondi au-dessus), timestamp dans les 35 derniers jours
+  - Ecouter `v1.billing.meter.error_report_triggered` pour les erreurs
 - Depassement facture automatiquement
-- Annulation de l'add-on desactive le numero
+- Annulation immediate : `invoice_now: true, prorate: true` pour facturer l'usage en cours
+- Annulation en fin de periode : usage inclus dans la facture finale
 - Integration avec le Customer Portal existant
 - Lint passe
 
@@ -1522,6 +1644,6 @@ POST /api/elevenlabs-webhook (workspace-level, 1 pour tous les agents)
 
 ---
 
-*Document genere le 27 fevrier 2026 — v2.0 le 28 fevrier 2026 (Twilio) — v3.0 le 1 mars 2026 (retour Telnyx SIP trunk) — v3.1 le 1 mars 2026 (self-service multi-tenant + script 4 etapes)*
+*Document genere le 27 fevrier 2026 — v2.0 le 28 fevrier 2026 (Twilio) — v3.0 le 1 mars 2026 (retour Telnyx SIP trunk) — v3.1 le 1 mars 2026 (self-service multi-tenant + script 4 etapes) — v3.2 le 1 mars 2026 (audit documentation + securite : 8 bloqueurs corriges)*
 *Basee sur : brainstorming session + recherche 4 agents specialises + verification docs officielles + test dashboard reel + configuration Telnyx/ElevenLabs validee*
 *Stack : Telnyx SIP trunk (FQDN) + ElevenLabs Conversational AI (Claude Haiku 4.5) + Vercel AI SDK 6.x (Claude Haiku 4.5) + @react-pdf/renderer*

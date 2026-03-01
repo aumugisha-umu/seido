@@ -187,7 +187,7 @@ export default function LotCreationForm({
 }: LotCreationFormProps) {
   const router = useRouter()
   const { data: managerData } = useManagerStats()
-  const hasBuildings = (managerData?.buildingsCount ?? 0) > 0
+  const hasBuildings = (managerData?.buildings?.length ?? 0) > 0
   const [currentStep, setCurrentStepState] = useState(1)
   const [maxStepReached, setMaxStepReached] = useState(1)
 
@@ -377,7 +377,7 @@ export default function LotCreationForm({
 
   // Default to "new" when no buildings exist (hide useless "existing" option)
   useEffect(() => {
-    if (managerData && managerData.buildingsCount === 0) {
+    if (managerData && (managerData.buildings?.length ?? 0) === 0) {
       setLotData(prev => ({ ...prev, buildingAssociation: 'new' }))
     }
   }, [managerData])

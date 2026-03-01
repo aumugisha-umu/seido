@@ -529,6 +529,11 @@ export async function logoutAction(): Promise<never> {
     redirect('/auth/login')
 
   } catch (error) {
+    // redirect() throws NEXT_REDIRECT — re-throw it, it's not an error
+    if (error instanceof Error &&
+        (error.message.includes('NEXT_REDIRECT') || (error as any).digest?.startsWith('NEXT_REDIRECT'))) {
+      throw error
+    }
     logger.error(`❌ [LOGOUT-ACTION] Exception: ${error instanceof Error ? error.message : String(error)}`)
 
     // ✅ FALLBACK: Redirection même en cas d'erreur

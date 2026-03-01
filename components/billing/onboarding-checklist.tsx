@@ -14,7 +14,6 @@ import {
   PartyPopper,
   Zap,
   Lightbulb,
-  ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -277,7 +276,17 @@ export function OnboardingChecklist({ className, progress, isTrialing }: Onboard
                   </div>
 
                   {isCurrent && !isComplete && (
-                    <Icon className="h-4 w-4 text-primary flex-shrink-0" />
+                    <Button
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(step.href)
+                      }}
+                      className="gap-1.5 flex-shrink-0"
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {step.ctaLabel}
+                    </Button>
                   )}
                 </button>
 
@@ -290,17 +299,9 @@ export function OnboardingChecklist({ className, progress, isTrialing }: Onboard
                         {step.whyItMatters}
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground/70 leading-relaxed mb-3">
+                    <p className="text-xs text-muted-foreground/70 leading-relaxed">
                       {step.howItConnects}
                     </p>
-                    <Button
-                      size="sm"
-                      onClick={() => router.push(step.href)}
-                      className="gap-1.5"
-                    >
-                      {step.ctaLabel}
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </Button>
                   </div>
                 )}
               </div>

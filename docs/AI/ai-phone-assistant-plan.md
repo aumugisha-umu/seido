@@ -1,8 +1,9 @@
 # SEIDO AI Phone Assistant — Plan Complet
 
-**Version** : 3.0 — Mars 2026 (Telnyx SIP trunk au lieu de Twilio + config validee)
+**Version** : 3.1 — Mars 2026 (Telnyx SIP trunk + Self-Service Multi-Tenant)
 **Statut** : Plan valide, pret pour implementation
 **Branche** : `feature/ai-phone-assistant`
+**Design self-service** : [`ai-phone-self-service-design.md`](./ai-phone-self-service-design.md)
 
 ---
 
@@ -21,6 +22,7 @@
 10. [User stories (MVP)](#10--user-stories-mvp)
 11. [Estimation des couts](#11--estimation-des-couts)
 12. [Roadmap post-MVP](#12--roadmap-post-mvp)
+13. [Self-Service Multi-Tenant](#13--self-service-multi-tenant)
 
 ---
 
@@ -204,6 +206,9 @@ npm install ai @ai-sdk/anthropic @react-pdf/renderer elevenlabs telnyx
 ```bash
 # === AI Phone Assistant ===
 
+# Mode provisioning (manual = dev, auto = production)
+AI_PHONE_PROVISIONING=manual                       # manual | auto
+
 # Anthropic (Claude Haiku 4.5 — post-traitement transcript SEIDO)
 ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxx
 
@@ -217,6 +222,12 @@ TELNYX_PUBLIC_KEY=xxxxxxxxxxxxxxxxxxxxxxxxx        # Pour verification webhooks 
 TELNYX_SIP_CONNECTION_ID=2905402867672155412        # Connection ID existante
 TELNYX_SIP_USERNAME=seido-elevenlabs               # Credentials SIP trunk
 TELNYX_SIP_PASSWORD=xxxxxxxxxxxxxxxxxxxxxxxxx
+TELNYX_REQUIREMENT_GROUP_ID=rg_xxxxxxxxxxxxx       # Requirement group pre-approuve (numeros BE)
+
+# Dev uniquement (mode manual)
+DEV_PHONE_NUMBER=+3242600808                       # Numero existant
+DEV_ELEVENLABS_AGENT_ID=xxxxxxxxxxxxxx             # Agent configure manuellement
+DEV_ELEVENLABS_PHONE_ID=phnum_0601kjmp9a5ae2d8qt149c1bmr7h  # Phone ID ElevenLabs
 ```
 
 **Ou les ajouter :**
@@ -429,7 +440,7 @@ const interventionSchema = z.object({
 })
 
 const result = await generateText({
-  model: anthropic('claude-haiku-4-5-20251001'),
+  model: anthropic('claude-haiku-4-5'),
   system: `Tu es un assistant qui analyse des transcripts d'appels telephoniques
            de locataires signalant des problemes de maintenance. Extrais les
            informations structurees. La description doit TOUJOURS etre en francais.`,
@@ -487,87 +498,72 @@ const result = await generateText({
 
 ## 5 — Flux de conversation IA
 
-### 5.1 Script de conversation (7 etapes)
+### 5.1 Script de conversation (4 etapes)
 
-L'agent ElevenLabs suit un script structure configure dans son system prompt :
-
-```
-ETAPE 1 — ACCUEIL + RGPD (obligatoire, <10 sec)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"Bonjour, vous avez appele le service de gestion de [team_name].
-Je suis un assistant automatique. Cet appel sera transcrit pour
-creer votre demande d'intervention. Comment puis-je vous aider ?"
-
-  → Si le locataire parle neerlandais, l'IA switch automatiquement.
-  → Disclosure RGPD integree dans l'accueil.
-
-ETAPE 2 — IDENTIFICATION
-━━━━━━━━━━━━━━━━━━━━━━━━
-[Si caller ID matche dans la DB :]
-"Je vois que vous appelez depuis le numero associe a
-M./Mme [Nom], [adresse]. C'est bien vous ?"
-
-[Si pas de match :]
-"Puis-je avoir votre nom de famille et l'adresse
-de votre logement ?"
-
-ETAPE 3 — DESCRIPTION DU PROBLEME (question ouverte)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"Quel est le probleme que vous souhaitez signaler ?"
-
-  → Laisser le locataire decrire librement.
-  → Backchannel : "Je comprends.", "D'accord."
-
-ETAPE 4 — LOCALISATION (question fermee)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"Dans quelle piece se trouve le probleme ?
-Cuisine, salle de bain, salon, chambre, ou ailleurs ?"
-
-ETAPE 5 — URGENCE
-━━━━━━━━━━━━━━━━━
-"Est-ce que ce probleme represente un danger ou rend
-votre logement inhabitable ? Par exemple, une fuite active,
-une panne de chauffage, ou un probleme electrique ?"
-
-  → Si oui : urgency = "urgente" ou "haute"
-  → Si non : urgency = "normale"
-  → Si pas sur : urgency = "normale" + note "a evaluer"
-
-ETAPE 6 — DISPONIBILITES
-━━━━━━━━━━━━━━━━━━━━━━━━
-"Quand seriez-vous disponible pour qu'un technicien passe ?
-Plutot le matin ou l'apres-midi ? Cette semaine ou
-la semaine prochaine ?"
-
-ETAPE 7 — CONFIRMATION + CLOTURE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"Voici ce que j'ai note : [lecture du resume].
-Est-ce que c'est correct ?"
-
-[Si oui :]
-"Parfait. Votre demande a bien ete enregistree sous le
-numero [ref]. Votre gestionnaire sera notifie et vous
-recontactera. Bonne journee !"
-
-[Si non :]
-"Qu'est-ce que je dois corriger ?"
-→ Boucle de correction, puis re-confirmation.
-```
-
-### 5.2 Regles du system prompt
+L'agent ElevenLabs suit un script structure en 4 etapes. Ce script a ete simplifie
+par rapport a la v3.0 (7 etapes) pour etre plus naturel et moins robotique.
+L'urgence et la localisation sont maintenant deduites par le post-traitement AI SDK.
 
 ```
-- Tu es un assistant de prise de demandes d'intervention pour [team_name].
-- Tu ne donnes JAMAIS de conseils techniques ni d'estimation de prix.
-- Tu ne prends JAMAIS de decision sur l'urgence ou le prestataire.
-- Tu poses les questions dans l'ordre du script (etapes 1 a 7).
-- Tu ne sautes aucune etape.
+Tu es un assistant telephonique de prise de demandes d'intervention pour
+{{team_name}}.
+
+## Ton role
+Tu collectes les informations necessaires pour creer une demande d'intervention
+de maintenance. Tu ne donnes JAMAIS de conseils techniques, d'estimation de prix,
+ni de decision sur l'urgence ou le prestataire.
+
+## Regles strictes
+- Tu poses les questions dans l'ordre du script. Tu ne sautes aucune etape.
 - Tes reponses font maximum 2 phrases par tour.
-- Tu reponds dans la langue du locataire (FR, NL ou EN).
-- Si tu ne comprends pas, demande de repeter. Apres 2 echecs,
-  propose : "Je vais transmettre votre demande a un gestionnaire."
-- Duree maximale : 8 minutes. Apres 6 min, commence la confirmation.
+- Tu reponds dans la langue du locataire (francais, neerlandais ou anglais).
+- Si tu ne comprends pas, demande de repeter. Apres 2 echecs, dis : "Je vais
+  transmettre votre demande a un gestionnaire qui vous recontactera."
+- Si le locataire mentionne un danger (gaz, incendie, inondation), dis
+  immediatement : "Si vous etes en danger, appelez le 112." puis continue la prise
+  de demande avec urgence "urgente".
+
+## Script
+ETAPE 1 — IDENTIFICATION
+Demande le nom complet et l'adresse du logement.
+
+ETAPE 2 — DESCRIPTION DU PROBLEME
+"Quel est le probleme que vous souhaitez signaler ?"
+Laisse le locataire decrire librement. Utilise des backchannels : "Je
+comprends.", "D'accord."
+Et selon la situation decrite, demander plus de precisions pour que le
+gestionnaire ait une vue complete du probleme.
+
+ETAPE 3 — CONFIRMATION
+Lis un resume de ce que tu as note (nom, adresse, message) et demande :
+"Est-ce que c'est correct ?"
+Si non, demande ce qu'il faut corriger et reconfirme.
+Si oui, demande : "Y a-t-il autre chose a preciser ?" Si le locataire ajoute
+des details, reconfirme le resume mis a jour. Sinon, passe a l'etape 4.
+
+ETAPE 4 — CLOTURE
+"Votre demande a bien ete enregistree. Votre gestionnaire sera notifie et
+traitera votre demande au plus vite. Bonne journee, au revoir !"
+
+{{custom_instructions}}
 ```
+
+> **Variables du prompt :**
+> - `{{team_name}}` : nom de l'equipe (ex: "Immo Dupont")
+> - `{{custom_instructions}}` : instructions personnalisees du gestionnaire (max 500 chars, optionnel)
+>
+> Si `custom_instructions` est non-vide, il est injecte comme section `## Instructions specifiques de l'agence`.
+
+### 5.2 Differences v3.0 (7 etapes) → v3.1 (4 etapes)
+
+| Supprime | Raison |
+|----------|--------|
+| Accueil RGPD detaille | Integre dans le `first_message` de l'agent ElevenLabs |
+| Localisation (piece) | Deduite par post-traitement AI SDK depuis la description libre |
+| Urgence | Deduite par post-traitement AI SDK (sauf danger explicite → 112) |
+| Disponibilites | Non necessaire pour la creation de demande |
+
+**Avantages :** Appel plus court (~2 min vs ~4 min), plus naturel, moins de friction.
 
 ### 5.3 Gestion des cas limites
 
@@ -596,6 +592,7 @@ CREATE TABLE ai_phone_numbers (
   telnyx_phone_number_id TEXT,               -- ID numero Telnyx (pour API)
   elevenlabs_agent_id TEXT,                  -- ID agent ElevenLabs
   elevenlabs_phone_number_id TEXT,           -- ID phone number ElevenLabs (phnum_xxx)
+  custom_instructions TEXT,                  -- Instructions personnalisees gestionnaire (max 500 chars)
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
@@ -619,13 +616,14 @@ CREATE TABLE ai_phone_calls (
 
   -- Metadata appel
   duration_seconds INTEGER,
-  elevenlabs_conversation_id TEXT,           -- ID conversation ElevenLabs
+  elevenlabs_conversation_id TEXT NOT NULL,   -- ID conversation ElevenLabs
   call_status TEXT DEFAULT 'completed',      -- completed, failed, abandoned, transferred
 
   -- Documents generes
   pdf_document_path TEXT,                    -- Path dans Supabase Storage
 
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(elevenlabs_conversation_id)         -- Idempotence webhook (upsert)
 );
 
 -- Table: ai_phone_usage
@@ -683,13 +681,18 @@ USING (is_team_manager_or_admin(team_id));
 
 ### 7.1 Webhook — Point d'entree principal
 
+> **Important :** ElevenLabs a UN seul webhook par workspace (pas par agent).
+> Toutes les conversations de tous les agents arrivent sur le meme endpoint.
+> L'equipe est identifiee via `agent_id` dans le payload → lookup `ai_phone_numbers`.
+
 ```typescript
-// app/api/calls/inbound/route.ts
+// app/api/elevenlabs-webhook/route.ts
 // Recoit le webhook de ElevenLabs a la fin de chaque appel
+// UN endpoint pour TOUS les agents du workspace
 
 export async function POST(req: Request) {
   // 1. Valider la signature HMAC du webhook (securite)
-  const signature = req.headers.get('elevenlabs-signature')
+  const signature = req.headers.get('x-elevenlabs-signature')
   const body = await req.text()
 
   // Utiliser le SDK ElevenLabs: client.webhooks.constructEvent(body, signature, secret)
@@ -708,9 +711,20 @@ export async function POST(req: Request) {
   const payload = event.data
   // payload contient: agent_id, conversation_id, transcript[], metadata, analysis
 
-  // 2. Identifier l'equipe via l'agent_id
-  const phoneNumber = await getPhoneNumberByAgentId(payload.agent_id)
-  const teamId = phoneNumber.team_id
+  // 2. Identifier l'equipe via l'agent_id (reverse lookup multi-tenant)
+  const phoneNumber = await supabase
+    .from('ai_phone_numbers')
+    .select('id, team_id')
+    .eq('elevenlabs_agent_id', payload.agent_id)
+    .limit(1)
+    .single()
+
+  if (!phoneNumber.data) {
+    console.error(`Unknown agent_id: ${payload.agent_id}`)
+    return Response.json({ error: 'Unknown agent' }, { status: 404 })
+  }
+
+  const teamId = phoneNumber.data.team_id
 
   // 3. Identifier le locataire via caller ID
   // Le caller phone est dans: payload.metadata.phone_call.body.from_number
@@ -746,7 +760,7 @@ export async function POST(req: Request) {
     language: payload.metadata.main_language ?? 'fr',
   })
 
-  // 7. Stocker le log d'appel
+  // 7. Stocker le log d'appel (upsert pour idempotence — UNIQUE(elevenlabs_conversation_id))
   await storeCallLog({
     team_id: teamId,
     phone_number_id: phoneNumber.id,
@@ -838,7 +852,7 @@ export const telnyxPhoneService = {
 // lib/services/domain/elevenlabs-agent.service.ts
 // Gere la creation et configuration des agents ElevenLabs via API
 
-const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/convai'
+const ELEVENLABS_API_URL = 'https://api.eu.residency.elevenlabs.io/v1/convai'
 
 export const elevenlabsAgentService = {
   /**
@@ -855,11 +869,11 @@ export const elevenlabsAgentService = {
         name: `SEIDO - ${teamName}`,
         conversation_config: {
           agent: {
-            first_message: `Bonjour, vous avez appele le service de gestion de ${teamName}. Je suis un assistant automatique. Cet appel sera transcrit pour creer votre demande d'intervention. Comment puis-je vous aider ?`,
+            first_message: `Bonjour, vous avez contacte ${teamName}. Je suis l'assistant vocal pour les demandes d'intervention. Comment puis-je vous aider ?`,
             language: 'fr',
             prompt: {
               prompt: systemPrompt,
-              llm: 'claude-haiku-4-5-20251001',
+              llm: 'claude-haiku-4-5',
             },
           },
           tts: {
@@ -946,32 +960,38 @@ export const elevenlabsAgentService = {
 
 ### 7.4 Page Parametres — Activation du numero
 
+> **Design complet :** voir [`ai-phone-self-service-design.md`](./ai-phone-self-service-design.md) Section 4.
+
 ```
 /gestionnaire/parametres/telephone-ia
 
-┌─────────────────────────────────────────────┐
-│  Assistant telephonique IA                   │
-│                                              │
-│  [Toggle ON/OFF]                             │
+┌──────────────────────────────────────────────┐
+│  Assistant Vocal IA               ● Actif    │
 │                                              │
 │  Votre numero : +32 4 260 08 08             │
-│  Statut : Actif ✓                           │
+│  Appels ce mois : 12 (47 min)               │
 │                                              │
-│  Ce mois-ci :                                │
-│  ┌──────────────────────────────────────┐   │
-│  │  23/60 minutes utilisees             │   │
-│  │  ████████░░░░░░░░  38%               │   │
-│  │  12 appels traites                   │   │
-│  │  11 interventions creees             │   │
-│  └──────────────────────────────────────┘   │
+│  ── Instructions personnalisees ──           │
+│  ┌──────────────────────────────────────┐    │
+│  │ Pour les urgences de plomberie,     │    │
+│  │ preciser que le plombier de garde   │    │
+│  │ est Jean Dupont au 04/123.45.67     │    │
+│  └──────────────────────────────────────┘    │
+│  327/500 caracteres                          │
 │                                              │
-│  Forfait : 15 EUR/mo (60 min incluses)      │
-│  Depassement : 0.25 EUR/min                 │
+│  [ Sauvegarder ]  [ Tester l'assistant ]     │
 │                                              │
-│  [Voir l'historique des appels]              │
-│  [Gerer l'abonnement]                       │
-└─────────────────────────────────────────────┘
+│  ── Derniers appels ──                       │
+│  │ 28/02 14:32 │ +32 498 12 34 56 │ 3:42 │ │
+│  │ 27/02 09:15 │ +32 474 98 76 54 │ 2:18 │ │
+│                                              │
+│  [ Desactiver l'assistant ]                  │
+└──────────────────────────────────────────────┘
 ```
+
+Le gestionnaire peut modifier **uniquement** les instructions personnalisees
+(max 500 caracteres). Le prompt de base (script 4 etapes) est **verrouille**.
+Le bouton "Tester l'assistant" ouvre le widget ElevenLabs (text-only, demi-tarif).
 
 ### 7.5 Historique des appels
 
@@ -1039,7 +1059,7 @@ Les interventions creees par l'assistant IA affichent un badge special :
 | Telnyx webhook (optionnel) | Signature Ed25519 via headers `telnyx-signature-ed25519` + `telnyx-timestamp` — verification via SDK `telnyx.webhooks.constructEvent()` |
 | Telnyx SIP auth | Credentials digest (`seido-elevenlabs` + password) pour l'outbound. Inbound: validation via Remote Domains (`sip.telnyx.com`) + IP allowlist (configurable) |
 | API key storage | Variables d'environnement Vercel (TELNYX_API_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY, TELNYX_SIP_PASSWORD) |
-| Rate limiting | Upstash rate limiter sur /api/calls/inbound (existant) |
+| Rate limiting | Upstash rate limiter sur /api/elevenlabs-webhook (existant) |
 | Caller ID spoofing | Ne jamais accorder d'acces eleve basee uniquement sur le caller ID |
 | Duree max appel | Cap a 8 minutes dans la config ElevenLabs |
 | Channel limit | 10 appels simultanes max dans Telnyx (protection couts) |
@@ -1192,7 +1212,7 @@ Le systeme est classe **risque minimal** car :
 **En tant que** systeme, **je veux** un endpoint webhook qui recoit les resultats d'appel de ElevenLabs **pour que** chaque appel cree automatiquement une intervention.
 
 **Criteres d'acceptation :**
-- Route `POST /api/calls/inbound` qui :
+- Route `POST /api/elevenlabs-webhook` qui :
   - Valide la signature HMAC du webhook ElevenLabs (`elevenlabs-signature` header)
   - Filtre sur `event.type === 'post_call_transcription'` (ignore audio et failures)
   - Identifie l'equipe via l'agent_id du payload
@@ -1449,6 +1469,59 @@ Le systeme est classe **risque minimal** car :
 
 ---
 
-*Document genere le 27 fevrier 2026 — v2.0 le 28 fevrier 2026 (Twilio) — v3.0 le 1 mars 2026 (retour Telnyx SIP trunk)*
+## 13 — Self-Service Multi-Tenant
+
+> **Design complet :** [`ai-phone-self-service-design.md`](./ai-phone-self-service-design.md)
+
+Cette section resume les decisions architecturales pour le self-service multi-tenant.
+Le design detaille (provisioning, dev/prod, settings, webhook routing, system prompt,
+testing) est dans le document lie ci-dessus.
+
+### Decisions cles
+
+| Decision | Choix | Alternative rejetee |
+|----------|-------|---------------------|
+| Agent par equipe | Clone individuel | Agent partage (pas de customisation) |
+| Numero par equipe | Numero unique | Numero partage (pas d'identification) |
+| Requirement group | Reutiliser existant | Nouveau groupe (72h d'attente) |
+| Webhook | 1 endpoint workspace | N endpoints par agent (pas supporte) |
+| Prompt customisation | Instructions appendees (500 chars) | Full prompt editable (trop risque) |
+| Mode dev | Variables `DEV_*` | Sandbox Telnyx (n'existe pas) |
+| EU data residency | `api.eu.residency.elevenlabs.io` | US endpoint (RGPD non-conforme) |
+
+### Mode Dev vs Production
+
+```bash
+# Dev : reutilise la config manuelle existante (pas d'appels API)
+AI_PHONE_PROVISIONING=manual
+
+# Production : provisioning automatique via Telnyx + ElevenLabs API
+AI_PHONE_PROVISIONING=auto
+```
+
+### Flux provisioning (mode auto)
+
+```
+Stripe checkout.session.completed
+  → Commander numero Telnyx (+32)
+  → Cloner agent ElevenLabs (template + team_name)
+  → Importer numero dans ElevenLabs (2 etapes : create + PATCH agent)
+  → INSERT ai_phone_numbers
+  (rollback si une etape echoue)
+```
+
+### Webhook routing multi-tenant
+
+```
+POST /api/elevenlabs-webhook (workspace-level, 1 pour tous les agents)
+  → agent_id du payload
+  → SELECT team_id FROM ai_phone_numbers WHERE elevenlabs_agent_id = agent_id
+  → Traitement pour cette equipe
+  → Upsert ai_phone_calls (idempotent via UNIQUE(elevenlabs_conversation_id))
+```
+
+---
+
+*Document genere le 27 fevrier 2026 — v2.0 le 28 fevrier 2026 (Twilio) — v3.0 le 1 mars 2026 (retour Telnyx SIP trunk) — v3.1 le 1 mars 2026 (self-service multi-tenant + script 4 etapes)*
 *Basee sur : brainstorming session + recherche 4 agents specialises + verification docs officielles + test dashboard reel + configuration Telnyx/ElevenLabs validee*
 *Stack : Telnyx SIP trunk (FQDN) + ElevenLabs Conversational AI (Claude Haiku 4.5) + Vercel AI SDK 6.x (Claude Haiku 4.5) + @react-pdf/renderer*

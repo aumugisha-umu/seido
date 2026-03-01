@@ -120,7 +120,12 @@ export async function getApiAuthContext(
     const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !authUser) {
-      logger.warn({ authError }, '❌ [API-AUTH] Unauthorized access attempt')
+      const isSessionMissing = authError?.name === 'AuthSessionMissingError'
+      if (isSessionMissing) {
+        logger.debug('🔒 [API-AUTH] No active session (expected during logout)')
+      } else {
+        logger.warn({ authError }, '❌ [API-AUTH] Unauthorized access attempt')
+      }
 
       const status = return403OnUnauth ? 403 : 401
       const message = return403OnUnauth ? 'Accès interdit' : 'Non autorisé'

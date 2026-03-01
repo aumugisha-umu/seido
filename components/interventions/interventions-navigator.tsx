@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback } from "react"
-import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon, Filter, ArrowUpDown, X, Loader2, ChevronDown } from "lucide-react"
+import { ListTodo, AlertTriangle, Settings, Archive, Clock, CalendarClock, LucideIcon, Filter, ArrowUpDown, X, Loader2, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -373,6 +373,12 @@ export function InterventionsNavigator({
 
     // Dashboard preset filters
     actions_en_attente: () => filterPendingActions(filteredInterventions, userContext),
+    a_planifier: () => filteredInterventions.filter(i => {
+      const isActive = ["demande", "approuvee", "planification", "planifiee"].includes(i.status)
+      const hasScheduledDate = !!(i as any).scheduled_date
+      const isPendingAction = filterPendingActions([i], userContext).length > 0
+      return isActive && !hasScheduledDate && !isPendingAction
+    }),
     en_cours: () => filteredInterventions.filter(i => [
       "demande", "approuvee", "demande_de_devis", "planification", "planifiee"
     ].includes(i.status)),
@@ -411,6 +417,7 @@ export function InterventionsNavigator({
       en_cours_group: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici", ...locataireButton },
       cloturees_group: { title: "Aucune intervention clôturée", description: "Les interventions terminées apparaîtront ici" },
       actions_en_attente: { title: "Aucune action en attente", description: "Toutes vos interventions sont à jour", showCreateButton: false },
+      a_planifier: { title: "Rien à planifier", description: "Toutes vos interventions actives ont une date", showCreateButton: false },
       en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici", ...locataireButton },
       terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici" },
       // Prestataire presets (no create button)
@@ -499,6 +506,13 @@ export function InterventionsNavigator({
         })
       }
       dashboardTabs.push(
+        {
+          id: "a_planifier",
+          label: "À planifier",
+          icon: CalendarClock,
+          count: getFilteredByTab("a_planifier").length,
+          content: renderTabContent("a_planifier")
+        },
         {
           id: "en_cours",
           label: "À venir",

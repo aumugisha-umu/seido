@@ -233,6 +233,8 @@ function ProposeSlotsSection({
   onAddProposedSlot,
   onRemoveProposedSlot,
   hasOtherConfirmationParticipants,
+  requiresConfirmation,
+  onRequiresConfirmationChange,
   onConfirmationRequiredChange,
   confirmationManagers,
   confirmationProviders,
@@ -243,6 +245,8 @@ function ProposeSlotsSection({
   onAddProposedSlot: (data?: { date: string; startTime: string; endTime: string }) => void
   onRemoveProposedSlot: (index: number) => void
   hasOtherConfirmationParticipants: boolean
+  requiresConfirmation?: boolean
+  onRequiresConfirmationChange?: (requires: boolean) => void
   onConfirmationRequiredChange?: (userId: string, required: boolean) => void
   confirmationManagers: Array<Contact & { isCurrentUser?: boolean }>
   confirmationProviders: Contact[]
@@ -309,8 +313,8 @@ function ProposeSlotsSection({
         </div>
       )}
 
-      {/* Mandatory confirmation section for slots — matching creation flow */}
-      {hasOtherConfirmationParticipants && onConfirmationRequiredChange && (
+      {/* ✅ FIX 2026-03-01: 2+ slots = mandatory confirmation, 1 slot = optional (like fixed) */}
+      {hasOtherConfirmationParticipants && onConfirmationRequiredChange && proposedSlots.length >= 2 && (
         <div className="border border-blue-200 rounded-lg p-4 bg-blue-50/50">
           <div className="flex items-center gap-2 mb-1">
             <UserCheck className="h-5 w-5 text-blue-600" />
@@ -333,6 +337,36 @@ function ProposeSlotsSection({
             onToggle={onConfirmationRequiredChange}
             mandatory={true}
           />
+        </div>
+      )}
+
+      {/* 1 slot = optional confirmation toggle (like Date fixe) */}
+      {hasOtherConfirmationParticipants && onRequiresConfirmationChange && proposedSlots.length === 1 && (
+        <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-blue-600" />
+              <Label className="text-sm font-medium cursor-pointer">
+                Demander confirmation des participants
+              </Label>
+            </div>
+            <Switch
+              checked={requiresConfirmation}
+              onCheckedChange={onRequiresConfirmationChange}
+              className="data-[state=checked]:bg-blue-600"
+            />
+          </div>
+
+          {requiresConfirmation && onConfirmationRequiredChange && (
+            <ParticipantConfirmationSelector
+              managers={confirmationManagers}
+              providers={confirmationProviders}
+              tenants={confirmationTenants}
+              confirmationRequired={confirmationRequired}
+              onToggle={onConfirmationRequiredChange}
+              mandatory={false}
+            />
+          )}
         </div>
       )}
     </div>
@@ -704,12 +738,12 @@ export const ProgrammingModalFinal = ({
                                             )}>
                                               {tenant.name}
                                             </span>
-                                            {!isInvited && (
+                                            {isInvited && (
                                               <Badge
                                                 variant="outline"
-                                                className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 border-slate-300"
+                                                className="text-[10px] px-1.5 py-0 h-4 bg-green-50 text-green-700 border-green-300"
                                               >
-                                                Non invité
+                                                Compte Seido
                                               </Badge>
                                             )}
                                           </div>
@@ -764,12 +798,12 @@ export const ProgrammingModalFinal = ({
                                     )}>
                                       {tenant.name}
                                     </span>
-                                    {!isInvited && (
+                                    {isInvited && (
                                       <Badge
                                         variant="outline"
-                                        className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 border-slate-300"
+                                        className="text-[10px] px-1.5 py-0 h-4 bg-green-50 text-green-700 border-green-300"
                                       >
-                                        Non invité
+                                        Compte Seido
                                       </Badge>
                                     )}
                                   </div>
@@ -1141,6 +1175,8 @@ export const ProgrammingModalFinal = ({
               onAddProposedSlot={onAddProposedSlot}
               onRemoveProposedSlot={onRemoveProposedSlot}
               hasOtherConfirmationParticipants={hasOtherConfirmationParticipants}
+              requiresConfirmation={requiresConfirmation}
+              onRequiresConfirmationChange={onRequiresConfirmationChange}
               onConfirmationRequiredChange={onConfirmationRequiredChange}
               confirmationManagers={confirmationManagers}
               confirmationProviders={confirmationProviders}

@@ -102,7 +102,7 @@ export async function sendThreadWelcomeMessage(
       return
     }
 
-    const { error } = await supabase
+    const { data: msg, error } = await supabase
       .from('conversation_messages')
       .insert({
         thread_id: threadId,
@@ -114,13 +114,21 @@ export async function sendThreadWelcomeMessage(
           thread_type: threadType
         }
       })
+      .select('id')
+      .single()
 
-    if (error) {
+    if (error || !msg) {
       logger.error('❌ [SYSTEM-MESSAGE] Failed to insert welcome message:', error)
       return
     }
 
-    logger.info('✅ [SYSTEM-MESSAGE] Welcome message sent for thread:', {
+    // Mark system message as read for all existing participants so it doesn't appear as unread
+    await supabase
+      .from('conversation_participants')
+      .update({ last_read_message_id: msg.id })
+      .eq('thread_id', threadId)
+
+    logger.info('✅ [SYSTEM-MESSAGE] Welcome message sent (pre-read) for thread:', {
       threadId,
       threadType,
       participantName

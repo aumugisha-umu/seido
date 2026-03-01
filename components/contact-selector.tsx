@@ -809,6 +809,12 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                           <div className="flex-1">
                             <div className="font-medium flex items-center gap-2 flex-wrap">
                               {contact.name}
+                              {/* Badge Compte Seido */}
+                              {!!(contact as any).auth_user_id && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-green-50 text-green-700 border-green-300">
+                                  Compte Seido
+                                </Badge>
+                              )}
                               {/* Badge Entreprise */}
                               {contact.is_company && (
                                 <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs flex items-center gap-1">

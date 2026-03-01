@@ -55,8 +55,27 @@ export async function createQuoteRequestsForProviders(
     "💰 Creating quote requests for providers"
   )
 
-  // Créer les quotes en parallèle
-  const quotePromises = providerIds.map(async (providerId) => {
+  // Filter out non-invited providers (no auth account = can't receive quotes)
+  const { data: accountProviders } = await supabase
+    .from('users')
+    .select('id')
+    .in('id', providerIds)
+    .not('auth_user_id', 'is', null)
+
+  const eligibleProviderIds = accountProviders?.map(p => p.id) || []
+
+  if (eligibleProviderIds.length === 0) {
+    logger.warn({ providerIds }, "No eligible providers with accounts — skipping quote creation")
+    return { success: true, successCount: 0, failedCount: 0, results: [] }
+  }
+
+  if (eligibleProviderIds.length < providerIds.length) {
+    const skipped = providerIds.filter(id => !eligibleProviderIds.includes(id))
+    logger.info({ skipped }, "Skipped non-invited providers for quote requests")
+  }
+
+  // Créer les quotes en parallèle (only for providers with accounts)
+  const quotePromises = eligibleProviderIds.map(async (providerId) => {
     try {
       // Déterminer le message pour ce prestataire
       const message = messageType === 'individual'
@@ -152,7 +171,8 @@ export async function createQuoteRequestsForProviders(
 
   logger.info(
     {
-      total: providerIds.length,
+      total: eligibleProviderIds.length,
+      skipped: providerIds.length - eligibleProviderIds.length,
       success: successCount,
       failed: failedCount
     },

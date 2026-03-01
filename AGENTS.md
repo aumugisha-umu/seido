@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-03-01
-**Total Learnings:** 100
+**Total Learnings:** 103
 
 ---
 
@@ -724,6 +724,27 @@
 **Example:** `upgrade-modal.tsx:125` → `subscription-actions.ts:215` → `subscription.service.ts:311` — additionalLots correctly used as delta
 **When to Use:** After any automated audit or code review that flags issues without full context
 **Added:** 2026-02-22 | **Source:** Billing audit — 2 false positives in UI audit report
+
+#### Learning #101: INSERT ordering in multi-phase assignment creation — UPDATE must follow ALL INSERTs
+**Problem:** In `create-manager-intervention/route.ts`, the confirmation flag UPDATE (`requires_confirmation = true`) ran AFTER manager/provider assignment INSERT but BEFORE tenant assignment INSERT. Tenants never got `requires_confirmation = true` (column default = false). The DB trigger `create_responses_for_new_timeslot` only creates responses for `requires_confirmation = TRUE` — so tenants were silently excluded from time slot responses. The edit flow didn't have this bug because all assignments already existed when the UPDATE ran.
+**Solution:** Move cross-cutting UPDATEs to AFTER all entity INSERTs complete. In SEIDO: confirmation flag setting block must come after both manager/provider AND tenant assignment insertions. Order: INSERT managers → INSERT tenants → UPDATE confirmation → INSERT time slots.
+**Example:** `app/api/create-manager-intervention/route.ts:812-869` — confirmation block moved after tenant assignments
+**When to Use:** Any API route that INSERTs entities in multiple phases then does a bulk UPDATE across all of them. Always audit the order: UPDATE must come AFTER the last INSERT it targets.
+**Added:** 2026-03-01 | **Source:** Tenant missing from time slot responses after creation
+
+#### Learning #102: has_account !== false pattern for filtering non-invited contacts
+**Problem:** `buildAllParticipantIds()` included ALL contacts (providers, tenants) in the confirmation list, even those without Seido accounts (`has_account === false`). These contacts can never respond to confirmations since they have no login. This created ghost "En attente" entries in the planning tab.
+**Solution:** Filter with `has_account !== false` (not `=== true`) because the field is optional — `undefined`/`null` means "has account" (backwards compat). Apply client-side in `buildAllParticipantIds()` + server-side defense-in-depth checking `auth_user_id IS NOT NULL` in the users table.
+**Example:** `nouvelle-intervention-client.tsx:269-310` (client filter), `route.ts:834-841` (server filter)
+**When to Use:** Any feature that builds participant lists for confirmation, notifications, or time slot responses. Always check `has_account !== false` for contacts that need login access.
+**Added:** 2026-03-01 | **Source:** Non-invited contacts appearing in confirmation & time slots
+
+#### Learning #103: Slot-count-dependent business logic — derive isMultiSlot and share across files
+**Problem:** "Créneaux" mode treated all slot counts the same (always mandatory confirmation). But with 1 slot there's nothing to vote on — it's effectively a fixed date. Business logic needed: 1 slot = optional confirmation (like Date fixe), 2+ slots = mandatory.
+**Solution:** Compute `isMultiSlot = schedulingType === 'slots' && timeSlots.length >= 2` once, then use it in: (a) useEffect for auto-populating confirmation, (b) submission payload, (c) confirmation summary, (d) UI components. The UI dynamically switches between mandatory/optional as slots are added/removed. API route independently checks `timeSlots.length` for status determination (defense-in-depth).
+**Example:** `nouvelle-intervention-client.tsx:921` (isMultiSlot), `route.ts:350-358` (server-side), `assignment-section-v2.tsx:1124+1151` (UI)
+**When to Use:** Any feature where behavior depends on a count threshold. Derive the boolean once, share it, and make the UI reactive to changes.
+**Added:** 2026-03-01 | **Source:** Single-slot créneaux should behave like Date fixe
 
 #### Learning #077: CSS opacity inheritance — use overlay, not parent opacity, for dimming
 **Problem:** Setting `opacity-60 grayscale` on a card parent also affects child elements (like "Unlock" button). CSS opacity is inherited and children CANNOT override it.

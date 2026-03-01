@@ -172,6 +172,9 @@ export default function InterventionEditClient({
   const [globalMessage, setGlobalMessage] = useState(initialData.intervention.instructions || "")
   const [expectsQuote, setExpectsQuote] = useState(initialData.intervention.requires_quote || false)
 
+  // ✅ FIX 2026-03-01: 1 créneau = like fixed (optional confirmation), 2+ = mandatory
+  const isMultiSlot = schedulingType === 'slots' && timeSlots.length >= 2
+
   // Mode d'assignation - Initialiser depuis DB
   const [assignmentMode, setAssignmentMode] = useState<'single' | 'group' | 'separate'>(
     initialData.intervention.assignment_mode || 'single'
@@ -260,10 +263,11 @@ export default function InterventionEditClient({
   }))
 
   const providers = teamMembers.providers.map(p => ({
-    id: p.user_id,  // user_id is always present in TeamMember
+    id: p.user_id,
     name: p.user?.name || p.name || 'Prestataire',
     email: p.user?.email || p.email || '',
     role: 'prestataire',
+    has_account: !!(p.user as any)?.auth_user_id,
   }))
 
   // Navigation handlers
@@ -399,10 +403,12 @@ export default function InterventionEditClient({
           end_time: ts.endTime,
         })),
         // Mode d'assignation et confirmation
+        // ✅ FIX 2026-03-01: 1 créneau = like fixed (optional), 2+ = mandatory
         assignment_mode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
         requires_participant_confirmation:
           (schedulingType === 'fixed' && requiresConfirmation) ||
-          schedulingType === 'slots',
+          isMultiSlot ||
+          (schedulingType === 'slots' && timeSlots.length < 2 && requiresConfirmation),
         providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
         confirmationRequiredUserIds: confirmationRequired,
         // Documents à supprimer
@@ -773,9 +779,11 @@ export default function InterventionEditClient({
                 assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
                 providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
                 // Données de confirmation des participants
+                // ✅ FIX 2026-03-01: 1 créneau = like fixed, 2+ = mandatory
                 requiresParticipantConfirmation:
                   (schedulingType === 'fixed' && requiresConfirmation) ||
-                  schedulingType === 'slots',
+                  isMultiSlot ||
+                  (schedulingType === 'slots' && timeSlots.length < 2 && requiresConfirmation),
                 confirmationRequiredUserIds: confirmationRequired,
               }
 

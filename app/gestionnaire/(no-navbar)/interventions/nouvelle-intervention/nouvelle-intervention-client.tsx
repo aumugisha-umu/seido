@@ -20,7 +20,6 @@ import {
   User,
   Wrench,
   UserCheck,
-  Eye,
   AlertTriangle,
   Calendar,
   Clock,
@@ -34,7 +33,6 @@ import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { useSaveFormState, useRestoreFormState } from "@/hooks/use-form-persistence"
 import PropertySelector from "@/components/property-selector"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { URGENCY_LEVELS } from "@/lib/intervention-data"
 import { InterventionTypeCombobox } from "@/components/intervention/intervention-type-combobox"
 import type { InterventionTypesData } from "@/hooks/use-intervention-types"
@@ -169,10 +167,7 @@ export default function NouvelleInterventionClient({
   const [assignmentMode, setAssignmentMode] = useState<'single' | 'group' | 'separate'>('single')
   const [providerInstructions, setProviderInstructions] = useState<Record<string, string>>({})
 
-  const [showSuccessModal, setShowSuccessModal] = useState(false)
-  const [countdown] = useState(10)
   const [isPreFilled, setIsPreFilled] = useState(false)
-  const [createdInterventionId] = useState<string>("")
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string>("")
 
@@ -275,22 +270,27 @@ export default function NouvelleInterventionClient({
     const ids: string[] = []
     const currentUserId = user?.id
 
-    // 1. Gestionnaires sélectionnés (sauf utilisateur courant)
+    // 1. Gestionnaires sélectionnés (sauf utilisateur courant, only with account)
     for (const managerId of selectedManagerIds) {
       const manager = managers.find((m: any) => String(m.id) === managerId)
-      if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId) {
+      if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId
+          && (manager as any).has_account !== false) {
         ids.push(managerId)
       }
     }
 
-    // 2. Prestataires sélectionnés (tous)
-    ids.push(...selectedProviderIds)
+    // 2. Prestataires sélectionnés (only with account — non-invited can't respond)
+    const eligibleProviderIds = selectedProviderIds.filter(pid => {
+      const provider = (providers as any[]).find((p: any) => String(p.id) === pid)
+      return !provider || provider.has_account !== false
+    })
+    ids.push(...eligibleProviderIds)
 
-    // 3. Locataires (logique unifiée)
+    // 3. Locataires (logique unifiée, only with account)
     if (selectedLogement?.type === 'lot' && selectedContractId && includeTenants) {
       // Lot-level: utiliser filteredTenants (filtrés par contrat sélectionné)
       filteredTenants.forEach((tenant: any) => {
-        if (tenant.user_id) {
+        if (tenant.user_id && tenant.has_account !== false) {
           ids.push(tenant.user_id)
         }
       })
@@ -299,7 +299,9 @@ export default function NouvelleInterventionClient({
       for (const lotGroup of buildingTenants.byLot) {
         if (!excludedLotIds.includes(lotGroup.lotId)) {
           for (const tenant of lotGroup.tenants) {
-            ids.push(tenant.user_id)
+            if (tenant.has_account !== false) {
+              ids.push(tenant.user_id)
+            }
           }
         }
       }
@@ -316,6 +318,7 @@ export default function NouvelleInterventionClient({
     includeTenants,
     excludedLotIds,
     managers,
+    providers,
     user?.id
   ])
 
@@ -632,6 +635,7 @@ export default function NouvelleInterventionClient({
             speciality: contact.speciality,
             isCurrentUser: false,
             type: "prestataire" as const,
+            has_account: !!contact.auth_user_id,
           }))
 
         logger.info("👥 [CONTACTS-LOAD] Managers:", managersData.length, "Providers:", providersData.length)
@@ -912,20 +916,28 @@ export default function NouvelleInterventionClient({
   }, [services, searchParams, isPreFilled])
 
   // Reset ou pré-sélection des confirmations selon le mode de planification
-  // ✅ SIMPLIFIÉ: Utilise buildAllParticipantIds pour éviter la duplication
+  // ✅ FIX 2026-03-01: Slots with 1 créneau = like fixed (optional confirmation)
+  // Slots with 2+ créneaux = mandatory confirmation (auto-select all participants)
+  const isMultiSlot = schedulingType === 'slots' && timeSlots.length >= 2
   useEffect(() => {
     if (schedulingType !== 'fixed' && schedulingType !== 'slots') {
       // Mode flexible : pas de confirmation
       setRequiresConfirmation(false)
       setConfirmationRequired([])
       userHasModifiedConfirmation.current = false
-    } else if (schedulingType === 'slots') {
-      // Mode créneaux : sélectionner tous les participants par défaut
+    } else if (isMultiSlot) {
+      // Mode créneaux multiples : sélectionner tous les participants par défaut
       if (!userHasModifiedConfirmation.current) {
         setConfirmationRequired(buildAllParticipantIds())
       }
+    } else if (schedulingType === 'slots' && timeSlots.length < 2) {
+      // 1 créneau ou 0 : like fixed mode — reset to optional
+      if (!userHasModifiedConfirmation.current) {
+        setRequiresConfirmation(false)
+        setConfirmationRequired([])
+      }
     }
-  }, [schedulingType, buildAllParticipantIds])
+  }, [schedulingType, isMultiSlot, timeSlots.length, buildAllParticipantIds])
 
   // ✅ Reset le flag de modification quand le mode de planification change
   useEffect(() => {
@@ -1637,13 +1649,14 @@ export default function NouvelleInterventionClient({
           : [],
 
         // Confirmation des participants
-        // En mode "fixed" : dépend du toggle requiresConfirmation
-        // En mode "slots" : toujours activé (confirmation obligatoire)
+        // ✅ FIX 2026-03-01: slots with 1 créneau = like fixed (depends on toggle)
+        // slots with 2+ créneaux = always mandatory
         requiresParticipantConfirmation:
           (schedulingType === 'fixed' && requiresConfirmation) ||
-          schedulingType === 'slots',
+          isMultiSlot ||
+          (schedulingType === 'slots' && timeSlots.length < 2 && requiresConfirmation),
         confirmationRequiredUserIds:
-          ((schedulingType === 'fixed' && requiresConfirmation) || schedulingType === 'slots')
+          ((schedulingType === 'fixed' && requiresConfirmation) || isMultiSlot || (schedulingType === 'slots' && timeSlots.length < 2 && requiresConfirmation))
             ? confirmationRequired
             : [],
 
@@ -1738,10 +1751,6 @@ export default function NouvelleInterventionClient({
     }
   }
 
-  const handleNavigation = (path: string) => {
-    setShowSuccessModal(false)
-    router.push(path)
-  }
 
   // Calculer le subtitle pour afficher le bien sélectionné (à partir de l'étape 2)
   const getHeaderSubtitle = () => {
@@ -2142,33 +2151,44 @@ export default function NouvelleInterventionClient({
                   role: contact.role,
                   speciality: contact.speciality,
                   isCurrentUser: contact.isCurrentUser,
+                  has_account: (contact as any).has_account,
                 })),
                 // ✅ Ajouter les locataires du lot filtrés par contrat sélectionné
                 ...(filteredTenants.length > 0 && includeTenants && selectedContractId
-                  ? filteredTenants.map((tenant: { user_id: string; name: string; email: string | null; phone: string | null; contract_id: string | null }, index: number) => ({
+                  ? filteredTenants.map((tenant: { user_id: string; name: string; email: string | null; phone: string | null; contract_id: string | null; has_account?: boolean }, index: number) => ({
                       id: tenant.user_id || `tenant-${selectedLogement?.id}-${index}`,
                       name: tenant.name,
                       role: 'Locataire',
                       email: tenant.email || undefined,
                       phone: tenant.phone || undefined,
                       isCurrentUser: false,
+                      has_account: tenant.has_account,
                     }))
                   : []),
                 // 🆕 Ajouter les locataires d'immeuble (depuis buildingTenants)
-                // ✅ Utiliser clé composite lot+user pour éviter les doublons React
-                // (un même locataire peut apparaître dans plusieurs lots)
+                // ✅ FIX 2026-03-01: Dédupliquer par user_id — un locataire sur 2 lots n'apparaît qu'une fois
                 // ✅ FIX 2026-01-25: UNIQUEMENT pour interventions IMMEUBLE (pas de lot sélectionné)
                 ...(buildingTenants && includeTenants && !selectedLotId
-                  ? buildingTenants.byLot
-                      .filter(lot => !excludedLotIds.includes(lot.lotId))
-                      .flatMap(lot => lot.tenants.map((tenant) => ({
-                        id: `${lot.lotId}-${tenant.user_id}`,
-                        name: tenant.name,
-                        role: 'Locataire',
-                        email: tenant.email || undefined,
-                        phone: tenant.phone || undefined,
-                        isCurrentUser: false,
-                      })))
+                  ? (() => {
+                      const seen = new Set<string>()
+                      return buildingTenants.byLot
+                        .filter(lot => !excludedLotIds.includes(lot.lotId))
+                        .flatMap(lot => lot.tenants
+                          .filter(tenant => {
+                            if (seen.has(tenant.user_id)) return false
+                            seen.add(tenant.user_id)
+                            return true
+                          })
+                          .map((tenant) => ({
+                            id: tenant.user_id,
+                            name: tenant.name,
+                            role: 'Locataire',
+                            email: tenant.email || undefined,
+                            phone: tenant.phone || undefined,
+                            isCurrentUser: false,
+                            has_account: tenant.has_account,
+                          })))
+                    })()
                   : [])
               ],
               scheduling: schedulingType === 'slots' && timeSlots.length > 0
@@ -2217,9 +2237,11 @@ export default function NouvelleInterventionClient({
               assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
               providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
               // Participant confirmation data
+              // ✅ FIX 2026-03-01: 1 créneau = like fixed (optional), 2+ = mandatory
               requiresParticipantConfirmation:
                 (schedulingType === 'fixed' && requiresConfirmation) ||
-                schedulingType === 'slots',
+                isMultiSlot ||
+                (schedulingType === 'slots' && timeSlots.length < 2 && requiresConfirmation),
               confirmationRequiredUserIds: confirmationRequired,
             }
 
@@ -2345,43 +2367,6 @@ export default function NouvelleInterventionClient({
         }}
       />
 
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-                Intervention créée avec succès !
-              </DialogTitle>
-            </DialogHeader>
-            <div className="text-center space-y-4">
-              <p className="text-muted-foreground">
-                Votre intervention a été créée et les personnes assignées ont été notifiées.
-              </p>
-              <div className="flex flex-col space-y-2">
-                <Button
-                  variant="outline"
-                  onClick={() => handleNavigation("/gestionnaire/dashboard")}
-                  className="w-full"
-                >
-                  <Home className="h-4 w-4 mr-2" />
-                  Retour au dashboard
-                </Button>
-                <Button
-                  onClick={() => handleNavigation(`/gestionnaire/interventions/${createdInterventionId}`)}
-                  className="w-full"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Voir les détails de l'intervention
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Redirection automatique vers les details dans {countdown} secondes
-              </p>
-            </div>
-          </DialogContent>
-        </Dialog>
     </>
   )
 }

@@ -1,0 +1,80 @@
+{
+  "project": "SEIDO",
+  "featureName": "Dashboard Interventions Perf & UX Optimization",
+  "branchName": "preview",
+  "description": "Remove period filter, sort by scheduled_date, add client-side pagination to cards view, add rejetee to Terminées tab.",
+  "createdAt": "2026-03-01",
+  "prdSource": "docs/plans/2026-03-01-dashboard-interventions-perf.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Remove PeriodSelector from dashboard",
+      "description": "As a gestionnaire, I want the dashboard to show all my interventions without a confusing date filter, so I can focus on status-based tabs.",
+      "acceptanceCriteria": [
+        "PeriodSelector component removed from dashboard header (both mobile and desktop)",
+        "period state, filteredInterventions date-filter useMemo, and progressData removed",
+        "InterventionsNavigator receives unfiltered interventions",
+        "Header title shows 'Interventions' (no period label)",
+        "Stats cards no longer show progressData",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Removed PeriodSelector import, period state, filteredInterventions, progressData, celebration toast, period reset. Also removed toast import (no longer used)."
+    },
+    {
+      "id": "US-002",
+      "title": "Add rejetee to dashboard Terminées tab",
+      "description": "As a gestionnaire, I want rejected interventions to appear in the Terminées tab, so no intervention falls through the cracks.",
+      "acceptanceCriteria": [
+        "terminees filter in interventions-navigator.tsx includes 'rejetee' status",
+        "Terminées count reflects rejected interventions",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Added 'rejetee' to terminees filter array in interventions-navigator.tsx"
+    },
+    {
+      "id": "US-003",
+      "title": "Sort by scheduled_date (unscheduled first)",
+      "description": "As a gestionnaire, I want interventions sorted by scheduled date with unscheduled ones first, so I see what needs attention immediately.",
+      "acceptanceCriteria": [
+        "New sort option 'scheduled-asc' in SORT_OPTIONS: 'Date planifiée'",
+        "Sort logic: unscheduled (NULL scheduled_date) first sorted by urgency DESC then created_at DESC, then overdue (past) most overdue first, then upcoming soonest first",
+        "Default sort is 'scheduled-asc' when tabsPreset === 'dashboard'",
+        "Other sort options still available in dropdown",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added 'scheduled' to SortField type, new SORT_OPTIONS entry, 3-tier sort logic (null→overdue→upcoming), default for dashboard preset."
+    },
+    {
+      "id": "US-004",
+      "title": "Client-side pagination on cards view",
+      "description": "As a gestionnaire, I want the cards view to show 12 items per page with pagination controls, so the dashboard renders fast even with 100+ interventions.",
+      "acceptanceCriteria": [
+        "Cards view shows max 12 items per page (4 rows × 3 cols on desktop)",
+        "Pagination controls at bottom of cards grid (< Page X of Y >)",
+        "Tab switch resets to page 1",
+        "Search/filter change resets to page 1",
+        "List view pagination unchanged",
+        "Calendar view unchanged",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Second usePagination instance for cards (pageSize: 12). Destructured resetToFirstPage to avoid ESLint dependency warning. Pagination hidden when totalPages <= 1."
+    }
+  ]
+}

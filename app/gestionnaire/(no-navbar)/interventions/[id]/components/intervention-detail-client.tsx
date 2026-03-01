@@ -1643,27 +1643,8 @@ export function InterventionDetailClient({
 
   const headerBadges: DetailPageHeaderBadge[] = [getTypeBadge(), getStatusBadge(), getQuoteBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
 
-  // Metadata: Show scheduled date/time in header when confirmed
-  // ✅ FIX 2026-01-28: Ne pas afficher l'heure de fin en mode date fixe (selected_by_manager)
+  // Planning date removed from header — already shown in Général + Planning tabs
   const headerMetadata: DetailPageHeaderMetadata[] = [];
-  if (scheduledDate) {
-    let scheduledText: string;
-    if (scheduledStartTime) {
-      // Mode date fixe: afficher seulement l'heure de début
-      // Mode créneaux: afficher la plage horaire complète
-      scheduledText = isFixedScheduling
-        ? `${formatDate(scheduledDate)} • ${formatTime(scheduledStartTime)}`
-        : scheduledEndTime
-          ? `${formatDate(scheduledDate)} • ${formatTimeRange(scheduledStartTime, scheduledEndTime)}`
-          : `${formatDate(scheduledDate)} • ${formatTime(scheduledStartTime)}`;
-    } else {
-      scheduledText = formatDate(scheduledDate);
-    }
-    headerMetadata.push({
-      icon: Calendar,
-      text: scheduledText
-    });
-  }
 
   // Helper function to check if action badge should be shown
   const shouldShowActionBadge = (

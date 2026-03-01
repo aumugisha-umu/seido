@@ -1,80 +1,62 @@
 {
   "project": "SEIDO",
-  "featureName": "Dashboard Interventions Perf & UX Optimization",
+  "featureName": "Compte Seido Badge Consistency & Non-Invited Filtering",
   "branchName": "preview",
-  "description": "Remove period filter, sort by scheduled_date, add client-side pagination to cards view, add rejetee to Terminées tab.",
+  "description": "Replace all 'Non invité' negative badges with 'Compte Seido' positive badges. Fix data flow bugs where has_account is missing, causing non-invited contacts to appear in confirmation selectors.",
   "createdAt": "2026-03-01",
-  "prdSource": "docs/plans/2026-03-01-dashboard-interventions-perf.md",
-  "status": "complete",
+  "prdSource": "brainstorming-session",
+  "status": "in_progress",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Remove PeriodSelector from dashboard",
-      "description": "As a gestionnaire, I want the dashboard to show all my interventions without a confusing date filter, so I can focus on status-based tabs.",
+      "title": "Fix data flow: has_account on allTenants + dedup for confirmation",
+      "description": "Fix allTenants Branch 2 to copy has_account from BuildingTenant. Deduplicate allTenants before passing to ParticipantConfirmationSelector.",
       "acceptanceCriteria": [
-        "PeriodSelector component removed from dashboard header (both mobile and desktop)",
-        "period state, filteredInterventions date-filter useMemo, and progressData removed",
-        "InterventionsNavigator receives unfiltered interventions",
-        "Header title shows 'Interventions' (no period label)",
-        "Stats cards no longer show progressData",
+        "allTenants Branch 2 maps has_account from tenant object",
+        "ParticipantConfirmationSelector receives deduplicated tenants with has_account",
+        "Non-invited tenants excluded from confirmation selector",
         "Lint passes"
       ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "Removed PeriodSelector import, period state, filteredInterventions, progressData, celebration toast, period reset. Also removed toast import (no longer used)."
-    },
-    {
-      "id": "US-002",
-      "title": "Add rejetee to dashboard Terminées tab",
-      "description": "As a gestionnaire, I want rejected interventions to appear in the Terminées tab, so no intervention falls through the cracks.",
-      "acceptanceCriteria": [
-        "terminees filter in interventions-navigator.tsx includes 'rejetee' status",
-        "Terminées count reflects rejected interventions",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "Added 'rejetee' to terminees filter array in interventions-navigator.tsx"
-    },
-    {
-      "id": "US-003",
-      "title": "Sort by scheduled_date (unscheduled first)",
-      "description": "As a gestionnaire, I want interventions sorted by scheduled date with unscheduled ones first, so I see what needs attention immediately.",
-      "acceptanceCriteria": [
-        "New sort option 'scheduled-asc' in SORT_OPTIONS: 'Date planifiée'",
-        "Sort logic: unscheduled (NULL scheduled_date) first sorted by urgency DESC then created_at DESC, then overdue (past) most overdue first, then upcoming soonest first",
-        "Default sort is 'scheduled-asc' when tabsPreset === 'dashboard'",
-        "Other sort options still available in dropdown",
-        "Lint passes"
-      ],
-      "priority": 3,
+      "priority": 1,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "Added 'scheduled' to SortField type, new SORT_OPTIONS entry, 3-tier sort logic (null→overdue→upcoming), default for dashboard preset."
+      "notes": "Added Set<string> dedup + has_account mapping in allTenants Branch 2"
     },
     {
-      "id": "US-004",
-      "title": "Client-side pagination on cards view",
-      "description": "As a gestionnaire, I want the cards view to show 12 items per page with pagination controls, so the dashboard renders fast even with 100+ interventions.",
+      "id": "US-002",
+      "title": "Fix data flow: has_account in Step 4 confirmation + edit page",
+      "description": "Add has_account to data.contacts in confirmation summary. Filter non-invited from confirmation display. Map has_account on providers in edit page.",
       "acceptanceCriteria": [
-        "Cards view shows max 12 items per page (4 rows × 3 cols on desktop)",
-        "Pagination controls at bottom of cards grid (< Page X of Y >)",
-        "Tab switch resets to page 1",
-        "Search/filter change resets to page 1",
-        "List view pagination unchanged",
-        "Calendar view unchanged",
+        "Step 4 confirmation contacts include has_account field",
+        "Non-invited contacts filtered from confirmation locataires",
+        "Edit page maps has_account on providers",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added has_account to all 3 contact paths in Step 4, to edit page providers, and Compte Seido badge in renderContactList"
+    },
+    {
+      "id": "US-003",
+      "title": "Badge flip: all Non invité → Compte Seido across UI",
+      "description": "Replace all negative 'Non invité' badges with positive 'Compte Seido' badges across: contact-selector modal, contact-selector dropdown, contact-section, assignment-section-v2 (3 sites), programming-modal-FINAL (2 sites).",
+      "acceptanceCriteria": [
+        "contact-selector.tsx modal shows 'Compte Seido' badge when auth_user_id present",
+        "ui/contact-selector.tsx dropdown shows 'Compte Seido' when has_account true",
+        "ui/contact-section.tsx shows 'Compte Seido' for all section types (not just providers)",
+        "assignment-section-v2.tsx 3 badge sites flipped to Compte Seido",
+        "programming-modal-FINAL.tsx 2 badge sites flipped to Compte Seido",
+        "Zero 'Non invité' remaining in intervention UI components",
         "Lint passes"
       ],
       "priority": 3,
-      "dependsOn": [],
+      "dependsOn": ["US-001"],
       "sizing": "M",
       "passes": true,
-      "notes": "Second usePagination instance for cards (pageSize: 12). Destructured resetToFirstPage to avoid ESLint dependency warning. Pagination hidden when totalPages <= 1."
+      "notes": "All 8 badge sites flipped. Zero 'Non invité' remaining in components/. 11 'Compte Seido' locations confirmed."
     }
   ]
 }

@@ -309,6 +309,13 @@ export async function POST(request: NextRequest) {
     if (schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time) {
       scheduledDate = `${fixedDateTime.date}T${fixedDateTime.time}:00.000Z`
     }
+    // ✅ FIX 2026-03-01: 1 slot without confirmation = set scheduled_date from the slot (like fixed)
+    if (schedulingType === 'slots' && timeSlots && timeSlots.length === 1 && !requiresParticipantConfirmation) {
+      const singleSlot = timeSlots[0]
+      if (singleSlot?.date && singleSlot?.startTime) {
+        scheduledDate = `${singleSlot.date}T${singleSlot.startTime}:00.000Z`
+      }
+    }
 
     // ✅ Note: assigned_contact_id n'existe plus dans la nouvelle structure DB
     // Les assignations se font maintenant viaintervention_assignments
@@ -346,7 +353,17 @@ export async function POST(request: NextRequest) {
       interventionStatus = 'planifiee'
       logger.info({}, "✅ Statut déterminé: PLANIFIEE (date fixe, sans confirmation)")
 
-      // CAS 3: Planification dans tous les autres cas (slots, flexible, confirmation requise)
+      // CAS 2b: Planifiée si slots avec 1 seul créneau + pas de confirmation
+      // ✅ FIX 2026-03-01: 1 créneau = comme date fixe, pas de vote nécessaire
+    } else if (
+      schedulingType === 'slots' &&
+      timeSlots && timeSlots.length === 1 &&
+      !requiresParticipantConfirmation
+    ) {
+      interventionStatus = 'planifiee'
+      logger.info({}, "✅ Statut déterminé: PLANIFIEE (1 créneau, sans confirmation)")
+
+      // CAS 3: Planification dans tous les autres cas (multi-slots, flexible, confirmation requise)
     } else {
       interventionStatus = 'planification'
       logger.info({}, "✅ Statut déterminé: PLANIFICATION (cas par défaut)")
@@ -754,49 +771,6 @@ export async function POST(request: NextRequest) {
           count: assignmentData?.length || 0,
           inserted: assignmentData?.map(a => ({ id: a.id, user_id: a.user_id, role: a.role }))
         }, "✅ Contact assignments created successfully")
-
-        // ✅ NEW: Gestion de la confirmation des participants
-        // Si requiresParticipantConfirmation est activé, mettre à jour l'intervention et les assignments
-        if (requiresParticipantConfirmation && confirmationRequiredUserIds && confirmationRequiredUserIds.length > 0) {
-          logger.info({
-            interventionId: intervention.id,
-            confirmationRequiredUserIds
-          }, "📋 Setting up participant confirmation requirements")
-
-          // 1. Mettre à jour l'intervention avec le flag
-          const { error: updateInterventionError } = await supabase
-            .from('interventions')
-            .update({ requires_participant_confirmation: true })
-            .eq('id', intervention.id)
-
-          if (updateInterventionError) {
-            logger.error({
-              error: updateInterventionError
-            }, "⚠️ Failed to update intervention confirmation flag (non-blocking)")
-          } else {
-            logger.info({}, "✅ Intervention confirmation flag set")
-          }
-
-          // 2. Mettre à jour les assignments qui nécessitent une confirmation
-          const { error: updateAssignmentsError } = await supabase
-            .from('intervention_assignments')
-            .update({
-              requires_confirmation: true,
-              confirmation_status: 'pending'
-            })
-            .eq('intervention_id', intervention.id)
-            .in('user_id', confirmationRequiredUserIds)
-
-          if (updateAssignmentsError) {
-            logger.error({
-              error: updateAssignmentsError
-            }, "⚠️ Failed to update assignment confirmation status (non-blocking)")
-          } else {
-            logger.info({
-              count: confirmationRequiredUserIds.length
-            }, "✅ Assignment confirmation requirements set")
-          }
-        }
       }
     }
 
@@ -852,11 +826,72 @@ export async function POST(request: NextRequest) {
       logger.info({ lotId, buildingId, includeTenants }, "ℹ️ No tenants resolved - skipping assignment")
     }
 
+    // ✅ FIX 2026-03-01: Confirmation flags set AFTER all assignments (managers + providers + tenants)
+    // Previously ran before tenant insertion → tenants never got requires_confirmation=true
+    if (requiresParticipantConfirmation && confirmationRequiredUserIds && confirmationRequiredUserIds.length > 0) {
+      logger.info({
+        interventionId: intervention.id,
+        confirmationRequiredUserIds
+      }, "📋 Setting up participant confirmation requirements")
+
+      // 1. Mettre à jour l'intervention avec le flag
+      const { error: updateInterventionError } = await supabase
+        .from('interventions')
+        .update({ requires_participant_confirmation: true })
+        .eq('id', intervention.id)
+
+      if (updateInterventionError) {
+        logger.error({
+          error: updateInterventionError
+        }, "⚠️ Failed to update intervention confirmation flag (non-blocking)")
+      } else {
+        logger.info({}, "✅ Intervention confirmation flag set")
+      }
+
+      // 2. Defense-in-depth: filter out non-invited users (no Seido account)
+      const { data: accountUsers } = await supabase
+        .from('users')
+        .select('id')
+        .in('id', confirmationRequiredUserIds)
+        .not('auth_user_id', 'is', null)
+
+      const eligibleConfirmationIds = accountUsers?.map(u => u.id) || []
+
+      if (eligibleConfirmationIds.length > 0) {
+        // 3. Mettre à jour les assignments qui nécessitent une confirmation
+        const { error: updateAssignmentsError } = await supabase
+          .from('intervention_assignments')
+          .update({
+            requires_confirmation: true,
+            confirmation_status: 'pending'
+          })
+          .eq('intervention_id', intervention.id)
+          .in('user_id', eligibleConfirmationIds)
+
+        if (updateAssignmentsError) {
+          logger.error({
+            error: updateAssignmentsError
+          }, "⚠️ Failed to update assignment confirmation status (non-blocking)")
+        } else {
+          logger.info({
+            count: eligibleConfirmationIds.length,
+            filtered: confirmationRequiredUserIds.length - eligibleConfirmationIds.length
+          }, "✅ Assignment confirmation requirements set")
+        }
+      } else {
+        logger.info({
+          originalCount: confirmationRequiredUserIds.length
+        }, "ℹ️ No eligible users for confirmation (all filtered out)")
+      }
+    }
+
     // Handle scheduling slots if provided (slots mode only)
     // ✅ FIX 2026-01-25: Removed 'flexible' - only 'slots' mode should create multiple slots
     // This prevents accidental slot creation if timeSlots array is injected in flexible mode
     if (schedulingType === 'slots' && timeSlots && timeSlots.length > 0) {
-      logger.info({ count: timeSlots.length }, "📅 Creating time slots")
+      // ✅ FIX 2026-03-01: 1 slot without confirmation = 'selected' (like fixed), 2+ = 'pending'
+      const isSingleSlotNoConfirmation = timeSlots.length === 1 && !requiresParticipantConfirmation
+      logger.info({ count: timeSlots.length, isSingleSlotNoConfirmation }, "📅 Creating time slots")
 
       const timeSlotsToInsert = timeSlots
         .filter((slot: { date?: string; startTime?: string; endTime?: string }) => slot.date && slot.startTime && slot.endTime) // Only valid slots
@@ -865,7 +900,7 @@ export async function POST(request: NextRequest) {
           slot_date: slot.date,
           start_time: slot.startTime,
           end_time: slot.endTime,
-          status: 'pending', // Modern status pattern (replaces is_selected: false)
+          status: isSingleSlotNoConfirmation ? 'selected' : 'pending',
           proposed_by: user.id // Track who proposed these slots
         }))
 

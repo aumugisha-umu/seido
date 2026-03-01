@@ -18,7 +18,7 @@ const THREAD_TYPE_CONFIG: Record<string, { label: string; shortLabel: string; bg
   provider_to_managers: { label: 'Prestataire', shortLabel: 'Prest.', bgClass: 'bg-purple-100 text-purple-700' },
 }
 
-const MAX_VISIBLE = 5
+const MAX_VISIBLE = 3
 
 interface UnreadMessagesSectionProps {
   threads: UnreadThread[]
@@ -51,10 +51,8 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
 
   const visibleThreads = threads
     .filter(t => !dismissedIds.has(t.threadId))
-    .slice(0, MAX_VISIBLE)
 
   const remainingCount = totalCount - dismissedIds.size
-  const hasMore = remainingCount > MAX_VISIBLE
 
   // Mark single thread as read with fade animation
   const handleMarkAsRead = useCallback((threadId: string) => {
@@ -143,7 +141,10 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
           "transition-all duration-200 overflow-hidden",
           isCollapsed ? "max-h-0" : "max-h-[2000px]"
         )}>
-        <div className="divide-y divide-border/50">
+        <div className={cn(
+          "divide-y divide-border/50",
+          visibleThreads.length > MAX_VISIBLE && "max-h-[222px] overflow-y-auto"
+        )}>
           {visibleThreads.map(thread => {
             const config = THREAD_TYPE_CONFIG[thread.threadType] || THREAD_TYPE_CONFIG.group
             const isFading = fadingIds.has(thread.threadId)
@@ -269,17 +270,6 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
           })}
         </div>
 
-        {/* Footer — "Voir tous" link */}
-        {hasMore && (
-          <div className="px-4 py-2.5 sm:px-5 border-t border-border/50 bg-muted/20">
-            <Link
-              href={`/${role}/interventions`}
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium hover:underline"
-            >
-              Voir toutes les conversations non lues ({remainingCount})
-            </Link>
-          </div>
-        )}
         </div>
       </div>
     </div>

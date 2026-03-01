@@ -67,7 +67,12 @@
       "WebFetch(domain:ai-sdk.dev)",
       "WebFetch(domain:help.elevenlabs.io)",
       "WebFetch(domain:www.twilio.com)",
-      "WebFetch(domain:help.twilio.com)"
+      "WebFetch(domain:help.twilio.com)",
+      "WebFetch(domain:telnyx.com)",
+      "WebFetch(domain:community.asterisk.org)",
+      "WebFetch(domain:community.freepbx.org)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:support.exotel.com)"
     ],
     "deny": [],
     "ask": []

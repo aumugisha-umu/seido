@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback } from 'react'
 import Link from 'next/link'
-import { MessageSquare, Check, ExternalLink, CheckCheck } from 'lucide-react'
+import { MessageSquare, Check, ExternalLink, CheckCheck, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -43,6 +43,7 @@ const formatTimeAgo = (dateStr: string): string => {
 }
 
 export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessagesSectionProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set())
   const [allFading, setAllFading] = useState(false)
@@ -100,8 +101,14 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
     )}>
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 sm:px-5 border-b border-border/50 bg-muted/30">
-          <div className="flex items-center gap-2.5">
+        <div className={cn(
+          "flex items-center justify-between px-4 py-3 sm:px-5 bg-muted/30",
+          !isCollapsed && "border-b border-border/50"
+        )}>
+          <button
+            onClick={() => setIsCollapsed(prev => !prev)}
+            className="flex items-center gap-2.5 cursor-pointer"
+          >
             <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-100 text-blue-600">
               <MessageSquare className="h-4 w-4" />
             </div>
@@ -111,21 +118,31 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
             <Badge variant="secondary" className="h-5 min-w-[20px] px-1.5 text-xs font-semibold bg-blue-600 text-white hover:bg-blue-600">
               {remainingCount}
             </Badge>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleMarkAllAsRead}
-            disabled={isPending}
-            className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1.5"
-          >
-            <CheckCheck className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Tout marquer comme lu</span>
-            <span className="sm:hidden">Tout lu</span>
-          </Button>
+            <ChevronDown className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform duration-200",
+              isCollapsed && "-rotate-90"
+            )} />
+          </button>
+          {!isCollapsed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMarkAllAsRead}
+              disabled={isPending}
+              className="h-8 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Tout marquer comme lu</span>
+              <span className="sm:hidden">Tout lu</span>
+            </Button>
+          )}
         </div>
 
-        {/* Thread list */}
+        {/* Thread list — collapsible */}
+        <div className={cn(
+          "transition-all duration-200 overflow-hidden",
+          isCollapsed ? "max-h-0" : "max-h-[2000px]"
+        )}>
         <div className="divide-y divide-border/50">
           {visibleThreads.map(thread => {
             const config = THREAD_TYPE_CONFIG[thread.threadType] || THREAD_TYPE_CONFIG.group
@@ -263,6 +280,7 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
             </Link>
           </div>
         )}
+        </div>
       </div>
     </div>
   )

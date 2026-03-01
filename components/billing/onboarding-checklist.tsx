@@ -14,6 +14,7 @@ import {
   PartyPopper,
   Zap,
   Lightbulb,
+  ArrowRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -35,6 +36,7 @@ interface ChecklistStep {
   description: string
   whyItMatters: string
   howItConnects: string
+  ctaLabel: string
   icon: React.ElementType
   href: string
 }
@@ -52,17 +54,9 @@ const STEPS: ChecklistStep[] = [
     description: 'Ajoutez votre premier bien immobilier',
     whyItMatters: 'Le lot est la base de votre gestion. Toutes les interventions, contrats et locataires y seront rattaches.',
     howItConnects: 'Vous pourrez ensuite y associer des locataires, des contrats et suivre les interventions par lot.',
+    ctaLabel: 'Creer mon premier lot',
     icon: Home,
     href: '/gestionnaire/biens/lots/nouveau',
-  },
-  {
-    id: 'hasAddedTenant',
-    label: 'Ajouter un locataire',
-    description: 'Enregistrez votre premier occupant',
-    whyItMatters: 'Vos locataires pourront signaler des problemes directement via leur portail, sans vous appeler.',
-    howItConnects: 'Une fois lie a un lot par un contrat, le locataire accede a son espace et peut creer des demandes.',
-    icon: Users,
-    href: '/gestionnaire/contacts/nouveau?type=locataire',
   },
   {
     id: 'hasInvitedProvider',
@@ -70,8 +64,19 @@ const STEPS: ChecklistStep[] = [
     description: 'Ajoutez un professionnel a votre equipe',
     whyItMatters: 'Les prestataires recoivent les missions, envoient leurs devis et planifient directement dans SEIDO.',
     howItConnects: 'Lors d\'une intervention, vous pourrez assigner un prestataire et suivre son avancement en temps reel.',
+    ctaLabel: 'Ajouter un prestataire',
     icon: UserPlus,
     href: '/gestionnaire/contacts/nouveau?type=prestataire',
+  },
+  {
+    id: 'hasAddedTenant',
+    label: 'Ajouter un locataire',
+    description: 'Enregistrez votre premier occupant',
+    whyItMatters: 'Vos locataires pourront signaler des problemes directement via leur portail, sans vous appeler.',
+    howItConnects: 'Une fois lie a un lot par un contrat, le locataire accede a son espace et peut creer des demandes.',
+    ctaLabel: 'Ajouter un locataire',
+    icon: Users,
+    href: '/gestionnaire/contacts/nouveau?type=locataire',
   },
   {
     id: 'hasContract',
@@ -79,6 +84,7 @@ const STEPS: ChecklistStep[] = [
     description: 'Liez un locataire a un lot',
     whyItMatters: 'Le contrat formalise l\'occupation d\'un lot. Il permet le suivi du bail, des echeances et du taux d\'occupation.',
     howItConnects: 'Le locataire lie verra apparaitre le lot dans son espace et pourra y signaler des interventions.',
+    ctaLabel: 'Creer un contrat',
     icon: FileSignature,
     href: '/gestionnaire/contrats/nouveau',
   },
@@ -88,6 +94,7 @@ const STEPS: ChecklistStep[] = [
     description: 'Lancez votre premiere demande de travaux',
     whyItMatters: 'C\'est le coeur de SEIDO : suivez chaque demande du signalement a la resolution, avec historique complet.',
     howItConnects: 'Le prestataire assigne sera notifie, pourra proposer des creneaux et envoyer un devis.',
+    ctaLabel: 'Lancer une intervention',
     icon: Wrench,
     href: '/gestionnaire/interventions/nouvelle-intervention',
   },
@@ -97,6 +104,7 @@ const STEPS: ChecklistStep[] = [
     description: 'Terminez un cycle complet',
     whyItMatters: 'La cloture archive l\'intervention avec tout son historique : echanges, devis, photos, creneaux.',
     howItConnects: 'L\'historique reste consultable sur la fiche du lot pour reference future.',
+    ctaLabel: 'Voir mes interventions',
     icon: CheckCircle2,
     href: '/gestionnaire/interventions',
   },
@@ -273,7 +281,7 @@ export function OnboardingChecklist({ className, progress, isTrialing }: Onboard
                   )}
                 </button>
 
-                {/* Tutorial content — visible for current step only */}
+                {/* Tutorial content + CTA — visible for current step only */}
                 {isCurrent && !isComplete && (
                   <div className="ml-10 mt-1 mb-2 pl-3 border-l-2 border-primary/20">
                     <div className="flex items-start gap-1.5 mb-1">
@@ -282,9 +290,17 @@ export function OnboardingChecklist({ className, progress, isTrialing }: Onboard
                         {step.whyItMatters}
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                    <p className="text-xs text-muted-foreground/70 leading-relaxed mb-3">
                       {step.howItConnects}
                     </p>
+                    <Button
+                      size="sm"
+                      onClick={() => router.push(step.href)}
+                      className="gap-1.5"
+                    >
+                      {step.ctaLabel}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 )}
               </div>

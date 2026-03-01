@@ -1,6 +1,6 @@
 # SEIDO AI Phone Assistant — Plan Complet
 
-**Version** : 2.0 — Fevrier 2026 (Twilio au lieu de Telnyx + corrections factuelles)
+**Version** : 3.0 — Mars 2026 (Telnyx SIP trunk au lieu de Twilio + config validee)
 **Statut** : Plan valide, pret pour implementation
 **Branche** : `feature/ai-phone-assistant`
 
@@ -79,35 +79,104 @@ ELEVENLABS_API_KEY=sk_xxxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
-### Etape 3 : Compte Twilio
+### Etape 3 : Compte Telnyx + SIP Trunk
 
-> **Ref :** [Twilio native integration — ElevenLabs Documentation](https://elevenlabs.io/docs/eleven-agents/phone-numbers/twilio-integration/native-integration)
+> **Ref :** [SIP Trunking — ElevenLabs Documentation](https://elevenlabs.io/docs/eleven-agents/phone-numbers/sip-trunking)
 
-1. Aller sur [twilio.com](https://www.twilio.com)
-2. Creer un compte → verifier ton email et numero de telephone
-3. Ajouter une carte bancaire (Billing → Payment Methods)
-4. Acheter un numero belge : Phone Numbers → Buy a Number → Country: Belgium → Type: Local
-5. Noter le **Account SID** et **Auth Token** (visibles sur le dashboard principal)
+**STATUT : ✅ DEJA FAIT** — Compte Telnyx cree, numero belge +32 4 260 08 08 achete, SIP Connection configuree.
 
-```bash
-# Ajouter dans Vercel + .env.local
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
+#### 3A — Configuration SIP Connection Telnyx (cote Telnyx Mission Control)
 
-**Connecter le numero a ElevenLabs (integration native — ~2 min) :**
+**Connexion existante :** "Seido inbound SIP" — Connection ID: `2905402867672155412`
 
-1. Dans le dashboard ElevenLabs : aller dans **Phone Numbers** (menu lateral)
-2. Cliquer **+ Import number** → selectionner **From Twilio**
-3. Remplir les 3 champs :
-   - **Phone Number** : ton numero belge (+32 ...)
-   - **Twilio SID** : ton Account SID
-   - **Twilio Token** : ton Auth Token
-4. ElevenLabs configure automatiquement les webhooks Twilio
-5. Selectionner ton agent dans le dropdown **"Agent"**
-6. **Terminee** — les appels entrants sont routes vers l'agent IA
+**Onglet "Configuration" :**
 
-> **Note :** ElevenLabs detecte automatiquement si le numero supporte inbound + outbound (numeros achetes) ou outbound uniquement (verified caller IDs). Les numeros achetes supportent les deux.
+| Setting | Valeur | Statut |
+|---------|--------|--------|
+| Connection Name | Seido inbound SIP | ✅ |
+| Type | FQDN Connection | ✅ |
+| AnchorSite | Latency | ✅ |
+| DTMF type | RFC 2833 | ✅ |
+| Encode contact header | **Cocher** | ⚠️ A verifier |
+| Webhook API Version | API v2 | ✅ |
+| Generate comfort noise | Coche | ✅ |
+
+**Onglet "Authentication and routing" :**
+
+| Setting | Valeur | Statut |
+|---------|--------|--------|
+| FQDN | `sip.rtc.elevenlabs.io` port 5060 (DNS: A) | ✅ |
+| Routing Method | Round-robin | ✅ |
+| Auth Method (Outbound) | Credentials | ✅ |
+| Username | `seido-elevenlabs` | ✅ |
+| Password | (defini) | ✅ |
+
+**Onglet "Inbound" :**
+
+| Setting | Valeur | Statut |
+|---------|--------|--------|
+| Destination number format | E.164 | ✅ |
+| SIP transport protocol | TCP | ✅ |
+| SIP region | **Europe (Amsterdam)** | ⚠️ A selectionner |
+| No answer timeout | **30 secondes** | ⚠️ A modifier (defaut 5s trop court) |
+| Channel limit | **10** | ⚠️ A definir (protection couts) |
+| Encrypted media | Disabled | ✅ |
+| Codecs | G722 ✅, G711U ✅, G711A ✅ | ✅ |
+| Codec G729 | **Decocher** | ⚠️ Non supporte par ElevenLabs |
+
+**Onglet "Numbers" :**
+- Numero +32 4 260 08 08 assigne a la connexion SIP ✅
+
+#### 3B — Import du numero dans ElevenLabs (cote ElevenLabs)
+
+**STATUT : ✅ DEJA FAIT** — Numero importe, SIP trunk configure.
+
+**Phone Number ID ElevenLabs :** `phnum_0601kjmp9a5ae2d8qt149c1bmr7h`
+
+**Inbound SIP Trunk Configuration (validee) :**
+
+| Champ | Valeur | Statut |
+|-------|--------|--------|
+| SIP Server TCP | `sip:sip.rtc.elevenlabs.io:5060;transport=tcp` | ✅ Auto-genere |
+| SIP Server TLS | `sip:sip.rtc.elevenlabs.io:5061;transport=tls` | ✅ Auto-genere |
+| Media Encryption | Disabled | ✅ |
+| Allowed Addresses | All addresses (`0.0.0.0/0`) | ✅ (restreindre en prod) |
+| Allowed Numbers | All numbers | ✅ |
+| Remote Domains | `sip.telnyx.com` | ✅ |
+| Username | `seido11labs` | ✅ |
+| Password | (defini) | ✅ |
+
+**Outbound SIP Trunk Configuration :**
+
+| Champ | Valeur | Statut |
+|-------|--------|--------|
+| Address | `sip.telnyx.com` | ✅ Corrige (etait `example.pstn.twilio.com`) |
+| Transport Protocol | TLS (Secure) | ✅ |
+| Media Encryption | Disabled | ✅ |
+| Authentication | **A configurer** | ⚠️ Ajouter `seido-elevenlabs` + password Telnyx |
+
+**Agent assignee au numero :**
+
+| Champ | Valeur | Statut |
+|-------|--------|--------|
+| Agent | **A assigner** | ⚠️ Selectionner l'agent SEIDO dans le dropdown |
+
+#### 3C — Test de validation
+
+1. Assigner l'agent ElevenLabs au numero +32 4 260 08 08
+2. Appeler le numero depuis un telephone
+3. L'agent IA doit repondre et mener la conversation
+4. Si pas de reponse : verifier les logs Telnyx (SIP Connection → Logs) et ElevenLabs (Conversations)
+
+**Troubleshooting courant :**
+
+| Probleme | Cause probable | Solution |
+|----------|---------------|----------|
+| Pas de reponse | Agent non assigne | Assigner l'agent au numero |
+| Audio unidirectionnel | NAT/ALG reecrit les headers SDP | Cocher "Encode contact header" dans Telnyx Config |
+| Appel raccroche apres 5s | No answer timeout trop court | Augmenter a 30s dans Telnyx Inbound |
+| Codec mismatch | G729 active | Decocher G729, garder G722 + G711 |
+| Call rejected | Plan ElevenLabs gratuit | Plan Pro requis ($99/mo) |
 
 ---
 
@@ -115,7 +184,7 @@ TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ```bash
 # Installer les nouvelles dependances
-npm install ai @ai-sdk/anthropic @react-pdf/renderer elevenlabs
+npm install ai @ai-sdk/anthropic @react-pdf/renderer elevenlabs telnyx
 ```
 
 | Package | Version | Role |
@@ -124,6 +193,7 @@ npm install ai @ai-sdk/anthropic @react-pdf/renderer elevenlabs
 | `@ai-sdk/anthropic` | ^1.x | Provider Claude pour AI SDK |
 | `@react-pdf/renderer` | ^4.x | Generation PDF server-side |
 | `elevenlabs` | ^1.x | SDK ElevenLabs — webhook verification (`constructEvent()`) |
+| `telnyx` | ^2.x | SDK Telnyx — provisioning numeros + webhook verification |
 
 > **Note :** `@ai-sdk/openai` n'est PAS necessaire — on utilise Claude exclusivement.
 
@@ -141,9 +211,12 @@ ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxx
 ELEVENLABS_API_KEY=sk_xxxxxxxxxxxxxxxxxxxxxxxx
 ELEVENLABS_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxx   # HMAC shared secret (webhook verification)
 
-# Twilio (Telephonie — numeros belges)
-TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Telnyx (Telephonie — numeros belges via SIP trunk)
+TELNYX_API_KEY=KEY_xxxxxxxxxxxxxxxxxxxxxxxxx
+TELNYX_PUBLIC_KEY=xxxxxxxxxxxxxxxxxxxxxxxxx        # Pour verification webhooks Ed25519
+TELNYX_SIP_CONNECTION_ID=2905402867672155412        # Connection ID existante
+TELNYX_SIP_USERNAME=seido-elevenlabs               # Credentials SIP trunk
+TELNYX_SIP_PASSWORD=xxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 **Ou les ajouter :**
@@ -157,18 +230,22 @@ TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 Avant de commencer US-001, verifier que :
 
+- [x] Compte Telnyx cree + numero belge achete (+32 4 260 08 08)
+- [x] SIP Connection FQDN configuree vers `sip.rtc.elevenlabs.io`
+- [x] Numero importe dans ElevenLabs (SIP trunk)
+- [ ] Ajustements Telnyx Inbound (SIP region, timeout 30s, decocher G729)
+- [ ] "Encode contact header" coche dans Telnyx Config
+- [ ] Outbound auth configuree dans ElevenLabs (credentials Telnyx)
+- [ ] Agent ElevenLabs assigne au numero
+- [ ] **Test d'appel reussi** (appeler le numero → l'agent repond)
 - [ ] Compte Anthropic cree + API key active
 - [ ] Compte ElevenLabs Pro actif + API key active
-- [ ] Compte Twilio cree + numero belge achete
-- [ ] Numero importe dans ElevenLabs (integration native Twilio)
-- [ ] Agent ElevenLabs assigne au numero importe
-- [ ] Test d'appel reussi (appeler le numero → l'agent repond)
 - [ ] Les API keys ajoutees dans `.env.local`
 - [ ] Les API keys ajoutees dans Vercel (preview + production)
-- [ ] `npm install ai @ai-sdk/anthropic @react-pdf/renderer elevenlabs` execute
+- [ ] `npm install ai @ai-sdk/anthropic @react-pdf/renderer elevenlabs telnyx` execute
 - [ ] `npm run lint` passe apres installation
 
-**Temps total estime :** ~30 min de setup (pas d'attente verification)
+**Temps total estime :** ~15 min de setup restant (ajustements + test d'appel)
 
 ---
 
@@ -202,21 +279,22 @@ Un **assistant IA telephonique** par equipe qui :
 ### Vue d'ensemble
 
 ```
-Locataire appelle (+32 xxx xxx xxx)
+Locataire appelle (+32 4 260 08 08)
          |
          v
   ┌──────────────────┐
-  │  TWILIO           │  Telephonie (numero belge dedie par equipe)
-  │  Native integ.    │  ~$3.00/mo par numero, ~$0.01/min inbound
+  │  TELNYX            │  Telephonie (numero belge dedie par equipe)
+  │  SIP Trunk (FQDN)  │  ~$1.00/mo par numero, ~$0.003/min inbound
   └────────┬─────────┘
-           | (Integration native ElevenLabs — auto-configure)
+           | SIP INVITE → sip.rtc.elevenlabs.io:5060 (TCP)
+           | Auth: digest credentials (seido-elevenlabs)
            v
   ┌──────────────────────────────┐
   │  ELEVENLABS                   │  Conversational AI (tout-en-un)
   │  Conversational AI            │
   │  ┌─────────────────────────┐ │
   │  │ STT: Scribe v2          │ │  ~150ms latence, 90+ langues
-  │  │ LLM: Claude Haiku 4.5        │ │  Natif ElevenLabs ($0.0075/min)
+  │  │ LLM: Claude Haiku 4.5   │ │  Natif ElevenLabs ($0.0075/min)
   │  │ TTS: Flash v2.5         │ │  75ms TTFB, 32 langues
   │  │ Turn-taking: natif      │ │  Fillers, barge-in, endpointing
   │  └─────────────────────────┘ │
@@ -226,6 +304,7 @@ Locataire appelle (+32 xxx xxx xxx)
            | HTTP POST webhook (fin d'appel)
            | Types: post_call_transcription, post_call_audio, call_initiation_failure
            | Payload: transcript, analysis, metadata (format GET /conversations/{id})
+           | Signature: HMAC via header ElevenLabs-Signature
            v
   ┌──────────────────────────────┐
   │  SEIDO API (Next.js)          │
@@ -246,9 +325,23 @@ Locataire appelle (+32 xxx xxx xxx)
 | Decision | Raison |
 |----------|--------|
 | ElevenLabs tout-en-un | Pas de pipeline custom a maintenir. STT+LLM+TTS+turn-taking gere nativement. Time-to-market minimal. |
-| Twilio (integration native) | Integration native ElevenLabs (3 champs, zero config SIP). Auto-configure les webhooks. ~$2/mo plus cher que Telnyx mais setup en 2 min au lieu de 30+. |
+| Telnyx (SIP trunk) | ~60% moins cher que Twilio ($1.00/mo vs $3.00/mo par numero, $0.003/min vs $0.01/min). Audio HD 16kHz via G.722 (vs 8kHz Twilio). Configuration SIP trunk un peu plus complexe mais deja faite. |
 | Webhook post-appel | Decouple le pipeline vocal de SEIDO. ElevenLabs gere l'appel, SEIDO traite le resultat. Simple, robuste. |
 | @react-pdf/renderer | Pas de Chromium, compatible Vercel serverless, genere en <200ms. |
+
+### Pourquoi Telnyx au lieu de Twilio
+
+| Critere | Twilio | Telnyx |
+|---------|--------|--------|
+| **Numero BE/mo** | $3.00 | **$1.00** |
+| **Inbound/min** | $0.01 | **$0.003** |
+| **Audio** | 8kHz PCM | **16kHz G.722 HD** |
+| **Integration ElevenLabs** | Native (3 champs) | SIP trunk (config manuelle) |
+| **Infra EU** | Frankfurt | **Amsterdam** (plus proche BE) |
+| **Cout annuel/equipe** | ~$48 | **~$15** |
+| **Setup** | 2 min | 15 min (deja fait) |
+
+**Delta : ~$33/an/equipe d'economie.** A 50 equipes, c'est ~$1650/an. La complexite SIP est un one-time cost deja absorbe.
 
 ---
 
@@ -258,13 +351,13 @@ Locataire appelle (+32 xxx xxx xxx)
 
 | Provider | Numero BE/mo | Inbound/min | Infra EU | Audio | Integration ElevenLabs |
 |----------|-------------|-------------|----------|-------|----------------------|
-| Telnyx | $1.15 | $0.003 | Paris PoP | 16kHz HD | SIP FQDN (config manuelle complexe) |
-| **Twilio** ✅ | **$3.00** | **$0.01** | **Frankfurt** | **8kHz PCM** | **Native (plug-and-play, 3 champs)** |
+| **Telnyx** ✅ | **$1.00** | **$0.003** | **Amsterdam** | **16kHz G.722 HD** | **SIP trunk FQDN (configure)** |
+| Twilio | $3.00 | $0.01 | Frankfurt | 8kHz PCM | Native (plug-and-play) |
 | Vonage | $1.40-$3.00 | $0.014 | — | Standard | WebSocket |
 | Plivo | $0.50 | $0.018 | — | Limited | Non |
 | SignalWire | Contact | $0.007 | — | Native | Non |
 
-**Choix : Twilio** — Integration native ElevenLabs (Account SID + Auth Token + numero = terminee). ~$2/mo plus cher que Telnyx par numero mais zero config SIP/FQDN. ElevenLabs auto-configure les webhooks Twilio. Setup en 2 minutes au lieu de 30+. Le delta de cout est negligeable a l'echelle ($24/an par equipe).
+**Choix : Telnyx** — Meilleur rapport qualite/prix. ~60% moins cher que Twilio par numero, audio HD 16kHz (meilleure qualite vocale pour l'IA), infra Amsterdam a 200km de Bruxelles (latence minimale). La configuration SIP trunk est plus complexe que l'integration native Twilio, mais c'est un one-time cost deja absorbe. Le SDK Node.js (v2.x) permet le provisioning programmatique des numeros via API.
 
 ### 3.2 Plateforme vocale IA — Comparaison
 
@@ -357,7 +450,7 @@ const result = await generateText({
 
 | Composant | Outil | Role | Cout |
 |-----------|-------|------|------|
-| **Telephonie** | Twilio (native ElevenLabs) | Numeros belges, integration auto | ~$3.00/mo/numero + ~$0.01/min |
+| **Telephonie** | Telnyx (SIP trunk FQDN) | Numeros belges, audio HD G.722 | ~$1.00/mo/numero + ~$0.003/min |
 | **Pipeline vocal** | ElevenLabs Conversational AI | STT + LLM + TTS + turn-taking | $0.08-$0.10/min |
 | **LLM (pendant appel)** | Claude Haiku 4.5 (natif ElevenLabs) | Conversation guidee | $0.0075/min (inclus ElevenLabs) |
 | **LLM (post-appel)** | Claude Haiku 4.5 (via AI SDK) | Extraction structuree du transcript | ~$0.025/appel |
@@ -375,7 +468,8 @@ const result = await generateText({
   "ai": "^6.x",                    // Vercel AI SDK
   "@ai-sdk/anthropic": "^1.x",     // Provider Claude (Anthropic)
   "@react-pdf/renderer": "^4.x",   // Generation PDF
-  "elevenlabs": "^1.x"             // SDK ElevenLabs (webhook verification)
+  "elevenlabs": "^1.x",            // SDK ElevenLabs (webhook verification)
+  "telnyx": "^2.x"                 // SDK Telnyx (provisioning + webhook verification)
 }
 ```
 
@@ -386,7 +480,7 @@ const result = await generateText({
 | Service | A faire | Donnees necessaires |
 |---------|---------|---------------------|
 | Anthropic | Creer compte, API key (pour AI SDK post-traitement) | Carte bancaire |
-| Twilio | Creer compte, acheter numero BE, importer dans ElevenLabs | Carte bancaire |
+| Telnyx | ✅ Fait — Compte cree, numero BE achete, SIP trunk configure | — |
 | ElevenLabs | Creer compte Pro ($99/mo = 1100 min), configurer agent | System prompt, config LLM |
 
 ---
@@ -493,18 +587,19 @@ recontactera. Bonne journee !"
 
 ```sql
 -- Table: ai_phone_numbers
--- Un numero par equipe, lie a Twilio + ElevenLabs
+-- Un numero par equipe, lie a Telnyx + ElevenLabs
 CREATE TABLE ai_phone_numbers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  phone_number TEXT NOT NULL,          -- "+32..."
-  twilio_phone_number_sid TEXT,        -- SID numero Twilio (PNxxx)
-  twilio_account_sid TEXT,             -- SID compte Twilio (pour multi-team)
-  elevenlabs_agent_id TEXT,            -- ID agent ElevenLabs
+  phone_number TEXT NOT NULL,                -- "+32..."
+  telnyx_connection_id TEXT,                 -- ID connexion SIP Telnyx
+  telnyx_phone_number_id TEXT,               -- ID numero Telnyx (pour API)
+  elevenlabs_agent_id TEXT,                  -- ID agent ElevenLabs
+  elevenlabs_phone_number_id TEXT,           -- ID phone number ElevenLabs (phnum_xxx)
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(team_id)                      -- 1 numero par equipe
+  UNIQUE(team_id)                            -- 1 numero par equipe
 );
 
 -- Table: ai_phone_calls
@@ -513,22 +608,22 @@ CREATE TABLE ai_phone_calls (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES teams(id),
   phone_number_id UUID REFERENCES ai_phone_numbers(id),
-  caller_phone TEXT,                   -- Numero de l'appelant
+  caller_phone TEXT,                         -- Numero de l'appelant
   identified_user_id UUID REFERENCES users(id),  -- Locataire identifie (nullable)
   intervention_id UUID REFERENCES interventions(id),  -- Intervention creee (nullable)
 
   -- Contenu
-  transcript TEXT,                     -- Transcript complet
-  structured_summary JSONB,            -- Resume structure (output AI SDK)
-  language TEXT DEFAULT 'fr',          -- Langue detectee (fr/nl/en)
+  transcript TEXT,                           -- Transcript complet
+  structured_summary JSONB,                  -- Resume structure (output AI SDK)
+  language TEXT DEFAULT 'fr',                -- Langue detectee (fr/nl/en)
 
   -- Metadata appel
   duration_seconds INTEGER,
-  elevenlabs_call_id TEXT,
-  call_status TEXT DEFAULT 'completed', -- completed, failed, abandoned, transferred
+  elevenlabs_conversation_id TEXT,           -- ID conversation ElevenLabs
+  call_status TEXT DEFAULT 'completed',      -- completed, failed, abandoned, transferred
 
   -- Documents generes
-  pdf_document_path TEXT,              -- Path dans Supabase Storage
+  pdf_document_path TEXT,                    -- Path dans Supabase Storage
 
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -538,7 +633,7 @@ CREATE TABLE ai_phone_calls (
 CREATE TABLE ai_phone_usage (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES teams(id),
-  month DATE NOT NULL,                 -- Premier jour du mois (2026-03-01)
+  month DATE NOT NULL,                       -- Premier jour du mois (2026-03-01)
   minutes_used NUMERIC(10,2) DEFAULT 0,
   calls_count INTEGER DEFAULT 0,
   overage_minutes NUMERIC(10,2) DEFAULT 0,
@@ -594,26 +689,40 @@ USING (is_team_manager_or_admin(team_id));
 
 export async function POST(req: Request) {
   // 1. Valider la signature HMAC du webhook (securite)
-  const signature = req.headers.get('ElevenLabs-Signature')
+  const signature = req.headers.get('elevenlabs-signature')
   const body = await req.text()
-  // Utiliser le SDK ElevenLabs: client.webhooks.constructEvent(body, headers, secret)
-  if (!signature) {
-    return Response.json({ error: 'Missing signature' }, { status: 401 })
+
+  // Utiliser le SDK ElevenLabs: client.webhooks.constructEvent(body, signature, secret)
+  const client = new ElevenLabs({ apiKey: process.env.ELEVENLABS_API_KEY })
+  const event = client.webhooks.constructEvent(
+    body,
+    signature!,
+    process.env.ELEVENLABS_WEBHOOK_SECRET!
+  )
+
+  // Ignorer les events non-transcription
+  if (event.type !== 'post_call_transcription') {
+    return Response.json({ ok: true })
   }
 
-  const payload = JSON.parse(body)
-  // payload type: post_call_transcription | post_call_audio | call_initiation_failure
-  // Format conforme a GET /conversations/{id} — inclut transcript, analysis, metadata
+  const payload = event.data
+  // payload contient: agent_id, conversation_id, transcript[], metadata, analysis
 
-  // 2. Identifier l'equipe via le numero appele
+  // 2. Identifier l'equipe via l'agent_id
   const phoneNumber = await getPhoneNumberByAgentId(payload.agent_id)
   const teamId = phoneNumber.team_id
 
   // 3. Identifier le locataire via caller ID
-  const tenant = await identifyTenantByPhone(payload.caller_phone, teamId)
+  // Le caller phone est dans: payload.metadata.phone_call.body.from_number
+  const callerPhone = payload.metadata?.phone_call?.body?.from_number
+  const tenant = await identifyTenantByPhone(callerPhone, teamId)
 
   // 4. Extraire les infos structurees via AI SDK
-  const summary = await extractInterventionSummary(payload.transcript)
+  // Concatener le transcript en texte brut
+  const transcriptText = payload.transcript
+    .map((t: { role: string; message: string }) => `${t.role}: ${t.message}`)
+    .join('\n')
+  const summary = await extractInterventionSummary(transcriptText)
 
   // 5. Creer l'intervention
   const intervention = await interventionService.create({
@@ -630,28 +739,30 @@ export async function POST(req: Request) {
   // 6. Generer le PDF
   const pdfPath = await generateCallReportPDF({
     intervention,
-    transcript: payload.transcript,
+    transcript: transcriptText,
     summary,
     tenant,
-    callDuration: payload.duration,
+    callDuration: payload.metadata.call_duration_secs,
+    language: payload.metadata.main_language ?? 'fr',
   })
 
   // 7. Stocker le log d'appel
   await storeCallLog({
     team_id: teamId,
     phone_number_id: phoneNumber.id,
-    caller_phone: payload.caller_phone,
+    caller_phone: callerPhone,
     identified_user_id: tenant?.id,
     intervention_id: intervention.id,
-    transcript: payload.transcript,
+    transcript: transcriptText,
     structured_summary: summary,
-    duration_seconds: payload.duration,
-    elevenlabs_call_id: payload.call_id,
+    duration_seconds: payload.metadata.call_duration_secs,
+    elevenlabs_conversation_id: payload.conversation_id,
     pdf_document_path: pdfPath,
+    language: payload.metadata.main_language ?? 'fr',
   })
 
   // 8. Mettre a jour le compteur de minutes
-  await incrementUsage(teamId, payload.duration / 60)
+  await incrementUsage(teamId, payload.metadata.call_duration_secs / 60)
 
   // 9. Notifier le gestionnaire
   await createInterventionNotification(intervention.id)
@@ -661,7 +772,179 @@ export async function POST(req: Request) {
 }
 ```
 
-### 7.2 Page Parametres — Activation du numero
+### 7.2 Service Telnyx — Provisioning numeros
+
+```typescript
+// lib/services/domain/telnyx-phone.service.ts
+// Gere l'achat et la configuration des numeros via API Telnyx
+
+import Telnyx from 'telnyx'
+
+const telnyx = new Telnyx({ apiKey: process.env.TELNYX_API_KEY! })
+
+export const telnyxPhoneService = {
+  /**
+   * Rechercher des numeros belges disponibles
+   */
+  async searchAvailableNumbers(locality?: string) {
+    const response = await fetch(
+      `https://api.telnyx.com/v2/available_phone_numbers?` +
+      `filter[country_code][]=BE&filter[phone_number_type]=local&` +
+      `filter[features][]=voice&filter[limit]=10` +
+      (locality ? `&filter[locality]=${locality}` : ''),
+      {
+        headers: {
+          'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+    return response.json()
+  },
+
+  /**
+   * Acheter un numero et l'assigner a la SIP connection
+   */
+  async purchaseNumber(phoneNumber: string, requirementGroupId?: string) {
+    const order = await telnyx.numberOrders.create({
+      phone_numbers: [{ phone_number: phoneNumber }],
+      connection_id: process.env.TELNYX_SIP_CONNECTION_ID!,
+      ...(requirementGroupId && { requirement_group_id: requirementGroupId }),
+    })
+    return order
+  },
+
+  /**
+   * Liberer un numero
+   */
+  async releaseNumber(phoneNumberId: string) {
+    await fetch(
+      `https://api.telnyx.com/v2/phone_numbers/${phoneNumberId}/actions/delete`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+  },
+}
+```
+
+### 7.3 Service ElevenLabs — Gestion agents
+
+```typescript
+// lib/services/domain/elevenlabs-agent.service.ts
+// Gere la creation et configuration des agents ElevenLabs via API
+
+const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1/convai'
+
+export const elevenlabsAgentService = {
+  /**
+   * Creer un agent ElevenLabs pour une equipe
+   */
+  async createAgent(teamName: string, systemPrompt: string) {
+    const response = await fetch(`${ELEVENLABS_API_URL}/agents/create`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': process.env.ELEVENLABS_API_KEY!,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: `SEIDO - ${teamName}`,
+        conversation_config: {
+          agent: {
+            first_message: `Bonjour, vous avez appele le service de gestion de ${teamName}. Je suis un assistant automatique. Cet appel sera transcrit pour creer votre demande d'intervention. Comment puis-je vous aider ?`,
+            language: 'fr',
+            prompt: {
+              prompt: systemPrompt,
+              llm: 'claude-haiku-4-5-20251001',
+            },
+          },
+          tts: {
+            voice_id: 'JBFqnCBsd6RMkjVDRZzb', // A configurer
+          },
+        },
+      }),
+    })
+    const data = await response.json()
+    return data // contient agent_id
+  },
+
+  /**
+   * Importer un numero dans ElevenLabs via SIP trunk
+   */
+  async importPhoneNumber(phoneNumber: string, agentId: string) {
+    const response = await fetch(`${ELEVENLABS_API_URL}/phone-numbers`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': process.env.ELEVENLABS_API_KEY!,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        provider: 'sip_trunk',
+        phone_number: phoneNumber,
+        label: `SEIDO ${phoneNumber}`,
+        inbound_trunk_config: {
+          allowed_addresses: ['0.0.0.0/0'], // Restreindre en prod
+          media_encryption: 'disabled',
+          remote_domains: ['sip.telnyx.com'],
+        },
+        outbound_trunk_config: {
+          address: 'sip.telnyx.com',
+          transport: 'tls',
+          media_encryption: 'disabled',
+          credentials: {
+            username: process.env.TELNYX_SIP_USERNAME!,
+            password: process.env.TELNYX_SIP_PASSWORD!,
+          },
+        },
+      }),
+    })
+    const data = await response.json()
+    // data.phone_number_id = "phnum_xxx"
+
+    // Assigner l'agent au numero
+    await fetch(`${ELEVENLABS_API_URL}/phone-numbers/${data.phone_number_id}`, {
+      method: 'PATCH',
+      headers: {
+        'xi-api-key': process.env.ELEVENLABS_API_KEY!,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ agent_id: agentId }),
+    })
+
+    return data.phone_number_id
+  },
+
+  /**
+   * Supprimer un numero d'ElevenLabs
+   */
+  async deletePhoneNumber(phoneNumberId: string) {
+    await fetch(`${ELEVENLABS_API_URL}/phone-numbers/${phoneNumberId}`, {
+      method: 'DELETE',
+      headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY! },
+    })
+  },
+
+  /**
+   * Mettre a jour un agent
+   */
+  async updateAgent(agentId: string, config: Record<string, unknown>) {
+    await fetch(`${ELEVENLABS_API_URL}/agents/${agentId}`, {
+      method: 'PATCH',
+      headers: {
+        'xi-api-key': process.env.ELEVENLABS_API_KEY!,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(config),
+    })
+  },
+}
+```
+
+### 7.4 Page Parametres — Activation du numero
 
 ```
 /gestionnaire/parametres/telephone-ia
@@ -671,7 +954,7 @@ export async function POST(req: Request) {
 │                                              │
 │  [Toggle ON/OFF]                             │
 │                                              │
-│  Votre numero : +32 2 XXX XX XX             │
+│  Votre numero : +32 4 260 08 08             │
 │  Statut : Actif ✓                           │
 │                                              │
 │  Ce mois-ci :                                │
@@ -690,7 +973,7 @@ export async function POST(req: Request) {
 └─────────────────────────────────────────────┘
 ```
 
-### 7.3 Historique des appels
+### 7.5 Historique des appels
 
 ```
 /gestionnaire/parametres/telephone-ia/historique
@@ -699,32 +982,32 @@ export async function POST(req: Request) {
 │  Historique des appels                               │
 │                                                      │
 │  27 fev 2026 — 14:32 (3 min 12s)                   │
-│  📞 Jean Dupont — +32 475 XX XX XX                   │
+│  Jean Dupont — +32 475 XX XX XX                     │
 │  "Fuite d'eau dans la salle de bain"                │
-│  → Intervention #1247 creee ✓                       │
+│  → Intervention #1247 creee                         │
 │  [Voir intervention] [Telecharger PDF]              │
 │                                                      │
 │  27 fev 2026 — 09:15 (1 min 45s)                   │
-│  📞 Numero inconnu — +32 486 XX XX XX               │
+│  Numero inconnu — +32 486 XX XX XX                  │
 │  "Probleme de chauffage"                            │
-│  → Intervention #1246 creee (non identifie) ⚠       │
+│  → Intervention #1246 creee (non identifie)         │
 │  [Voir intervention] [Telecharger PDF]              │
 │                                                      │
 │  26 fev 2026 — 18:47 (2 min 30s)                   │
-│  📞 Marie Janssens — +32 472 XX XX XX               │
+│  Marie Janssens — +32 472 XX XX XX                  │
 │  "Volet roulant bloque"                             │
-│  → Intervention #1245 creee ✓                       │
+│  → Intervention #1245 creee                         │
 │  [Voir intervention] [Telecharger PDF]              │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 7.4 Badge dans l'intervention
+### 7.6 Badge dans l'intervention
 
 Les interventions creees par l'assistant IA affichent un badge special :
 
 ```
 ┌──────────────────────────────────────┐
-│  🤖 Cree par assistant telephonique  │
+│  Cree par assistant telephonique     │
 │  Appel du 27/02/2026 a 14:32        │
 │  Duree : 3 min 12s                  │
 │  Langue : Francais                   │
@@ -743,7 +1026,7 @@ Les interventions creees par l'assistant IA affichent un badge special :
 |--------|-------|----------------|
 | **Disclosure IA** | Informer le locataire que l'appel est gere par une IA | Etape 1 du script : "Je suis un assistant automatique" |
 | **Consentement enregistrement** | Base legale : Art. 6(1)(b) RGPD — necessite contractuelle | Mention dans l'accueil : "Cet appel sera transcrit pour creer votre demande" |
-| **Retention audio** | NE PAS stocker l'audio brut | ElevenLabs ne renvoie que le transcript texte |
+| **Retention audio** | NE PAS stocker l'audio brut | ElevenLabs ne renvoie que le transcript texte (sauf webhook post_call_audio, qu'on n'ecoute pas) |
 | **Retention transcript** | Duree de l'intervention + 1 an | Cron job de nettoyage apres 1 an post-cloture |
 | **Acces aux donnees** | Seul le gestionnaire de l'equipe | RLS policy sur ai_phone_calls |
 | **Droit a l'effacement** | Le locataire peut demander suppression | Prevu dans le workflow RGPD existant |
@@ -752,12 +1035,14 @@ Les interventions creees par l'assistant IA affichent un badge special :
 
 | Mesure | Implementation |
 |--------|----------------|
-| Webhook ElevenLabs | Signature HMAC via header `ElevenLabs-Signature` — verification via SDK `constructEvent()` |
-| Twilio auth | Account SID + Auth Token — pas de webhook Twilio a gerer (ElevenLabs configure tout nativement) |
-| API key storage | Variables d'environnement Vercel (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY) |
+| Webhook ElevenLabs | Signature HMAC via header `elevenlabs-signature` — verification via SDK `constructEvent()` |
+| Telnyx webhook (optionnel) | Signature Ed25519 via headers `telnyx-signature-ed25519` + `telnyx-timestamp` — verification via SDK `telnyx.webhooks.constructEvent()` |
+| Telnyx SIP auth | Credentials digest (`seido-elevenlabs` + password) pour l'outbound. Inbound: validation via Remote Domains (`sip.telnyx.com`) + IP allowlist (configurable) |
+| API key storage | Variables d'environnement Vercel (TELNYX_API_KEY, ELEVENLABS_API_KEY, ANTHROPIC_API_KEY, TELNYX_SIP_PASSWORD) |
 | Rate limiting | Upstash rate limiter sur /api/calls/inbound (existant) |
 | Caller ID spoofing | Ne jamais accorder d'acces eleve basee uniquement sur le caller ID |
 | Duree max appel | Cap a 8 minutes dans la config ElevenLabs |
+| Channel limit | 10 appels simultanes max dans Telnyx (protection couts) |
 
 ### 8.3 EU AI Act
 
@@ -785,22 +1070,24 @@ Le systeme est classe **risque minimal** car :
 
 | Poste | Cout reel | Revenue |
 |-------|-----------|---------|
-| Numero Twilio | ~$3.00/mo | — |
+| Numero Telnyx | ~$1.00/mo | — |
 | 60 min ElevenLabs | ~$6.00 ($0.10/min) | — |
-| 60 min Twilio inbound | ~$0.60 ($0.01/min) | — |
+| 60 min Telnyx inbound | ~$0.18 ($0.003/min) | — |
 | AI SDK Claude Haiku (post-traitement) | ~$0.50 (20 appels x $0.025) | — |
-| **Total cout** | **~$10.10/mo** | — |
+| **Total cout** | **~$7.68/mo** | — |
 | **Revenue** | — | **$15/mo** |
-| **Marge** | — | **~33%** |
+| **Marge** | — | **~49%** |
+
+> **Vs Twilio :** Le cout total etait ~$10.10/mo avec Twilio (marge 33%). Avec Telnyx, on economise ~$2.42/mo par equipe et la marge passe de 33% a 49%.
 
 ### 9.3 Depassement
 
 | Poste cout | Cout reel/min | Prix facture/min | Marge |
 |-----------|---------------|------------------|-------|
 | ElevenLabs | $0.10 | — | — |
-| Twilio | $0.01 | — | — |
+| Telnyx | $0.003 | — | — |
 | AI SDK | ~$0.0025 | — | — |
-| **Total** | **~$0.1125** | **$0.25** | **~55%** |
+| **Total** | **~$0.1055** | **$0.25** | **~58%** |
 
 ### 9.4 Implementation Stripe
 
@@ -819,7 +1106,7 @@ Le systeme est classe **risque minimal** car :
 | # | ID | Titre | Taille | Priorite | Couche |
 |---|-----|-------|--------|----------|--------|
 | 1 | US-001 | Schema DB + migrations | S | 1 | Schema |
-| 2 | US-002 | Provisioning Twilio + ElevenLabs (API) | M | 2 | Backend |
+| 2 | US-002 | Provisioning Telnyx + ElevenLabs (API) | M | 2 | Backend |
 | 3 | US-003 | Configuration agent ElevenLabs | M | 2 | Backend |
 | 4 | US-004 | Webhook inbound call | M | 2 | Backend |
 | 5 | US-005 | Extraction structuree (AI SDK) | S | 2 | Backend |
@@ -842,6 +1129,8 @@ Le systeme est classe **risque minimal** car :
 
 **Criteres d'acceptation :**
 - Migration cree les 3 tables avec tous les index
+- Colonnes Telnyx : `telnyx_connection_id`, `telnyx_phone_number_id` (au lieu de `twilio_phone_number_sid`, `twilio_account_sid`)
+- Colonne ElevenLabs : `elevenlabs_phone_number_id` (en plus de `elevenlabs_agent_id`)
 - Colonne `phone` ajoutee a `users` (si absente)
 - Colonne `source` ajoutee a `interventions` (si absente)
 - RLS policies pour gestionnaire/admin
@@ -852,21 +1141,28 @@ Le systeme est classe **risque minimal** car :
 
 ---
 
-#### US-002 — Provisioning Twilio + ElevenLabs (API)
+#### US-002 — Provisioning Telnyx + ElevenLabs (API)
 
 **En tant que** gestionnaire, **je veux** pouvoir activer un numero telephonique pour mon equipe **pour que** mes locataires puissent appeler l'assistant IA.
 
 **Criteres d'acceptation :**
 - Server action `provisionPhoneNumber(teamId)` qui :
-  - Achete un numero belge via API Twilio
-  - Importe le numero dans ElevenLabs via API (integration native Twilio)
-  - Associe le numero a l'agent ElevenLabs de l'equipe
-  - Stocke le numero + Twilio SID dans `ai_phone_numbers`
+  - Recherche un numero belge disponible via API Telnyx (`GET /v2/available_phone_numbers`)
+  - Achete le numero via API Telnyx (`POST /v2/number_orders`)
+  - Assigne le numero a la SIP Connection existante (`PATCH /v2/phone_numbers/{id}`)
+  - Importe le numero dans ElevenLabs via API SIP trunk (`POST /v1/convai/phone-numbers`)
+  - Configure les credentials SIP (digest auth) sur le numero ElevenLabs
+  - Associe l'agent ElevenLabs de l'equipe au numero
+  - Stocke le numero + IDs Telnyx/ElevenLabs dans `ai_phone_numbers`
 - Server action `deprovisionPhoneNumber(teamId)` pour liberation
-- Gestion d'erreur : numero indisponible, quota atteint
+  - Supprime le numero d'ElevenLabs (`DELETE /v1/convai/phone-numbers/{id}`)
+  - Libere le numero Telnyx (`POST /v2/phone_numbers/{id}/actions/delete`)
+  - Desactive l'entree dans `ai_phone_numbers`
+- Gestion d'erreur : numero indisponible, quota atteint, regulatory requirements pending
+- **Note Belgique :** Les numeros belges necessitent une `requirement_group_id` (adresse + justificatif). Pour le MVP, on utilise le requirement group deja valide.
 - Lint passe
 
-**Taille :** M | **Depend de :** US-001 | **Couche :** Backend
+**Taille :** M | **Depend de :** US-001, US-003 | **Couche :** Backend
 
 ---
 
@@ -876,9 +1172,9 @@ Le systeme est classe **risque minimal** car :
 
 **Criteres d'acceptation :**
 - Service `elevenlabs-agent.service.ts` avec :
-  - `createAgent(teamId, teamName)` → cree un agent ElevenLabs avec le system prompt personnalise
-  - `updateAgent(agentId, config)` → met a jour le prompt / la config
-  - `deleteAgent(agentId)` → supprime l'agent
+  - `createAgent(teamId, teamName)` → cree un agent ElevenLabs via `POST /v1/convai/agents/create` avec le system prompt personnalise
+  - `updateAgent(agentId, config)` → met a jour le prompt / la config via `PATCH /v1/convai/agents/{id}`
+  - `deleteAgent(agentId)` → supprime l'agent via `DELETE /v1/convai/agents/{id}`
 - System prompt template avec placeholder `[team_name]`
 - Configuration LLM : Claude Haiku 4.5 (natif ElevenLabs, $0.0075/min), temperature 0.3
 - Configuration TTS : Flash v2.5, voix feminine neutre
@@ -897,13 +1193,14 @@ Le systeme est classe **risque minimal** car :
 
 **Criteres d'acceptation :**
 - Route `POST /api/calls/inbound` qui :
-  - Valide la signature du webhook
-  - Identifie l'equipe via l'agent_id
-  - Identifie le locataire via caller ID (phone lookup)
+  - Valide la signature HMAC du webhook ElevenLabs (`elevenlabs-signature` header)
+  - Filtre sur `event.type === 'post_call_transcription'` (ignore audio et failures)
+  - Identifie l'equipe via l'agent_id du payload
+  - Identifie le locataire via caller phone (`metadata.phone_call.body.from_number`)
   - Appelle `extractInterventionSummary` (US-005)
   - Cree l'intervention via intervention-service
   - Genere le PDF (US-006)
-  - Stocke le call log dans `ai_phone_calls`
+  - Stocke le call log dans `ai_phone_calls` (avec `elevenlabs_conversation_id`)
   - Met a jour `ai_phone_usage`
   - Cree une notification push + email (US-007)
 - Gestion d'erreur : locataire non identifie, transcript vide
@@ -1063,11 +1360,12 @@ Le systeme est classe **risque minimal** car :
 **En tant que** developpeur, **je veux** des tests d'integration qui valident le flux complet **pour que** le systeme soit fiable en production.
 
 **Criteres d'acceptation :**
-- Test : webhook inbound → creation intervention → PDF genere
+- Test : webhook inbound (mock ElevenLabs payload) → creation intervention → PDF genere
 - Test : caller ID match → locataire identifie
 - Test : caller ID inconnu → intervention creee avec flag
 - Test : extraction structuree avec transcript FR, NL, EN
 - Test : compteur de minutes incremente
+- Test : verification signature HMAC ElevenLabs
 - Tous les tests passent
 - Lint passe
 
@@ -1090,16 +1388,16 @@ Le systeme est classe **risque minimal** car :
 
 | Scenario | Appels/mois | Minutes | Cout SEIDO | Revenue |
 |----------|-------------|---------|------------|---------|
-| Faible | 10 | 30 min | ~$4 | $15 |
-| Moyen | 20 | 60 min | ~$7.50 | $15 |
-| Eleve | 40 | 120 min | ~$15 | $15 + $15 overage = $30 |
+| Faible | 10 | 30 min | ~$3.50 | $15 |
+| Moyen | 20 | 60 min | ~$7.68 | $15 |
+| Eleve | 40 | 120 min | ~$14.50 | $15 + $15 overage = $30 |
 
 ### 11.3 Couts fixes mensuels
 
 | Service | Cout | Note |
 |---------|------|------|
 | ElevenLabs Pro | $99/mo | 1100 min incluses (suffisant pour ~50 equipes) |
-| Twilio | $0/mo (hors numeros) | Pas d'abonnement plateforme, pay-as-you-go |
+| Telnyx | $0/mo (hors numeros) | Pas d'abonnement plateforme, pay-as-you-go |
 | Anthropic API | Pay-as-you-go | ~$15-20/mo pour 1000 appels |
 | **Total fixe** | **~$115/mo** | Rentable a partir de 8 equipes |
 
@@ -1108,6 +1406,15 @@ Le systeme est classe **risque minimal** car :
 - **Cout fixe :** ~$115/mo
 - **Revenue par equipe :** $15/mo
 - **Break-even :** **8 equipes** avec l'add-on actif
+
+### 11.5 Comparaison Twilio vs Telnyx (par equipe/mois)
+
+| Poste | Twilio | Telnyx | Economie |
+|-------|--------|--------|----------|
+| Numero | $3.00 | $1.00 | -$2.00 |
+| 60 min inbound | $0.60 | $0.18 | -$0.42 |
+| **Total telephonie** | **$3.60** | **$1.18** | **-$2.42 (-67%)** |
+| Marge sur $15 | 33% | 49% | +16 points |
 
 ---
 
@@ -1118,7 +1425,7 @@ Le systeme est classe **risque minimal** car :
 | Feature | Description |
 |---------|-------------|
 | Tool calling live | L'IA lookup le locataire dans Supabase PENDANT l'appel (pas en post-traitement) |
-| SMS confirmation | Envoyer un SMS au locataire avec le numero de reference apres l'appel |
+| SMS confirmation | Envoyer un SMS au locataire avec le numero de reference apres l'appel (via Telnyx Messaging API) |
 | Config voix custom | Choix de la voix (homme/femme, ton) dans les parametres |
 | Dashboard analytics | Stats detaillees : appels/jour, duree moyenne, taux d'identification, categories |
 
@@ -1126,7 +1433,7 @@ Le systeme est classe **risque minimal** car :
 
 | Feature | Description |
 |---------|-------------|
-| Appels sortants | L'IA rappelle le locataire pour confirmer un creneau ou demander des infos |
+| Appels sortants | L'IA rappelle le locataire via `POST /v1/convai/sip-trunk/outbound-call` (API ElevenLabs deja documentee) |
 | Multi-numero | Plusieurs numeros par equipe (un par immeuble) |
 | Voicemail | Si l'IA ne peut pas traiter, option de laisser un message vocal |
 | Transcription email | Appliquer le meme traitement aux messages vocaux recus par email |
@@ -1138,9 +1445,10 @@ Le systeme est classe **risque minimal** car :
 | WhatsApp integration | Meme assistant IA accessible via WhatsApp (pas que telephone) |
 | Video | Le locataire peut envoyer une video du probleme pendant l'appel |
 | Prestataire IA | L'IA appelle le prestataire pour planifier le creneau |
+| TLS upgrade | Migrer SIP transport de TCP vers TLS + SRTP pour encryption bout-en-bout |
 
 ---
 
-*Document genere le 27 fevrier 2026 — v2.0 le 28 fevrier 2026 (Twilio au lieu de Telnyx)*
-*Basee sur : brainstorming session + recherche 4 agents specialises + verification docs officielles + test dashboard reel*
-*Stack : Twilio (native ElevenLabs) + ElevenLabs Conversational AI (Claude Haiku 4.5) + Vercel AI SDK 6.x (Claude Haiku 4.5) + @react-pdf/renderer*
+*Document genere le 27 fevrier 2026 — v2.0 le 28 fevrier 2026 (Twilio) — v3.0 le 1 mars 2026 (retour Telnyx SIP trunk)*
+*Basee sur : brainstorming session + recherche 4 agents specialises + verification docs officielles + test dashboard reel + configuration Telnyx/ElevenLabs validee*
+*Stack : Telnyx SIP trunk (FQDN) + ElevenLabs Conversational AI (Claude Haiku 4.5) + Vercel AI SDK 6.x (Claude Haiku 4.5) + @react-pdf/renderer*

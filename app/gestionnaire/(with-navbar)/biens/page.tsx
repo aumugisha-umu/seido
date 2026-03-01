@@ -64,7 +64,15 @@ export default async function BiensPage() {
       logger.info('📦 [BIENS-PAGE] Using team ID from context:', team.id)
       logger.info('🏗️ [BIENS-PAGE] Starting data loading for team:', team.id)
 
-      const buildingsResult = await buildingService.getBuildingsByTeam(team.id)
+      // ⚡ Parallelize 3 independent queries
+      const [buildingsResult, lotsResult, occupiedResult] = await Promise.all([
+        buildingService.getBuildingsByTeam(team.id),
+        lotService.getLotsByTeam(team.id),
+        contractService.getOccupiedLotIdsByTeam(team.id).catch((error) => {
+          logger.warn('⚠️ [BIENS-PAGE] Could not get occupied lots from contracts, falling back to lot_contacts')
+          return { success: false, data: new Set<string>() }
+        })
+      ])
 
       if (buildingsResult.success && buildingsResult.data) {
         buildings = (buildingsResult.data || []) as any[]
@@ -72,10 +80,6 @@ export default async function BiensPage() {
       } else {
         logger.error('❌ [BIENS-PAGE] Error loading buildings:', buildingsResult.error || 'No data')
       }
-
-      // Récupérer TOUS les lots de l'équipe (incluant lots indépendants)
-      logger.info(`🏠 [BIENS-PAGE] Loading ALL lots for team ${team.id} (including independent lots)`)
-      const lotsResult = await lotService.getLotsByTeam(team.id)
 
       if (lotsResult.success && lotsResult.data) {
         allLots = lotsResult.data || []
@@ -91,14 +95,9 @@ export default async function BiensPage() {
       }
 
       // ✅ 2025-12-10: Get occupied lot IDs from ACTIVE CONTRACTS (not lot_contacts)
-      try {
-        const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
-        if (occupiedResult.success) {
-          occupiedLotIds = occupiedResult.data
-          logger.info('✅ [BIENS-PAGE] Occupied lots from contracts:', occupiedLotIds.size)
-        }
-      } catch (error) {
-        logger.warn('⚠️ [BIENS-PAGE] Could not get occupied lots from contracts, falling back to lot_contacts')
+      if (occupiedResult.success) {
+        occupiedLotIds = occupiedResult.data
+        logger.info('✅ [BIENS-PAGE] Occupied lots from contracts:', occupiedLotIds.size)
       }
     }
 

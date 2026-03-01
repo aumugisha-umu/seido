@@ -26,7 +26,8 @@ import type {
   ContractDocument,
   ContractDocumentInsert,
   ContractStats,
-  ContractStatus
+  ContractStatus,
+  ExpiryDecision
 } from '@/lib/types/contract.types'
 
 // ============================================================================
@@ -1160,18 +1161,15 @@ export async function checkContractOverlapWithDetails(
     const duplicateTenantContracts: OverlappingContractInfo[] = []
 
     if (tenantUserIds.length > 0) {
-      for (const tenantUserId of tenantUserIds) {
-        const tenantResult = await repository.findTenantActiveContractsOnLot(
-          lotId,
-          tenantUserId,
-          startDate,
-          endDate,
-          excludeContractId
+      const tenantResults = await Promise.all(
+        tenantUserIds.map(tenantUserId =>
+          repository.findTenantActiveContractsOnLot(lotId, tenantUserId, startDate, endDate, excludeContractId)
         )
+      )
 
+      for (const tenantResult of tenantResults) {
         if (tenantResult.success && tenantResult.data.length > 0) {
           hasDuplicateTenant = true
-          // Ajouter les contrats trouvés (éviter les doublons)
           for (const contract of tenantResult.data) {
             if (!duplicateTenantContracts.find(c => c.id === contract.id)) {
               duplicateTenantContracts.push({
@@ -1515,6 +1513,88 @@ export async function getActiveTenantsByBuildingAction(
 
   } catch (error) {
     logger.error('❌ [CONTRACT-ACTION] Error getting active tenants for building:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+// ============================================================================
+// EXPIRY DECISION
+// ============================================================================
+
+const VALID_EXPIRY_DECISIONS: ExpiryDecision[] = ['tacite_accepted', 'will_renew', 'will_terminate']
+
+/**
+ * Enregistre la décision du gestionnaire concernant l'échéance d'un contrat.
+ * Stocke dans contracts.metadata.expiry_decision (JSONB).
+ */
+export async function setExpiryDecision(
+  contractId: string,
+  decision: ExpiryDecision
+): Promise<ActionResult<Contract>> {
+  try {
+    logger.info('📋 [CONTRACT-ACTION] Setting expiry decision:', { contractId, decision })
+
+    // Validate decision enum
+    if (!VALID_EXPIRY_DECISIONS.includes(decision)) {
+      return { success: false, error: `Décision invalide: ${decision}` }
+    }
+
+    // Verify auth
+    const auth = await getAuthContext()
+    if (!auth.success) {
+      return { success: false, error: auth.error }
+    }
+
+    // Get contract to verify team access
+    const service = await createServerActionContractService()
+    const existing = await service.getById(contractId)
+
+    if (!existing) {
+      return { success: false, error: 'Contrat introuvable' }
+    }
+
+    // Verify team access
+    const teamAccess = await verifyTeamAccess(auth.user!.id, existing.team_id)
+    if (!teamAccess.success) {
+      return { success: false, error: teamAccess.error }
+    }
+
+    // Merge expiry_decision into existing metadata
+    const updatedMetadata = {
+      ...(existing.metadata || {}),
+      expiry_decision: {
+        decision,
+        decided_at: new Date().toISOString(),
+        decided_by: auth.user!.id
+      }
+    }
+
+    const result = await service.update(contractId, { metadata: updatedMetadata })
+
+    if (result.success) {
+      logger.info('✅ [CONTRACT-ACTION] Expiry decision set:', {
+        contractId,
+        decision,
+        decidedBy: auth.user!.id
+      })
+
+      // Invalidate caches
+      revalidateTag('contracts')
+      revalidateTag(`contract-${contractId}`)
+      revalidateTag(`contracts-team-${existing.team_id}`)
+      revalidatePath('/gestionnaire/contrats')
+      revalidatePath(`/gestionnaire/contrats/${contractId}`)
+
+      return { success: true, data: result.data }
+    }
+
+    return { success: false, error: result.error.message }
+
+  } catch (error) {
+    logger.error('❌ [CONTRACT-ACTION] Error setting expiry decision:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'

@@ -328,38 +328,41 @@ export class CompositeService {
         buildingOperation.entityId = building.id
         buildingOperation.status = 'completed'
 
-        // Step 5: Create lots (if specified)
+        // Step 5: Create lots (if specified) (OPTIMIZED: Parallel execution, order preserved by Promise.all)
         if (data.lots && data.lots.length > 0) {
-          for (const lotData of data.lots) {
-            const lotOperation: CompositeOperation = {
-              id: `lot-${Date.now()}-${lots.length}`,
-              type: 'create',
-              service: 'lot',
-              entity: 'lot',
-              data: {
-                ...lotData,
-                building_id: building.id
-              },
-              status: 'pending',
-              timestamp: new Date().toISOString()
-            }
-            operations.push(lotOperation)
-
-            const lotResult = await this.lotService.create({
+          const lotOperations: CompositeOperation[] = data.lots.map((lotData, i) => ({
+            id: `lot-${Date.now()}-${i}`,
+            type: 'create' as const,
+            service: 'lot',
+            entity: 'lot',
+            data: {
               ...lotData,
               building_id: building.id
-            })
+            },
+            status: 'pending' as const,
+            timestamp: new Date().toISOString()
+          }))
+          operations.push(...lotOperations)
 
-            if (!lotResult.success) {
-              lotOperation.status = 'failed'
-              // ✅ Safely access error message from RepositoryError object
-              const errorMsg = lotResult.error?.message || String(lotResult.error)
+          const lotResults = await Promise.all(
+            data.lots.map((lotData, i) =>
+              this.lotService.create({
+                ...lotData,
+                building_id: building.id
+              }).then(result => ({ result, index: i }))
+            )
+          )
+
+          for (const { result, index } of lotResults) {
+            if (!result.success) {
+              lotOperations[index].status = 'failed'
+              const errorMsg = result.error?.message || String(result.error)
               throw new Error('Lot creation failed: ' + errorMsg)
             }
 
-            lots.push(lotResult.data)
-            lotOperation.entityId = lotResult.data.id
-            lotOperation.status = 'completed'
+            lots.push(result.data)
+            lotOperations[index].entityId = result.data.id
+            lotOperations[index].status = 'completed'
           }
         }
       }
@@ -476,37 +479,40 @@ export class CompositeService {
       buildingOperation.entityId = building.id
       buildingOperation.status = 'completed'
 
-      // Step 2: Create lots
-      for (const lotData of data.lots) {
-        const lotOperation: CompositeOperation = {
-          id: `lot-${Date.now()}-${lots.length}`,
-          type: 'create',
-          service: 'lot',
-          entity: 'lot',
-          data: {
-            ...lotData,
-            building_id: building.id
-          },
-          status: 'pending',
-          timestamp: new Date().toISOString()
-        }
-        operations.push(lotOperation)
-
-        const lotResult = await this.lotService.create({
+      // Step 2: Create lots (OPTIMIZED: Parallel execution, order preserved by Promise.all)
+      const lotOperations: CompositeOperation[] = data.lots.map((lotData, i) => ({
+        id: `lot-${Date.now()}-${i}`,
+        type: 'create' as const,
+        service: 'lot',
+        entity: 'lot',
+        data: {
           ...lotData,
           building_id: building.id
-        })
+        },
+        status: 'pending' as const,
+        timestamp: new Date().toISOString()
+      }))
+      operations.push(...lotOperations)
 
-        if (!lotResult.success) {
-          lotOperation.status = 'failed'
-          // ✅ Safely access error message from RepositoryError object
-          const errorMsg = lotResult.error?.message || String(lotResult.error)
+      const lotResults = await Promise.all(
+        data.lots.map((lotData, i) =>
+          this.lotService.create({
+            ...lotData,
+            building_id: building.id
+          }).then(result => ({ result, index: i }))
+        )
+      )
+
+      for (const { result, index } of lotResults) {
+        if (!result.success) {
+          lotOperations[index].status = 'failed'
+          const errorMsg = result.error?.message || String(result.error)
           throw new Error('Lot creation failed: ' + errorMsg)
         }
 
-        lots.push(lotResult.data)
-        lotOperation.entityId = lotResult.data.id
-        lotOperation.status = 'completed'
+        lots.push(result.data)
+        lotOperations[index].entityId = result.data.id
+        lotOperations[index].status = 'completed'
       }
 
       return {
@@ -713,40 +719,43 @@ export class CompositeService {
         })
       }
 
-      // Step 2: Create lots
-      for (let i = 0; i < data.lots.length; i++) {
-        const lotData = data.lots[i]
-        const lotOperation: CompositeOperation = {
-          id: `lot-${Date.now()}-${i}`,
-          type: 'create',
-          service: 'lot',
-          entity: 'lot',
-          data: {
-            ...lotData,
-            building_id: building.id,
-            team_id: data.building.team_id
-          },
-          status: 'pending',
-          timestamp: new Date().toISOString()
-        }
-        operations.push(lotOperation)
-
-        const lotResult = await this.lotService.create({
+      // Step 2: Create lots (OPTIMIZED: Parallel execution, order preserved by Promise.all)
+      const lotOperations: CompositeOperation[] = data.lots.map((lotData, i) => ({
+        id: `lot-${Date.now()}-${i}`,
+        type: 'create' as const,
+        service: 'lot',
+        entity: 'lot',
+        data: {
           ...lotData,
           building_id: building.id,
           team_id: data.building.team_id
-        })
+        },
+        status: 'pending' as const,
+        timestamp: new Date().toISOString()
+      }))
+      operations.push(...lotOperations)
 
-        if (!lotResult.success) {
-          lotOperation.status = 'failed'
-          // ✅ Safely access error message from RepositoryError object
-          const errorMsg = lotResult.error?.message || String(lotResult.error)
+      const lotResults = await Promise.all(
+        data.lots.map((lotData, i) =>
+          this.lotService.create({
+            ...lotData,
+            building_id: building.id,
+            team_id: data.building.team_id
+          }).then(result => ({ result, index: i, lotData }))
+        )
+      )
+
+      // Process results in order (critical: downstream lot contact assignments use array index)
+      for (const { result, index, lotData } of lotResults) {
+        if (!result.success) {
+          lotOperations[index].status = 'failed'
+          const errorMsg = result.error?.message || String(result.error)
           throw new Error(`Lot creation failed for ${lotData.reference}: ` + errorMsg)
         }
 
-        lots.push(lotResult.data)
-        lotOperation.entityId = lotResult.data.id
-        lotOperation.status = 'completed'
+        lots.push(result.data)
+        lotOperations[index].entityId = result.data.id
+        lotOperations[index].status = 'completed'
       }
 
       // Step 3: Handle contact assignments to lots (OPTIMIZED: Bulk insert)

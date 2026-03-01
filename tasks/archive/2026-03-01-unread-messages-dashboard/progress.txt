@@ -1,0 +1,61 @@
+# Progress Log — Unread Messages Dashboard Section
+# Started: 2026-03-01
+# Stories: 7 total
+---
+
+## 2026-03-01 — US-001: Repository getUnreadThreadsForDashboard()
+Files: lib/services/repositories/conversation-repository.ts
+- New exported type `UnreadThread` (line 34)
+- New method `getUnreadThreadsForDashboard(userId)` (line 648)
+- 5 batch queries: participations → timestamps → messages → interventions → users
+- Filters to intervention-linked threads only, skips 0-unread threads before enrichment queries
+- Returns `{ threads: UnreadThread[], totalCount: number }`
+- Also exports `latestMessageId` per thread (needed for markAsRead)
+
+## 2026-03-01 — US-002: Server Action markAllThreadsAsReadAction()
+Files: app/actions/conversation-actions.ts
+- Batch update: get all participations → find latest message per thread → Promise.all updates
+- Uses getServerActionAuthContextOrNull pattern
+- Revalidates all 3 dashboard paths (/gestionnaire/dashboard, /locataire/dashboard, /prestataire/dashboard)
+
+## 2026-03-01 — US-003: UI Component UnreadMessagesSection
+Files: components/dashboards/shared/unread-messages-section.tsx, components/dashboards/shared/index.ts
+- Dual-state animation: fadingIds (CSS 150ms opacity transition) + dismissedIds (DOM removal via setTimeout)
+- Thread type chips match ConversationSelector colors (blue/emerald/violet/green/purple)
+- Max 5 rows visible, "Voir tous" link when totalCount > 5
+- Separate mobile (stacked) and desktop (inline) layouts
+- Navigation: /${role}/interventions/${id}?tab=conversations&thread=${type}
+
+## 2026-03-01 — US-004: Deep-link ?tab=conversations&thread= support
+Files: app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx
+       app/locataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx
+       app/prestataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx
+- Reads searchParams.tab and searchParams.thread on mount
+- Gestionnaire uses selectedThreadType, locataire/prestataire use defaultThreadType
+- Falls back to 'general' tab and 'group' thread type
+
+## 2026-03-01 — US-005: Gestionnaire dashboard integration
+Files: app/gestionnaire/(with-navbar)/dashboard/components/async-dashboard-content.tsx
+       components/dashboards/manager/manager-dashboard-v2.tsx
+- SSR fetch via ConversationRepository in async-dashboard-content.tsx
+- Separate try/catch for fault tolerance (dashboard still loads if threads fail)
+- Rendered between OnboardingChecklist and InterventionsNavigator
+
+## 2026-03-01 — US-006: Locataire dashboard integration
+Files: app/locataire/(no-navbar)/dashboard/page.tsx
+       components/dashboards/locataire-dashboard.tsx
+       components/dashboards/locataire-dashboard-hybrid.tsx
+- 3-layer prop drilling: page.tsx → LocataireDashboard → LocataireDashboardHybrid
+- Rendered before InterventionsNavigator with mb-4 spacing
+- Proper UnreadThread[] type (no any[])
+
+## 2026-03-01 — US-007: Prestataire dashboard integration
+Files: app/prestataire/(with-navbar)/dashboard/page.tsx
+       components/dashboards/provider/provider-dashboard-v2.tsx
+- SSR fetch in page.tsx, passed to ProviderDashboardV2
+- Rendered above InterventionsNavigator
+- Proper UnreadThread[] type (no any[])
+
+---
+ALL 7 STORIES COMPLETE — 2026-03-01
+Lint: 0 new warnings from this feature

@@ -1,67 +1,62 @@
 {
   "project": "SEIDO",
-  "featureName": "Universal Email Attachment Preview",
+  "featureName": "Compte Seido Badge Consistency & Non-Invited Filtering",
   "branchName": "preview",
-  "description": "Add in-app preview for ALL email attachment types. Images show inline, PDFs in iframe, Office/text files via Google Docs Viewer in a modal. The Eye button must appear on every attachment, not just images/PDFs. Both email-detail.tsx and conversation-thread.tsx are affected.",
-  "createdAt": "2026-02-25",
-  "prdSource": "inline",
-  "status": "complete",
+  "description": "Replace all 'Non invité' negative badges with 'Compte Seido' positive badges. Fix data flow bugs where has_account is missing, causing non-invited contacts to appear in confirmation selectors.",
+  "createdAt": "2026-03-01",
+  "prdSource": "brainstorming-session",
+  "status": "in_progress",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Create shared AttachmentPreviewModal component",
-      "description": "As a gestionnaire, I want a modal that can preview any attachment type in-app, so I don't have to download files to see their content.",
+      "title": "Fix data flow: has_account on allTenants + dedup for confirmation",
+      "description": "Fix allTenants Branch 2 to copy has_account from BuildingTenant. Deduplicate allTenants before passing to ParticipantConfirmationSelector.",
       "acceptanceCriteria": [
-        "Modal uses existing UnifiedModal (size full) for consistency with DocumentViewerModal",
-        "Images: displayed via <img> with zoom/fit controls",
-        "PDFs: displayed via iframe with signedUrl",
-        "Office files (docx, xlsx, pptx): displayed via Google Docs Viewer iframe (docs.google.com/gview?url=encodedSignedUrl&embedded=true)",
-        "Text/CSV files: displayed via Google Docs Viewer iframe (same pattern)",
-        "Unknown types: fallback message with download button",
-        "Modal header shows filename + file size + download button",
-        "Loading state with Loader2 spinner while fetching signed URL",
-        "Error state with retry + download fallback",
-        "Lint passes (npm run lint)"
+        "allTenants Branch 2 maps has_account from tenant object",
+        "ParticipantConfirmationSelector receives deduplicated tenants with has_account",
+        "Non-invited tenants excluded from confirmation selector",
+        "Lint passes"
       ],
-      "priority": 3,
+      "priority": 1,
       "dependsOn": [],
-      "sizing": "M",
+      "sizing": "S",
       "passes": true,
-      "notes": "Created attachment-preview-modal.tsx. UnifiedModal full size, 3 preview modes: image (<img>), PDF (iframe), Google Docs Viewer (iframe for docx/xlsx/pptx/csv/txt/rtf). Two-phase loading (API fetch + content render). Error state with retry. Download via badge prop in header. Extension-based fallback for generic mime types."
+      "notes": "Added Set<string> dedup + has_account mapping in allTenants Branch 2"
     },
     {
       "id": "US-002",
-      "title": "Wire preview modal in email-detail.tsx",
-      "description": "As a gestionnaire viewing a single email, I want the Eye button on ALL attachments (not just images/PDFs), so I can preview any file in-app.",
+      "title": "Fix data flow: has_account in Step 4 confirmation + edit page",
+      "description": "Add has_account to data.contacts in confirmation summary. Filter non-invited from confirmation display. Map has_account on providers in edit page.",
       "acceptanceCriteria": [
-        "Eye button visible on ALL attachments regardless of mime_type",
-        "Clicking Eye opens AttachmentPreviewModal with correct attachment data",
-        "Existing inline image preview still works (for images, modal is an alternative via Eye button)",
-        "Existing PDF new-tab behavior replaced by in-modal iframe preview",
-        "Download button remains unchanged",
-        "Lint passes (npm run lint)"
+        "Step 4 confirmation contacts include has_account field",
+        "Non-invited contacts filtered from confirmation locataires",
+        "Edit page maps has_account on providers",
+        "Lint passes"
       ],
-      "priority": 3,
+      "priority": 2,
       "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "notes": "Replaced old handlePreviewAttachment (inline image + PDF new-tab) with modal-based preview. Removed isPreviewableImage/isPreviewablePdf guards — Eye button now on ALL attachments. Removed previewingAttachmentId and imagePreviewUrls state. Added AttachmentPreviewModal import + render. Modal handles its own loading/error/signed URL fetch."
+      "notes": "Added has_account to all 3 contact paths in Step 4, to edit page providers, and Compte Seido badge in renderContactList"
     },
     {
       "id": "US-003",
-      "title": "Wire preview modal in conversation-thread.tsx",
-      "description": "As a gestionnaire viewing an email thread, I want the same preview behavior as single-email view.",
+      "title": "Badge flip: all Non invité → Compte Seido across UI",
+      "description": "Replace all negative 'Non invité' badges with positive 'Compte Seido' badges across: contact-selector modal, contact-selector dropdown, contact-section, assignment-section-v2 (3 sites), programming-modal-FINAL (2 sites).",
       "acceptanceCriteria": [
-        "Eye button visible on ALL attachments in thread messages",
-        "Clicking Eye opens AttachmentPreviewModal",
-        "Each thread message manages its own preview state independently",
-        "Lint passes (npm run lint)"
+        "contact-selector.tsx modal shows 'Compte Seido' badge when auth_user_id present",
+        "ui/contact-selector.tsx dropdown shows 'Compte Seido' when has_account true",
+        "ui/contact-section.tsx shows 'Compte Seido' for all section types (not just providers)",
+        "assignment-section-v2.tsx 3 badge sites flipped to Compte Seido",
+        "programming-modal-FINAL.tsx 2 badge sites flipped to Compte Seido",
+        "Zero 'Non invité' remaining in intervention UI components",
+        "Lint passes"
       ],
       "priority": 3,
       "dependsOn": ["US-001"],
-      "sizing": "S",
+      "sizing": "M",
       "passes": true,
-      "notes": "Full rewrite: removed isPreviewableImage/isPreviewablePdf/imagePreviewUrls/handlePreviewAttachment. Replaced with previewAttachment state + AttachmentPreviewModal rendered per EmailThreadItem. Eye button on ALL attachments. Removed unused useCallback import dependency on old preview handlers."
+      "notes": "All 8 badge sites flipped. Zero 'Non invité' remaining in components/. 11 'Compte Seido' locations confirmed."
     }
   ]
 }

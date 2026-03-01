@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     // Generate signed URL for viewing (valid for 30 minutes)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from(document.storage_bucket || 'intervention-documents')
+      .from(document.storage_bucket || 'documents')
       .createSignedUrl(document.storage_path, 1800) // 30 minutes expiry
 
     if (signedUrlError || !signedUrlData) {

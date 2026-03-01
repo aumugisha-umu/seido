@@ -1,10 +1,10 @@
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClipboardList, Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default async function ProprietaireInterventions() {
-  const { profile } = await requireRole(['proprietaire'])
+  const { profile } = await getServerAuthContext('proprietaire')
 
   return (
     <div className="container mx-auto p-6 space-y-6">

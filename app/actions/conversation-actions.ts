@@ -102,7 +102,7 @@ export async function sendThreadWelcomeMessage(
       return
     }
 
-    const { error } = await supabase
+    const { data: msg, error } = await supabase
       .from('conversation_messages')
       .insert({
         thread_id: threadId,
@@ -114,13 +114,21 @@ export async function sendThreadWelcomeMessage(
           thread_type: threadType
         }
       })
+      .select('id')
+      .single()
 
-    if (error) {
+    if (error || !msg) {
       logger.error('❌ [SYSTEM-MESSAGE] Failed to insert welcome message:', error)
       return
     }
 
-    logger.info('✅ [SYSTEM-MESSAGE] Welcome message sent for thread:', {
+    // Mark system message as read for all existing participants so it doesn't appear as unread
+    await supabase
+      .from('conversation_participants')
+      .update({ last_read_message_id: msg.id })
+      .eq('thread_id', threadId)
+
+    logger.info('✅ [SYSTEM-MESSAGE] Welcome message sent (pre-read) for thread:', {
       threadId,
       threadType,
       participantName
@@ -1118,6 +1126,73 @@ export async function getUnreadCountAction(): Promise<ActionResult<number>> {
     return { success: true, data: count }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error getting unread count:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
+  }
+}
+
+/**
+ * Mark all conversation threads as read for the current user
+ * Used by the dashboard "Tout marquer comme lu" button
+ */
+export async function markAllThreadsAsReadAction(): Promise<ActionResult<void>> {
+  try {
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Get all participations for this user
+    const { data: participations, error: pError } = await supabase
+      .from('conversation_participants')
+      .select('thread_id')
+      .eq('user_id', user.id)
+
+    if (pError || !participations?.length) {
+      return { success: true, data: undefined }
+    }
+
+    const threadIds = participations.map(p => p.thread_id)
+
+    // For each thread, get the latest message and update last_read_message_id
+    const { data: latestMessages } = await supabase
+      .from('conversation_messages')
+      .select('thread_id, id, created_at')
+      .in('thread_id', threadIds)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+
+    // Get latest message per thread
+    const latestByThread = new Map<string, string>()
+    for (const msg of latestMessages || []) {
+      if (!latestByThread.has(msg.thread_id)) {
+        latestByThread.set(msg.thread_id, msg.id)
+      }
+    }
+
+    // Batch update all participations
+    const updates = participations
+      .filter(p => latestByThread.has(p.thread_id))
+      .map(p =>
+        supabase
+          .from('conversation_participants')
+          .update({ last_read_message_id: latestByThread.get(p.thread_id)! })
+          .eq('thread_id', p.thread_id)
+          .eq('user_id', user.id)
+      )
+
+    await Promise.all(updates)
+
+    // Revalidate all dashboard paths
+    revalidatePath('/gestionnaire/dashboard')
+    revalidatePath('/locataire/dashboard')
+    revalidatePath('/prestataire/dashboard')
+
+    return { success: true, data: undefined }
+  } catch (error) {
+    logger.error('[SERVER-ACTION] Error marking all threads as read:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
   }
 }

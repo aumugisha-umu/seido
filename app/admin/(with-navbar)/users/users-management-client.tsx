@@ -47,7 +47,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from "sonner"
 import {
   Search,
   Plus,
@@ -99,7 +99,6 @@ export function UsersManagementClient({
   initialUsers,
   currentUserId,
 }: UsersManagementClientProps) {
-  const { toast } = useToast()
   const router = useRouter()
 
   // State
@@ -154,11 +153,7 @@ export function UsersManagementClient({
         setUsers(result.data)
       }
     } catch (error) {
-      toast({
-        title: 'Erreur',
-        description: 'Impossible de rafraichir la liste',
-        variant: 'destructive',
-      })
+      toast.error('Erreur', { description: 'Impossible de rafraichir la liste' })
     } finally {
       setIsLoading(false)
     }
@@ -167,11 +162,7 @@ export function UsersManagementClient({
   // Create user
   const handleCreate = async () => {
     if (!formData.name || !formData.email) {
-      toast({
-        title: 'Erreur',
-        description: 'Le nom et l\'email sont requis',
-        variant: 'destructive',
-      })
+      toast.error('Erreur', { description: 'Le nom et l\'email sont requis' })
       return
     }
 
@@ -183,23 +174,12 @@ export function UsersManagementClient({
         await refreshUsers()
         setIsCreateDialogOpen(false)
         resetForm()
-        toast({
-          title: 'Utilisateur créé',
-          description: `${result.data.name} a été ajouté avec succès`,
-        })
+        toast('Utilisateur créé', { description: `${result.data.name} a été ajouté avec succès` })
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Impossible de créer l\'utilisateur',
-          variant: 'destructive',
-        })
+        toast.error('Erreur', { description: result.error || 'Impossible de créer l\'utilisateur' })
       }
     } catch (error) {
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue',
-        variant: 'destructive',
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue' })
     } finally {
       setIsSubmitting(false)
     }
@@ -232,23 +212,12 @@ export function UsersManagementClient({
         setIsEditDialogOpen(false)
         setSelectedUser(null)
         resetForm()
-        toast({
-          title: 'Utilisateur modifié',
-          description: `${result.data.name} a été mis à jour`,
-        })
+        toast('Utilisateur modifié', { description: `${result.data.name} a été mis à jour` })
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Impossible de modifier l\'utilisateur',
-          variant: 'destructive',
-        })
+        toast.error('Erreur', { description: result.error || 'Impossible de modifier l\'utilisateur' })
       }
     } catch (error) {
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue',
-        variant: 'destructive',
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue' })
     } finally {
       setIsSubmitting(false)
     }
@@ -265,23 +234,12 @@ export function UsersManagementClient({
         setUsers(prev => prev.filter(u => u.id !== selectedUser.id))
         setIsDeleteDialogOpen(false)
         setSelectedUser(null)
-        toast({
-          title: 'Utilisateur supprime',
-          description: 'L\'utilisateur a ete supprime avec succes',
-        })
+        toast('Utilisateur supprime', { description: 'L\'utilisateur a ete supprime avec succes' })
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Impossible de supprimer l\'utilisateur',
-          variant: 'destructive',
-        })
+        toast.error('Erreur', { description: result.error || 'Impossible de supprimer l\'utilisateur' })
       }
     } catch (error) {
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue',
-        variant: 'destructive',
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue' })
     } finally {
       setIsSubmitting(false)
     }
@@ -305,23 +263,12 @@ export function UsersManagementClient({
         )
         setIsRoleDialogOpen(false)
         setSelectedUser(null)
-        toast({
-          title: 'Rôle modifié',
-          description: `Le rôle de ${result.data.name} a été changé`,
-        })
+        toast('Rôle modifié', { description: `Le rôle de ${result.data.name} a été changé` })
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Impossible de changer le rôle',
-          variant: 'destructive',
-        })
+        toast.error('Erreur', { description: result.error || 'Impossible de changer le rôle' })
       }
     } catch (error) {
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue',
-        variant: 'destructive',
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue' })
     } finally {
       setIsSubmitting(false)
     }
@@ -334,34 +281,19 @@ export function UsersManagementClient({
       if (result.success && result.data) {
         // Refetch to get updated computed status
         await refreshUsers()
-        toast({
-          title: result.data.is_active ? 'Utilisateur activé' : 'Utilisateur désactivé',
-          description: `${result.data.name} a été ${result.data.is_active ? 'activé' : 'désactivé'}`,
-        })
+        toast(result.data.is_active ? 'Utilisateur activé' : 'Utilisateur désactivé', { description: `${result.data.name} a été ${result.data.is_active ? 'activé' : 'désactivé'}` })
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Impossible de changer le statut',
-          variant: 'destructive',
-        })
+        toast.error('Erreur', { description: result.error || 'Impossible de changer le statut' })
       }
     } catch (error) {
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue',
-        variant: 'destructive',
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue' })
     }
   }
 
   // Impersonate user
   const handleImpersonate = async (user: UserWithStatus) => {
     if (!user.email) {
-      toast({
-        title: 'Erreur',
-        description: 'Cet utilisateur n\'a pas d\'email configuré',
-        variant: 'destructive',
-      })
+      toast.error('Erreur', { description: 'Cet utilisateur n\'a pas d\'email configuré' })
       return
     }
 
@@ -369,25 +301,14 @@ export function UsersManagementClient({
     try {
       const result = await startImpersonationAction(user.id)
       if (result.success && result.redirectUrl) {
-        toast({
-          title: 'Connexion en cours...',
-          description: `Connexion en tant que ${user.name}`,
-        })
+        toast('Connexion en cours...', { description: `Connexion en tant que ${user.name}` })
         router.push(result.redirectUrl)
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Impossible de se connecter en tant que cet utilisateur',
-          variant: 'destructive',
-        })
+        toast.error('Erreur', { description: result.error || 'Impossible de se connecter en tant que cet utilisateur' })
         setImpersonatingUserId(null)
       }
     } catch (error) {
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue',
-        variant: 'destructive',
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue' })
       setImpersonatingUserId(null)
     }
   }

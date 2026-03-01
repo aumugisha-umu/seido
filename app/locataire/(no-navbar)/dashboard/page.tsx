@@ -1,11 +1,12 @@
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import LocataireDashboard from "@/components/dashboards/locataire-dashboard"
 import { createServerTenantService } from "@/lib/services/domain/tenant.service"
+import { createServerSupabaseClient, ConversationRepository } from "@/lib/services"
+import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 import { logger } from "@/lib/logger"
 
 export default async function LocataireDashboardPage() {
-  // ✅ Fetch ALL data server-side (Next.js 15 pattern)
-  const { user, profile } = await requireRole(['locataire'])
+  const { user, profile } = await getServerAuthContext('locataire')
 
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitial = userName.charAt(0).toUpperCase()
@@ -29,6 +30,19 @@ export default async function LocataireDashboardPage() {
     tenantError = error instanceof Error ? error.message : 'Erreur de chargement'
   }
 
+  // Fetch unread conversation threads
+  let unreadThreads: { threads: UnreadThread[]; totalCount: number } = { threads: [], totalCount: 0 }
+  try {
+    const supabase = await createServerSupabaseClient()
+    const conversationRepo = new ConversationRepository(supabase)
+    const unreadResult = await conversationRepo.getUnreadThreadsForDashboard(profile.id)
+    if (unreadResult.success && unreadResult.data) {
+      unreadThreads = unreadResult.data
+    }
+  } catch (error) {
+    logger.warn('[LOCATAIRE-PAGE] Unread threads fetch failed, skipping', { error })
+  }
+
   return (
     <LocataireDashboard
       userName={userName}
@@ -39,6 +53,8 @@ export default async function LocataireDashboardPage() {
       serverError={tenantError}
       userId={profile.id}
       userRole={profile.role}
+      unreadThreads={unreadThreads.threads}
+      unreadThreadsTotalCount={unreadThreads.totalCount}
     />
   )
 }

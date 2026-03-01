@@ -11,7 +11,7 @@ import {
   UnifiedModalFooter,
 } from "@/components/ui/unified-modal"
 import { Check, Loader2 } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { logger } from '@/lib/logger'
 
 interface QuoteApprovalModalProps {
@@ -33,8 +33,6 @@ export function QuoteApprovalModal({
 }: QuoteApprovalModalProps) {
   const [comments, setComments] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { toast } = useToast()
-
   const handleApprove = async () => {
     logger.info('🚀 [APPROVAL] Starting quote approval process')
 
@@ -53,10 +51,7 @@ export function QuoteApprovalModal({
         throw new Error(data.error || 'Erreur lors de l\'approbation')
       }
 
-      toast({
-        title: "Estimation approuvée",
-        description: "L'estimation a été approuvée. L'intervention passe en phase de planification.",
-      })
+      toast("Estimation approuvée", { description: "L'estimation a été approuvée. L'intervention passe en phase de planification." })
 
       setComments("")
       onClose()
@@ -64,11 +59,7 @@ export function QuoteApprovalModal({
 
     } catch (error) {
       logger.error('❌ [APPROVAL] Error:', error)
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors de l'approbation",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Erreur lors de l'approbation" })
     } finally {
       setIsLoading(false)
     }

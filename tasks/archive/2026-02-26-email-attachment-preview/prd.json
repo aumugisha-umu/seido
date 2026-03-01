@@ -1,0 +1,67 @@
+{
+  "project": "SEIDO",
+  "featureName": "Universal Email Attachment Preview",
+  "branchName": "preview",
+  "description": "Add in-app preview for ALL email attachment types. Images show inline, PDFs in iframe, Office/text files via Google Docs Viewer in a modal. The Eye button must appear on every attachment, not just images/PDFs. Both email-detail.tsx and conversation-thread.tsx are affected.",
+  "createdAt": "2026-02-25",
+  "prdSource": "inline",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create shared AttachmentPreviewModal component",
+      "description": "As a gestionnaire, I want a modal that can preview any attachment type in-app, so I don't have to download files to see their content.",
+      "acceptanceCriteria": [
+        "Modal uses existing UnifiedModal (size full) for consistency with DocumentViewerModal",
+        "Images: displayed via <img> with zoom/fit controls",
+        "PDFs: displayed via iframe with signedUrl",
+        "Office files (docx, xlsx, pptx): displayed via Google Docs Viewer iframe (docs.google.com/gview?url=encodedSignedUrl&embedded=true)",
+        "Text/CSV files: displayed via Google Docs Viewer iframe (same pattern)",
+        "Unknown types: fallback message with download button",
+        "Modal header shows filename + file size + download button",
+        "Loading state with Loader2 spinner while fetching signed URL",
+        "Error state with retry + download fallback",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Created attachment-preview-modal.tsx. UnifiedModal full size, 3 preview modes: image (<img>), PDF (iframe), Google Docs Viewer (iframe for docx/xlsx/pptx/csv/txt/rtf). Two-phase loading (API fetch + content render). Error state with retry. Download via badge prop in header. Extension-based fallback for generic mime types."
+    },
+    {
+      "id": "US-002",
+      "title": "Wire preview modal in email-detail.tsx",
+      "description": "As a gestionnaire viewing a single email, I want the Eye button on ALL attachments (not just images/PDFs), so I can preview any file in-app.",
+      "acceptanceCriteria": [
+        "Eye button visible on ALL attachments regardless of mime_type",
+        "Clicking Eye opens AttachmentPreviewModal with correct attachment data",
+        "Existing inline image preview still works (for images, modal is an alternative via Eye button)",
+        "Existing PDF new-tab behavior replaced by in-modal iframe preview",
+        "Download button remains unchanged",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Replaced old handlePreviewAttachment (inline image + PDF new-tab) with modal-based preview. Removed isPreviewableImage/isPreviewablePdf guards — Eye button now on ALL attachments. Removed previewingAttachmentId and imagePreviewUrls state. Added AttachmentPreviewModal import + render. Modal handles its own loading/error/signed URL fetch."
+    },
+    {
+      "id": "US-003",
+      "title": "Wire preview modal in conversation-thread.tsx",
+      "description": "As a gestionnaire viewing an email thread, I want the same preview behavior as single-email view.",
+      "acceptanceCriteria": [
+        "Eye button visible on ALL attachments in thread messages",
+        "Clicking Eye opens AttachmentPreviewModal",
+        "Each thread message manages its own preview state independently",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Full rewrite: removed isPreviewableImage/isPreviewablePdf/imagePreviewUrls/handlePreviewAttachment. Replaced with previewAttachment state + AttachmentPreviewModal rendered per EmailThreadItem. Eye button on ALL attachments. Removed unused useCallback import dependency on old preview handlers."
+    }
+  ]
+}

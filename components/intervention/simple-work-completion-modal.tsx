@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { CheckCircle, X, Upload, Loader2 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import {
   UnifiedModal,
   UnifiedModalHeader,
@@ -39,8 +39,6 @@ export function SimpleWorkCompletionModal({
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
   const [voiceNote, setVoiceNote] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const { toast } = useToast()
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
 
@@ -83,11 +81,7 @@ export function SimpleWorkCompletionModal({
         setVoiceNote(null)
 
         // Afficher le toast de succès
-        toast({
-          title: "✅ Intervention terminée",
-          description: "Votre rapport de fin de travaux a été soumis avec succès. Le locataire va être notifié pour valider les travaux.",
-          variant: "default",
-        })
+        toast("✅ Intervention terminée", { description: "Votre rapport de fin de travaux a été soumis avec succès. Le locataire va être notifié pour valider les travaux." })
 
         onClose()
       } else {

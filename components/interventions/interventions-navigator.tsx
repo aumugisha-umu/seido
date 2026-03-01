@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback } from "react"
-import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon, Filter, ArrowUpDown, X, Loader2, ChevronDown } from "lucide-react"
+import { ListTodo, AlertTriangle, Settings, Archive, Clock, CalendarClock, LucideIcon, Filter, ArrowUpDown, X, Loader2, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -32,7 +32,7 @@ import type { InterventionWithRelations } from "@/lib/services"
 // CONSTANTS - Sort & Filter Options
 // ============================================================================
 
-type SortField = 'date' | 'urgency' | 'status' | 'title'
+type SortField = 'date' | 'scheduled' | 'urgency' | 'status' | 'title'
 type SortOrder = 'asc' | 'desc'
 
 const STATUS_OPTIONS = [
@@ -52,6 +52,7 @@ const URGENCY_OPTIONS = [
 ]
 
 const SORT_OPTIONS = [
+  { value: 'scheduled-asc', label: 'Date planifiée' },
   { value: 'date-desc', label: 'Plus récent' },
   { value: 'date-asc', label: 'Plus ancien' },
   { value: 'urgency-desc', label: 'Urgence (haute → basse)' },
@@ -192,8 +193,8 @@ export function InterventionsNavigator({
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<string | undefined>(initialActiveTab)
 
-  // NEW: Sort & Filter state
-  const [sortBy, setSortBy] = useState<string>('date-desc')
+  // NEW: Sort & Filter state — dashboard defaults to scheduled date sort
+  const [sortBy, setSortBy] = useState<string>(tabsPreset === 'dashboard' ? 'scheduled-asc' : 'date-desc')
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedUrgencies, setSelectedUrgencies] = useState<string[]>([])
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -309,16 +310,40 @@ export function InterventionsNavigator({
         let comparison = 0
 
         switch (field) {
-          case 'date':
+          case 'scheduled': {
+            // Scheduled date sort: unscheduled first → overdue → upcoming
+            const schedA = (a as any).scheduled_date
+            const schedB = (b as any).scheduled_date
+            const hasA = !!schedA
+            const hasB = !!schedB
+
+            // Unscheduled items come first
+            if (!hasA && !hasB) {
+              // Both unscheduled: sort by urgency DESC then created_at DESC
+              const urgA = urgencyOrder[a.urgency as keyof typeof urgencyOrder] || 1
+              const urgB = urgencyOrder[b.urgency as keyof typeof urgencyOrder] || 1
+              if (urgA !== urgB) return urgB - urgA
+              return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+            }
+            if (!hasA) return -1
+            if (!hasB) return 1
+
+            // Both scheduled: ascending (soonest first)
+            comparison = new Date(schedA).getTime() - new Date(schedB).getTime()
+            break
+          }
+          case 'date': {
             const dateA = new Date(a.created_at || 0).getTime()
             const dateB = new Date(b.created_at || 0).getTime()
             comparison = dateA - dateB
             break
-          case 'urgency':
+          }
+          case 'urgency': {
             const urgencyA = urgencyOrder[a.urgency as keyof typeof urgencyOrder] || urgencyOrder[(a as any).priority as keyof typeof urgencyOrder] || 1
             const urgencyB = urgencyOrder[b.urgency as keyof typeof urgencyOrder] || urgencyOrder[(b as any).priority as keyof typeof urgencyOrder] || 1
             comparison = urgencyA - urgencyB
             break
+          }
           case 'status':
             comparison = (a.status || '').localeCompare(b.status || '')
             break
@@ -348,11 +373,17 @@ export function InterventionsNavigator({
 
     // Dashboard preset filters
     actions_en_attente: () => filterPendingActions(filteredInterventions, userContext),
+    a_planifier: () => filteredInterventions.filter(i => {
+      const isActive = ["demande", "approuvee", "planification", "planifiee"].includes(i.status)
+      const hasScheduledDate = !!(i as any).scheduled_date
+      const isPendingAction = filterPendingActions([i], userContext).length > 0
+      return isActive && !hasScheduledDate && !isPendingAction
+    }),
     en_cours: () => filteredInterventions.filter(i => [
       "demande", "approuvee", "demande_de_devis", "planification", "planifiee"
     ].includes(i.status)),
     terminees: () => filteredInterventions.filter(i => [
-      "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee"
+      "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"
     ].includes(i.status)),
 
     // Prestataire preset filters (specific order: en_cours, terminees, toutes)
@@ -371,22 +402,28 @@ export function InterventionsNavigator({
     return filterFn ? filterFn() : filteredInterventions
   }
 
-  // Get empty state config for a tab
+  // Get empty state config for a tab (role-aware)
   const getEmptyStateForTab = (tabId: string) => {
     if (emptyStateConfig) return emptyStateConfig
 
+    // Locataire-specific: "Nouvelle demande" button text + correct URL
+    const locataireButton: Partial<EmptyStateConfig> = userContext === 'locataire'
+      ? { createButtonText: "Nouvelle demande", createButtonAction: () => window.location.href = "/locataire/interventions/nouvelle-demande" }
+      : {}
+
     const configs: Record<string, EmptyStateConfig> = {
-      toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici" },
-      demandes_group: { title: "Aucune demande", description: "Les demandes en attente apparaîtront ici" },
-      en_cours_group: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
+      toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici", ...locataireButton },
+      demandes_group: { title: "Aucune demande", description: "Les demandes en attente apparaîtront ici", ...locataireButton },
+      en_cours_group: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici", ...locataireButton },
       cloturees_group: { title: "Aucune intervention clôturée", description: "Les interventions terminées apparaîtront ici" },
-      actions_en_attente: { title: "Aucune action en attente", description: "Toutes vos interventions sont à jour" },
-      en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
+      actions_en_attente: { title: "Aucune action en attente", description: "Toutes vos interventions sont à jour", showCreateButton: false },
+      a_planifier: { title: "Rien à planifier", description: "Toutes vos interventions actives ont une date", showCreateButton: false },
+      en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici", ...locataireButton },
       terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici" },
-      // Prestataire presets
-      prestataire_en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
-      prestataire_terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici" },
-      prestataire_toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici" }
+      // Prestataire presets (no create button)
+      prestataire_en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici", showCreateButton: false },
+      prestataire_terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici", showCreateButton: false },
+      prestataire_toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici", showCreateButton: false }
     }
     return configs[tabId] || { title: "Aucune donnée", description: "" }
   }
@@ -457,18 +494,28 @@ export function InterventionsNavigator({
   // Build tabs based on preset
   const tabs = useMemo(() => {
     if (tabsPreset === 'dashboard') {
-      // Dashboard tabs: always show "À traiter" first (even with 0 count)
-      return [
-        {
+      // Dashboard tabs: hide "À traiter" when no pending actions
+      const dashboardTabs = []
+      if (pendingActionsCount > 0) {
+        dashboardTabs.push({
           id: "actions_en_attente",
           label: "À traiter",
           icon: AlertTriangle,
           count: pendingActionsCount,
           content: renderTabContent("actions_en_attente")
+        })
+      }
+      dashboardTabs.push(
+        {
+          id: "a_planifier",
+          label: "À planifier",
+          icon: CalendarClock,
+          count: getFilteredByTab("a_planifier").length,
+          content: renderTabContent("a_planifier")
         },
         {
           id: "en_cours",
-          label: "En cours",
+          label: "À venir",
           icon: Clock,
           count: getFilteredByTab("en_cours").length,
           content: renderTabContent("en_cours")
@@ -480,7 +527,8 @@ export function InterventionsNavigator({
           count: getFilteredByTab("terminees").length,
           content: renderTabContent("terminees")
         }
-      ]
+      )
+      return dashboardTabs
     }
 
     if (tabsPreset === 'prestataire') {
@@ -543,9 +591,9 @@ export function InterventionsNavigator({
     ]
   }, [tabsPreset, filteredInterventions, pendingActionsCount, mounted, viewMode])
 
-  // Default tab
+  // Default tab — show "En cours" when no pending actions on dashboard
   const defaultTab = tabsPreset === 'dashboard'
-    ? "actions_en_attente"
+    ? (pendingActionsCount > 0 ? "actions_en_attente" : "en_cours")
     : tabsPreset === 'prestataire'
     ? "prestataire_en_cours"
     : "toutes"

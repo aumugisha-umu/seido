@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
 import { URGENCY_LEVELS } from "@/lib/intervention-data"
@@ -118,7 +118,6 @@ export default function InterventionEditClient({
   currentUserId,
 }: InterventionEditClientProps) {
   const router = useRouter()
-  const { toast } = useToast()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
   // Step state - Start at step 2 since location is read-only and shown in the blue info box
@@ -172,6 +171,9 @@ export default function InterventionEditClient({
   )
   const [globalMessage, setGlobalMessage] = useState(initialData.intervention.instructions || "")
   const [expectsQuote, setExpectsQuote] = useState(initialData.intervention.requires_quote || false)
+
+  // ✅ FIX 2026-03-01: 1 créneau = like fixed (optional confirmation), 2+ = mandatory
+  const isMultiSlot = schedulingType === 'slots' && timeSlots.length >= 2
 
   // Mode d'assignation - Initialiser depuis DB
   const [assignmentMode, setAssignmentMode] = useState<'single' | 'group' | 'separate'>(
@@ -261,10 +263,11 @@ export default function InterventionEditClient({
   }))
 
   const providers = teamMembers.providers.map(p => ({
-    id: p.user_id,  // user_id is always present in TeamMember
+    id: p.user_id,
     name: p.user?.name || p.name || 'Prestataire',
     email: p.user?.email || p.email || '',
     role: 'prestataire',
+    has_account: !!(p.user as any)?.auth_user_id,
   }))
 
   // Navigation handlers
@@ -280,11 +283,7 @@ export default function InterventionEditClient({
   const handleNext = () => {
     const validation = validateCurrentStep()
     if (!validation.valid) {
-      toast({
-        title: "Champs requis",
-        description: validation.message,
-        variant: "destructive",
-      })
+      toast.error("Champs requis", { description: validation.message })
       return
     }
     if (currentStep < 4) {
@@ -339,10 +338,7 @@ export default function InterventionEditClient({
 
   const handleContactCreated = (contact: any) => {
     // Refresh the contacts list if needed
-    toast({
-      title: "Contact créé",
-      description: `${contact.name} a été ajouté`,
-    })
+    toast("Contact créé", { description: `${contact.name} a été ajouté` })
   }
 
   // Time slots handlers
@@ -407,10 +403,12 @@ export default function InterventionEditClient({
           end_time: ts.endTime,
         })),
         // Mode d'assignation et confirmation
+        // ✅ FIX 2026-03-01: 1 créneau = like fixed (optional), 2+ = mandatory
         assignment_mode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
         requires_participant_confirmation:
           (schedulingType === 'fixed' && requiresConfirmation) ||
-          schedulingType === 'slots',
+          isMultiSlot ||
+          (schedulingType === 'slots' && timeSlots.length < 2 && requiresConfirmation),
         providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
         confirmationRequiredUserIds: confirmationRequired,
         // Documents à supprimer
@@ -423,27 +421,16 @@ export default function InterventionEditClient({
       })
 
       if (result.success) {
-        toast({
-          title: "Intervention modifiée",
-          description: "Les modifications ont été enregistrées avec succès",
-        })
+        toast("Intervention modifiée", { description: "Les modifications ont été enregistrées avec succès" })
         router.push(`/gestionnaire/interventions/${initialData.intervention.id}`)
       } else {
         setError(result.error || "Erreur lors de la modification")
-        toast({
-          title: "Erreur",
-          description: result.error || "Impossible de modifier l'intervention",
-          variant: "destructive",
-        })
+        toast.error("Erreur", { description: result.error || "Impossible de modifier l'intervention" })
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue"
       setError(message)
-      toast({
-        title: "Erreur",
-        description: message,
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: message })
     } finally {
       setIsSaving(false)
     }
@@ -792,9 +779,11 @@ export default function InterventionEditClient({
                 assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
                 providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
                 // Données de confirmation des participants
+                // ✅ FIX 2026-03-01: 1 créneau = like fixed, 2+ = mandatory
                 requiresParticipantConfirmation:
                   (schedulingType === 'fixed' && requiresConfirmation) ||
-                  schedulingType === 'slots',
+                  isMultiSlot ||
+                  (schedulingType === 'slots' && timeSlots.length < 2 && requiresConfirmation),
                 confirmationRequiredUserIds: confirmationRequired,
               }
 

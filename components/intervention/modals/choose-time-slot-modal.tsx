@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -41,6 +42,7 @@ export const ChooseTimeSlotModal = ({
   onOpenChange,
   onSuccess
 }: ChooseTimeSlotModalProps) => {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
@@ -56,8 +58,7 @@ export const ChooseTimeSlotModal = ({
         if (onSuccess) {
           onSuccess()
         }
-        // Refresh the page to show updated data
-        window.location.reload()
+        router.refresh()
       } else {
         toast.error(result.error || 'Erreur lors de la sélection du créneau')
       }

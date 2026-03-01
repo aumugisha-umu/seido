@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-25
-**Total Learnings:** 86
+**Last Updated:** 2026-03-01
+**Total Learnings:** 103
 
 ---
 
@@ -56,6 +56,62 @@
 **When to Use:** Debugging access issues where a "team admin" can't see data they should
 **Added:** 2026-02-25 | **Source:** RLS debugging for team 320d8c6d
 
+#### Learning #087: Server Components use getServerAuthContext, Server Actions use getServerActionAuthContextOrNull
+**Problem:** Legacy `requireRole(['role'])` pattern duplicates auth + client creation sequentially, is not `cache()`-wrapped, and doesn't provide team context. In Server Actions, it throws a redirect on auth failure instead of returning an error to the client — breaking the `{ success: false, error }` contract.
+**Solution:** Server Components/layouts: use `getServerAuthContext('role')` — it's `cache()`-wrapped (React 19), parallelizes client+auth via `Promise.all`, and provides `team`, `activeTeamIds`, `sameRoleTeams`. Server Actions: use `getServerActionAuthContextOrNull('role')` + null-check that returns `{ success: false, error: 'Authentication required' }`. Note: the new API takes a **string** role, not an array — `'admin'` not `['admin']`.
+**Example:** `app/admin/(with-navbar)/layout.tsx`, `app/gestionnaire/(with-navbar)/dashboard/actions.ts`
+**When to Use:** ANY new page, layout, or server action that needs authentication. The ONLY file still using raw `requireRole` should be `lib/auth-dal.ts` (the library), `lib/server-context.ts` (which wraps it), and `app/actions/auth-actions.ts` (uses `requireGuest`).
+**Added:** 2026-02-26 | **Source:** Complete requireRole → getServerAuthContext migration across admin + proprietaire + gestionnaire actions
+
+#### Learning #088: Radix ScrollArea injects display:table — breaks text truncation
+**Problem:** Radix `<ScrollArea>` injects an inner `<div style="display: table; minWidth: 100%">` between the Viewport and content. `display: table` makes children expand to intrinsic width instead of being constrained by the parent — so `truncate` / `text-overflow: ellipsis` never triggers. Text renders at full width and gets hard-clipped by `overflow: hidden`.
+**Solution:** Replace `<ScrollArea>` with `<div className="overflow-y-auto">` when you only need vertical scrolling and text truncation must work. The custom Radix scrollbar thumb is cosmetic — native scrollbar is fine for lists.
+**Example:** `app/gestionnaire/(with-navbar)/mail/components/email-list.tsx:131`
+**When to Use:** Any scrollable list where child elements need `truncate` / ellipsis behavior
+**Added:** 2026-02-26 | **Source:** Email list text clipping bug in mail module
+
+#### Learning #089: Dead feature detection — when webhooks supersede UI
+**Problem:** After adding `syncEmailReplyToConversation()` to the inbound webhook, the "Réponses notifs" mail sidebar became a redundant duplicate view — same data already appeared in intervention conversation threads. ~260 lines of dead code (UI, state, props, API endpoint, SSR fetch, repository filter) persisted unnoticed.
+**Solution:** When adding a new automated pipeline (webhook → conversation sync → notifications), audit existing manual views that showed the same data. The checklist: (1) Does the new pipeline cover all the same data? (2) Are notifications already sent? (3) Is the old UI still the only way to access the data? If all "yes, yes, no" → the old UI is dead code.
+**Example:** Removed: `mailbox-sidebar.tsx` (NotificationReplyGroup section), `mail-client.tsx` (handleInterventionClick), `/api/emails/notification-replies/route.ts` (entire file), `page.tsx` (getNotificationReplyGroups)
+**When to Use:** After adding any automated data sync pipeline that duplicates an existing manual view
+**Added:** 2026-02-26 | **Source:** Remove notification replies sidebar cleanup
+
+#### Learning #090: Client/server operator divergence in quota checks — always align boundary operators
+**Problem:** Client-side `isAtLotLimit()` used `>=` (blocks AT the limit), while server-side `canAddProperty()` used `<=` (allows AT the limit). A user with exactly `subscribed_lots` lots was blocked by the client but allowed by the server. The forms also duplicated the server's limit logic instead of using the pre-computed `can_add_property` boolean from the subscription hook.
+**Solution:** Ensure boundary operators are semantically consistent. Server says `(actual + count) <= limit → allowed`, so client must say `(actual + batch) > limit → blocked`. When business logic exists on the server, the client should mirror the SAME operator direction. Better yet: use the server's `checkCanAddProperty()` action for definitive decisions.
+**Example:** `lot-creation-form.tsx:749`, `building-creation-form.tsx:507`, `edit-building-client.tsx:195` — all changed `>=` to `>`
+**When to Use:** Any client-side pre-check that mirrors a server-side quota/limit validation
+**Added:** 2026-02-26 | **Source:** Subscription limit false positive — modal showing at lot 134/155
+
+#### Learning #091: Trigger-maintained cached counters drift — prefer live counts for billing-critical logic
+**Problem:** `getLotCount()` read `billable_properties` from the `subscriptions` table (maintained by a trigger on `lots` INSERT/UPDATE OF deleted_at/DELETE). This counter drifted from reality (21-lot gap) because: (a) the trigger doesn't fire on `team_id` column changes, (b) bulk operations can bypass row-level triggers, (c) historical initialization during migration may have been incorrect.
+**Solution:** For billing-critical decisions (subscription limits, quota checks), use a live `COUNT(*)` query instead of a cached counter. Pattern: `supabase.from('lots').select('*', { count: 'exact', head: true }).eq('team_id', X).is('deleted_at', null)` — this returns only the count (no data transfer), is indexed, and is always accurate.
+**Example:** `lib/services/repositories/subscription.repository.ts:75` — changed from reading `billable_properties` to live count
+**When to Use:** Any cached counter used for access/billing decisions. Keep triggers for non-critical uses (dashboard stats, analytics) but never trust them for gate-keeping.
+**Added:** 2026-02-26 | **Source:** Subscription limit false positive — 21-lot gap between cached and real count
+
+#### Learning #092: Clone/duplicate functions bypass validations added to "add" functions
+**Problem:** `addLot()` in lot-creation-form had `isAtLotLimit()` check, but `duplicateLot()` and `addIndependentLot()` had NO limit check. Users could bypass the subscription limit by duplicating existing lots. Also, `isAtLotLimit()` only counted `lots.length` but ignored `independentLots.length` — independent lots mode had zero subscription enforcement.
+**Solution:** Whenever adding validation to a "create/add" function, audit ALL other functions that produce the same entity. Checklist: (1) duplicate/clone, (2) import/bulk-add, (3) alternative creation modes (independent lots vs building lots). All must share the same guard.
+**Example:** `lot-creation-form.tsx:799` (duplicateLot), `lot-creation-form.tsx:898` (addIndependentLot) — added `isAtLotLimit()` checks; `isAtLotLimit()` now counts `lots.length + independentLots.length`
+**When to Use:** Any time you add a validation gate (quota, permission, format) to a create function — search for duplicate/clone/import functions on the same entity
+**Added:** 2026-02-26 | **Source:** Subscription limit bypass via duplicate/independent lot creation
+
+#### Learning #093: Client-side storage.createSignedUrl() is unreliable — use server-side API routes
+**Problem:** `createBrowserSupabaseClient().storage.createSignedUrl()` uses the browser's JWT which can be stale (expired, not yet refreshed). The signed URL is generated locally but the actual RLS check happens at Supabase's CDN when the URL is accessed. Result: `fetch()` returns ok but the signed URL silently 403s, or the browser JWT is too old and the signing fails entirely — no error thrown, just a blank URL.
+**Solution:** Use server-side API routes (e.g., `/api/view-intervention-document`, `/api/download-intervention-document`) that call `getApiAuthContext()` with fresh cookies from the request. The server generates the signed URL with a valid service-side token. Client code just does `fetch('/api/...')` and gets a reliable signed URL back.
+**Example:** `components/interventions/shared/hooks/use-document-actions.tsx:48` — fetch API route instead of client-side storage call
+**When to Use:** Any document preview/download from client components. Never use `createBrowserSupabaseClient().storage` for signed URLs in onClick handlers.
+**Added:** 2026-02-26 | **Source:** Document preview/download buttons "nothing happens" across all roles
+
+#### Learning #094: HTML download attribute is ignored for cross-origin URLs
+**Problem:** Setting `<a href="https://supabase-storage.../file" download="filename.pdf">` does NOT trigger a download — the browser opens the file instead. The HTML `download` attribute is ignored when the URL is cross-origin (different domain than the page), which is always the case for Supabase storage URLs.
+**Solution:** Use the `download` option in Supabase's `createSignedUrl()`: `createSignedUrl(path, 3600, { download: fileName })`. This sets the `Content-Disposition: attachment; filename="..."` header SERVER-SIDE on the storage CDN response, which browsers always respect regardless of origin.
+**Example:** `app/api/download-intervention-document/route.ts:52` — `{ download: document.original_filename || true }`
+**When to Use:** Any file download from Supabase storage (or any cross-origin CDN). The `download` attribute on `<a>` tags only works for same-origin URLs.
+**Added:** 2026-02-26 | **Source:** Download buttons opening documents instead of downloading them
+
 ### Database & Queries
 
 #### Learning #004: PostgREST nested relations fail silently with RLS
@@ -87,6 +143,13 @@
 **Example:** `app/gestionnaire/(with-navbar)/mail/components/link-to-entity-dialog.tsx:handleSave()` — batch link loop with 409 filtering
 **When to Use:** Any "link to entity" action on an email that belongs to a conversation thread
 **Added:** 2026-02-24 | **Source:** Email thread entity-linking — link all thread emails at once
+
+#### Learning #095: Hook-as-ReactNode pattern for cross-role modal deduplication
+**Problem:** 3 role views (gestionnaire, locataire, prestataire) had ~50 lines each of identical document preview/download handlers + modal state management. Locataire/prestataire used `window.open()` while gestionnaire used `DocumentPreviewModal` — inconsistent UX. Extracting a "shared handler" still requires each consumer to wire modal state, `isOpen`, `onClose`, `document` props.
+**Solution:** Return a pre-wired ReactNode from a custom hook via `useMemo`. The hook manages ALL internal state (previewDocument, isPreviewModalOpen) and returns `{ handleViewDocument, handleDownloadDocument, previewModal }`. Consumers just destructure and render `{previewModal}` in their JSX — zero prop threading, zero state management. Trade-off: less per-role customization, but for unification that's the goal.
+**Example:** `components/interventions/shared/hooks/use-document-actions.tsx:113-120` — `previewModal = useMemo(() => <DocumentPreviewModal ... />)`
+**When to Use:** When 2+ role views need identical modal behavior with no per-role customization. Not suitable when each consumer needs different modal props or behavior.
+**Added:** 2026-02-26 | **Source:** Unify Document Preview & Download across all roles
 
 #### Learning #078: sessionStorage for "dismiss until next session" patterns
 **Problem:** Onboarding checklist dismiss stored in `localStorage` was permanent — users never saw it again even if steps were incomplete.
@@ -133,6 +196,41 @@
 **Example:** `app/api/create-manager-intervention/route.ts`
 **When to Use:** Any code that creates intervention assignments
 **Added:** 2026-02-04 | **Source:** Intervention creation flow debugging
+
+#### Learning #096: Building-level tenant data must be resolved BEFORE thread creation — client only sends lot-level IDs
+**Problem:** The intervention creation form sends `selectedTenantIds` only for lot-level interventions (explicit contract selection). For building-level, `selectedTenantIds=[]` because tenants are resolved server-side via `contractService.getActiveTenantsByBuilding()`. But the thread creation code ran BEFORE the building tenant resolution, using `selectedTenantIds` — so building interventions never got tenant conversation threads (`tenant_to_managers`, `tenants_group`). Assignments were created correctly (later in the flow), but threads were already created with an empty tenant list.
+**Solution:** Pre-resolve building tenants BEFORE thread creation. Add an early resolution step: if `buildingId && !lotId && includeTenants !== false && resolvedTenantIds.length === 0`, fetch via `contractService.getActiveTenantsByBuilding()` with `excludedLotIds` filtering. Store in `resolvedTenantIds` and reuse for both thread creation AND assignment (eliminates duplicate DB query). Pattern: when a dependent step assumes client-sent IDs, verify that ALL code paths populate those IDs — server-resolved data may need to be injected earlier.
+**Example:** `app/api/create-manager-intervention/route.ts:408-437` — early building tenant resolution
+**When to Use:** Any API route where thread/notification creation depends on participant IDs that may come from the client (lot) OR be resolved server-side (building). Always check both housing types.
+**Added:** 2026-03-01 | **Source:** Building-level intervention missing tenant conversations
+
+#### Learning #097: Multi-contract tenants cause duplicate lot IDs — always deduplicate "get unique entities" methods built on junction tables
+**Problem:** `getSimpleTenantLots()` mapped `contract_contacts` → `contracts` → `lots` and returned the raw lot array. A tenant with 2 active contracts for the same lot (renewal, colocataire role) produced the same `lot.id` twice. React threw `Encountered two children with the same key` when rendering the lot selection cards.
+**Solution:** Deduplicate at the data service layer using `Set<string>` + `.filter()` on the entity ID. Don't fix at the UI layer (index-based keys mask the real problem: showing the same logement twice). The private `getTenantLots()` (per-contract data) stays un-deduped; only the public `getSimpleTenantLots()` (unique lots) deduplicates.
+**Example:** `lib/services/domain/tenant.service.ts:156-166` — Set-based dedup in getSimpleTenantLots
+**When to Use:** Any "get unique X" method that traverses junction tables (contract_contacts, lot_contacts, building_contacts). If entity A links to B through C, multiple C rows can point to the same B.
+**Added:** 2026-03-01 | **Source:** Locataire nouvelle-demande duplicate key error
+
+#### Learning #098: 1-to-N meta-card pattern — single UI card expanding to N database entities at submit
+**Problem:** Rent reminders need to create one intervention per month of the lease (could be 12-60 rows). Encoding all N as editable `scheduledInterventions[]` items would be UX chaos — too many cards, each needing day/month editing.
+**Solution:** Use a separate config state (`RentReminderConfig: { enabled, dayOfMonth, assignedUsers }`) for the single meta-card. At submit time, generate N `Date` objects from lease start to end (skip past dates), and call `createInterventionAction()` in a `Promise.allSettled` loop. The UI shows 1 card with a summary ("12 rappels seront créés"), the DB gets N interventions.
+**Example:** `components/contract/contract-form-container.tsx` — rent reminder submit block; `components/contract/lease-interventions-step.tsx` — RentReminderConfig UI
+**When to Use:** Any feature where a single user choice should produce multiple database entities (recurring events, batch creation, template expansion).
+**Added:** 2026-03-01 | **Source:** Lease rent reminder feature (Ralph US-002/US-003)
+
+#### Learning #099: Key prefix convention for preserving dynamic entries during useEffect template regeneration
+**Problem:** Property/lease intervention steps use a `useEffect` to regenerate template-based interventions when the selected type/building changes. This wiped user-created custom interventions on every re-render because the effect replaced the entire `scheduledInterventions` array.
+**Solution:** Prefix dynamic entries with `custom_` (or any stable prefix). In the `useEffect`, filter previous state to preserve custom entries: `prev.filter(i => i.key.startsWith('custom_'))`, then prepend to the new template array. The prefix acts as a lightweight type discriminator without needing a separate state or array.
+**Example:** `components/property-interventions-step.tsx` — useEffect preserves `custom_*` keys; `lib/constants/property-interventions.ts:createEmptyCustomIntervention()` — factory with `custom_` prefix
+**When to Use:** Any list managed by both template-generation (useEffect) and user input, where user entries must survive template refreshes.
+**Added:** 2026-03-01 | **Source:** Custom interventions in creation wizards
+
+#### Learning #100: Sentinel key routing for shared component instances serving multiple assignment targets
+**Problem:** The `ContactSelector` component (with its popover, search, role filtering) existed as a single ref instance on the page. Rent reminders needed their own contact assignment, but duplicating the entire ContactSelector was wasteful. The existing `activeAssignment.interventionKey` routing assumed all assignments mapped to `scheduledInterventions[]` entries.
+**Solution:** Use a sentinel key (`RENT_REMINDER_KEY = 'rent_reminders'`) that doesn't match any real intervention key. In `handleContactSelected`/`handleContactRemoved`, branch on `activeAssignment.interventionKey === RENT_REMINDER_KEY` to read/write from `rentReminderConfig.assignedUsers` instead of `scheduledInterventions`. Same pattern works for any "extra assignment target" added to a page with an existing shared selector.
+**Example:** `components/contract/lease-interventions-step.tsx` — RENT_REMINDER_KEY sentinel, branched handlers
+**When to Use:** When a shared component (selector, modal, popover) needs to serve N different data targets on the same page. Route via sentinel keys rather than duplicating the component.
+**Added:** 2026-03-01 | **Source:** Contact assignment on rent reminders
 
 #### Learning #010: RLS Access ≠ Explicit Participation
 **Problem:** Managers could view conversations via RLS (`team_id` match) but weren't in `conversation_participants`, breaking read tracking and participant lists.
@@ -626,6 +724,27 @@
 **Example:** `upgrade-modal.tsx:125` → `subscription-actions.ts:215` → `subscription.service.ts:311` — additionalLots correctly used as delta
 **When to Use:** After any automated audit or code review that flags issues without full context
 **Added:** 2026-02-22 | **Source:** Billing audit — 2 false positives in UI audit report
+
+#### Learning #101: INSERT ordering in multi-phase assignment creation — UPDATE must follow ALL INSERTs
+**Problem:** In `create-manager-intervention/route.ts`, the confirmation flag UPDATE (`requires_confirmation = true`) ran AFTER manager/provider assignment INSERT but BEFORE tenant assignment INSERT. Tenants never got `requires_confirmation = true` (column default = false). The DB trigger `create_responses_for_new_timeslot` only creates responses for `requires_confirmation = TRUE` — so tenants were silently excluded from time slot responses. The edit flow didn't have this bug because all assignments already existed when the UPDATE ran.
+**Solution:** Move cross-cutting UPDATEs to AFTER all entity INSERTs complete. In SEIDO: confirmation flag setting block must come after both manager/provider AND tenant assignment insertions. Order: INSERT managers → INSERT tenants → UPDATE confirmation → INSERT time slots.
+**Example:** `app/api/create-manager-intervention/route.ts:812-869` — confirmation block moved after tenant assignments
+**When to Use:** Any API route that INSERTs entities in multiple phases then does a bulk UPDATE across all of them. Always audit the order: UPDATE must come AFTER the last INSERT it targets.
+**Added:** 2026-03-01 | **Source:** Tenant missing from time slot responses after creation
+
+#### Learning #102: has_account !== false pattern for filtering non-invited contacts
+**Problem:** `buildAllParticipantIds()` included ALL contacts (providers, tenants) in the confirmation list, even those without Seido accounts (`has_account === false`). These contacts can never respond to confirmations since they have no login. This created ghost "En attente" entries in the planning tab.
+**Solution:** Filter with `has_account !== false` (not `=== true`) because the field is optional — `undefined`/`null` means "has account" (backwards compat). Apply client-side in `buildAllParticipantIds()` + server-side defense-in-depth checking `auth_user_id IS NOT NULL` in the users table.
+**Example:** `nouvelle-intervention-client.tsx:269-310` (client filter), `route.ts:834-841` (server filter)
+**When to Use:** Any feature that builds participant lists for confirmation, notifications, or time slot responses. Always check `has_account !== false` for contacts that need login access.
+**Added:** 2026-03-01 | **Source:** Non-invited contacts appearing in confirmation & time slots
+
+#### Learning #103: Slot-count-dependent business logic — derive isMultiSlot and share across files
+**Problem:** "Créneaux" mode treated all slot counts the same (always mandatory confirmation). But with 1 slot there's nothing to vote on — it's effectively a fixed date. Business logic needed: 1 slot = optional confirmation (like Date fixe), 2+ slots = mandatory.
+**Solution:** Compute `isMultiSlot = schedulingType === 'slots' && timeSlots.length >= 2` once, then use it in: (a) useEffect for auto-populating confirmation, (b) submission payload, (c) confirmation summary, (d) UI components. The UI dynamically switches between mandatory/optional as slots are added/removed. API route independently checks `timeSlots.length` for status determination (defense-in-depth).
+**Example:** `nouvelle-intervention-client.tsx:921` (isMultiSlot), `route.ts:350-358` (server-side), `assignment-section-v2.tsx:1124+1151` (UI)
+**When to Use:** Any feature where behavior depends on a count threshold. Derive the boolean once, share it, and make the UI reactive to changes.
+**Added:** 2026-03-01 | **Source:** Single-slot créneaux should behave like Date fixe
 
 #### Learning #077: CSS opacity inheritance — use overlay, not parent opacity, for dimming
 **Problem:** Setting `opacity-60 grayscale` on a card parent also affects child elements (like "Unlock" button). CSS opacity is inherited and children CANNOT override it.

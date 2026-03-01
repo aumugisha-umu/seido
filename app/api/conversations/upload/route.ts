@@ -139,14 +139,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique filename and storage path
+    // Path format: {team_id}/{intervention_id}/{filename} — team_id first for RLS on 'documents' bucket
     const uniqueFilename = generateUniqueFilename(validatedData.fileName)
-    const storagePath = `interventions/${thread.intervention_id}/${uniqueFilename}`
+    const storagePath = `${thread.team_id}/${thread.intervention_id}/${uniqueFilename}`
 
     logger.info({ storagePath }, "☁️ Uploading to Supabase Storage")
 
-    // Upload file to Supabase Storage
+    // Upload file to Supabase Storage (unified 'documents' bucket)
+    // Uses authenticated client — RLS on 'documents' bucket allows all team_members
+    // (including locataires/prestataires) via get_my_profile_ids()
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('intervention-documents')
+      .from('documents')
       .upload(storagePath, file, {
         contentType: file.type,
         upsert: false
@@ -174,7 +177,7 @@ export async function POST(request: NextRequest) {
         file_size: validatedData.fileSize,
         mime_type: validatedData.fileType,
         storage_path: uploadData.path,
-        storage_bucket: 'intervention-documents',
+        storage_bucket: 'documents',
         document_type: 'autre', // Default type for chat attachments
         uploaded_by: userProfile.id,
         description: validatedData.description || 'Fichier partagé via chat'
@@ -191,7 +194,7 @@ export async function POST(request: NextRequest) {
       // Cleanup uploaded file if metadata storage fails
       try {
         await supabase.storage
-          .from('intervention-documents')
+          .from('documents')
           .remove([uploadData.path])
       } catch (cleanupError) {
         logger.error({ error: cleanupError }, "⚠️ Error cleaning up uploaded file")
@@ -206,7 +209,7 @@ export async function POST(request: NextRequest) {
 
     // Generate signed URL for immediate display
     const { data: signedUrlData } = await supabase.storage
-      .from('intervention-documents')
+      .from('documents')
       .createSignedUrl(document.storage_path, 3600) // 1 hour expiry
 
     logger.info({}, "🎉 Chat file upload completed successfully")

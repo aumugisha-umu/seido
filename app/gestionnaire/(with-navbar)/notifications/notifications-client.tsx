@@ -40,8 +40,7 @@ import { ActivityLogFilters, defaultActivityFilters, type ActivityFilters } from
 import { useNotifications, type Notification } from "@/hooks/use-notifications"
 import { useActivityLogs } from "@/hooks/use-activity-logs"
 import { useRealtimeNotificationsV2 } from "@/hooks/use-realtime-notifications-v2"
-import { useToast } from "@/hooks/use-toast"
-
+import { toast } from "sonner"
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -107,7 +106,6 @@ export function NotificationsClient({
   initialUnreadCount,
   initialPersonalUnreadCount
 }: NotificationsClientProps) {
-  const { toast } = useToast()
   const [updatingNotifications, setUpdatingNotifications] = useState<Set<string>>(new Set())
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
   const [activityFilters, setActivityFilters] = useState<ActivityFilters>(defaultActivityFilters)
@@ -224,18 +222,10 @@ export function NotificationsClient({
 
       window.dispatchEvent(new CustomEvent('notificationUpdated'))
 
-      toast({
-        title: action === 'mark_read' ? "Marquée comme lue" : "Marquée comme non lue",
-        description: `La notification "${notification.title}" a été ${action === 'mark_read' ? 'marquée comme lue' : 'marquée comme non lue'}.`,
-        variant: "success",
-      })
+      toast.success(action === 'mark_read' ? "Marquée comme lue" : "Marquée comme non lue", { description: `La notification "${notification.title}" a été ${action === 'mark_read' ? 'marquée comme lue' : 'marquée comme non lue'}.` })
     } catch (error) {
       console.error('Error toggling notification read status:', error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier le statut de la notification.",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: "Impossible de modifier le statut de la notification." })
     } finally {
       setUpdatingNotifications(prev => {
         const newSet = new Set(prev)
@@ -243,7 +233,7 @@ export function NotificationsClient({
         return newSet
       })
     }
-  }, [refetchPersonalNotifications, refetchTeamNotifications, toast])
+  }, [refetchPersonalNotifications, refetchTeamNotifications])
 
   // Handle marking all as read
   const handleMarkAllAsRead = useCallback(async () => {
@@ -252,22 +242,14 @@ export function NotificationsClient({
       await markAllTeamNotificationsAsRead()
       window.dispatchEvent(new CustomEvent('notificationUpdated'))
 
-      toast({
-        title: "Toutes les notifications marquées comme lues",
-        description: "Toutes vos notifications ont été marquées comme lues.",
-        variant: "success",
-      })
+      toast.success("Toutes les notifications marquées comme lues", { description: "Toutes vos notifications ont été marquées comme lues." })
     } catch (error) {
       console.error('Error marking all notifications as read:', error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de marquer toutes les notifications comme lues.",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: "Impossible de marquer toutes les notifications comme lues." })
     } finally {
       setMarkingAllAsRead(false)
     }
-  }, [markAllTeamNotificationsAsRead, toast])
+  }, [markAllTeamNotificationsAsRead])
 
   // Handle archiving notification
   const handleArchiveNotification = useCallback(async (notificationId: string, notificationTitle: string) => {
@@ -290,20 +272,12 @@ export function NotificationsClient({
 
       window.dispatchEvent(new CustomEvent('notificationUpdated'))
 
-      toast({
-        title: "Notification archivée",
-        description: `La notification "${notificationTitle}" a été archivée.`,
-        variant: "success",
-      })
+      toast.success("Notification archivée", { description: `La notification "${notificationTitle}" a été archivée.` })
     } catch (error) {
       console.error('Error archiving notification:', error)
-      toast({
-        title: "Erreur",
-        description: "Impossible d'archiver la notification.",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: "Impossible d'archiver la notification." })
     }
-  }, [refetchTeamNotifications, refetchPersonalNotifications, toast])
+  }, [refetchTeamNotifications, refetchPersonalNotifications])
 
   return (
     <div className="layout-padding">

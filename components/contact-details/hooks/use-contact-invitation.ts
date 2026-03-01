@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from "sonner"
 import { logger } from '@/lib/logger'
 import { isValidEmail } from '@/lib/validation/patterns'
 import type { ContactWithCompany, InvitationStatus } from '../types'
@@ -63,8 +63,6 @@ export function useContactInvitation({
   teamId,
   initialInvitationStatus
 }: UseContactInvitationParams): UseContactInvitationReturn {
-  const { toast } = useToast()
-
   // ============================================================================
   // STATE
   // ============================================================================
@@ -157,31 +155,19 @@ export function useContactInvitation({
         setInvitationId(newInvitationId)
         logger.info("Invitation sent successfully", { isNewAuthUser })
 
-        toast({
-          title: "Invitation envoyée",
-          description: isNewAuthUser
+        toast("Invitation envoyée", { description: isNewAuthUser
             ? `Une invitation a été envoyée à ${emailToUse}`
-            : `${contact.first_name || contact.name} a été ajouté à votre équipe (compte existant)`,
-          variant: "default"
-        })
+            : `${contact.first_name || contact.name} a été ajouté à votre équipe (compte existant)` })
 
         await loadInvitationStatus()
       } else {
         const error = await response.json()
         logger.error("Failed to send invitation:", error)
-        toast({
-          title: "Erreur",
-          description: error.error || "Impossible d'envoyer l'invitation",
-          variant: "destructive"
-        })
+        toast.error("Erreur", { description: error.error || "Impossible d'envoyer l'invitation" })
       }
     } catch (error) {
       logger.error("Error sending invitation:", error)
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: "Une erreur est survenue" })
     } finally {
       setInvitationLoading(false)
       setShowInviteModal(false)
@@ -195,11 +181,7 @@ export function useContactInvitation({
    */
   const handleResendInvitation = async () => {
     if (!invitationId) {
-      toast({
-        title: "Erreur",
-        description: "ID d'invitation manquant",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: "ID d'invitation manquant" })
       return
     }
 
@@ -215,28 +197,16 @@ export function useContactInvitation({
 
       if (response.ok) {
         logger.info("Invitation resent successfully")
-        toast({
-          title: "Invitation renvoyée",
-          description: `Un nouvel email a été envoyé à ${contact.email}`,
-          variant: "default"
-        })
+        toast("Invitation renvoyée", { description: `Un nouvel email a été envoyé à ${contact.email}` })
         await loadInvitationStatus()
       } else {
         const error = await response.json()
         logger.error("Failed to resend invitation:", error)
-        toast({
-          title: "Erreur",
-          description: error.error || "Impossible de renvoyer l'invitation",
-          variant: "destructive"
-        })
+        toast.error("Erreur", { description: error.error || "Impossible de renvoyer l'invitation" })
       }
     } catch (error) {
       logger.error("Error resending invitation:", error)
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: "Une erreur est survenue" })
     } finally {
       setInvitationLoading(false)
       setShowResendModal(false)
@@ -249,11 +219,7 @@ export function useContactInvitation({
   const handleCancelInvitation = async () => {
     if (!invitationId) {
       logger.error("No invitation ID available")
-      toast({
-        title: "Erreur",
-        description: "ID d'invitation introuvable",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: "ID d'invitation introuvable" })
       return
     }
 
@@ -269,28 +235,16 @@ export function useContactInvitation({
 
       if (response.ok) {
         logger.info("Invitation cancelled successfully")
-        toast({
-          title: "Invitation annulée",
-          description: `L'invitation de ${contact.first_name || contact.name} a été annulée`,
-          variant: "default"
-        })
+        toast("Invitation annulée", { description: `L'invitation de ${contact.first_name || contact.name} a été annulée` })
         await loadInvitationStatus()
       } else {
         const error = await response.json()
         logger.error("Failed to cancel invitation:", error)
-        toast({
-          title: "Erreur",
-          description: error.error || "Impossible d'annuler l'invitation",
-          variant: "destructive"
-        })
+        toast.error("Erreur", { description: error.error || "Impossible d'annuler l'invitation" })
       }
     } catch (error) {
       logger.error("Error cancelling invitation:", error)
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: "Une erreur est survenue" })
     } finally {
       setInvitationLoading(false)
       setShowCancelModal(false)
@@ -319,28 +273,16 @@ export function useContactInvitation({
 
       if (response.ok) {
         logger.info("Access revoked successfully")
-        toast({
-          title: "Accès révoqué",
-          description: `${contact.first_name || contact.name} ne peut plus se connecter à l'application`,
-          variant: "default"
-        })
+        toast("Accès révoqué", { description: `${contact.first_name || contact.name} ne peut plus se connecter à l'application` })
         await loadInvitationStatus()
       } else {
         const error = await response.json()
         logger.error("Failed to revoke access:", error)
-        toast({
-          title: "Erreur",
-          description: error.error || "Impossible de révoquer l'accès",
-          variant: "destructive"
-        })
+        toast.error("Erreur", { description: error.error || "Impossible de révoquer l'accès" })
       }
     } catch (error) {
       logger.error("Error revoking access:", error)
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: "Une erreur est survenue" })
     } finally {
       setInvitationLoading(false)
       setRevokeConfirmChecked(false)

@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { logger } from '@/lib/logger'
 import {
   Lock,
@@ -49,8 +49,6 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const { toast } = useToast()
-
   const validatePassword = (password: string) => {
     const requirements = {
       length: password.length >= 8,
@@ -117,11 +115,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
         throw new Error(data.error || "Erreur lors du changement de mot de passe")
       }
 
-      toast({
-        title: "Mot de passe modifié",
-        description: "Votre mot de passe a été modifié avec succès",
-        variant: "default",
-      })
+      toast("Mot de passe modifié", { description: "Votre mot de passe a été modifié avec succès" })
 
       handleClose()
 
@@ -315,8 +309,6 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const { toast } = useToast()
-
   const isEmailValid = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
@@ -374,11 +366,7 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
         throw new Error(data.error || "Erreur lors du changement d'email")
       }
 
-      toast({
-        title: "Email modifié",
-        description: "Votre email a été modifié avec succès. Vérifiez votre boîte de réception pour confirmer.",
-        variant: "default",
-      })
+      toast("Email modifié", { description: "Votre email a été modifié avec succès. Vérifiez votre boîte de réception pour confirmer." })
 
       handleClose()
 

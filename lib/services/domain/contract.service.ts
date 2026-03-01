@@ -90,6 +90,9 @@ function calculateContractEndDate(startDate: string, durationMonths: number): Da
   return date
 }
 
+// Re-export lease expiry helpers from client-safe utility module
+export { getLeaseCategory, getNoticeDeadlineDays, getAlertTier, getMaxAlertWindow, getExpiryInfo } from '@/lib/utils/lease-expiry'
+
 // ============================================================================
 // CONTRACT SERVICE
 // ============================================================================
@@ -986,6 +989,16 @@ export class ContractService {
   }
 
   /**
+   * Get contracts within the legal alert window (up to 270 days).
+   * Uses the maximum alert threshold across all lease categories.
+   * Enriched contracts include expiryInfo with alertTier.
+   */
+  async getExpiringWithAlerts(teamId: string) {
+    // 270 = max critical threshold (neuf_ans/longue_duree)
+    return this.getExpiringSoon(teamId, 270)
+  }
+
+  /**
    * Get contracts expiring this month
    */
   async getExpiringThisMonth(teamId: string) {
@@ -1054,12 +1067,14 @@ export class ContractService {
    */
   enrichWithCalculations(contract: ContractWithRelations): ContractWithCalculations {
     const daysRemaining = this.calculateDaysRemaining(contract.end_date)
+    const expiryInfo = getExpiryInfo(contract.end_date, contract.duration_months, contract.metadata || {})
     return {
       ...contract,
       totalMonthly: this.calculateMonthlyTotal(contract.rent_amount, contract.charges_amount),
       daysRemaining,
       isExpiringSoon: daysRemaining <= 30 && daysRemaining > 0,
-      isExpired: daysRemaining <= 0
+      isExpired: daysRemaining <= 0,
+      expiryInfo
     }
   }
 

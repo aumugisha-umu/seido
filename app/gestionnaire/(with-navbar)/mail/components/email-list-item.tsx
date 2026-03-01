@@ -26,7 +26,7 @@ export function EmailListItem({
   return (
     <div
       className={`
-        p-3 px-4 cursor-pointer transition-colors border-b
+        p-3 px-4 cursor-pointer transition-colors border-b overflow-hidden
         hover:bg-muted/50
         ${isSelected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}
         ${!email.is_read ? 'bg-primary/5' : ''}

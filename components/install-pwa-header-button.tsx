@@ -70,7 +70,7 @@ export function InstallPWAHeaderButton() {
   return (
     <Button
       onClick={handleInstallClick}
-      className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm font-medium transition-all hover:scale-105"
+      className="gap-2 shadow-sm font-medium transition-all hover:scale-105"
       size="sm"
     >
       <Download className="h-4 w-4" />

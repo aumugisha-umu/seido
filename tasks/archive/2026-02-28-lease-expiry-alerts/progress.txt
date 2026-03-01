@@ -1,0 +1,70 @@
+# Progress Log — Lease Expiry Alert System
+# Started: 2026-02-28
+# Stories: 8 total — ALL COMPLETE
+# Design: Brainstorming session 2026-02-28
+---
+
+## 2026-02-28 — US-001: Types & logique métier expiry
+Files: lib/types/contract.types.ts, lib/utils/lease-expiry.ts (NEW), lib/services/domain/contract.service.ts
+- Added LeaseCategory, AlertTier, ExpiryDecision types + ContractExpiryInfo interface
+- Label constants for lease categories, alert tiers, expiry decisions
+- Pure functions: getLeaseCategory(), getNoticeDeadlineDays(), getAlertTier(), getMaxAlertWindow(), getExpiryInfo()
+- Extended ContractWithCalculations with expiryInfo field
+- **KEY LEARNING**: Pure functions placed in lib/utils/lease-expiry.ts (client-safe), NOT in contract.service.ts which imports pino (server-only). Service re-exports from utils.
+
+## 2026-02-28 — US-002: Repository 270-day window
+Files: lib/services/domain/contract.service.ts
+- Added getExpiringWithAlerts() method calling findExpiringSoon(teamId, 270)
+- Default 30-day param preserved for backwards compat
+
+## 2026-02-28 — US-003: Server action setExpiryDecision
+Files: app/actions/contract-actions.ts
+- Validates ExpiryDecision enum (tacite_accepted | will_renew | will_terminate)
+- Auth check + team access verification
+- Writes to contracts.metadata.expiry_decision JSONB (no DB migration needed)
+- Revalidates tags and paths
+
+## 2026-02-28 — US-004: Navigator dynamic filter
+Files: components/contracts/contracts-navigator.tsx
+- Import from lib/utils/lease-expiry.ts instead of contract.service.ts
+- Filter uses getExpiryInfo() for dynamic alert window (180j/270j based on lease category)
+- Contracts with decision taken excluded from tab
+- Removed unused parseLocalDate import
+- Tab order: Tous (default) → À venir → Actifs → Expirent bientôt → Terminés
+- **KEY LEARNING**: Server/client boundary — 'use client' components cannot import from files with server-only deps (pino). Extract pure functions to separate utils.
+
+## 2026-02-28 — US-005: Contract expiry banner
+Files: components/contracts/contract-expiry-banner.tsx (NEW)
+- 3 color variants: orange (critical), red (warning), dark red (deadline)
+- Shows tier label badge, deadline date, countdown, tacit renewal risk
+- "Délai de préavis dépassé" state when past deadline
+- Compact mode for card usage
+
+## 2026-02-28 — US-006: Contract expiry actions
+Files: components/contracts/contract-expiry-actions.tsx (NEW)
+- 3 buttons: Renouveler, Résilier, Tacite accepté
+- AlertDialog confirmations for destructive actions
+- Renouveler routes to /contrats/nouveau?renew=id
+- Loading states during server actions
+- onRefresh callback after action completes
+
+## 2026-02-28 — US-007: Card integration
+Files: components/contracts/contract-card.tsx
+- Added expiryInfo + onRefresh props to ContractCardProps
+- Card border color changes based on alert tier (orange/red/dark red)
+- Banner above content, actions below with border separator
+- Navigator passes expiryInfo only when on expire_bientot tab
+
+## 2026-02-28 — US-008: Detail page integration
+Files: app/gestionnaire/(no-navbar)/contrats/[id]/contract-details-client.tsx
+- Computes expiryInfo client-side for active contracts
+- Renders banner + actions above main EntityPreviewLayout
+- Only shows when alertTier active and no decision taken
+
+---
+## Key Learnings
+1. Belgian lease law thresholds: courte durée (≤3 ans) = 90j legal notice; 9 ans/longue durée = 180j
+2. Alert tiers at 2×deadline / deadline+1month / deadline itself
+3. JSONB metadata pattern avoids DB migration for new decision tracking
+4. Client-safe utility extraction: pure functions in lib/utils/, server service re-exports
+5. Tab styling: isAlert parameter pattern for orange alert tabs (same as interventions)

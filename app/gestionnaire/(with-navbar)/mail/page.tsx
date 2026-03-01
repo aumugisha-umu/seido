@@ -17,7 +17,7 @@ import { getServerAuthContext } from '@/lib/server-context'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { MailClient } from './mail-client'
 import type { Email } from '@/lib/types/email-integration'
-import type { LinkedEntities, EmailConnection, NotificationReplyGroup } from './components/mailbox-sidebar'
+import type { LinkedEntities, EmailConnection } from './components/mailbox-sidebar'
 import type { Building } from './components/types'
 
 // ============================================================================
@@ -84,10 +84,7 @@ async function getBuildings(supabase: any, teamId: string): Promise<Building[]> 
   }))
 }
 
-async function getEmailConnections(supabase: any, teamId: string): Promise<{
-  connections: EmailConnection[]
-  notificationRepliesCount: number
-}> {
+async function getEmailConnections(supabase: any, teamId: string): Promise<EmailConnection[]> {
   const { data, error } = await supabase
     .from('team_email_connections')
     .select('id, email_address, provider, is_active, created_at')
@@ -97,29 +94,17 @@ async function getEmailConnections(supabase: any, teamId: string): Promise<{
 
   if (error) {
     console.error('Error fetching email connections:', error)
-    return { connections: [], notificationRepliesCount: 0 }
+    return []
   }
 
-  // Get notification replies count
-  const { count: notificationRepliesCount } = await supabase
-    .from('emails')
-    .select('id', { count: 'exact', head: true })
-    .eq('team_id', teamId)
-    .eq('direction', 'received')
-    .not('intervention_id', 'is', null)
-    .is('deleted_at', null)
-
-  return {
-    connections: (data || []).map((c: any) => ({
-      id: c.id,
-      email_address: c.email_address,
-      provider: c.provider,
-      is_active: c.is_active,
-      unread_count: 0,
-      email_count: 0,
-    })),
-    notificationRepliesCount: notificationRepliesCount || 0
-  }
+  return (data || []).map((c: any) => ({
+    id: c.id,
+    email_address: c.email_address,
+    provider: c.provider,
+    is_active: c.is_active,
+    unread_count: 0,
+    email_count: 0,
+  }))
 }
 
 async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedEntities> {
@@ -291,57 +276,6 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
   return result
 }
 
-async function getNotificationReplyGroups(supabase: any, teamId: string): Promise<NotificationReplyGroup[]> {
-  // Try RPC first (SQL GROUP BY — much faster than fetching all rows)
-  try {
-    const { data: rpcData, error: rpcError } = await supabase
-      .rpc('get_notification_reply_groups', { p_team_id: teamId })
-
-    if (!rpcError && rpcData) {
-      return rpcData.map((row: { intervention_id: string; intervention_title: string; email_count: number }) => ({
-        interventionId: row.intervention_id,
-        interventionTitle: row.intervention_title || 'Intervention',
-        count: row.email_count
-      }))
-    }
-  } catch {
-    // RPC not deployed yet — fall through to JS fallback
-  }
-
-  // JS fallback: fetch all and group client-side (will be removed after RPC deployment)
-  const { data, error } = await supabase
-    .from('emails')
-    .select(`
-      intervention_id,
-      interventions!inner(id, title)
-    `)
-    .eq('team_id', teamId)
-    .eq('direction', 'received')
-    .not('intervention_id', 'is', null)
-    .is('deleted_at', null)
-
-  if (error || !data) {
-    return []
-  }
-
-  const groupMap = new Map<string, { interventionId: string; interventionTitle: string; count: number }>()
-  data.forEach((email: any) => {
-    const id = email.intervention_id
-    if (!groupMap.has(id)) {
-      groupMap.set(id, {
-        interventionId: id,
-        interventionTitle: email.interventions?.title || 'Intervention',
-        count: 0
-      })
-    }
-    groupMap.get(id)!.count++
-  })
-
-  return Array.from(groupMap.values())
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 20)
-}
-
 async function getInitialEmails(supabase: any, teamId: string): Promise<{
   emails: Email[]
   total: number
@@ -352,7 +286,7 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
       .from('emails')
       .select(`
         *,
-        attachments:email_attachments(*)
+        attachments:email_attachments(id, filename, content_type, size_bytes)
       `, { count: 'estimated' })
       .eq('team_id', teamId)
       .eq('direction', 'received')
@@ -365,7 +299,7 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
       .from('emails')
       .select(`
         *,
-        attachments:email_attachments(*)
+        attachments:email_attachments(id, filename, content_type, size_bytes)
       `)
       .eq('team_id', teamId)
       .eq('direction', 'sent')
@@ -411,16 +345,14 @@ export default async function MailPage() {
   const [
     counts,
     buildings,
-    connectionsResult,
+    emailConnections,
     linkedEntities,
-    notificationReplyGroups,
     emailsResult
   ] = await Promise.all([
     getEmailCounts(supabaseAdmin, team.id),
     getBuildings(supabase, team.id),
     getEmailConnections(supabaseAdmin, team.id),
     getLinkedEntities(supabaseAdmin, team.id),
-    getNotificationReplyGroups(supabaseAdmin, team.id),
     getInitialEmails(supabaseAdmin, team.id)
   ])
 
@@ -429,10 +361,8 @@ export default async function MailPage() {
       teamId={team.id}
       initialCounts={counts}
       initialBuildings={buildings}
-      initialEmailConnections={connectionsResult.connections}
-      initialNotificationRepliesCount={connectionsResult.notificationRepliesCount}
+      initialEmailConnections={emailConnections}
       initialLinkedEntities={linkedEntities}
-      initialNotificationReplyGroups={notificationReplyGroups}
       initialEmails={emailsResult.emails}
       initialTotalEmails={emailsResult.total}
     />

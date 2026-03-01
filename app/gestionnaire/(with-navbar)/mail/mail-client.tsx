@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { MailboxSidebar, LinkedEntities, LinkedEntity, EmailConnection, NotificationReplyGroup } from './components/mailbox-sidebar'
+import { MailboxSidebar, LinkedEntities, LinkedEntity, EmailConnection } from './components/mailbox-sidebar'
 import { EmailList } from './components/email-list'
 import { EmailDetail } from './components/email-detail'
 import { toast } from 'sonner'
@@ -24,7 +24,7 @@ import { Plus, RefreshCw, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
-import { LinkedEmail } from '@/lib/types/email-links'
+import { LinkedEmail, EmailLinkWithDetails } from '@/lib/types/email-links'
 import { MailboxEmail, Building, Lot, generateConversationId, extractSenderName, extractEmailAddress } from './components/types'
 import { ComposeEmailModal } from './components/compose-email-modal'
 import { useRealtimeEmailsV2 } from '@/hooks/use-realtime-emails-v2'
@@ -45,9 +45,7 @@ interface MailClientProps {
   initialCounts: { inbox: number; processed: number; sent: number; drafts: number; archive: number }
   initialBuildings: Building[]
   initialEmailConnections: EmailConnection[]
-  initialNotificationRepliesCount: number
   initialLinkedEntities: LinkedEntities
-  initialNotificationReplyGroups: NotificationReplyGroup[]
   initialEmails: Email[]
   initialTotalEmails: number
 }
@@ -153,9 +151,7 @@ export function MailClient({
   initialCounts,
   initialBuildings,
   initialEmailConnections,
-  initialNotificationRepliesCount,
   initialLinkedEntities,
-  initialNotificationReplyGroups,
   initialEmails,
   initialTotalEmails
 }: MailClientProps) {
@@ -178,17 +174,15 @@ export function MailClient({
   // Email box source filter
   const [selectedSource, setSelectedSource] = useState<string>('all')
   const [emailConnections, setEmailConnections] = useState<EmailConnection[]>(initialEmailConnections)
-  const [notificationRepliesCount, setNotificationRepliesCount] = useState(initialNotificationRepliesCount)
-
-  // Notification replies grouped by intervention
-  const [notificationReplyGroups, setNotificationReplyGroups] = useState<NotificationReplyGroup[]>(initialNotificationReplyGroups)
-  const [selectedInterventionId, setSelectedInterventionId] = useState<string | null>(null)
 
   // Collapse state for email list column
   const [isEmailListCollapsed, setIsEmailListCollapsed] = useState(false)
 
   // Compose modal
   const [composeOpen, setComposeOpen] = useState(false)
+
+  // Email links cache (shared across EmailDetail instances to survive key-based remounts)
+  const emailLinksCache = useRef<Map<string, EmailLinkWithDetails[]>>(new Map())
 
   // Pagination
   const [totalEmails, setTotalEmails] = useState(initialTotalEmails)
@@ -204,6 +198,11 @@ export function MailClient({
 
   // AbortController: cancel in-flight requests on rapid folder switching
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Stable refs for values used inside memoized callbacks (avoids re-creating callbacks on state change)
+  const currentFolderRef = useRef(currentFolder)
+  currentFolderRef.current = currentFolder
+  const fetchEmailsRef = useRef<(isLoadMore?: boolean, sourceOverride?: string) => Promise<void>>(null as any)
 
   // Pre-built Maps for O(1) lookup in adaptEmail (replaces O(n) Array.find per email)
   const { buildingMap, lotMap } = useMemo(() => {
@@ -223,47 +222,75 @@ export function MailClient({
   const selectedEmail = emails.find(e => e.id === selectedEmailId)
 
   // ============================================================================
-  // REALTIME & POLLING
+  // REALTIME & POLLING (memoized callbacks to prevent subscription churn)
   // ============================================================================
+
+  // Invalidate cache for a specific folder or all folders
+  // Declared here (before memoized callbacks) to avoid TDZ issues
+  const invalidateCache = useCallback((folder?: string) => {
+    if (folder) {
+      // Invalidate all source variants for this folder
+      for (const key of folderCacheRef.current.keys()) {
+        if (key.startsWith(`${folder}:`)) {
+          folderCacheRef.current.delete(key)
+        }
+      }
+    } else {
+      folderCacheRef.current.clear()
+    }
+  }, [])
+
+  // Stable callback: new email from realtime subscription
+  // Uses refs for currentFolder to avoid re-subscribing on folder change
+  const handleRealtimeNewEmail = useCallback((newEmail: Email) => {
+    // Invalidate cache for the folder receiving the new email
+    if (newEmail.direction === 'received') invalidateCache('inbox')
+    if (newEmail.direction === 'sent') invalidateCache('sent')
+
+    const folder = currentFolderRef.current
+    if (folder === 'inbox' && newEmail.direction === 'received') {
+      setRealEmails(prev => [newEmail, ...prev])
+      setCounts(prev => ({ ...prev, inbox: prev.inbox + 1 }))
+      setTotalEmails(prev => prev + 1)
+    }
+    if (folder === 'sent' && newEmail.direction === 'sent') {
+      setRealEmails(prev => [newEmail, ...prev])
+      setCounts(prev => ({ ...prev, sent: prev.sent + 1 }))
+      setTotalEmails(prev => prev + 1)
+    }
+  }, [invalidateCache])
+
+  // Stable callback: counts changed from polling
+  // Only uses state setters (stable by React guarantee)
+  const handleCountsChange = useCallback((newCounts: { inbox: number; processed: number; sent: number; archive: number; drafts: number }) => {
+    setCounts(prev => ({
+      ...prev,
+      inbox: newCounts.inbox,
+      processed: newCounts.processed,
+      sent: newCounts.sent,
+      archive: newCounts.archive
+    }))
+  }, [])
+
+  // Stable callback: new emails detected by polling
+  // Uses refs for currentFolder and fetchEmails to stay stable
+  const handlePollingNewEmails = useCallback((newEmailIds: string[]) => {
+    if (newEmailIds.length > 0 && currentFolderRef.current === 'inbox') {
+      fetchEmailsRef.current?.(false)
+    }
+  }, [])
 
   useRealtimeEmailsV2({
     teamId,
     showToast: true,
-    onNewEmail: (newEmail) => {
-      // Invalidate cache for the folder receiving the new email
-      if (newEmail.direction === 'received') invalidateCache('inbox')
-      if (newEmail.direction === 'sent') invalidateCache('sent')
-
-      if (currentFolder === 'inbox' && newEmail.direction === 'received') {
-        setRealEmails(prev => [newEmail, ...prev])
-        setCounts(prev => ({ ...prev, inbox: prev.inbox + 1 }))
-        setTotalEmails(prev => prev + 1)
-      }
-      if (currentFolder === 'sent' && newEmail.direction === 'sent') {
-        setRealEmails(prev => [newEmail, ...prev])
-        setCounts(prev => ({ ...prev, sent: prev.sent + 1 }))
-        setTotalEmails(prev => prev + 1)
-      }
-    }
+    onNewEmail: handleRealtimeNewEmail
   })
 
   const { refresh: manualRefresh, resetKnownEmails } = useEmailPolling({
     interval: 60000,
     enabled: !entityFilter,
-    onCountsChange: (newCounts) => {
-      setCounts(prev => ({
-        ...prev,
-        inbox: newCounts.inbox,
-        processed: newCounts.processed,
-        sent: newCounts.sent,
-        archive: newCounts.archive
-      }))
-    },
-    onNewEmails: (newEmailIds) => {
-      if (newEmailIds.length > 0 && currentFolder === 'inbox') {
-        fetchEmails(false)
-      }
-    }
+    onCountsChange: handleCountsChange,
+    onNewEmails: handlePollingNewEmails
   })
 
   // ============================================================================
@@ -289,7 +316,6 @@ export function MailClient({
       if (response.ok) {
         const data = await response.json()
         setEmailConnections(data.connections || [])
-        setNotificationRepliesCount(data.notificationRepliesCount || 0)
       }
     } catch (error) {
       console.error('Failed to fetch email connections:', error)
@@ -302,20 +328,6 @@ export function MailClient({
       setCounts(data)
     } catch (error) {
       console.error('Failed to fetch counts:', error)
-    }
-  }, [])
-
-  // Invalidate cache for a specific folder or all folders
-  const invalidateCache = useCallback((folder?: string) => {
-    if (folder) {
-      // Invalidate all source variants for this folder
-      for (const key of folderCacheRef.current.keys()) {
-        if (key.startsWith(`${folder}:`)) {
-          folderCacheRef.current.delete(key)
-        }
-      }
-    } else {
-      folderCacheRef.current.clear()
     }
   }, [])
 
@@ -415,6 +427,9 @@ export function MailClient({
     }
   }, [offset, selectedSource, currentFolder])
 
+  // Keep ref in sync so memoized callbacks always call the latest version
+  fetchEmailsRef.current = fetchEmails
+
   const fetchFullEmail = useCallback(async (emailId: string): Promise<Email | null> => {
     try {
       const response = await fetch(`/api/emails/${emailId}`)
@@ -465,19 +480,18 @@ export function MailClient({
   const handleFolderChange = useCallback((folder: string) => {
     setCurrentFolder(folder)
     setEntityFilter(null)
-    setSelectedInterventionId(null)
     setSelectedSource('all')
   }, [])
 
   const handleSourceChange = useCallback((source: string) => {
     setSelectedSource(source)
     setEntityFilter(null)
-    setSelectedInterventionId(null)
     setOffset(0)
     fetchEmails(false, source)
   }, [fetchEmails])
 
   const handleEntityClick = useCallback(async (type: string, id: string) => {
+    setIsLoading(true)
     try {
       const response = await fetch(`/api/entities/${type}/${id}/emails`)
       if (!response.ok) {
@@ -501,45 +515,10 @@ export function MailClient({
     } catch (error) {
       console.error('Error filtering by entity:', error)
       toast.error('Erreur lors du filtrage')
+    } finally {
+      setIsLoading(false)
     }
   }, [linkedEntities])
-
-  const handleInterventionClick = useCallback(async (interventionId: string | null) => {
-    if (interventionId === null) {
-      setSelectedInterventionId(null)
-      setSelectedSource('notification_replies')
-      setEntityFilter(null)
-      setOffset(0)
-      fetchEmails(false, 'notification_replies')
-      return
-    }
-
-    setSelectedInterventionId(interventionId)
-    try {
-      const response = await fetch(`/api/entities/intervention/${interventionId}/emails`)
-      if (!response.ok) {
-        toast.error('Impossible de charger les emails liés')
-        return
-      }
-      const data = await response.json()
-      if (data.success) {
-        const adaptedEmails = data.emails.map((le: LinkedEmail) => adaptLinkedEmailToEmail(le))
-        setRealEmails(adaptedEmails)
-        setEntityFilter({
-          type: 'intervention',
-          id: interventionId,
-          name: findEntityName('intervention', interventionId, linkedEntities)
-        })
-        setTotalEmails(data.emails.length)
-        if (adaptedEmails.length > 0) {
-          setSelectedEmailId(adaptedEmails[0].id)
-        }
-      }
-    } catch (error) {
-      console.error('Error filtering by intervention:', error)
-      toast.error('Erreur lors du filtrage')
-    }
-  }, [linkedEntities, fetchEmails])
 
   const handleLoadMore = useCallback(() => {
     if (!isLoading && realEmails.length < totalEmails) {
@@ -821,7 +800,7 @@ export function MailClient({
 
       {/* White Card with Email Interface */}
       <div className="bg-card rounded-lg shadow-sm border border-border flex-1 min-h-0 overflow-hidden">
-        <div className="flex h-full">
+        <div className="flex h-full min-w-0">
           {/* Sidebar */}
           <MailboxSidebar
             currentFolder={currentFolder}
@@ -831,12 +810,8 @@ export function MailClient({
             onEntityClick={handleEntityClick}
             selectedEntity={entityFilter}
             emailConnections={emailConnections}
-            notificationRepliesCount={notificationRepliesCount}
             selectedSource={selectedSource}
             onSourceChange={handleSourceChange}
-            notificationReplyGroups={notificationReplyGroups}
-            selectedInterventionId={selectedInterventionId}
-            onInterventionClick={handleInterventionClick}
           />
 
           {/* Email List - collapsible */}
@@ -845,7 +820,7 @@ export function MailClient({
             isEmailListCollapsed ? "w-0 opacity-0" : "w-[400px] opacity-100"
           )}>
             {entityFilter && !isEmailListCollapsed && (
-              <div className="w-full px-3 py-2 bg-primary/5 border-b border-r flex items-center justify-between gap-2 flex-shrink-0">
+              <div className="w-full px-3 py-2 bg-primary/5 border-b flex items-center justify-between gap-2 flex-shrink-0">
                 <span className="text-sm text-muted-foreground truncate">
                   Filtré par : <span className="font-medium text-foreground">{entityFilter.name}</span>
                 </span>
@@ -872,10 +847,10 @@ export function MailClient({
             />
           </div>
 
-          {/* Toggle button */}
+          {/* Toggle button — subtle handle for panel collapse */}
           <button
             onClick={() => setIsEmailListCollapsed(!isEmailListCollapsed)}
-            className="h-full w-5 flex items-center justify-center hover:bg-muted border-r cursor-pointer group flex-shrink-0"
+            className="h-full w-6 flex items-center justify-center bg-muted/30 hover:bg-muted/70 active:bg-muted border-l cursor-pointer group flex-shrink-0 transition-colors"
             aria-label={isEmailListCollapsed ? "Afficher la liste d'emails" : "Masquer la liste d'emails"}
           >
             {isEmailListCollapsed ? (
@@ -893,6 +868,7 @@ export function MailClient({
               allEmails={emails}
               buildings={buildings}
               teamId={teamId}
+              emailLinksCache={emailLinksCache}
 
               onArchive={handleArchive}
               onDelete={handleDelete}

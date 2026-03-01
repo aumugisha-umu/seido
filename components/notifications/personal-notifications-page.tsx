@@ -16,7 +16,7 @@ import { useNotifications, type Notification } from "@/hooks/use-notifications"
 import { useRealtimeNotificationsV2 } from "@/hooks/use-realtime-notifications-v2"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { NotificationsList } from "./notifications-list"
 
 export interface PersonalNotificationsPageProps {
@@ -44,7 +44,6 @@ export function PersonalNotificationsPage({
 }: PersonalNotificationsPageProps) {
   const { user } = useAuth()
   const { teamStatus } = useTeamStatus()
-  const { toast } = useToast()
   const [userTeam, setUserTeam] = useState<any>(null)
   const [updatingNotifications, setUpdatingNotifications] = useState<Set<string>>(new Set())
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
@@ -116,17 +115,10 @@ export function PersonalNotificationsPage({
       await refetch()
       window.dispatchEvent(new CustomEvent('notificationUpdated'))
 
-      toast({
-        title: action === 'mark_read' ? "Marquée comme lue" : "Marquée comme non lue",
-        variant: "success",
-      })
+      toast.success(action === 'mark_read' ? "Marquée comme lue" : "Marquée comme non lue")
     } catch (error) {
       console.error('Error toggling notification read status:', error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier le statut de la notification.",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: "Impossible de modifier le statut de la notification." })
     } finally {
       setUpdatingNotifications(prev => {
         const newSet = new Set(prev)
@@ -143,17 +135,10 @@ export function PersonalNotificationsPage({
       await markAllAsRead()
       window.dispatchEvent(new CustomEvent('notificationUpdated'))
 
-      toast({
-        title: "Toutes les notifications marquées comme lues",
-        variant: "success",
-      })
+      toast.success("Toutes les notifications marquées comme lues")
     } catch (error) {
       console.error('Error marking all notifications as read:', error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de marquer toutes les notifications comme lues.",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: "Impossible de marquer toutes les notifications comme lues." })
     } finally {
       setMarkingAllAsRead(false)
     }
@@ -175,17 +160,10 @@ export function PersonalNotificationsPage({
       await refetch()
       window.dispatchEvent(new CustomEvent('notificationUpdated'))
 
-      toast({
-        title: "Notification archivée",
-        variant: "success",
-      })
+      toast.success("Notification archivée")
     } catch (error) {
       console.error('Error archiving notification:', error)
-      toast({
-        title: "Erreur",
-        description: "Impossible d'archiver la notification.",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: "Impossible d'archiver la notification." })
     }
   }
 

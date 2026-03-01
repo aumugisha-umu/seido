@@ -82,8 +82,8 @@ import { formatDate, formatTime, formatTimeRange } from '@/components/interventi
 import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
 // Modal pour répondre à un ou plusieurs créneaux (accepter/refuser)
 import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
-// Modal pour prévisualiser les documents
-import { DocumentPreviewModal } from '@/components/intervention/modals/document-preview-modal'
+// Hook partagé pour preview/download de documents
+import { useDocumentActions } from '@/components/interventions/shared'
 
 // Intervention components
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
@@ -124,7 +124,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 import { useTeamStatus } from '@/hooks/use-team-status'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { useInterventionApproval } from '@/hooks/use-intervention-approval'
 import { useInterventionCancellation } from '@/hooks/use-intervention-cancellation'
 import { useActivityLogs } from '@/hooks/use-activity-logs'
@@ -176,7 +176,6 @@ import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 import { FinalizeMultiProviderButton } from '@/components/intervention/finalize-multi-provider-button'
 
 import type { Database } from '@/lib/database.types'
-import { createBrowserSupabaseClient } from '@/lib/services'
 
 // Type pour address_record retourné par Supabase via la relation address_id(*)
 type AddressRecord = Database['public']['Tables']['addresses']['Row'] | null
@@ -319,8 +318,12 @@ export function InterventionDetailClient({
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const { currentUserTeam } = useTeamStatus()
-  const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState('general')
+  // Deep-link support: ?tab=conversations&thread=group
+  const initialTab = searchParams.get('tab')
+  const initialThread = searchParams.get('thread')
+  const [activeTab, setActiveTab] = useState(
+    initialTab === 'conversations' ? 'conversations' : 'general'
+  )
 
   // Local state for threads with unread counts (for optimistic updates)
   const [localThreads, setLocalThreads] = useState(threads)
@@ -372,22 +375,13 @@ export function InterventionDetailClient({
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // Thread type sélectionné pour le chat (utilisé quand on clique sur une icône message)
-  const [selectedThreadType, setSelectedThreadType] = useState<string>('group')
+  const [selectedThreadType, setSelectedThreadType] = useState<string>(initialThread || 'group')
 
   // État pour la modale d'upload de documents
   const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false)
 
-  // État pour la modale de prévisualisation de documents
-  const [previewDocument, setPreviewDocument] = useState<{
-    id: string
-    name: string
-    type?: string
-    size?: string
-    date?: string
-    url?: string
-    mimeType?: string
-  } | null>(null)
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
+  // Hook partagé pour preview/download de documents
+  const { handleViewDocument, handleDownloadDocument, previewModal } = useDocumentActions({ documents })
 
   // État pour le message initial dans le chat
   const [initialChatMessage, setInitialChatMessage] = useState<string | null>(null)
@@ -869,6 +863,7 @@ export function InterventionDetailClient({
     modalProviderInstructions,
     confirmationRequired,
     requiresConfirmation,
+    () => router.refresh(),
   )
 
   // Reset participant selection and pre-fill scheduling state when programming modal opens
@@ -1074,20 +1069,13 @@ export function InterventionDetailClient({
             })
             const data = await response.json()
             if (data.success) {
-              toast({
-                title: 'Action effectuée',
-                description: 'L\'intervention a été clôturée'
-              })
+              toast('Action effectuée', { description: 'L\'intervention a été clôturée' })
               handleRefresh()
             } else {
               throw new Error(data.error || 'Erreur lors de l\'action')
             }
           } catch (error) {
-            toast({
-              title: 'Erreur',
-              description: error instanceof Error ? error.message : 'Impossible d\'effectuer l\'action',
-              variant: 'destructive'
-            })
+            toast.error('Erreur', { description: error instanceof Error ? error.message : 'Impossible d\'effectuer l\'action' })
           } finally {
             setActionLoading(null)
           }
@@ -1110,20 +1098,13 @@ export function InterventionDetailClient({
             })
             const data = await response.json()
             if (data.success) {
-              toast({
-                title: 'Relance envoyée',
-                description: 'Le locataire a été relancé par email'
-              })
+              toast('Relance envoyée', { description: 'Le locataire a été relancé par email' })
               handleRefresh()
             } else {
               throw new Error(data.error || 'Erreur lors de l\'envoi')
             }
           } catch (error) {
-            toast({
-              title: 'Erreur',
-              description: error instanceof Error ? error.message : 'Impossible d\'envoyer la relance',
-              variant: 'destructive'
-            })
+            toast.error('Erreur', { description: error instanceof Error ? error.message : 'Impossible d\'envoyer la relance' })
           } finally {
             setActionLoading(null)
           }
@@ -1172,20 +1153,13 @@ export function InterventionDetailClient({
         throw new Error('Failed to cancel quote request')
       }
 
-      toast({
-        title: 'Demande annulée',
-        description: 'La demande d\'estimation a été annulée avec succès'
-      })
+      toast('Demande annulée', { description: 'La demande d\'estimation a été annulée avec succès' })
 
       setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })
       handleRefresh()
     } catch (error) {
       console.error('Error canceling quote request:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue lors de l\'annulation de la demande',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue lors de l\'annulation de la demande' })
     } finally {
       setIsCancellingQuote(false)
     }
@@ -1233,21 +1207,14 @@ export function InterventionDetailClient({
 
       const result = await cancelResponse.json()
 
-      toast({
-        title: result.cancelledCount > 1 ? 'Demandes annulées' : 'Demande annulée',
-        description: result.message || 'Les demandes d\'estimation ont été annulées'
-      })
+      toast(result.cancelledCount > 1 ? 'Demandes annulées' : 'Demande annulée', { description: result.message || 'Les demandes d\'estimation ont été annulées' })
 
       setCancelQuoteConfirmModal({ isOpen: false, quoteCount: 0, providerNames: [] })
       handleRefresh()
     } catch (error) {
       console.error('Error cancelling quotes from toggle:', error)
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'annulation'
-      toast({
-        title: 'Erreur',
-        description: errorMessage,
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: errorMessage })
     } finally {
       setIsCancellingQuoteFromToggle(false)
     }
@@ -1268,18 +1235,10 @@ export function InterventionDetailClient({
     const result = await assignUserAction(intervention.id, contact.id, role)
 
     if (result.success) {
-      toast({
-        title: 'Contact assigné',
-        description: `${contact.name} a été assigné à l'intervention`,
-        variant: 'default'
-      })
+      toast('Contact assigné', { description: `${contact.name} a été assigné à l'intervention` })
       handleRefresh()
     } else {
-      toast({
-        title: 'Erreur',
-        description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
     }
   }
 
@@ -1288,18 +1247,10 @@ export function InterventionDetailClient({
     const result = await assignUserAction(intervention.id, contact.id, role)
 
     if (result.success) {
-      toast({
-        title: 'Contact créé et assigné',
-        description: `${contact.name} a été créé et assigné à l'intervention`,
-        variant: 'default'
-      })
+      toast('Contact créé et assigné', { description: `${contact.name} a été créé et assigné à l'intervention` })
       handleRefresh()
     } else {
-      toast({
-        title: 'Erreur',
-        description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
     }
   }
 
@@ -1308,18 +1259,10 @@ export function InterventionDetailClient({
     const result = await unassignUserAction(intervention.id, contactId, role)
 
     if (result.success) {
-      toast({
-        title: 'Contact retiré',
-        description: 'Le contact a été retiré de l\'intervention',
-        variant: 'default'
-      })
+      toast('Contact retiré', { description: 'Le contact a été retiré de l\'intervention' })
       handleRefresh()
     } else {
-      toast({
-        title: 'Erreur',
-        description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
     }
   }
 
@@ -1341,23 +1284,15 @@ export function InterventionDetailClient({
 
     assignUserAction(intervention.id, newContactId, role).then((result) => {
       if (result.success) {
-        toast({
-          title: 'Contact créé et assigné',
-          description: 'Le nouveau contact a été créé et assigné avec succès',
-          variant: 'default'
-        })
+        toast('Contact créé et assigné', { description: 'Le nouveau contact a été créé et assigné avec succès' })
         // Clean URL params and refresh
         router.replace(`/gestionnaire/interventions/${intervention.id}`)
         router.refresh()
       } else {
-        toast({
-          title: 'Erreur d\'assignation',
-          description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-          variant: 'destructive'
-        })
+        toast.error('Erreur d\'assignation', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
       }
     })
-  }, [newContactId, returnedContactType, intervention.id, router, toast])
+  }, [newContactId, returnedContactType, intervention.id, router])
 
   // Get badge counts for tabs
   const getBadgeCount = (tab: string) => {
@@ -1410,25 +1345,14 @@ export function InterventionDetailClient({
       const result = await response.json()
 
       if (result.success) {
-        toast({
-          title: 'Créneau approuvé',
-          description: 'L\'intervention a été planifiée avec succès'
-        })
+        toast('Créneau approuvé', { description: 'L\'intervention a été planifiée avec succès' })
         handleRefresh()
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Erreur lors de l\'approbation du créneau',
-          variant: 'destructive'
-        })
+        toast.error('Erreur', { description: result.error || 'Erreur lors de l\'approbation du créneau' })
       }
     } catch (error) {
       console.error('Error approving slot:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Erreur lors de l\'approbation du créneau',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: 'Erreur lors de l\'approbation du créneau' })
     }
   }
 
@@ -1493,25 +1417,14 @@ export function InterventionDetailClient({
       const result = await cancelQuoteAction(quoteId, intervention.id)
 
       if (result.success) {
-        toast({
-          title: 'Demande annulée',
-          description: 'La demande d\'estimation a été annulée'
-        })
+        toast('Demande annulée', { description: 'La demande d\'estimation a été annulée' })
         handleRefresh()
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Erreur lors de l\'annulation de la demande',
-          variant: 'destructive'
-        })
+        toast.error('Erreur', { description: result.error || 'Erreur lors de l\'annulation de la demande' })
       }
     } catch (error) {
       console.error('Error cancelling quote:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Erreur lors de l\'annulation de la demande',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: 'Erreur lors de l\'annulation de la demande' })
     }
   }
 
@@ -1573,82 +1486,8 @@ export function InterventionDetailClient({
     }
   }
 
-  // Handler pour visualiser un document (ouvre la modale de preview)
-  const handleViewDocument = async (documentId: string) => {
-    const doc = documents.find(d => d.id === documentId)
-    if (!doc) {
-      toast({ title: "Erreur", description: "Document non trouvé", variant: "destructive" })
-      return
-    }
-
-    try {
-      const supabase = createBrowserSupabaseClient()
-      // Le bucket est privé, on doit utiliser une URL signée (valide 1 heure)
-      const { data, error } = await supabase.storage
-        .from(doc.storage_bucket)
-        .createSignedUrl(doc.storage_path, 3600) // 1 heure de validité
-
-      if (error) throw error
-
-      // Ouvrir la modale de preview au lieu d'un nouvel onglet
-      const fileName = (doc as any).original_filename || doc.filename || 'Document'
-      setPreviewDocument({
-        id: doc.id,
-        name: fileName,
-        type: doc.document_type || undefined,
-        size: doc.file_size ? `${Math.round(doc.file_size / 1024)} KB` : undefined,
-        date: doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('fr-FR') : undefined,
-        url: data.signedUrl,
-        mimeType: doc.mime_type || undefined
-      })
-      setIsPreviewModalOpen(true)
-    } catch (error) {
-      console.error('Error previewing document:', error)
-      toast({ title: "Erreur", description: "Impossible d'ouvrir le document", variant: "destructive" })
-    }
-  }
-
-  // Handler pour télécharger depuis la modale de preview
-  const handleDownloadFromPreview = () => {
-    if (previewDocument) {
-      handleDownloadDocument(previewDocument.id)
-    }
-  }
-
-  // Handler pour télécharger un document
-  const handleDownloadDocument = async (documentId: string) => {
-    const doc = documents.find(d => d.id === documentId)
-    if (!doc) {
-      toast({ title: "Erreur", description: "Document non trouvé", variant: "destructive" })
-      return
-    }
-
-    try {
-      const supabase = createBrowserSupabaseClient()
-      const fileName = (doc as any).original_filename || doc.filename || 'document'
-
-      // Créer une URL signée avec l'option download pour forcer Content-Disposition: attachment
-      const { data, error } = await supabase.storage
-        .from(doc.storage_bucket)
-        .createSignedUrl(doc.storage_path, 3600, {
-          download: fileName
-        })
-
-      if (error) throw error
-
-      // Créer un élément <a> temporaire pour déclencher le téléchargement
-      const link = document.createElement('a')
-      link.href = data.signedUrl
-      link.download = fileName
-      link.style.display = 'none'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } catch (error) {
-      console.error('Error downloading document:', error)
-      toast({ title: "Erreur", description: "Impossible de télécharger le document", variant: "destructive" })
-    }
-  }
+  // handleViewDocument, handleDownloadDocument, and previewModal
+  // are provided by the useDocumentActions hook above
 
   // Handler pour ajouter un commentaire
   const handleAddComment = async (content: string) => {
@@ -1659,25 +1498,14 @@ export function InterventionDetailClient({
       })
 
       if (result.success) {
-        toast({
-          title: 'Commentaire ajouté',
-          description: 'Votre commentaire a été enregistré'
-        })
+        toast('Commentaire ajouté', { description: 'Votre commentaire a été enregistré' })
         router.refresh()
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Impossible d\'ajouter le commentaire',
-          variant: 'destructive'
-        })
+        toast.error('Erreur', { description: result.error || 'Impossible d\'ajouter le commentaire' })
       }
     } catch (error) {
       console.error('Error adding comment:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue' })
     }
   }
 
@@ -1815,27 +1643,8 @@ export function InterventionDetailClient({
 
   const headerBadges: DetailPageHeaderBadge[] = [getTypeBadge(), getStatusBadge(), getQuoteBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
 
-  // Metadata: Show scheduled date/time in header when confirmed
-  // ✅ FIX 2026-01-28: Ne pas afficher l'heure de fin en mode date fixe (selected_by_manager)
+  // Planning date removed from header — already shown in Général + Planning tabs
   const headerMetadata: DetailPageHeaderMetadata[] = [];
-  if (scheduledDate) {
-    let scheduledText: string;
-    if (scheduledStartTime) {
-      // Mode date fixe: afficher seulement l'heure de début
-      // Mode créneaux: afficher la plage horaire complète
-      scheduledText = isFixedScheduling
-        ? `${formatDate(scheduledDate)} • ${formatTime(scheduledStartTime)}`
-        : scheduledEndTime
-          ? `${formatDate(scheduledDate)} • ${formatTimeRange(scheduledStartTime, scheduledEndTime)}`
-          : `${formatDate(scheduledDate)} • ${formatTime(scheduledStartTime)}`;
-    } else {
-      scheduledText = formatDate(scheduledDate);
-    }
-    headerMetadata.push({
-      icon: Calendar,
-      text: scheduledText
-    });
-  }
 
   // Helper function to check if action badge should be shown
   const shouldShowActionBadge = (
@@ -2557,16 +2366,8 @@ export function InterventionDetailClient({
           }}
         />
 
-        {/* Modale de prévisualisation de documents */}
-        <DocumentPreviewModal
-          isOpen={isPreviewModalOpen}
-          onClose={() => {
-            setIsPreviewModalOpen(false)
-            setPreviewDocument(null)
-          }}
-          document={previewDocument}
-          onDownload={handleDownloadFromPreview}
-        />
+        {/* Modale de prévisualisation de documents (via hook partagé) */}
+        {previewModal}
 
         {/* Modals pour l'approbation/rejet */}
         {approvalHook.approvalModal.isOpen && (

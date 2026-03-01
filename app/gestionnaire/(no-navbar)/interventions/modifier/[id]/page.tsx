@@ -80,7 +80,7 @@ export default async function ModifierInterventionPage({ params }: PageProps) {
     (documents || []).map(async (doc) => {
       try {
         const { data: signedUrlData } = await supabase.storage
-          .from('intervention-documents')
+          .from(doc.storage_bucket || 'documents')
           .createSignedUrl(doc.storage_path, 3600) // 1 hour expiry
 
         return {

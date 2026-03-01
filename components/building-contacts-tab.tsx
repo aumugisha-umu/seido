@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { SeidoBadge } from "@/components/ui/seido-badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import {
   Building2,
   Users,
@@ -101,7 +101,6 @@ export function BuildingContactsTab({
   onContactsCountUpdate
 }: BuildingContactsTabProps) {
   const router = useRouter()
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -294,11 +293,7 @@ export function BuildingContactsTab({
         const result = await assignContactToLotAction(context.lotId, contact.id, false)
 
         if (result.success) {
-          toast({
-            title: "Contact assigné",
-            description: `${contact.name} a été assigné au lot`,
-            variant: "default",
-          })
+          toast("Contact assigné", { description: `${contact.name} a été assigné au lot` })
           await loadAllContacts()
           onContactsUpdate?.()
         } else {
@@ -310,11 +305,7 @@ export function BuildingContactsTab({
         const result = await assignContactToBuildingAction(buildingId, contact.id, false)
 
         if (result.success) {
-          toast({
-            title: "Contact assigné",
-            description: `${contact.name} a été assigné à l'immeuble`,
-            variant: "default",
-          })
+          toast("Contact assigné", { description: `${contact.name} a été assigné à l'immeuble` })
           await loadAllContacts()
           onContactsUpdate?.()
         } else {
@@ -323,11 +314,7 @@ export function BuildingContactsTab({
       }
     } catch (error) {
       logger.error("❌ Error assigning contact:", error)
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible d'assigner le contact",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible d'assigner le contact" })
     } finally {
       setIsAssigning(false)
     }
@@ -340,11 +327,7 @@ export function BuildingContactsTab({
       const result = await removeContactFromBuildingAction(buildingContactId)
 
       if (result.success) {
-        toast({
-          title: "Contact retiré",
-          description: `${contactName} a été retiré de l'immeuble`,
-          variant: "default",
-        })
+        toast("Contact retiré", { description: `${contactName} a été retiré de l'immeuble` })
         await loadAllContacts()
         onContactsUpdate?.()
       } else {
@@ -352,11 +335,7 @@ export function BuildingContactsTab({
       }
     } catch (error) {
       logger.error("❌ Error removing building contact:", error)
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible de retirer le contact",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible de retirer le contact" })
     }
   }
 
@@ -367,11 +346,7 @@ export function BuildingContactsTab({
       const result = await removeContactFromLotAction(lotContactId)
 
       if (result.success) {
-        toast({
-          title: "Contact retiré",
-          description: `${contactName} a été retiré du lot`,
-          variant: "default",
-        })
+        toast("Contact retiré", { description: `${contactName} a été retiré du lot` })
         await loadAllContacts()
         onContactsUpdate?.()
       } else {
@@ -379,11 +354,7 @@ export function BuildingContactsTab({
       }
     } catch (error) {
       logger.error("❌ Error removing lot contact:", error)
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible de retirer le contact",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible de retirer le contact" })
     }
   }
 

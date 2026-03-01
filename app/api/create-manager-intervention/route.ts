@@ -309,6 +309,13 @@ export async function POST(request: NextRequest) {
     if (schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time) {
       scheduledDate = `${fixedDateTime.date}T${fixedDateTime.time}:00.000Z`
     }
+    // ✅ FIX 2026-03-01: 1 slot without confirmation = set scheduled_date from the slot (like fixed)
+    if (schedulingType === 'slots' && timeSlots && timeSlots.length === 1 && !requiresParticipantConfirmation) {
+      const singleSlot = timeSlots[0]
+      if (singleSlot?.date && singleSlot?.startTime) {
+        scheduledDate = `${singleSlot.date}T${singleSlot.startTime}:00.000Z`
+      }
+    }
 
     // ✅ Note: assigned_contact_id n'existe plus dans la nouvelle structure DB
     // Les assignations se font maintenant viaintervention_assignments
@@ -346,7 +353,17 @@ export async function POST(request: NextRequest) {
       interventionStatus = 'planifiee'
       logger.info({}, "✅ Statut déterminé: PLANIFIEE (date fixe, sans confirmation)")
 
-      // CAS 3: Planification dans tous les autres cas (slots, flexible, confirmation requise)
+      // CAS 2b: Planifiée si slots avec 1 seul créneau + pas de confirmation
+      // ✅ FIX 2026-03-01: 1 créneau = comme date fixe, pas de vote nécessaire
+    } else if (
+      schedulingType === 'slots' &&
+      timeSlots && timeSlots.length === 1 &&
+      !requiresParticipantConfirmation
+    ) {
+      interventionStatus = 'planifiee'
+      logger.info({}, "✅ Statut déterminé: PLANIFIEE (1 créneau, sans confirmation)")
+
+      // CAS 3: Planification dans tous les autres cas (multi-slots, flexible, confirmation requise)
     } else {
       interventionStatus = 'planification'
       logger.info({}, "✅ Statut déterminé: PLANIFICATION (cas par défaut)")
@@ -405,6 +422,37 @@ export async function POST(request: NextRequest) {
     const intervention = interventionResult.data
     logger.info({ interventionId: intervention.id }, "✅ Intervention created successfully")
 
+    // ✅ RESOLVE BUILDING TENANTS EARLY (before thread creation)
+    // For building-level interventions, tenants are not sent by the client (selectedTenantIds=[]).
+    // We resolve them here so that conversation threads are created correctly.
+    let resolvedTenantIds: string[] = selectedTenantIds || []
+    if (buildingId && !lotId && includeTenants !== false && resolvedTenantIds.length === 0) {
+      try {
+        const { createServerContractService } = await import('@/lib/services')
+        const contractService = await createServerContractService()
+        const tenantsResult = await contractService.getActiveTenantsByBuilding(buildingId)
+
+        if (tenantsResult.success && tenantsResult.data.tenants.length > 0) {
+          const excludedLotIdsSet = new Set(excludedLotIds as string[])
+          const uniqueTenants = new Map<string, string>()
+          for (const tenant of tenantsResult.data.tenants) {
+            if (excludedLotIdsSet.has(tenant.lot_id)) continue
+            if (!uniqueTenants.has(tenant.user_id)) {
+              uniqueTenants.set(tenant.user_id, tenant.user_id)
+            }
+          }
+          resolvedTenantIds = Array.from(uniqueTenants.keys())
+          logger.info({
+            buildingId,
+            resolvedCount: resolvedTenantIds.length,
+            excludedLots: excludedLotIdsSet.size
+          }, "✅ Resolved building tenants for thread creation + assignment")
+        }
+      } catch (error) {
+        logger.error({ error }, "⚠️ Error resolving building tenants early (non-blocking)")
+      }
+    }
+
     // ✅ CREATE CONVERSATION THREADS (BEFORE assignments)
     // Threads must be created BEFORE assignments so that the trigger
     // add_assignment_to_conversation_participants can find and populate them
@@ -424,22 +472,22 @@ export async function POST(request: NextRequest) {
 
       // Fetch tenant info for personalized messages
       // ✅ FIX 2026-02-01: Only include users with auth_id (invited users with accounts)
-      // Users without auth_id are informational contacts - they can't log in or receive notifications
+      // ✅ FIX 2026-03-01: Use resolvedTenantIds (covers both lot-level and building-level)
       let tenants: Array<{ id: string; name: string }> = []
-      if (selectedTenantIds && selectedTenantIds.length > 0) {
+      if (resolvedTenantIds.length > 0) {
         const { data: tenantUsers } = await supabase
           .from('users')
           .select('id, name')
-          .in('id', selectedTenantIds)
+          .in('id', resolvedTenantIds)
           .not('auth_user_id', 'is', null)  // Only invited users with accounts
         tenants = tenantUsers || []
 
         // Log for debugging if some tenants were filtered out
-        if (tenants.length < selectedTenantIds.length) {
+        if (tenants.length < resolvedTenantIds.length) {
           logger.info({
-            selectedCount: selectedTenantIds.length,
+            selectedCount: resolvedTenantIds.length,
             invitedCount: tenants.length,
-            filteredOut: selectedTenantIds.length - tenants.length
+            filteredOut: resolvedTenantIds.length - tenants.length
           }, "ℹ️ Some tenants filtered out (no auth account - informational contacts)")
         }
       }
@@ -723,49 +771,6 @@ export async function POST(request: NextRequest) {
           count: assignmentData?.length || 0,
           inserted: assignmentData?.map(a => ({ id: a.id, user_id: a.user_id, role: a.role }))
         }, "✅ Contact assignments created successfully")
-
-        // ✅ NEW: Gestion de la confirmation des participants
-        // Si requiresParticipantConfirmation est activé, mettre à jour l'intervention et les assignments
-        if (requiresParticipantConfirmation && confirmationRequiredUserIds && confirmationRequiredUserIds.length > 0) {
-          logger.info({
-            interventionId: intervention.id,
-            confirmationRequiredUserIds
-          }, "📋 Setting up participant confirmation requirements")
-
-          // 1. Mettre à jour l'intervention avec le flag
-          const { error: updateInterventionError } = await supabase
-            .from('interventions')
-            .update({ requires_participant_confirmation: true })
-            .eq('id', intervention.id)
-
-          if (updateInterventionError) {
-            logger.error({
-              error: updateInterventionError
-            }, "⚠️ Failed to update intervention confirmation flag (non-blocking)")
-          } else {
-            logger.info({}, "✅ Intervention confirmation flag set")
-          }
-
-          // 2. Mettre à jour les assignments qui nécessitent une confirmation
-          const { error: updateAssignmentsError } = await supabase
-            .from('intervention_assignments')
-            .update({
-              requires_confirmation: true,
-              confirmation_status: 'pending'
-            })
-            .eq('intervention_id', intervention.id)
-            .in('user_id', confirmationRequiredUserIds)
-
-          if (updateAssignmentsError) {
-            logger.error({
-              error: updateAssignmentsError
-            }, "⚠️ Failed to update assignment confirmation status (non-blocking)")
-          } else {
-            logger.info({
-              count: confirmationRequiredUserIds.length
-            }, "✅ Assignment confirmation requirements set")
-          }
-        }
       }
     }
 
@@ -783,129 +788,110 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ✅ UPDATED 2025-12-10: Auto-assign tenants from ACTIVE CONTRACTS (not lot_contacts)
-    // Only contracts with status='actif' are considered (not 'a_venir')
-    // ✅ UPDATED 2026-01-05: Respect includeTenants toggle from wizard
-    // ✅ UPDATED 2026-01-06: Support building-level tenant assignment
-    // ✅ FIX 2026-01-25: Respect selectedTenantIds from wizard (explicit contract selection)
-    if (lotId && includeTenants !== false) {
-      // LOT-LEVEL: Assign tenants based on explicit selection from wizard
-      const explicitTenantIds = selectedTenantIds || []
-
-      if (explicitTenantIds.length > 0) {
-        // ✅ FIX: Use ONLY the explicitly selected tenants from the wizard
-        // This respects the contract selection made by the user
-        logger.info({
-          selectedTenantIds: explicitTenantIds,
-          count: explicitTenantIds.length
-        }, "👤 Assigning explicitly selected tenants from wizard...")
-
-        try {
-          // Prepare tenant assignments from explicit selection
-          const tenantAssignments = explicitTenantIds.map((userId: string, index: number) => ({
-            intervention_id: intervention.id,
-            user_id: userId,
-            role: 'locataire',
-            is_primary: index === 0, // First selected tenant is primary
-            assigned_by: user.id
-          }))
-
-          // Insert tenant assignments
-          const { error: tenantAssignError } = await supabase
-            .from('intervention_assignments')
-            .insert(tenantAssignments)
-
-          if (tenantAssignError) {
-            logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
-          } else {
-            logger.info({
-              count: tenantAssignments.length
-            }, "✅ Tenants assigned from explicit selection")
-          }
-        } catch (error) {
-          logger.error({ error }, "❌ Error in tenant assignment")
-          // Don't fail the entire operation for tenant assignment errors
-        }
-      } else {
-        // ✅ FIX: No tenants selected (no contract chosen or lot unoccupied)
-        // Don't auto-assign ANY tenants - this was the bug causing 7 tenants to be assigned
-        logger.info({
-          lotId,
-          includeTenants,
-          selectedTenantIdsProvided: !!selectedTenantIds,
-          contractId: contractId || null
-        }, "ℹ️ No tenants explicitly selected - skipping tenant auto-assignment")
-      }
-    } else if (buildingId && !lotId && includeTenants !== false) {
-      // 🆕 BUILDING-LEVEL: Assign tenants from selected lots in the building
-      const excludedLotIdsSet = new Set(excludedLotIds as string[])
-      logger.info({ includeTenants, buildingId, excludedLotsCount: excludedLotIdsSet.size }, "👤 Extracting and assigning tenants from building's lots...")
+    // ✅ ASSIGN TENANTS using resolvedTenantIds (pre-resolved for both lot and building)
+    // ✅ FIX 2026-03-01: Unified path — resolvedTenantIds already covers:
+    //   - Lot-level: from client selectedTenantIds (explicit contract selection)
+    //   - Building-level: from contractService.getActiveTenantsByBuilding() (resolved before threads)
+    if ((lotId || (buildingId && !lotId)) && includeTenants !== false && resolvedTenantIds.length > 0) {
+      logger.info({
+        resolvedTenantIds,
+        count: resolvedTenantIds.length,
+        source: lotId ? 'lot-wizard' : 'building-contracts'
+      }, "👤 Assigning resolved tenants...")
 
       try {
-        const { createServerContractService } = await import('@/lib/services')
-        const contractService = await createServerContractService()
-        const tenantsResult = await contractService.getActiveTenantsByBuilding(buildingId)
+        const tenantAssignments = resolvedTenantIds.map((userId: string, index: number) => ({
+          intervention_id: intervention.id,
+          user_id: userId,
+          role: 'locataire',
+          is_primary: index === 0,
+          assigned_by: user.id
+        }))
 
-        if (!tenantsResult.success) {
-          logger.error({ error: tenantsResult.error }, "⚠️ Error fetching tenants from building's active contracts")
-        } else if (tenantsResult.data.tenants.length > 0) {
-          // Filter out tenants from excluded lots, then deduplicate by user_id
-          const uniqueTenants = new Map<string, typeof tenantsResult.data.tenants[0]>()
-          for (const tenant of tenantsResult.data.tenants) {
-            // Skip tenants from excluded lots
-            if (excludedLotIdsSet.has(tenant.lot_id)) {
-              continue
-            }
-            // Keep first occurrence (already sorted by lot reference, then primary)
-            if (!uniqueTenants.has(tenant.user_id)) {
-              uniqueTenants.set(tenant.user_id, tenant)
-            }
-          }
+        const { error: tenantAssignError } = await supabase
+          .from('intervention_assignments')
+          .insert(tenantAssignments)
 
-          if (uniqueTenants.size > 0) {
-            // Prepare tenant assignments
-            const tenantAssignments = Array.from(uniqueTenants.values()).map((tenant, index) => ({
-              intervention_id: intervention.id,
-              user_id: tenant.user_id,
-              role: 'locataire',
-              is_primary: index === 0, // First tenant is primary for building-level
-              assigned_by: user.id
-            }))
-
-            // Insert tenant assignments
-            const { error: tenantAssignError } = await supabase
-              .from('intervention_assignments')
-              .insert(tenantAssignments)
-
-            if (tenantAssignError) {
-              logger.error({ error: tenantAssignError }, "⚠️ Error assigning building tenants")
-            } else {
-              logger.info({
-                count: tenantAssignments.length,
-                uniqueCount: uniqueTenants.size,
-                excludedLots: excludedLotIdsSet.size,
-                fromLots: tenantsResult.data.occupiedLotsCount - excludedLotIdsSet.size
-              }, "✅ Building tenants auto-assigned from active contracts")
-            }
-          } else {
-            logger.info({ buildingId, excludedLotsCount: excludedLotIdsSet.size }, "ℹ️ No tenants to assign (all lots excluded or no active tenants)")
-          }
+        if (tenantAssignError) {
+          logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
         } else {
-          logger.info({ buildingId }, "ℹ️ No active tenants found in building's lots")
+          logger.info({ count: tenantAssignments.length }, "✅ Tenants assigned")
         }
       } catch (error) {
-        logger.error({ error }, "❌ Error in building tenant auto-assignment")
-        // Don't fail the entire operation for tenant assignment errors
+        logger.error({ error }, "❌ Error in tenant assignment")
       }
     } else if ((lotId || buildingId) && includeTenants === false) {
       logger.info({}, "ℹ️ Tenant auto-assignment skipped (includeTenants=false)")
+    } else if ((lotId || buildingId) && resolvedTenantIds.length === 0) {
+      logger.info({ lotId, buildingId, includeTenants }, "ℹ️ No tenants resolved - skipping assignment")
+    }
+
+    // ✅ FIX 2026-03-01: Confirmation flags set AFTER all assignments (managers + providers + tenants)
+    // Previously ran before tenant insertion → tenants never got requires_confirmation=true
+    if (requiresParticipantConfirmation && confirmationRequiredUserIds && confirmationRequiredUserIds.length > 0) {
+      logger.info({
+        interventionId: intervention.id,
+        confirmationRequiredUserIds
+      }, "📋 Setting up participant confirmation requirements")
+
+      // 1. Mettre à jour l'intervention avec le flag
+      const { error: updateInterventionError } = await supabase
+        .from('interventions')
+        .update({ requires_participant_confirmation: true })
+        .eq('id', intervention.id)
+
+      if (updateInterventionError) {
+        logger.error({
+          error: updateInterventionError
+        }, "⚠️ Failed to update intervention confirmation flag (non-blocking)")
+      } else {
+        logger.info({}, "✅ Intervention confirmation flag set")
+      }
+
+      // 2. Defense-in-depth: filter out non-invited users (no Seido account)
+      const { data: accountUsers } = await supabase
+        .from('users')
+        .select('id')
+        .in('id', confirmationRequiredUserIds)
+        .not('auth_user_id', 'is', null)
+
+      const eligibleConfirmationIds = accountUsers?.map(u => u.id) || []
+
+      if (eligibleConfirmationIds.length > 0) {
+        // 3. Mettre à jour les assignments qui nécessitent une confirmation
+        const { error: updateAssignmentsError } = await supabase
+          .from('intervention_assignments')
+          .update({
+            requires_confirmation: true,
+            confirmation_status: 'pending'
+          })
+          .eq('intervention_id', intervention.id)
+          .in('user_id', eligibleConfirmationIds)
+
+        if (updateAssignmentsError) {
+          logger.error({
+            error: updateAssignmentsError
+          }, "⚠️ Failed to update assignment confirmation status (non-blocking)")
+        } else {
+          logger.info({
+            count: eligibleConfirmationIds.length,
+            filtered: confirmationRequiredUserIds.length - eligibleConfirmationIds.length
+          }, "✅ Assignment confirmation requirements set")
+        }
+      } else {
+        logger.info({
+          originalCount: confirmationRequiredUserIds.length
+        }, "ℹ️ No eligible users for confirmation (all filtered out)")
+      }
     }
 
     // Handle scheduling slots if provided (slots mode only)
     // ✅ FIX 2026-01-25: Removed 'flexible' - only 'slots' mode should create multiple slots
     // This prevents accidental slot creation if timeSlots array is injected in flexible mode
     if (schedulingType === 'slots' && timeSlots && timeSlots.length > 0) {
-      logger.info({ count: timeSlots.length }, "📅 Creating time slots")
+      // ✅ FIX 2026-03-01: 1 slot without confirmation = 'selected' (like fixed), 2+ = 'pending'
+      const isSingleSlotNoConfirmation = timeSlots.length === 1 && !requiresParticipantConfirmation
+      logger.info({ count: timeSlots.length, isSingleSlotNoConfirmation }, "📅 Creating time slots")
 
       const timeSlotsToInsert = timeSlots
         .filter((slot: { date?: string; startTime?: string; endTime?: string }) => slot.date && slot.startTime && slot.endTime) // Only valid slots
@@ -914,7 +900,7 @@ export async function POST(request: NextRequest) {
           slot_date: slot.date,
           start_time: slot.startTime,
           end_time: slot.endTime,
-          status: 'pending', // Modern status pattern (replaces is_selected: false)
+          status: isSingleSlotNoConfirmation ? 'selected' : 'pending',
           proposed_by: user.id // Track who proposed these slots
         }))
 

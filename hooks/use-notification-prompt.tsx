@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { useAuth } from './use-auth'
 import { pushManager } from '@/lib/push-notification-manager'
 import { logger } from '@/lib/logger'
@@ -53,8 +54,12 @@ export interface UseNotificationPromptReturn {
   refreshPermissionState: () => Promise<void>
 }
 
+// App route prefixes where the modal is allowed (authenticated sections only)
+const APP_ROUTE_PREFIXES = ['/gestionnaire', '/prestataire', '/locataire', '/admin']
+
 export function useNotificationPrompt(): UseNotificationPromptReturn {
   const { user, loading: authLoading } = useAuth()
+  const pathname = usePathname()
 
   const [state, setState] = useState<NotificationPromptState>('idle')
   const [permission, setPermission] = useState<NotificationPermission>('default')
@@ -195,11 +200,16 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
     }
   }, [isSupported, user?.id])
 
+  // Only show in authenticated app sections (not landing, auth, blog, etc.)
+  const isInAppRoute = APP_ROUTE_PREFIXES.some(prefix => pathname?.startsWith(prefix))
+
   // Déterminer si la modale doit être affichée
   // IMPORTANT: On affiche sur web ET PWA (plus de condition isPWAMode)
   // 🎯 FIX: Don't show modal while initialization is in progress
+  // 🎯 FIX: Only show in authenticated app routes, not on landing/auth/blog pages
   const shouldShowModal =
     !isInitializing &&
+    isInAppRoute &&
     isSupported &&
     isServiceWorkerReady &&
     !authLoading &&

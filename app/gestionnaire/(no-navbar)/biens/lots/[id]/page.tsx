@@ -145,17 +145,20 @@ export default async function LotDetailsPage({
   })
 
   try {
-    // Initialize services (server-side)
-    const lotService = await createServerLotService()
-    const interventionService = await createServerInterventionService()
-    const lotContactRepository = await createServerLotContactRepository()
+    // Phase 1: Initialize all services in parallel
+    const [lotService, interventionService, lotContactRepository, contractService] = await Promise.all([
+      createServerLotService(),
+      createServerInterventionService(),
+      createServerLotContactRepository(),
+      createServerContractService()
+    ])
 
-    // Load lot data WITH relations (building, etc.)
-    logger.info('📍 [LOT-PAGE-SERVER] Step 1: Loading lot with relations...', { lotId: id })
+    // Phase 2: Load lot data WITH relations (building, etc.) — needed before parallel queries
+    logger.info('[LOT-PAGE-SERVER] Step 1: Loading lot with relations...', { lotId: id })
     const lotResult = await lotService.getByIdWithRelations(id)
 
     if (!lotResult.success || !lotResult.data) {
-      logger.error('❌ [LOT-PAGE-SERVER] Lot not found', {
+      logger.error('[LOT-PAGE-SERVER] Lot not found', {
         lotId: id,
         error: lotResult.error
       })
@@ -163,51 +166,134 @@ export default async function LotDetailsPage({
     }
 
     const lot = lotResult.data
-    logger.info('✅ [LOT-PAGE-SERVER] Lot loaded', {
+    logger.info('[LOT-PAGE-SERVER] Lot loaded', {
       lotId: lot.id,
       lotReference: lot.reference,
       hasAddressId: !!(lot as any).address_id,
       hasAddressRecord: !!(lot as any).address_record,
-      addressRecordData: (lot as any).address_record ? {
-        id: (lot as any).address_record.id,
-        latitude: (lot as any).address_record.latitude,
-        longitude: (lot as any).address_record.longitude,
-        formattedAddress: (lot as any).address_record.formatted_address
-      } : null,
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // Load interventions for this lot (graceful handling for Phase 3 table)
-    let interventions: unknown[] = []
-    try {
-      logger.info('📍 [LOT-PAGE-SERVER] Step 2: Loading interventions...', { lotId: id })
-      const interventionsResult = await interventionService.getByLot(id)
+    // Phase 3: Run all independent queries in parallel
+    // - Interventions, lot contacts, contracts, active tenants, building contacts
+    // - Building contacts only fetched if lot has a building_id
+    const buildingContactsPromise = lot.building_id
+      ? createServerBuildingRepository()
+          .then(repo => repo.findByIdWithRelations(lot.building_id!))
+          .then(result => {
+            if (result.success && result.data) {
+              const buildingData = result.data as any
+              const buildingContactsData = buildingData.building_contacts || []
+              return buildingContactsData.map((bc: any) => ({
+                id: bc.id,
+                user_id: bc.user_id,
+                building_id: bc.building_id,
+                lot_id: null,
+                type: bc.user?.role === 'locataire' ? 'tenant' :
+                      bc.user?.role === 'prestataire' ? 'provider' :
+                      bc.user?.role === 'gestionnaire' || bc.user?.role === 'admin' ? 'manager' :
+                      bc.user?.role === 'proprietaire' ? 'owner' : 'tenant',
+                status: 'active' as const,
+                created_at: bc.created_at || new Date().toISOString(),
+                updated_at: bc.updated_at || new Date().toISOString(),
+                user: {
+                  id: bc.user?.id || '',
+                  name: bc.user?.name || 'Unknown',
+                  email: bc.user?.email || '',
+                  phone: bc.user?.phone,
+                  role: bc.user?.role,
+                  provider_category: bc.user?.provider_category,
+                  is_active: bc.user?.is_active !== false,
+                  company: bc.user?.company,
+                  address: bc.user?.address,
+                  speciality: bc.user?.speciality
+                }
+              }))
+            }
+            return []
+          })
+          .catch((error) => {
+            logger.warn('[LOT-PAGE-SERVER] Could not load building contacts', { error })
+            return [] as any[]
+          })
+      : Promise.resolve([] as any[])
 
-      if (interventionsResult.success) {
-        interventions = interventionsResult.data || []
-        logger.info('✅ [LOT-PAGE-SERVER] Interventions loaded', {
-          interventionCount: interventions.length,
-          elapsed: `${Date.now() - startTime}ms`
+    const [
+      interventionsResult,
+      contactsResult,
+      contractsResult,
+      tenantsResult,
+      buildingContacts
+    ] = await Promise.all([
+      // Interventions (graceful handling)
+      interventionService.getByLot(id)
+        .then(result => {
+          if (result.success) {
+            logger.info('[LOT-PAGE-SERVER] Interventions loaded', {
+              count: (result.data || []).length,
+              elapsed: `${Date.now() - startTime}ms`
+            })
+            return { success: true as const, data: result.data || [] }
+          }
+          logger.info('[LOT-PAGE-SERVER] Interventions table not found, skipping')
+          return { success: true as const, data: [] as unknown[] }
         })
-      } else {
-        logger.info('ℹ️ [LOT-PAGE-SERVER] Interventions table not found (Phase 3 not applied), skipping')
-      }
-    } catch (error) {
-      logger.warn('⚠️ [LOT-PAGE-SERVER] Could not load interventions (Phase 3 not applied)')
-      interventions = []
-    }
+        .catch(() => {
+          logger.warn('[LOT-PAGE-SERVER] Could not load interventions')
+          return { success: true as const, data: [] as unknown[] }
+        }),
 
-    // Load lot contacts
-    logger.info('📍 [LOT-PAGE-SERVER] Step 3: Loading contacts...', { lotId: id })
-    const contactsResult = await lotContactRepository.getAllContacts(id)
+      // Lot contacts
+      lotContactRepository.getAllContacts(id),
 
+      // Contracts
+      contractService.getByLot(id, { includeExpired: true })
+        .then(result => {
+          if (result.success && result.data) {
+            logger.info('[LOT-PAGE-SERVER] Contracts loaded', {
+              count: result.data.length,
+              elapsed: `${Date.now() - startTime}ms`
+            })
+            return result.data
+          }
+          return [] as any[]
+        })
+        .catch((error) => {
+          logger.warn('[LOT-PAGE-SERVER] Could not load contracts', { error })
+          return [] as any[]
+        }),
+
+      // Active tenants check
+      contractService.getActiveTenantsByLot(id)
+        .then(result => {
+          const hasTenant = result.success && result.data?.hasActiveTenants || false
+          logger.info('[LOT-PAGE-SERVER] Lot occupation status (from contracts):', {
+            status: hasTenant ? 'Occupied' : 'Vacant',
+            activeTenantsCount: result.success ? result.data?.tenants.length : 0
+          })
+          return hasTenant
+        })
+        .catch((error) => {
+          logger.warn('[LOT-PAGE-SERVER] Could not check active tenants, defaulting to vacant', { error })
+          return false
+        }),
+
+      // Building contacts
+      buildingContactsPromise
+    ])
+
+    // Check lot contacts result (critical — notFound if failed)
     if (!contactsResult.success) {
-      logger.error('❌ [LOT-PAGE-SERVER] Failed to load contacts', {
+      logger.error('[LOT-PAGE-SERVER] Failed to load contacts', {
         lotId: id,
         error: contactsResult.error
       })
       notFound()
     }
+
+    const interventions = interventionsResult.data
+    const contracts = contractsResult
+    const hasTenant = tenantsResult
 
     // Transform lot_contacts data to required format
     const transformedContacts = (contactsResult.data || []).map((lotContact: {
@@ -260,156 +346,56 @@ export default async function LotDetailsPage({
       }
     })
 
-    logger.info('✅ [LOT-PAGE-SERVER] Contacts loaded', {
+    logger.info('[LOT-PAGE-SERVER] Contacts loaded', {
       contactCount: transformedContacts.length,
+      buildingContactCount: buildingContacts.length,
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // Load building contacts if lot has a building (for inheritance display)
-    let buildingContacts: any[] = []
-    if (lot.building_id) {
-      logger.info('📍 [LOT-PAGE-SERVER] Step 3b: Loading building contacts...', { buildingId: lot.building_id })
-      try {
-        const buildingRepository = await createServerBuildingRepository()
-        const buildingResult = await buildingRepository.findByIdWithRelations(lot.building_id)
-
-        if (buildingResult.success && buildingResult.data) {
-          const buildingData = buildingResult.data as any
-          const buildingContactsData = buildingData.building_contacts || []
-
-          buildingContacts = buildingContactsData.map((bc: any) => ({
-            id: bc.id,
-            user_id: bc.user_id,
-            building_id: bc.building_id,
-            lot_id: null,
-            type: bc.user?.role === 'locataire' ? 'tenant' :
-                  bc.user?.role === 'prestataire' ? 'provider' :
-                  bc.user?.role === 'gestionnaire' || bc.user?.role === 'admin' ? 'manager' :
-                  bc.user?.role === 'proprietaire' ? 'owner' : 'tenant',
-            status: 'active' as const,
-            created_at: bc.created_at || new Date().toISOString(),
-            updated_at: bc.updated_at || new Date().toISOString(),
-            user: {
-              id: bc.user?.id || '',
-              name: bc.user?.name || 'Unknown',
-              email: bc.user?.email || '',
-              phone: bc.user?.phone,
-              role: bc.user?.role,
-              provider_category: bc.user?.provider_category,
-              is_active: bc.user?.is_active !== false,
-              company: bc.user?.company,
-              address: bc.user?.address,
-              speciality: bc.user?.speciality
-            }
-          }))
-
-          logger.info('✅ [LOT-PAGE-SERVER] Building contacts loaded', {
-            buildingId: lot.building_id,
-            contactCount: buildingContacts.length
-          })
-        }
-      } catch (error) {
-        logger.warn('⚠️ [LOT-PAGE-SERVER] Could not load building contacts', { error })
-        buildingContacts = []
-      }
-    }
-
-    // Load contracts for this lot
-    logger.info('📍 [LOT-PAGE-SERVER] Step 3c: Loading contracts...', { lotId: id })
-    let contracts: any[] = []
-    const contractService = await createServerContractService()
-    try {
-      const contractsResult = await contractService.getByLot(id, { includeExpired: true })
-
-      if (contractsResult.success && contractsResult.data) {
-        contracts = contractsResult.data
-        logger.info('✅ [LOT-PAGE-SERVER] Contracts loaded', {
-          contractCount: contracts.length,
-          elapsed: `${Date.now() - startTime}ms`
-        })
-      }
-    } catch (error) {
-      logger.warn('⚠️ [LOT-PAGE-SERVER] Could not load contracts', { error })
-      contracts = []
-    }
-
-    // Calculate occupation from ACTIVE CONTRACTS (not lot_contacts)
-    // Only contracts with status='actif' count (not 'a_venir')
-    let hasTenant = false
-    try {
-      const tenantsResult = await contractService.getActiveTenantsByLot(id)
-      hasTenant = tenantsResult.success && tenantsResult.data?.hasActiveTenants || false
-      logger.info('🏠 [LOT-PAGE-SERVER] Lot occupation status (from contracts):', {
-        status: hasTenant ? "Occupied" : "Vacant",
-        activeTenantsCount: tenantsResult.success ? tenantsResult.data?.tenants.length : 0
-      })
-    } catch (error) {
-      logger.warn('⚠️ [LOT-PAGE-SERVER] Could not check active tenants, defaulting to vacant', { error })
-      hasTenant = false
-    }
-
-    // Load interventions with documents (for documents tab)
-    logger.info('📍 [LOT-PAGE-SERVER] Step 4: Loading interventions with documents...')
+    // Phase 4: Batch load documents for all interventions (depends on intervention IDs)
+    logger.info('[LOT-PAGE-SERVER] Step 4: Batch loading documents for all interventions...')
     let interventionsWithDocs: unknown[] = []
     try {
-      const lotInterventionsResult = await interventionService.getByLot(id)
+      const interventionIds = (interventions as { id: string }[]).map(i => i.id)
+      const docsResult = await interventionService.getDocumentsByInterventionIds(interventionIds)
+      const docsMap = docsResult.success ? docsResult.data : new Map()
 
-      if (lotInterventionsResult.success && lotInterventionsResult.data) {
-        const interventionsWithDocsData = await Promise.all(
-          lotInterventionsResult.data.map(async (intervention: { id: string }) => {
-            try {
-              const docsResult = await interventionService.getDocuments(intervention.id)
-              return {
-                ...intervention,
-                documents: docsResult.success ? docsResult.data : []
-              }
-            } catch (error) {
-              logger.warn(`⚠️ [LOT-PAGE-SERVER] Could not load documents for intervention ${intervention.id}`)
-              return {
-                ...intervention,
-                documents: []
-              }
-            }
-          })
-        )
+      interventionsWithDocs = (interventions as { id: string }[]).map(intervention => ({
+        ...intervention,
+        documents: docsMap.get(intervention.id) || []
+      }))
 
-        interventionsWithDocs = interventionsWithDocsData
-        logger.info('✅ [LOT-PAGE-SERVER] Interventions with documents loaded', {
-          count: interventionsWithDocs.length,
-          elapsed: `${Date.now() - startTime}ms`
-        })
-      }
+      logger.info('[LOT-PAGE-SERVER] Interventions with documents loaded (batch)', {
+        count: interventionsWithDocs.length,
+        docsTotal: docsResult.success ? Array.from(docsMap.values()).reduce((sum, docs) => sum + docs.length, 0) : 0,
+        elapsed: `${Date.now() - startTime}ms`
+      })
     } catch (error) {
-      logger.warn('⚠️ [LOT-PAGE-SERVER] Could not load interventions with documents (Phase 3 not applied)')
-      interventionsWithDocs = []
+      logger.warn('[LOT-PAGE-SERVER] Could not load intervention documents (batch)')
+      interventionsWithDocs = (interventions as { id: string }[]).map(intervention => ({
+        ...intervention,
+        documents: []
+      }))
     }
 
-    // Step 5: Load address (lot's own or fallback to building's)
+    // Phase 5: Load address (lot's own or fallback to building's)
     let lotAddress: { latitude: number | null; longitude: number | null; formatted_address: string | null } | null = null
-    const supabase = await createServerSupabaseClient()
 
     // First, try to use address_record from the lot (already fetched by repository via JOIN)
     const addressRecord = (lot as any).address_record
     if (addressRecord && (addressRecord.latitude || addressRecord.formatted_address || addressRecord.street)) {
-      logger.info('📍 [LOT-PAGE-SERVER] Step 5: Using address_record from lot...', {
-        addressId: addressRecord.id,
-        hasCoordinates: !!(addressRecord.latitude && addressRecord.longitude)
-      })
       lotAddress = {
         latitude: addressRecord.latitude ?? null,
         longitude: addressRecord.longitude ?? null,
         formatted_address: addressRecord.formatted_address
       }
-      logger.info('✅ [LOT-PAGE-SERVER] Lot address loaded from address_record', {
+      logger.info('[LOT-PAGE-SERVER] Lot address loaded from address_record', {
         hasCoordinates: !!(addressRecord.latitude && addressRecord.longitude),
         elapsed: `${Date.now() - startTime}ms`
       })
     }
     // Fallback: If no address_record but address_id exists, query separately
     else if ((lot as any).address_id) {
-      logger.info('📍 [LOT-PAGE-SERVER] Step 5: Loading lot address via address_id (fallback)...', {
-        addressId: (lot as any).address_id
-      })
       const { data: addressData } = await supabase
         .from('addresses')
         .select('latitude, longitude, formatted_address, street')
@@ -422,7 +408,7 @@ export default async function LotDetailsPage({
           longitude: addressData.longitude ?? null,
           formatted_address: addressData.formatted_address
         }
-        logger.info('✅ [LOT-PAGE-SERVER] Lot address loaded via direct query', {
+        logger.info('[LOT-PAGE-SERVER] Lot address loaded via direct query', {
           hasCoordinates: !!(addressData.latitude && addressData.longitude),
           elapsed: `${Date.now() - startTime}ms`
         })
@@ -431,29 +417,21 @@ export default async function LotDetailsPage({
 
     // If lot has no address, try building's address (use pre-fetched building.address_record if available)
     if (!lotAddress && lot.building_id) {
-      // First, try to use building.address_record from the lot (already fetched by repository via JOIN)
       const buildingRecord = (lot as any).building
       const buildingAddressRecord = buildingRecord?.address_record
 
       if (buildingAddressRecord && (buildingAddressRecord.latitude || buildingAddressRecord.formatted_address || buildingAddressRecord.street)) {
-        logger.info('📍 [LOT-PAGE-SERVER] Step 5b: Using building.address_record from lot...', {
-          buildingId: lot.building_id,
-          addressId: buildingAddressRecord.id
-        })
         lotAddress = {
           latitude: buildingAddressRecord.latitude ?? null,
           longitude: buildingAddressRecord.longitude ?? null,
           formatted_address: buildingAddressRecord.formatted_address
         }
-        logger.info('✅ [LOT-PAGE-SERVER] Building address loaded from address_record', {
+        logger.info('[LOT-PAGE-SERVER] Building address loaded from address_record', {
           hasCoordinates: !!(buildingAddressRecord.latitude && buildingAddressRecord.longitude),
           elapsed: `${Date.now() - startTime}ms`
         })
       } else {
         // Fallback: query building and address separately
-        logger.info('📍 [LOT-PAGE-SERVER] Step 5b: Loading building address (fallback query)...', {
-          buildingId: lot.building_id
-        })
         const { data: buildingData } = await supabase
           .from('buildings')
           .select('address_id')
@@ -473,7 +451,7 @@ export default async function LotDetailsPage({
               longitude: addressData.longitude ?? null,
               formatted_address: addressData.formatted_address
             }
-            logger.info('✅ [LOT-PAGE-SERVER] Building address loaded via direct query', {
+            logger.info('[LOT-PAGE-SERVER] Building address loaded via direct query', {
               hasCoordinates: !!(addressData.latitude && addressData.longitude),
               elapsed: `${Date.now() - startTime}ms`
             })

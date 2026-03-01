@@ -142,6 +142,8 @@ export async function POST(request: NextRequest) {
     logger.info({ storagePath: storagePath }, "☁️ Uploading to Supabase Storage:")
 
     // Upload file to Supabase Storage
+    // Uses authenticated client — RLS on 'documents' bucket allows all team_members
+    // (including locataires/prestataires) via get_my_profile_ids()
     // Use normalized MIME type to pass bucket's allowed_mime_types check
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('documents')

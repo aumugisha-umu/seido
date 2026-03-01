@@ -155,7 +155,15 @@ export class TenantService {
    */
   async getSimpleTenantLots(userId: string): Promise<Lot[]> {
     const lotsWithMetadata = await this.getTenantLots(userId)
-    return lotsWithMetadata.map(item => item.lot)
+    // Deduplicate by lot.id — a tenant may appear in multiple contracts for the same lot
+    const seen = new Set<string>()
+    return lotsWithMetadata
+      .map(item => item.lot)
+      .filter(lot => {
+        if (seen.has(lot.id)) return false
+        seen.add(lot.id)
+        return true
+      })
   }
 
   /**

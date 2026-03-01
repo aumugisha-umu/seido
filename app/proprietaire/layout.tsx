@@ -1,5 +1,5 @@
 import type React from "react"
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import DashboardHeader from "@/components/dashboard-header"
 import { FrillWidget } from "@/components/frill-widget"
 
@@ -17,7 +17,7 @@ export default async function ProprietaireLayout({
   children: React.ReactNode
 }) {
   // ✅ AUTHENTIFICATION SERVEUR
-  const { user, profile } = await requireRole(['proprietaire'])
+  const { user, profile } = await getServerAuthContext('proprietaire')
 
   // Préparer les données utilisateur pour éviter hydration mismatch
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'

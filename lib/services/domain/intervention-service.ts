@@ -464,6 +464,18 @@ export class InterventionService {
   }
 
   /**
+   * Batch fetch documents for multiple interventions (N+1 -> 1 query)
+   * Returns a Map<interventionId, documents[]> for O(1) lookup.
+   */
+  async getDocumentsByInterventionIds(interventionIds: string[]) {
+    try {
+      return await this.interventionRepo.getDocumentsByInterventionIds(interventionIds)
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getDocumentsByInterventionIds'))
+    }
+  }
+
+  /**
    * Create new intervention
    */
   async create(data: InterventionCreateInput, userId: string, options?: { skipInitialSelect?: boolean }) {

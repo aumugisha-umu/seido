@@ -1,15 +1,15 @@
 ---
-title: "Immobilier Belgique 2026 : PEB, successions, moratoire hivernal"
+title: "L'essentiel immo #1 — Janvier 2026"
 slug: "panorama-immobilier-belgique-janvier-2026"
 date: "2026-01-15"
 author: "Equipe Seido"
 category: "Reglementation"
 tags: ["PEB", "bruxelles", "copropriete", "succession", "wallonie", "moratoire hivernal", "gestion immobiliere", "gestionnaire immobilier", "CEDH"]
-description: "Regles PEB Bruxelles 2026, transmission patrimoine wallon, fonds moratoire hivernal, droits CEDH : guide essentiel pour gestionnaires immobiliers belges."
+description: "Amende PEB 62 500EUR, succession divisee par 2 en Wallonie, fonds moratorium hivernal : 6 changements cles pour gestionnaires immobiliers en 2026."
 reading_time: "10 min"
 ---
 
-# Immobilier Belgique 2026 : PEB, successions, moratoire — le guide complet pour gestionnaires et proprietaires
+# L'essentiel immo #1 — Janvier 2026
 
 *Gestionnaires immobiliers, proprietaires-bailleurs : en ce debut 2026, les regles changent. Amendes PEB jusqu'a 62.500 EUR par copropriete, droits de succession divises par deux en Wallonie d'ici 2028, et un fonds d'indemnisation meconnu pour les loyers impayes en hiver. Voici les 6 sujets incontournables pour bien piloter votre patrimoine cette annee.*
 
@@ -68,8 +68,6 @@ Pour tout gestionnaire immobilier, les amendes potentielles vont couter plus che
 
 > **Avec Seido**, vous pouvez planifier et suivre les interventions de renovation energetique de chaque copropriete, documenter les certificats PEB par unite, et centraliser les devis des prestataires pour une prise de decision transparente en assemblee generale. [Voir comment →](#)
 >
-> *Essai gratuit 14 jours — sans carte bancaire.*
-
 ---
 
 ## 2. Transmettre un patrimoine immobilier : la Wallonie, nouvelle terre d'accueil fiscale ?
@@ -151,8 +149,6 @@ Deux voies possibles :
 
 > **Conseil Seido** : Documentez soigneusement chaque etape — mises en demeure, rappels, preuves de non-paiement. Avec Seido, chaque echange avec le locataire est trace, les documents sont centralises par lot, et vous pouvez generer un historique complet en cas de procedure. Un dossier bien constitue fait souvent la difference. [Centraliser vos documents →](#)
 >
-> *Essai gratuit 14 jours — sans carte bancaire.*
-
 ---
 
 ## 4. La CEDH au secours des proprietaires : une decision historique

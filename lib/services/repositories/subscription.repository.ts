@@ -73,14 +73,14 @@ export class SubscriptionRepository {
   }
 
   async getLotCount(teamId: string): Promise<{ data: number; error: unknown }> {
-    const { data, error } = await this.supabase
-      .from('subscriptions')
-      .select('billable_properties')
+    // Live count from lots table — never stale, unlike billable_properties cache
+    const { count, error } = await this.supabase
+      .from('lots')
+      .select('*', { count: 'exact', head: true })
       .eq('team_id', teamId)
-      .limit(1)
-      .maybeSingle()
+      .is('deleted_at', null)
 
     if (error) return { data: 0, error }
-    return { data: data?.billable_properties ?? 0, error: null }
+    return { data: count ?? 0, error: null }
   }
 }

@@ -32,7 +32,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import ActivityLog from "@/components/activity-log"
 import { type Notification } from "@/hooks/use-notifications"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { getNotificationNavigationUrl } from "@/lib/notification-utils"
 
 interface NotificationsPageProps {
@@ -102,7 +102,6 @@ export default function NotificationsPageComponent({
   getUserTeam,
   teamStatus
 }: NotificationsPageProps) {
-  const { toast } = useToast()
   const [updatingNotifications, setUpdatingNotifications] = useState<Set<string>>(new Set())
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
 
@@ -170,18 +169,10 @@ export default function NotificationsPageComponent({
       // Notifier les autres composants
       window.dispatchEvent(new CustomEvent('notificationUpdated'))
 
-      toast({
-        title: action === 'mark_read' ? "✓ Marquée comme lue" : "✉️ Marquée comme non lue",
-        description: `La notification "${notification.title}" a été ${action === 'mark_read' ? 'marquée comme lue' : 'marquée comme non lue'}.`,
-        variant: "success",
-      })
+      toast.success(action === 'mark_read' ? "✓ Marquée comme lue" : "✉️ Marquée comme non lue", { description: `La notification "${notification.title}" a été ${action === 'mark_read' ? 'marquée comme lue' : 'marquée comme non lue'}.` })
     } catch (error) {
       console.error('Error toggling notification read status:', error)
-      toast({
-        title: "❌ Erreur",
-        description: "Impossible de modifier le statut de la notification. Veuillez réessayer.",
-        variant: "destructive",
-      })
+      toast.error("❌ Erreur", { description: "Impossible de modifier le statut de la notification. Veuillez réessayer." })
     } finally {
       setUpdatingNotifications(prev => {
         const newSet = new Set(prev)
@@ -199,19 +190,11 @@ export default function NotificationsPageComponent({
 
       window.dispatchEvent(new CustomEvent('notificationUpdated'))
 
-      toast({
-        title: "✅ Toutes les notifications marquées comme lues",
-        description: "Toutes vos notifications ont été marquées comme lues avec succès.",
-        variant: "success",
-      })
+      toast.success("✅ Toutes les notifications marquées comme lues", { description: "Toutes vos notifications ont été marquées comme lues avec succès." })
     } catch (error) {
       console.error('Error marking all notifications as read:', error)
 
-      toast({
-        title: "❌ Erreur",
-        description: "Impossible de marquer toutes les notifications comme lues. Veuillez réessayer.",
-        variant: "destructive",
-      })
+      toast.error("❌ Erreur", { description: "Impossible de marquer toutes les notifications comme lues. Veuillez réessayer." })
     } finally {
       setMarkingAllAsRead(false)
     }
@@ -223,18 +206,10 @@ export default function NotificationsPageComponent({
       // Dans le mode démo, on ne fait rien (pas d'archivage)
       // TODO: Ajouter la logique d'archivage si nécessaire
 
-      toast({
-        title: "🗃️ Notification archivée",
-        description: `La notification "${notificationTitle}" a été archivée avec succès.`,
-        variant: "success",
-      })
+      toast.success("🗃️ Notification archivée", { description: `La notification "${notificationTitle}" a été archivée avec succès.` })
     } catch (error) {
       console.error('Error archiving notification:', error)
-      toast({
-        title: "❌ Erreur",
-        description: "Impossible d'archiver la notification. Veuillez réessayer.",
-        variant: "destructive",
-      })
+      toast.error("❌ Erreur", { description: "Impossible d'archiver la notification. Veuillez réessayer." })
     }
   }
 

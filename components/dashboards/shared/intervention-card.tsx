@@ -38,8 +38,7 @@ import {
 import { formatInterventionLocation } from "@/lib/utils/intervention-location"
 import { InterventionTypeIcon } from "@/components/interventions/intervention-type-icon"
 import { QuoteStatusBadge } from "@/components/interventions/quote-status-badge"
-import { useToast } from "@/hooks/use-toast"
-
+import { toast } from "sonner"
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -111,8 +110,6 @@ export const InterventionCard = memo(function InterventionCard({
   onOpenProgrammingModal
 }: InterventionCardProps) {
   const router = useRouter()
-  const { toast } = useToast()
-
   // Animation states
   const [isLoading, setIsLoading] = useState(false)
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
@@ -229,12 +226,7 @@ export const InterventionCard = memo(function InterventionCard({
       if (customActionHandlers?.[action.actionType]) {
         const success = await customActionHandlers[action.actionType](intervention)
         if (success) {
-          toast({
-            title: "Action effectuée",
-            description: `${intervention.reference || intervention.id} - ${intervention.title}`,
-            variant: "default",
-            duration: 3000
-          })
+          toast("Action effectuée", { description: `${intervention.reference || intervention.id} - ${intervention.title}`, duration: 3000 })
           triggerSuccessAnimation(action.actionType)
         }
         return
@@ -249,26 +241,17 @@ export const InterventionCard = memo(function InterventionCard({
       const data = await response.json()
 
       if (data.success) {
-        toast({
-          title: "Action effectuée",
-          description: `${intervention.reference || intervention.id} - ${intervention.title}`,
-          variant: "default",
-          duration: 3000
-        })
+        toast("Action effectuée", { description: `${intervention.reference || intervention.id} - ${intervention.title}`, duration: 3000 })
         triggerSuccessAnimation(action.actionType)
       } else {
         throw new Error(data.error || 'Erreur lors de l\'action')
       }
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible d'effectuer l'action",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible d'effectuer l'action" })
       setIsLoading(false)
       setLoadingAction(null)
     }
-  }, [intervention, customActionHandlers, toast, triggerSuccessAnimation])
+  }, [intervention, customActionHandlers, triggerSuccessAnimation])
 
   // Handle action button click
   const handleActionClick = useCallback((action: RoleBasedAction) => {

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireRole } from '@/lib/auth-dal'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { createServerTeamService, createServerContactInvitationService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
 /**
@@ -36,7 +36,11 @@ export async function createContactAction(data: CreateContactData) {
     })
 
     // ✅ LAYER 4: Server Action Security - Vérification rôle obligatoire
-    const { user, profile } = await requireRole(['gestionnaire'])
+    const authContext = await getServerActionAuthContextOrNull('gestionnaire')
+    if (!authContext) {
+      return { success: false, error: 'Authentication required' }
+    }
+    const { user, profile } = authContext
     logger.info('✅ [DASHBOARD-ACTION] User authenticated:', { userId: profile.id, role: profile.role })
 
     // ✅ FIX: Initialize services with await (Server Components)
@@ -132,7 +136,10 @@ export async function createContactAction(data: CreateContactData) {
 export async function createInterventionAction() {
   try {
     // ✅ LAYER 4: Server Action Security - Vérification rôle obligatoire
-    await requireRole(['gestionnaire'])
+    const authContext = await getServerActionAuthContextOrNull('gestionnaire')
+    if (!authContext) {
+      return { success: false, error: 'Authentication required' }
+    }
 
     // TODO: Implémenter création intervention
     // Pour l'instant, redirection vers le formulaire

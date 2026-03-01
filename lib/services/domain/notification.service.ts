@@ -621,6 +621,42 @@ export class NotificationService {
   }
 
   // ============================================================================
+  // GENERIC NOTIFICATION CREATION (camelCase convenience wrapper)
+  // ============================================================================
+
+  /**
+   * Create a single notification with camelCase interface.
+   * Maps to repository.create() which expects snake_case fields.
+   * Used by API routes (intervention-quote-validate, intervention-complete)
+   * for ad-hoc notifications that don't fit a domain-specific method.
+   */
+  async createNotification(data: {
+    userId: string
+    teamId: string
+    createdBy: string
+    type: NotificationType | string
+    title: string
+    message: string
+    isPersonal?: boolean
+    metadata?: Record<string, any>
+    relatedEntityType?: string
+    relatedEntityId?: string
+  }) {
+    return this.repository.create({
+      user_id: data.userId,
+      team_id: data.teamId,
+      created_by: data.createdBy,
+      type: data.type as NotificationType,
+      title: data.title,
+      message: data.message,
+      is_personal: data.isPersonal ?? false,
+      metadata: data.metadata,
+      related_entity_type: data.relatedEntityType,
+      related_entity_id: data.relatedEntityId
+    })
+  }
+
+  // ============================================================================
   // PRIVATE METHODS (Business Logic) - NOW USING SHARED HELPERS
   // ============================================================================
 

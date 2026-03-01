@@ -1,5 +1,6 @@
 import { getServerAuthContext } from "@/lib/server-context"
-import { createServerActionInterventionService } from "@/lib/services"
+import { createServerActionInterventionService, createServerSupabaseClient, ConversationRepository } from "@/lib/services"
+import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 import { ProviderDashboardV2 } from "@/components/dashboards/provider/provider-dashboard-v2"
 import { logger as baseLogger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
@@ -84,12 +85,27 @@ export default async function PrestataireDashboardPage() {
     completedCount: allInterventions.filter(i => ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire'].includes(i.status)).length
   }
 
+  // Fetch unread conversation threads
+  let unreadThreads: { threads: UnreadThread[]; totalCount: number } = { threads: [], totalCount: 0 }
+  try {
+    const supabase = await createServerSupabaseClient()
+    const conversationRepo = new ConversationRepository(supabase)
+    const unreadResult = await conversationRepo.getUnreadThreadsForDashboard(profile.id)
+    if (unreadResult.success && unreadResult.data) {
+      unreadThreads = unreadResult.data
+    }
+  } catch (error) {
+    logger.warn('[PROVIDER-DASHBOARD] Unread threads fetch failed, skipping', { error })
+  }
+
   return (
     <ProviderDashboardV2
       stats={stats}
       interventions={allInterventions}
       pendingCount={pendingActionsCount}
       userId={profile.id}
+      unreadThreads={unreadThreads.threads}
+      unreadThreadsTotalCount={unreadThreads.totalCount}
     />
   )
 }

@@ -90,7 +90,7 @@ export async function GET(
 
     // Générer l'URL signée pour le téléchargement (valide 1h)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from(document.storage_bucket || 'intervention-documents')
+      .from(document.storage_bucket || 'documents')
       .createSignedUrl(document.storage_path, 3600, {
         download: document.original_filename || 'document' // Force download avec le nom original
       })

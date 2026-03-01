@@ -351,9 +351,9 @@ export function ContactSection({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="font-medium text-sm truncate">{contact.name}</span>
-                      {contact.has_account === false && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 shrink-0">
-                          Non invité
+                      {contact.has_account === true && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-green-50 text-green-700 border-green-300 shrink-0">
+                          Compte Seido
                         </Badge>
                       )}
                     </div>

@@ -14,6 +14,7 @@
 import { addMonths, addDays, format } from 'date-fns'
 import { CUSTOM_DATE_VALUE } from '@/lib/constants/lease-interventions'
 import type { SchedulingOption } from '@/lib/constants/lease-interventions'
+import type { ScheduledInterventionData } from '@/components/contract/intervention-schedule-row'
 
 // Re-export shared types for convenience
 export { CUSTOM_DATE_VALUE }
@@ -374,4 +375,35 @@ export function generatePropertyInterventions(
  */
 export function formatPropertyInterventionDate(date: Date): string {
   return format(date, 'dd/MM/yyyy')
+}
+
+// ─── Custom intervention support ────────────────────────────────
+
+/** Default scheduling options for custom interventions */
+export const CUSTOM_INTERVENTION_SCHEDULING_OPTIONS: SchedulingOption[] = [
+  { value: 'now_plus_7d', label: 'Dans 7 jours', calculateDate: () => addDays(new Date(), 7) },
+  { value: 'now_plus_14d', label: 'Dans 14 jours', calculateDate: () => addDays(new Date(), 14) },
+  { value: 'now_plus_1m', label: 'Dans 1 mois', calculateDate: () => addMonths(new Date(), 1) }
+]
+
+/** Create an empty custom intervention for user to fill in */
+export function createEmptyCustomIntervention(
+  currentUser?: { id: string; name: string }
+): ScheduledInterventionData {
+  return {
+    key: `custom_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    title: '',
+    description: '',
+    interventionTypeCode: 'autre',
+    icon: 'PenLine',
+    colorClass: 'text-indigo-500',
+    enabled: false,
+    scheduledDate: addDays(new Date(), 7),
+    isAutoCalculated: true,
+    availableOptions: CUSTOM_INTERVENTION_SCHEDULING_OPTIONS,
+    selectedSchedulingOption: 'now_plus_7d',
+    assignedUsers: currentUser
+      ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
+      : []
+  }
 }

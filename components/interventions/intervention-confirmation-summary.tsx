@@ -139,7 +139,8 @@ export interface InterventionConfirmationData {
     role: string
     speciality?: string
     isCurrentUser?: boolean
-    avatarUrl?: string // Optional avatar URL
+    avatarUrl?: string
+    has_account?: boolean
   }>
   scheduling?: {
     type: 'immediate' | 'slots' | 'flexible'
@@ -280,6 +281,11 @@ export function InterventionConfirmationSummary({
               {contact.isCurrentUser && (
                 <Badge variant="secondary" className="text-[9px] h-3.5 px-0.5 pointer-events-none">
                   Vous
+                </Badge>
+              )}
+              {contact.has_account === true && (
+                <Badge variant="outline" className="text-[9px] h-3.5 px-1 bg-green-50 text-green-700 border-green-300 pointer-events-none">
+                  Compte Seido
                 </Badge>
               )}
             </span>

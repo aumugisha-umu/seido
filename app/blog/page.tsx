@@ -31,16 +31,7 @@ export default function BlogIndexPage() {
   return (
     <>
       <div className="container mx-auto px-4 py-6 md:py-10">
-        {/* Header */}
-        <header className="max-w-4xl mx-auto mb-10">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Actualites gestion immobiliere Belgique
-          </h1>
-          <p className="text-lg text-white/60 leading-relaxed">
-            Analyses, decryptages et conseils pratiques pour gestionnaires
-            immobiliers, proprietaires et syndics en Belgique.
-          </p>
-        </header>
+  
 
         {/* Article list with filters */}
         <div className="max-w-6xl mx-auto">

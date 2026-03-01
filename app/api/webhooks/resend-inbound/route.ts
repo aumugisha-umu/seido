@@ -817,11 +817,11 @@ async function processEmailAsync(
         continue
       }
 
-      // Uploader vers Supabase Storage
-      const storagePath = `interventions/${intervention.id}/email-attachments/${Date.now()}_${downloaded.filename}`
+      // Uploader vers Supabase Storage (email-attachments bucket — matches download route)
+      const storagePath = `${intervention.team_id}/${intervention.id}/email-attachments/${Date.now()}_${downloaded.filename}`
 
       const { error: uploadError } = await supabase.storage
-        .from('intervention-documents')
+        .from('email-attachments')
         .upload(storagePath, downloaded.buffer, {
           contentType: downloaded.contentType,
           upsert: false

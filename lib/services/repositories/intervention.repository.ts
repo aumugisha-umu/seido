@@ -807,6 +807,43 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   }
 
   /**
+   * Batch fetch documents for multiple interventions at once (N+1 -> 1 query)
+   * Returns a Map keyed by intervention_id for O(1) lookup.
+   *
+   * Uses the same SELECT shape as getDocuments() for downstream compatibility.
+   */
+  async getDocumentsByInterventionIds(interventionIds: string[]) {
+    if (interventionIds.length === 0) {
+      return { success: true as const, data: new Map<string, any[]>() }
+    }
+
+    const { data, error } = await this.supabase
+      .from('intervention_documents')
+      .select(`
+        *,
+        uploaded_by_user:uploaded_by(name, email),
+        validated_by_user:validated_by(name, email)
+      `)
+      .in('intervention_id', interventionIds)
+      .is('deleted_at', null)
+      .order('uploaded_at', { ascending: false })
+
+    if (error) {
+      return createErrorResponse(handleError(error, 'intervention:getDocumentsByInterventionIds'))
+    }
+
+    // Group by intervention_id into a Map
+    const grouped = new Map<string, typeof data>()
+    for (const doc of (data || [])) {
+      const existing = grouped.get(doc.intervention_id) || []
+      existing.push(doc)
+      grouped.set(doc.intervention_id, existing)
+    }
+
+    return { success: true as const, data: grouped }
+  }
+
+  /**
    * Private helper to enrich intervention data with computed fields
    */
   private enrichInterventionData(intervention: EnrichedIntervention): EnrichedIntervention {

@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useRef } from 'react'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 // =============================================================================
 // Types
@@ -51,7 +51,6 @@ const MESSAGES: Record<MilestoneType, { title: string; description: string }> = 
 // =============================================================================
 
 export function useStrategicNotification(config: StrategicNotificationConfig) {
-  const { toast } = useToast()
   const shownRef = useRef(false)
 
   const canShow = useCallback((): boolean => {
@@ -74,14 +73,13 @@ export function useStrategicNotification(config: StrategicNotificationConfig) {
       sessionStorage.setItem(SESSION_KEY, 'true')
     }
 
-    toast({
-      title: message.title,
+    toast(message.title, {
       description: message.description,
       duration: 8000,
     })
 
     return true
-  }, [canShow, toast])
+  }, [canShow])
 
   /**
    * Call after an intervention is closed successfully.

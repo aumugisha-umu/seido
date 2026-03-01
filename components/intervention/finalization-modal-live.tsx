@@ -38,7 +38,7 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { FinalizationConfirmationDialog } from './finalization-confirmation-dialog'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from "sonner"
 import { cn } from '@/lib/utils'
 
 interface FinalizationModalLiveProps {
@@ -150,8 +150,6 @@ export function FinalizationModalLive({
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<FinalizationContextData | null>(null)
-  const { toast } = useToast()
-
   // ⚡ Optimized navigation helper
   const navigateTo = useCallback((path: string) => {
     router.push(path)
@@ -219,10 +217,7 @@ export function FinalizationModalLive({
         throw new Error(result.error || 'Erreur lors de la finalisation')
       }
 
-      toast({
-        title: '✅ Intervention finalisée',
-        description: result.message || 'L\'intervention a été finalisée avec succès'
-      })
+      toast.success('Intervention finalisée', { description: result.message || 'L\'intervention a été finalisée avec succès' })
 
       // If follow-up is enabled, redirect to new intervention page
       if (scheduleFollowUp && data) {
@@ -241,11 +236,7 @@ export function FinalizationModalLive({
         onComplete?.()
       }
     } catch (err) {
-      toast({
-        title: 'Erreur',
-        description: err instanceof Error ? err.message : 'Une erreur est survenue',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: err instanceof Error ? err.message : 'Une erreur est survenue' })
     } finally {
       setIsProcessing(false)
     }
@@ -275,20 +266,13 @@ export function FinalizationModalLive({
         throw new Error(result.error || 'Erreur lors du refus')
       }
 
-      toast({
-        title: '❌ Finalisation refusée',
-        description: result.message || 'Le refus a été enregistré'
-      })
+      toast('Finalisation refusée', { description: result.message || 'Le refus a été enregistré' })
 
       setShowRejectDialog(false)
       onClose()
       onComplete?.()
     } catch (err) {
-      toast({
-        title: 'Erreur',
-        description: err instanceof Error ? err.message : 'Une erreur est survenue',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: err instanceof Error ? err.message : 'Une erreur est survenue' })
     } finally {
       setIsProcessing(false)
     }

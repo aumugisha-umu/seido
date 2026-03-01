@@ -7,8 +7,9 @@ import {
   UnifiedModalBody,
 } from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
-import { Download, Loader2, FileText, ImageIcon, Sheet, Paperclip, RefreshCw, ExternalLink } from 'lucide-react'
+import { Download, Loader2, FileText, ImageIcon, Sheet, Paperclip, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface AttachmentForPreview {
   id: string
@@ -31,39 +32,11 @@ const getAttachmentIcon = (mimeType: string) => {
   return Paperclip
 }
 
-const isImage = (mimeType: string) =>
-  mimeType.startsWith('image/')
+const isImage = (mimeType: string) => mimeType.startsWith('image/')
+const isPdf = (mimeType: string) => mimeType === 'application/pdf'
 
-const isPdf = (mimeType: string) =>
-  mimeType === 'application/pdf'
-
-/** Types that Google Docs Viewer can render */
-const isGoogleViewable = (mimeType: string) => {
-  const viewable = [
-    // Office documents
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation', // pptx
-    'application/msword', // doc
-    'application/vnd.ms-excel', // xls
-    'application/vnd.ms-powerpoint', // ppt
-    // Text
-    'text/plain',
-    'text/csv',
-    'text/html',
-    // Other
-    'application/rtf',
-  ]
-  if (viewable.includes(mimeType)) return true
-  // Fallback: check filename-based extensions handled by Google Viewer
-  return false
-}
-
-/** Check by file extension when mime_type is generic (e.g. application/octet-stream) */
-const isGoogleViewableByExtension = (filename: string) => {
-  const ext = filename.split('.').pop()?.toLowerCase() || ''
-  return ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'csv', 'txt', 'rtf'].includes(ext)
-}
+const getFileExtension = (filename: string): string =>
+  filename.split('.').pop()?.toUpperCase() || ''
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`
@@ -100,7 +73,6 @@ export function AttachmentPreviewModal({
     }
   }, [emailId, attachment])
 
-  // Fetch signed URL when modal opens
   const attachmentId = attachment?.id
   useEffect(() => {
     if (isOpen && attachmentId) {
@@ -114,7 +86,7 @@ export function AttachmentPreviewModal({
     }
   }, [isOpen, attachmentId, fetchSignedUrl])
 
-  // Safety timeout: clear contentLoading after 15s even if iframe onLoad never fires
+  // Safety timeout: clear contentLoading after 15s if onLoad never fires
   useEffect(() => {
     if (!contentLoading || !signedUrl) return
     const timer = setTimeout(() => setContentLoading(false), 15_000)
@@ -137,38 +109,23 @@ export function AttachmentPreviewModal({
 
   const mimeType = attachment.mime_type
   const Icon = getAttachmentIcon(mimeType)
-  const useImage = isImage(mimeType)
-  const usePdf = isPdf(mimeType)
-  const canOpenInGoogleDocs = !useImage && !usePdf && (isGoogleViewable(mimeType) || isGoogleViewableByExtension(attachment.filename))
-  const canPreview = useImage || usePdf
-
-  const googleViewerUrl = signedUrl
-    ? `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}`
-    : null
+  const canPreview = isImage(mimeType) || isPdf(mimeType)
 
   return (
     <UnifiedModal
       open={isOpen}
       onOpenChange={(open) => { if (!open) onClose() }}
-      size="full"
+      size={canPreview ? "full" : "lg"}
     >
       <UnifiedModalHeader
         title={attachment.filename}
         subtitle={formatFileSize(attachment.file_size)}
         icon={<Icon className="h-5 w-5" />}
-        badge={
-          signedUrl ? (
-            <Button variant="outline" size="sm" onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-2" aria-hidden="true" />
-              Telecharger
-            </Button>
-          ) : undefined
-        }
       />
 
-      <UnifiedModalBody className="p-0 flex-1 min-h-[70vh]">
+      <UnifiedModalBody className={cn("p-0 flex-1", canPreview && "min-h-[70vh]")}>
         <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-background overflow-hidden relative">
-          {/* Loading signed URL */}
+          {/* Loading state */}
           {loading && (
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -179,23 +136,21 @@ export function AttachmentPreviewModal({
           {/* Error state */}
           {error && (
             <div className="flex flex-col items-center gap-4 p-8 text-center">
-              <div className="h-16 w-16 rounded-full bg-red-50 flex items-center justify-center">
+              <div className="h-16 w-16 rounded-full bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
                 <FileText className="h-8 w-8 text-red-500" aria-hidden="true" />
               </div>
               <div>
                 <p className="font-medium">Impossible de charger le fichier</p>
                 <p className="text-sm text-muted-foreground mt-1">{error}</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={fetchSignedUrl}>
-                  <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
-                  Reessayer
-                </Button>
-              </div>
+              <Button variant="outline" onClick={fetchSignedUrl}>
+                <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
+                Reessayer
+              </Button>
             </div>
           )}
 
-          {/* Content loading overlay (for iframe/image load) */}
+          {/* Content loading overlay */}
           {!loading && !error && signedUrl && contentLoading && canPreview && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-50 dark:bg-background z-10">
               <div className="flex flex-col items-center gap-3">
@@ -206,7 +161,7 @@ export function AttachmentPreviewModal({
           )}
 
           {/* Image preview */}
-          {!loading && !error && signedUrl && useImage && (
+          {!loading && !error && signedUrl && isImage(mimeType) && (
             <a href={signedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center h-full">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -220,7 +175,7 @@ export function AttachmentPreviewModal({
           )}
 
           {/* PDF preview */}
-          {!loading && !error && signedUrl && usePdf && (
+          {!loading && !error && signedUrl && isPdf(mimeType) && (
             <iframe
               src={`${signedUrl}#toolbar=1&navpanes=0`}
               className="w-full h-full border-0"
@@ -230,32 +185,33 @@ export function AttachmentPreviewModal({
             />
           )}
 
-          {/* Non-previewable file fallback (includes Google Docs-openable files) */}
+          {/* Download-only fallback */}
           {!loading && !error && signedUrl && !canPreview && (
-            <div className="flex flex-col items-center gap-4 p-8 text-center">
-              <div className="h-16 w-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Icon className="h-8 w-8 text-slate-500" aria-hidden="true" />
+            <div className="flex flex-col items-center gap-6 p-12 text-center max-w-md">
+              <div className="relative">
+                <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shadow-sm">
+                  <Icon className="h-10 w-10 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-md uppercase tracking-wide">
+                  {getFileExtension(attachment.filename)}
+                </div>
               </div>
-              <div>
-                <p className="font-medium">{attachment.filename}</p>
-                <p className="text-sm text-muted-foreground mt-1">
+
+              <div className="space-y-1">
+                <p className="font-medium text-foreground leading-snug">{attachment.filename}</p>
+                <p className="text-sm text-muted-foreground">
                   {formatFileSize(attachment.file_size)}
                 </p>
               </div>
-              <div className="flex gap-3">
-                {canOpenInGoogleDocs && googleViewerUrl && (
-                  <Button asChild>
-                    <a href={googleViewerUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4 mr-2" aria-hidden="true" />
-                      Ouvrir dans Google Docs
-                    </a>
-                  </Button>
-                )}
-                <Button variant="outline" onClick={handleDownload}>
-                  <Download className="h-4 w-4 mr-2" aria-hidden="true" />
-                  Telecharger
-                </Button>
-              </div>
+
+              <p className="text-sm text-muted-foreground">
+                L&apos;apercu n&apos;est pas disponible pour ce type de fichier.
+              </p>
+
+              <Button onClick={handleDownload}>
+                <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+                Telecharger le fichier
+              </Button>
             </div>
           )}
         </div>

@@ -11,7 +11,7 @@ import { CookieConsentProvider } from "@/hooks/use-cookie-consent"
 import { CookieConsentBanner } from "@/components/cookie-consent-banner"
 import { AnalyticsProvider } from "@/components/analytics-provider"
 import { ConnectionStatus } from "@/components/connection-status"
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster as SonnerToaster } from "sonner"
 import EnvironmentLogger from "@/components/environment-logger"
 import LoggerInitializer from "@/components/logger-initializer"
 import { PWARegister } from "@/components/pwa-register"
@@ -73,7 +73,7 @@ export default function RootLayout({
                   <Suspense fallback={null}>{children}</Suspense>
                 </AnalyticsProvider>
                 <ConnectionStatus />
-                <Toaster />
+                <SonnerToaster position="top-right" richColors closeButton />
                 <CookieConsentBanner />
               </CookieConsentProvider>
             </TeamStatusProvider>

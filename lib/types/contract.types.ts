@@ -358,6 +358,8 @@ export interface ContractCardProps {
   onView?: (id: string) => void
   onEdit?: (id: string) => void
   onDelete?: (id: string) => void
+  expiryInfo?: ContractExpiryInfo | null
+  onRefresh?: () => void
 }
 
 /**
@@ -456,6 +458,82 @@ export interface ContractEditClientProps {
 }
 
 // ============================================================================
+// LEASE EXPIRY ALERT SYSTEM (Belgian law)
+// ============================================================================
+
+/**
+ * Catégorie légale du bail, déduite de duration_months.
+ * Détermine les délais de préavis applicables.
+ *
+ * - courte_duree: ≤36 mois (3 ans) — préavis 3 mois
+ * - neuf_ans: 37-108 mois — préavis 6 mois (bailleur)
+ * - longue_duree: >108 mois (>9 ans) — préavis 6 mois (bailleur)
+ */
+export type LeaseCategory = 'courte_duree' | 'neuf_ans' | 'longue_duree'
+
+/**
+ * Palier d'alerte pour l'échéance du bail.
+ *
+ * - critical: alerte précoce (2× deadline légale)
+ * - warning: approche deadline (deadline + 1 mois)
+ * - deadline: deadline légale exacte du préavis
+ * - null: pas dans la fenêtre d'alerte
+ */
+export type AlertTier = 'critical' | 'warning' | 'deadline' | null
+
+/**
+ * Décision du gestionnaire sur l'échéance du bail.
+ * Stockée dans contracts.metadata.expiry_decision
+ */
+export type ExpiryDecision = 'tacite_accepted' | 'will_renew' | 'will_terminate'
+
+/**
+ * Informations complètes sur l'échéance d'un contrat.
+ */
+export interface ContractExpiryInfo {
+  leaseCategory: LeaseCategory
+  daysRemaining: number
+  alertTier: AlertTier
+  /** Délai de préavis légal en jours (90 pour courte durée, 180 pour 9 ans/longue) */
+  noticeDeadlineDays: number
+  /** Date limite d'envoi du préavis */
+  noticeDeadlineDate: string
+  /** true si la deadline de préavis est dépassée */
+  noticeDeadlinePassed: boolean
+  /** Description du risque de renouvellement tacite */
+  tacitRenewalRisk: string
+  /** Décision prise par le gestionnaire (null si aucune) */
+  decision: ExpiryDecision | null
+}
+
+/**
+ * Labels français pour les catégories légales
+ */
+export const LEASE_CATEGORY_LABELS: Record<LeaseCategory, string> = {
+  courte_duree: 'Bail courte durée (≤3 ans)',
+  neuf_ans: 'Bail de 9 ans',
+  longue_duree: 'Bail longue durée (>9 ans)'
+}
+
+/**
+ * Labels français pour les paliers d'alerte
+ */
+export const ALERT_TIER_LABELS: Record<Exclude<AlertTier, null>, string> = {
+  critical: 'Alerte',
+  warning: 'Attention',
+  deadline: 'Deadline'
+}
+
+/**
+ * Labels français pour les décisions d'échéance
+ */
+export const EXPIRY_DECISION_LABELS: Record<ExpiryDecision, string> = {
+  tacite_accepted: 'Renouvellement tacite accepté',
+  will_renew: 'Renouvellement prévu',
+  will_terminate: 'Résiliation prévue'
+}
+
+// ============================================================================
 // STATS & METRICS
 // ============================================================================
 
@@ -483,6 +561,7 @@ export interface ContractWithCalculations extends ContractWithRelations {
   daysRemaining: number       // jours avant expiration
   isExpiringSoon: boolean     // < 30 jours
   isExpired: boolean          // date passee
+  expiryInfo: ContractExpiryInfo  // alertes échéance (droit belge)
 }
 
 // ============================================================================

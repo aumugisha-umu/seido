@@ -1,11 +1,11 @@
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, ClipboardList, Home } from "lucide-react"
 import Link from "next/link"
 import { createServerTeamService } from "@/lib/services"
 
 export default async function ProprietaireDashboard() {
-  const { profile } = await requireRole(['proprietaire'])
+  const { profile } = await getServerAuthContext('proprietaire')
 
   // Get team info
   const teamService = await createServerTeamService()

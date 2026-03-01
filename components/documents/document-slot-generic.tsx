@@ -276,12 +276,15 @@ export function DocumentSlotGeneric({
             <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
           )}
           {hasExpiry && hasFiles && (
-            <div className={cn(compact ? "mt-1" : "mt-1.5")}>
+            <div className={cn("w-full", compact ? "mt-1" : "mt-2")}>
+              {!compact && (
+                <label className="text-[13px] font-medium text-muted-foreground mb-1 block">Échéance</label>
+              )}
               <DatePicker
                 value={expiryDate || ''}
                 onChange={(val) => onExpiryDateChange?.(val || undefined)}
-                placeholder="jj/mm/aaaa"
-                className={cn(compact ? "w-32 [&_input]:h-6 [&_input]:text-[10px] [&_input]:px-1.5 [&_input]:pr-7 [&_button]:h-6 [&_button]:px-1.5 [&_.h-4.w-4]:h-3 [&_.h-4.w-4]:w-3" : "w-40 [&_input]:h-7 [&_input]:text-xs")}
+                placeholder={compact ? "Échéance" : "jj/mm/aaaa"}
+                className={cn(compact ? "w-full [&_input]:h-7 [&_input]:text-xs [&_input]:px-1.5 [&_input]:pr-7 [&_button]:h-7 [&_button]:px-1.5 [&_.h-4.w-4]:h-3 [&_.h-4.w-4]:w-3" : "w-full [&_input]:h-9 [&_input]:text-sm")}
               />
             </div>
           )}

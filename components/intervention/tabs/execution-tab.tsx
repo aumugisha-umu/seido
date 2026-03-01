@@ -7,6 +7,7 @@
  */
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -59,6 +60,7 @@ export function ExecutionTab({
   currentUserId,
   userRole
 }: ExecutionTabProps) {
+  const router = useRouter()
   const [selecting, setSelecting] = useState<string | null>(null)
   const [accepting, setAccepting] = useState<string | null>(null)
   const [withdrawing, setWithdrawing] = useState<string | null>(null)
@@ -149,7 +151,7 @@ export function ExecutionTab({
       const result = await selectTimeSlotAction(interventionId, slotId)
       if (result.success) {
         toast.success('Créneau sélectionné avec succès')
-        window.location.reload()
+        router.refresh()
       } else {
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la sélection du créneau'))
       }
@@ -169,7 +171,7 @@ export function ExecutionTab({
 
       if (result.success) {
         toast.success('Créneau accepté')
-        window.location.reload()
+        router.refresh()
       } else {
         console.error('❌ [ExecutionTab] Failed to accept slot:', result.error)
         toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'acceptation du créneau'))
@@ -193,7 +195,7 @@ export function ExecutionTab({
       const result = await withdrawResponseAction(slotId, interventionId)
       if (result.success) {
         toast.success('Réponse retirée')
-        window.location.reload()
+        router.refresh()
       } else {
         toast.error(formatErrorMessage(result.error, 'Erreur lors du retrait de la réponse'))
       }

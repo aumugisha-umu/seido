@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, type RefObject } from "react"
+import { useState, useMemo, useCallback, type RefObject } from "react"
 import {
   Users,
   User,
@@ -16,6 +16,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Send,
   UserCheck
 } from "lucide-react"
@@ -370,19 +371,23 @@ export function AssignmentSectionV2({
     }
 
     // Si on a des building tenants (building-level), les combiner depuis les lots non-exclus
+    // Deduplicate by user_id (a tenant on 2 lots appears once)
     if (buildingTenants && includeTenants) {
+      const seen = new Set<string>()
       const buildingTenantsFlattened: Contact[] = []
       for (const lotGroup of buildingTenants.byLot) {
-        // Ignorer les lots exclus
         if (excludedLotIds?.includes(lotGroup.lotId)) continue
 
         for (const tenant of lotGroup.tenants) {
+          if (seen.has(tenant.user_id)) continue
+          seen.add(tenant.user_id)
           buildingTenantsFlattened.push({
             id: tenant.user_id,
             name: tenant.name || '',
             email: tenant.email || undefined,
             phone: tenant.phone || undefined,
-            type: 'locataire' as const
+            type: 'locataire' as const,
+            has_account: tenant.has_account
           })
         }
       }
@@ -391,6 +396,44 @@ export function AssignmentSectionV2({
 
     return []
   }, [tenants, buildingTenants, includeTenants, excludedLotIds])
+
+  // Deduplicated tenant list for building interventions (tenant appears once with all their lot references)
+  const uniqueTenants = useMemo(() => {
+    if (!buildingTenants) return []
+    const map = new Map<string, {
+      tenant: (typeof buildingTenants.byLot)[0]['tenants'][0]
+      lots: Array<{ lotId: string; lotReference: string }>
+    }>()
+    for (const lotGroup of buildingTenants.byLot) {
+      for (const tenant of lotGroup.tenants) {
+        const existing = map.get(tenant.user_id)
+        if (existing) {
+          existing.lots.push({ lotId: lotGroup.lotId, lotReference: lotGroup.lotReference })
+        } else {
+          map.set(tenant.user_id, {
+            tenant,
+            lots: [{ lotId: lotGroup.lotId, lotReference: lotGroup.lotReference }]
+          })
+        }
+      }
+    }
+    return Array.from(map.values())
+  }, [buildingTenants])
+
+  // Toggle all lots for a tenant at once (ON→OFF excludes all, OFF→ON includes all)
+  const handleTenantToggle = useCallback((userId: string) => {
+    const entry = uniqueTenants.find(e => e.tenant.user_id === userId)
+    if (!entry || !onLotToggle) return
+    const allIncluded = entry.lots.every(l => !excludedLotIds?.includes(l.lotId))
+    for (const lot of entry.lots) {
+      const isCurrentlyExcluded = excludedLotIds?.includes(lot.lotId)
+      if (allIncluded && !isCurrentlyExcluded) {
+        onLotToggle(lot.lotId)
+      } else if (!allIncluded && isCurrentlyExcluded) {
+        onLotToggle(lot.lotId)
+      }
+    }
+  }, [uniqueTenants, excludedLotIds, onLotToggle])
 
   const allSelectedContacts = [...selectedManagers, ...selectedProviders, ...allTenants]
 
@@ -461,21 +504,20 @@ export function AssignmentSectionV2({
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-blue-600" />
                         <span className="font-semibold text-sm text-blue-900">Locataires</span>
-                        {/* Badge count - shows included tenants only */}
+                        {/* Badge count - shows unique included tenants + total lots */}
                         {buildingTenants ? (
                           (() => {
-                            const includedCount = buildingTenants.byLot
-                              .filter(lot => !excludedLotIds?.includes(lot.lotId))
-                              .reduce((sum, lot) => sum + lot.tenants.length, 0)
-                            const includedLotsCount = buildingTenants.byLot
-                              .filter(lot => !excludedLotIds?.includes(lot.lotId)).length
-                            return includedCount > 0 && (
+                            const includedUniqueCount = uniqueTenants.filter(({ lots }) =>
+                              lots.some(l => !excludedLotIds?.includes(l.lotId))
+                            ).length
+                            const totalLotsCount = buildingTenants.byLot.length
+                            return includedUniqueCount > 0 && (
                               <>
                                 <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
-                                  {includedCount}
+                                  {includedUniqueCount}
                                 </span>
                                 <span className="text-xs text-blue-600">
-                                  sur {includedLotsCount} lot{includedLotsCount > 1 ? 's' : ''}
+                                  participant{includedUniqueCount > 1 ? 's' : ''} sur {totalLotsCount} lot{totalLotsCount > 1 ? 's' : ''}
                                 </span>
                               </>
                             )
@@ -503,96 +545,72 @@ export function AssignmentSectionV2({
                           Chargement des locataires...
                         </div>
                       ) : buildingTenants ? (
-                        /* Building tenants - grouped by lot with individual switches */
+                        /* Building tenants - hybrid view: deduplicated list + collapsible per-lot */
                         includeTenants && buildingTenants.byLot.length > 0 ? (
-                          <div className="space-y-3 max-h-60 overflow-y-auto">
-                            {buildingTenants.byLot.map((lotGroup) => {
-                              const isLotIncluded = !excludedLotIds?.includes(lotGroup.lotId)
+                          <div className="space-y-2 max-h-72 overflow-y-auto">
+                            {/* Zone A: Deduplicated tenant list */}
+                            <div className="space-y-1.5">
+                              {uniqueTenants.map(({ tenant, lots }) => {
+                                const isInvited = (tenant as any).has_account !== false
+                                const allLotIncluded = lots.every(l => !excludedLotIds?.includes(l.lotId))
 
-                              return (
-                                <div key={lotGroup.lotId}>
-                                  {/* Lot header with switch */}
-                                  <div className="flex items-center justify-between mb-1.5 px-1">
-                                    <span className="text-xs font-medium text-slate-600">
-                                      {lotGroup.lotReference}
-                                      <span className="text-slate-400 ml-1">
-                                        ({lotGroup.tenants.length})
-                                      </span>
-                                    </span>
+                                return (
+                                  <div key={tenant.user_id} className={cn(
+                                    "flex items-center gap-2 p-2 rounded border",
+                                    isInvited ? "bg-blue-50/50 border-blue-100" : "bg-slate-50 border-slate-200",
+                                    !allLotIncluded && "opacity-50"
+                                  )}>
+                                    <div className={cn(
+                                      "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0",
+                                      isInvited ? "bg-blue-200" : "bg-slate-200"
+                                    )}>
+                                      <User className={cn("w-4 h-4", isInvited ? "text-blue-700" : "text-slate-500")} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className={cn("font-medium text-sm truncate", !isInvited && "text-slate-600")}>
+                                          {tenant.name}
+                                        </span>
+                                        {isInvited && (
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[10px] px-1.5 py-0 h-4 bg-green-50 text-green-700 border-green-300"
+                                          >
+                                            Compte Seido
+                                          </Badge>
+                                        )}
+                                        {lots.map(l => (
+                                          <span key={l.lotId} className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-medium">
+                                            {l.lotReference}
+                                          </span>
+                                        ))}
+                                      </div>
+                                      {tenant.email && (
+                                        <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                                      )}
+                                    </div>
                                     <Switch
-                                      checked={isLotIncluded}
-                                      onCheckedChange={() => onLotToggle?.(lotGroup.lotId)}
+                                      checked={allLotIncluded}
+                                      onCheckedChange={() => handleTenantToggle(tenant.user_id)}
                                       className="scale-75 data-[state=checked]:bg-blue-600"
                                     />
                                   </div>
-                                  {/* Tenants in this lot (greyed out if excluded) */}
-                                  {/* ✅ FIX 2026-02-01: Show indicator for non-invited users */}
-                                  <div className={cn("space-y-1", !isLotIncluded && "opacity-40")}>
-                                    {lotGroup.tenants.map((tenant, index) => {
-                                      const isInvited = (tenant as any).has_account !== false
+                                )
+                              })}
+                            </div>
 
-                                      return (
-                                        <div
-                                          key={tenant.id || `tenant-${lotGroup.lotId}-${index}`}
-                                          className={cn(
-                                            "flex items-center gap-2 p-2 rounded border",
-                                            isInvited
-                                              ? "bg-blue-50/50 border-blue-100"
-                                              : "bg-slate-50 border-slate-200"
-                                          )}
-                                        >
-                                          <div className={cn(
-                                            "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0",
-                                            isInvited ? "bg-blue-200" : "bg-slate-200"
-                                          )}>
-                                            <User className={cn(
-                                              "w-4 h-4",
-                                              isInvited ? "text-blue-700" : "text-slate-500"
-                                            )} />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                              <span className={cn(
-                                                "font-medium text-sm truncate",
-                                                !isInvited && "text-slate-600"
-                                              )}>
-                                                {tenant.name}
-                                              </span>
-                                              {!isInvited && (
-                                                <Badge
-                                                  variant="outline"
-                                                  className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 border-slate-300"
-                                                  title="Ce contact n'a pas de compte. Il ne recevra pas de notifications."
-                                                >
-                                                  Non invité
-                                                </Badge>
-                                              )}
-                                            </div>
-                                            {tenant.email && (
-                                              <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                            {/* Info message for building - ✅ Updated to mention non-invited users */}
+                            {/* Info message */}
                             {(() => {
-                              const includedLots = buildingTenants.byLot.filter(lot => !excludedLotIds?.includes(lot.lotId))
-                              const allIncludedTenants = includedLots.flatMap(lot => lot.tenants)
-                              const invitedCount = allIncludedTenants.filter(t => (t as any).has_account !== false).length
-                              const nonInvitedCount = allIncludedTenants.length - invitedCount
+                              const invitedCount = uniqueTenants.filter(({ tenant }) => (tenant as any).has_account !== false).length
+                              const nonInvitedCount = uniqueTenants.length - invitedCount
 
                               return (
-                                <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 mt-2">
+                                <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
                                   <Info className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
                                   <p className="text-xs text-blue-700">
                                     {invitedCount > 0 ? (
                                       <>
-                                        {invitedCount > 1 ? 'Les locataires invités pourront' : 'Le locataire invité pourra'} suivre l'intervention et interagir dans le chat.
+                                        {invitedCount > 1 ? 'Les locataires invités pourront' : 'Le locataire invité pourra'} suivre l&apos;intervention et interagir dans le chat.
                                         {nonInvitedCount > 0 && (
                                           <span className="text-slate-500 block mt-1">
                                             {nonInvitedCount > 1
@@ -608,6 +626,85 @@ export function AssignmentSectionV2({
                                 </div>
                               )
                             })()}
+
+                            {/* Zone B: Collapsible per-lot accordion */}
+                            <details className="group">
+                              <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-700 py-1.5 flex items-center gap-1 select-none">
+                                <ChevronRight className="h-3 w-3 transition-transform group-open:rotate-90" />
+                                Contrôle par lot
+                              </summary>
+                              <div className="space-y-3 mt-1.5">
+                                {buildingTenants.byLot.map((lotGroup) => {
+                                  const isLotIncluded = !excludedLotIds?.includes(lotGroup.lotId)
+
+                                  return (
+                                    <div key={lotGroup.lotId}>
+                                      <div className="flex items-center justify-between mb-1.5 px-1">
+                                        <span className="text-xs font-medium text-slate-600">
+                                          {lotGroup.lotReference}
+                                          <span className="text-slate-400 ml-1">
+                                            ({lotGroup.tenants.length})
+                                          </span>
+                                        </span>
+                                        <Switch
+                                          checked={isLotIncluded}
+                                          onCheckedChange={() => onLotToggle?.(lotGroup.lotId)}
+                                          className="scale-75 data-[state=checked]:bg-blue-600"
+                                        />
+                                      </div>
+                                      <div className={cn("space-y-1", !isLotIncluded && "opacity-40")}>
+                                        {lotGroup.tenants.map((tenant, index) => {
+                                          const isInvited = (tenant as any).has_account !== false
+
+                                          return (
+                                            <div
+                                              key={tenant.id || `tenant-${lotGroup.lotId}-${index}`}
+                                              className={cn(
+                                                "flex items-center gap-2 p-2 rounded border",
+                                                isInvited
+                                                  ? "bg-blue-50/50 border-blue-100"
+                                                  : "bg-slate-50 border-slate-200"
+                                              )}
+                                            >
+                                              <div className={cn(
+                                                "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0",
+                                                isInvited ? "bg-blue-200" : "bg-slate-200"
+                                              )}>
+                                                <User className={cn(
+                                                  "w-4 h-4",
+                                                  isInvited ? "text-blue-700" : "text-slate-500"
+                                                )} />
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                  <span className={cn(
+                                                    "font-medium text-sm truncate",
+                                                    !isInvited && "text-slate-600"
+                                                  )}>
+                                                    {tenant.name}
+                                                  </span>
+                                                  {isInvited && (
+                                                    <Badge
+                                                      variant="outline"
+                                                      className="text-[10px] px-1.5 py-0 h-4 bg-green-50 text-green-700 border-green-300"
+                                                    >
+                                                      Compte Seido
+                                                    </Badge>
+                                                  )}
+                                                </div>
+                                                {tenant.email && (
+                                                  <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </details>
                           </div>
                         ) : (
                           <div className="p-3 text-center text-xs text-gray-500">
@@ -649,13 +746,12 @@ export function AssignmentSectionV2({
                                       )}>
                                         {tenant.name}
                                       </span>
-                                      {!isInvited && (
+                                      {isInvited && (
                                         <Badge
                                           variant="outline"
-                                          className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 border-slate-300"
-                                          title="Ce contact n'a pas de compte. Il ne recevra pas de notifications et ne pourra pas interagir avec l'application."
+                                          className="text-[10px] px-1.5 py-0 h-4 bg-green-50 text-green-700 border-green-300"
                                         >
-                                          Non invité
+                                          Compte Seido
                                         </Badge>
                                       )}
                                     </div>
@@ -988,12 +1084,12 @@ export function AssignmentSectionV2({
                         />
                       </div>
 
-                      {/* Sélection individuelle si toggle activé */}
+                      {/* Sélection individuelle si toggle activé — only contacts with Seido accounts */}
                       {requiresConfirmation && onConfirmationRequiredChange && (
                         <ParticipantConfirmationSelector
                           managers={selectedManagers}
-                          providers={selectedProviders}
-                          tenants={allTenants}
+                          providers={selectedProviders.filter(p => (p as any).has_account !== false)}
+                          tenants={allTenants.filter(t => t.has_account !== false)}
                           confirmationRequired={confirmationRequired}
                           onToggle={onConfirmationRequiredChange}
                           mandatory={false}
@@ -1024,8 +1120,8 @@ export function AssignmentSectionV2({
                     </div>
                   )}
 
-                  {/* Section confirmation OBLIGATOIRE pour le mode créneaux */}
-                  {hasOtherParticipants && onConfirmationRequiredChange && (
+                  {/* Section confirmation: OBLIGATOIRE si 2+ créneaux, OPTIONNELLE si 1 créneau (like fixed) */}
+                  {hasOtherParticipants && onConfirmationRequiredChange && timeSlots.length >= 2 && (
                     <div className="border border-blue-200 rounded-lg p-4 bg-blue-50/50">
                       <div className="flex items-center gap-2 mb-1">
                         <UserCheck className="h-5 w-5 text-blue-600" />
@@ -1042,12 +1138,42 @@ export function AssignmentSectionV2({
 
                       <ParticipantConfirmationSelector
                         managers={selectedManagers}
-                        providers={selectedProviders}
-                        tenants={allTenants}
+                        providers={selectedProviders.filter(p => (p as any).has_account !== false)}
+                        tenants={allTenants.filter(t => t.has_account !== false)}
                         confirmationRequired={confirmationRequired}
                         onToggle={onConfirmationRequiredChange}
                         mandatory={true}
                       />
+                    </div>
+                  )}
+
+                  {/* 1 créneau = optional confirmation toggle (like Date fixe) */}
+                  {hasOtherParticipants && onRequiresConfirmationChange && timeSlots.length === 1 && (
+                    <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <UserCheck className="h-5 w-5 text-blue-600" />
+                          <Label className="text-sm font-medium cursor-pointer">
+                            Demander confirmation des participants
+                          </Label>
+                        </div>
+                        <Switch
+                          checked={requiresConfirmation}
+                          onCheckedChange={onRequiresConfirmationChange}
+                          className="data-[state=checked]:bg-blue-600"
+                        />
+                      </div>
+
+                      {requiresConfirmation && onConfirmationRequiredChange && (
+                        <ParticipantConfirmationSelector
+                          managers={selectedManagers}
+                          providers={selectedProviders.filter(p => (p as any).has_account !== false)}
+                          tenants={allTenants.filter(t => t.has_account !== false)}
+                          confirmationRequired={confirmationRequired}
+                          onToggle={onConfirmationRequiredChange}
+                          mandatory={false}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

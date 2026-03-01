@@ -50,6 +50,7 @@ import { ConversationThread } from './conversation-thread'
 import { MarkAsProcessedDialog } from './mark-as-processed-dialog'
 import { InternalChatPanel } from './internal-chat-panel'
 import { LinkToEntityDialog } from './link-to-entity-dialog'
+import type { MutableRefObject } from 'react'
 import {
   EmailLinkWithDetails,
   EMAIL_LINK_DISPLAY_CONFIG,
@@ -69,6 +70,7 @@ interface EmailDetailProps {
   allEmails: MailboxEmail[]
   buildings: Building[]
   teamId?: string
+  emailLinksCache: MutableRefObject<Map<string, EmailLinkWithDetails[]>>
   onReply?: (replyText: string) => void
   onArchive?: () => void
   onDelete?: () => void
@@ -87,6 +89,7 @@ export function EmailDetail({
   allEmails,
   buildings,
   teamId,
+  emailLinksCache,
   onReply,
   onArchive,
   onDelete,
@@ -156,10 +159,9 @@ export function EmailDetail({
     }
   }, [boxMode, email.cc_addresses])
 
-  // Email links state with in-memory cache to avoid re-fetching same email
+  // Email links state (cache lives in parent MailClient to survive key-based remounts)
   const [emailLinks, setEmailLinks] = useState<EmailLinkWithDetails[]>([])
   const [isLoadingLinks, setIsLoadingLinks] = useState(false)
-  const emailLinksCache = useRef<Map<string, EmailLinkWithDetails[]>>(new Map())
 
   // Fetch email links with caching
   const fetchEmailLinks = useCallback(async (forceRefresh = false) => {
@@ -189,7 +191,7 @@ export function EmailDetail({
     } finally {
       setIsLoadingLinks(false)
     }
-  }, [email.id])
+  }, [email.id, emailLinksCache])
 
   // Load links when email changes
   useEffect(() => {

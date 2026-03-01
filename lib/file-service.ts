@@ -44,14 +44,15 @@ export const fileService = {
       const fileExtension = file.name.split('.').pop()
       const uniqueFileName = `${timestamp}-${randomSuffix}.${fileExtension}`
 
-      // Define storage path: interventions/{intervention_id}/{unique_filename}
-      const storagePath = `interventions/${metadata.interventionId}/${uniqueFileName}`
+      // Define storage path: {team_id}/{intervention_id}/{unique_filename}
+      // team_id first for RLS path-based checks on 'documents' bucket
+      const storagePath = `${metadata.teamId}/${metadata.interventionId}/${uniqueFileName}`
 
       logger.info("📁 Generated storage path:", storagePath)
 
-      // Upload file to Supabase Storage
+      // Upload file to Supabase Storage (unified 'documents' bucket)
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('intervention-documents')
+        .from('documents')
         .upload(storagePath, file, {
           cacheControl: '3600',
           upsert: false // Don't overwrite existing files
@@ -66,7 +67,7 @@ export const fileService = {
 
       // Get the public URL (for signed URL generation later)
       const { data: urlData } = supabase.storage
-        .from('intervention-documents')
+        .from('documents')
         .getPublicUrl(storagePath)
 
       // Create database record
@@ -78,7 +79,7 @@ export const fileService = {
         file_size: file.size,
         mime_type: file.type,
         storage_path: storagePath,
-        storage_bucket: 'intervention-documents',
+        storage_bucket: 'documents',
         uploaded_by: metadata.uploadedBy,
         uploaded_at: new Date().toISOString(),
         document_type: metadata.documentType || null,
@@ -100,7 +101,7 @@ export const fileService = {
         // Try to clean up uploaded file if database insert fails
         try {
           await supabase.storage
-            .from('intervention-documents')
+            .from('documents')
             .remove([storagePath])
           logger.info("🧹 Cleaned up uploaded file after database error")
         } catch (cleanupError) {
@@ -166,10 +167,10 @@ export const fileService = {
    * Get a signed URL for a document (for secure access)
    * Requires an authenticated Supabase client
    */
-  async getSignedUrl(supabase: SupabaseClient<Database>, storagePath: string, expiresInSeconds: number = 3600): Promise<string> {
+  async getSignedUrl(supabase: SupabaseClient<Database>, storagePath: string, expiresInSeconds: number = 3600, storageBucket: string = 'documents'): Promise<string> {
     try {
       const { data, error } = await supabase.storage
-        .from('intervention-documents')
+        .from(storageBucket)
         .createSignedUrl(storagePath, expiresInSeconds)
 
       if (error) {
@@ -192,10 +193,10 @@ export const fileService = {
     try {
       logger.info("🗑️ Deleting document:", documentId)
 
-      // Get document record first to get storage path
+      // Get document record first to get storage path and bucket
       const { data: document, error: fetchError } = await supabase
         .from('intervention_documents')
-        .select('storage_path')
+        .select('storage_path, storage_bucket')
         .eq('id', documentId)
         .single()
 
@@ -208,9 +209,9 @@ export const fileService = {
         throw new Error(`Document not found: ${documentId}`)
       }
 
-      // Delete from storage
+      // Delete from storage (use bucket from DB record, fallback to 'documents')
       const { error: storageError } = await supabase.storage
-        .from('intervention-documents')
+        .from(document.storage_bucket || 'documents')
         .remove([document.storage_path])
 
       if (storageError) {
@@ -251,7 +252,7 @@ export const fileService = {
       }
     }
 
-    // Check allowed MIME types (matching the bucket configuration)
+    // Check allowed MIME types (matching the 'documents' bucket configuration)
     const allowedTypes = [
       'image/jpeg',
       'image/png',
@@ -263,7 +264,11 @@ export const fileService = {
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'text/plain',
-      'application/zip'
+      'application/zip',
+      'application/x-zip-compressed',
+      'audio/webm',
+      'audio/mp4',
+      'audio/mpeg'
     ]
 
     if (!allowedTypes.includes(file.type)) {

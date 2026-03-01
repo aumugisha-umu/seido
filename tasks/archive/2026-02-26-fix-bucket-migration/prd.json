@@ -1,0 +1,106 @@
+{
+  "project": "SEIDO",
+  "featureName": "Fix Bucket Migration — Unify all storage paths to 'documents' bucket",
+  "branchName": "preview",
+  "description": "The unified 'documents' bucket migration (20260220150000) was partial. 6 critical code paths still reference the deleted/missing 'intervention-documents' bucket, causing 404 'Bucket not found' errors when viewing tenant-uploaded attachments. All upload paths, signed URL generators, and DB defaults must migrate to the 'documents' bucket with the new path format {team_id}/{entity_id}/{filename}.",
+  "createdAt": "2026-02-26",
+  "prdSource": "inline",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Migrate file-service.ts to 'documents' bucket (fixes tenant attachment bug)",
+      "description": "As a gestionnaire, when I open an attachment uploaded by a tenant during intervention creation, the document loads correctly instead of showing 'Bucket not found'.",
+      "acceptanceCriteria": [
+        "Upload uses .from('documents') instead of .from('intervention-documents')",
+        "Storage path follows new format: {team_id}/{intervention_id}/{filename}",
+        "DB insert writes storage_bucket: 'documents'",
+        "getPublicUrl, createSignedUrl, cleanup, and delete all use 'documents' bucket",
+        "Fallback for old records: getSignedUrl and deleteInterventionDocument read storage_bucket from document record when available",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Migrated all 6 bucket references in file-service.ts. Path format changed from interventions/{id}/{file} to {team_id}/{id}/{file}. getSignedUrl now accepts storageBucket param. deleteInterventionDocument reads storage_bucket from DB record. Also added audio MIME types to validateFile()."
+    },
+    {
+      "id": "US-002",
+      "title": "Migrate conversations/upload to 'documents' bucket",
+      "description": "As a user, when I upload a chat attachment in a conversation thread, the file is stored in the unified 'documents' bucket with the correct path format.",
+      "acceptanceCriteria": [
+        "Upload uses .from('documents') instead of .from('intervention-documents')",
+        "Storage path follows new format: {team_id}/{intervention_id}/{filename} (team_id from thread)",
+        "DB insert writes storage_bucket: 'documents'",
+        "Cleanup and signed URL generation use 'documents' bucket",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Migrated all 5 bucket references. Path format now includes team_id from thread.team_id. Upload, DB insert, cleanup, and signed URL all use 'documents'."
+    },
+    {
+      "id": "US-003",
+      "title": "Fix conversation-service.ts signed URLs to use storage_bucket column",
+      "description": "As a user viewing chat attachments, signed URLs are generated from the correct bucket (read from the document's storage_bucket column) instead of being hardcoded.",
+      "acceptanceCriteria": [
+        "enrichMessagesWithSignedUrls uses attachment.storage_bucket || 'documents' instead of hardcoded 'intervention-documents'",
+        "Old attachments in 'intervention-documents' bucket still work via fallback",
+        "New attachments in 'documents' bucket also work",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Changed hardcoded 'intervention-documents' to attachment.storage_bucket || 'documents' for dynamic bucket resolution."
+    },
+    {
+      "id": "US-004",
+      "title": "Fix intervention modifier page signed URLs",
+      "description": "As a gestionnaire editing an intervention, document previews load correctly from the bucket stored in the document record.",
+      "acceptanceCriteria": [
+        "Signed URL generation uses doc.storage_bucket || 'documents' instead of hardcoded 'intervention-documents'",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Changed hardcoded 'intervention-documents' to doc.storage_bucket || 'documents'."
+    },
+    {
+      "id": "US-005",
+      "title": "Fix resend-inbound webhook email attachment uploads",
+      "description": "As a system processing inbound emails, email attachments are stored in the 'email-attachments' bucket (matching the download route) instead of the deleted 'intervention-documents' bucket.",
+      "acceptanceCriteria": [
+        "Email attachment upload uses .from('email-attachments') (matching download route at /api/emails/[id]/attachments/[attachmentId])",
+        "Storage path includes team_id: {team_id}/{intervention_id}/email-attachments/{timestamp}_{filename}",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Fixed pre-existing mismatch: webhook was uploading to 'intervention-documents' but download route reads from 'email-attachments'. Now aligned. Path updated with team_id prefix."
+    },
+    {
+      "id": "US-006",
+      "title": "Create DB migration to change intervention_documents default bucket",
+      "description": "Change the intervention_documents.storage_bucket column default from 'intervention-documents' to 'documents' so any new records automatically use the correct bucket.",
+      "acceptanceCriteria": [
+        "New migration file changes DEFAULT to 'documents'",
+        "Types regenerated with npm run supabase:types (if default affects types)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-002"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Created migration 20260226100000_change_intervention_documents_default_bucket.sql. Also updated column comment to document the legacy bucket."
+    }
+  ]
+}

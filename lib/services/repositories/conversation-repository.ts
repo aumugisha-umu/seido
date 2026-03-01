@@ -30,6 +30,22 @@ type ConversationMessageInsert = Database['public']['Tables']['conversation_mess
 type ConversationParticipant = Database['public']['Tables']['conversation_participants']['Row']
 type ThreadType = Database['public']['Enums']['conversation_thread_type']
 
+// Dashboard unread thread type (exported for UI components)
+export interface UnreadThread {
+  threadId: string
+  threadType: string
+  interventionId: string
+  interventionTitle: string
+  interventionReference: string
+  unreadCount: number
+  lastMessage: {
+    content: string
+    senderName: string
+    createdAt: string
+  }
+  latestMessageId: string
+}
+
 // Extended types
 interface ThreadWithMessages extends ConversationThread {
   messages?: ConversationMessage[]
@@ -630,6 +646,208 @@ export class ConversationRepository {
       return createSuccessResponse(totalUnread)
     } catch (error) {
       return createErrorResponse(handleError(error, 'conversation:getUnreadCount'))
+    }
+  }
+
+  /**
+   * Get unread threads with details for dashboard display
+   * ✅ OPTIMIZED: 5 batch queries, no N+1
+   * Returns threads with intervention details + last message preview
+   */
+  async getUnreadThreadsForDashboard(userId: string): Promise<{
+    success: boolean
+    data?: { threads: UnreadThread[]; totalCount: number }
+    error?: any
+  }> {
+    try {
+      validateUUID(userId)
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 1: Get all participations with thread details
+      // ════════════════════════════════════════════════════════════════════
+      const { data: participations, error: pError } = await this.supabase
+        .from('conversation_participants')
+        .select(`
+          thread_id,
+          last_read_message_id,
+          thread:thread_id(
+            id,
+            thread_type,
+            intervention_id,
+            message_count
+          )
+        `)
+        .eq('user_id', userId)
+
+      if (pError) {
+        return createErrorResponse(handleError(pError, 'conversation:getUnreadThreadsForDashboard'))
+      }
+
+      if (!participations || participations.length === 0) {
+        return createSuccessResponse({ threads: [], totalCount: 0 })
+      }
+
+      // Filter to threads linked to an intervention
+      const interventionParticipations = participations.filter(
+        p => p.thread && (p.thread as Record<string, unknown>).intervention_id
+      )
+
+      if (interventionParticipations.length === 0) {
+        return createSuccessResponse({ threads: [], totalCount: 0 })
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 2: Batch fetch last_read message timestamps
+      // ════════════════════════════════════════════════════════════════════
+      const lastReadMessageIds = interventionParticipations
+        .map(p => p.last_read_message_id)
+        .filter(Boolean) as string[]
+
+      const messageTimestamps = new Map<string, string>()
+      if (lastReadMessageIds.length > 0) {
+        const { data: msgs } = await this.supabase
+          .from('conversation_messages')
+          .select('id, created_at')
+          .in('id', lastReadMessageIds)
+
+        for (const msg of msgs || []) {
+          messageTimestamps.set(msg.id, msg.created_at)
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 3: Get all messages for threads (with content + user_id)
+      // ════════════════════════════════════════════════════════════════════
+      const threadIds = interventionParticipations.map(p => p.thread_id)
+      const { data: allMessages } = await this.supabase
+        .from('conversation_messages')
+        .select('id, thread_id, content, created_at, user_id')
+        .in('thread_id', threadIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      // Group messages by thread (already sorted DESC)
+      const messagesByThread = new Map<string, Array<{
+        id: string; thread_id: string; content: string; created_at: string; user_id: string
+      }>>()
+      for (const msg of allMessages || []) {
+        if (!messagesByThread.has(msg.thread_id)) {
+          messagesByThread.set(msg.thread_id, [])
+        }
+        messagesByThread.get(msg.thread_id)!.push(msg)
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Calculate unread threads with details
+      // ════════════════════════════════════════════════════════════════════
+      const unreadThreads: Array<{
+        threadId: string
+        threadType: string
+        interventionId: string
+        unreadCount: number
+        lastMessageContent: string
+        lastMessageCreatedAt: string
+        lastMessageUserId: string
+        latestMessageId: string
+      }> = []
+
+      for (const participation of interventionParticipations) {
+        const thread = participation.thread as Record<string, unknown>
+        const threadMessages = messagesByThread.get(participation.thread_id) || []
+
+        if (threadMessages.length === 0) continue
+
+        let unreadCount: number
+        if (!participation.last_read_message_id) {
+          // Never read → all messages are unread
+          unreadCount = threadMessages.length
+        } else {
+          const lastReadTimestamp = messageTimestamps.get(participation.last_read_message_id)
+          if (lastReadTimestamp) {
+            unreadCount = threadMessages.filter(m => m.created_at > lastReadTimestamp).length
+          } else {
+            unreadCount = 0
+          }
+        }
+
+        if (unreadCount === 0) continue
+
+        const lastMsg = threadMessages[0] // Already sorted DESC
+        unreadThreads.push({
+          threadId: participation.thread_id,
+          threadType: thread.thread_type as string,
+          interventionId: thread.intervention_id as string,
+          unreadCount,
+          lastMessageContent: lastMsg.content,
+          lastMessageCreatedAt: lastMsg.created_at,
+          lastMessageUserId: lastMsg.user_id,
+          latestMessageId: lastMsg.id
+        })
+      }
+
+      if (unreadThreads.length === 0) {
+        return createSuccessResponse({ threads: [], totalCount: 0 })
+      }
+
+      // Sort by most recent message first
+      unreadThreads.sort((a, b) =>
+        new Date(b.lastMessageCreatedAt).getTime() - new Date(a.lastMessageCreatedAt).getTime()
+      )
+
+      const totalCount = unreadThreads.length
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 4: Batch fetch intervention details
+      // ════════════════════════════════════════════════════════════════════
+      const interventionIds = [...new Set(unreadThreads.map(t => t.interventionId))]
+      const { data: interventions } = await this.supabase
+        .from('interventions')
+        .select('id, title, reference')
+        .in('id', interventionIds)
+
+      const interventionMap = new Map<string, { title: string; reference: string }>()
+      for (const i of interventions || []) {
+        interventionMap.set(i.id, { title: i.title || '', reference: i.reference || '' })
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 5: Batch fetch sender names
+      // ════════════════════════════════════════════════════════════════════
+      const senderIds = [...new Set(unreadThreads.map(t => t.lastMessageUserId))]
+      const { data: users } = await this.supabase
+        .from('users')
+        .select('id, first_name, last_name')
+        .in('id', senderIds)
+
+      const userMap = new Map<string, string>()
+      for (const u of users || []) {
+        userMap.set(u.id, `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Utilisateur')
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Build final result
+      // ════════════════════════════════════════════════════════════════════
+      const threads: UnreadThread[] = unreadThreads.map(t => {
+        const intervention = interventionMap.get(t.interventionId)
+        return {
+          threadId: t.threadId,
+          threadType: t.threadType,
+          interventionId: t.interventionId,
+          interventionTitle: intervention?.title || 'Intervention',
+          interventionReference: intervention?.reference || '',
+          unreadCount: t.unreadCount,
+          lastMessage: {
+            content: t.lastMessageContent,
+            senderName: userMap.get(t.lastMessageUserId) || 'Utilisateur',
+            createdAt: t.lastMessageCreatedAt
+          },
+          latestMessageId: t.latestMessageId
+        }
+      })
+
+      return createSuccessResponse({ threads, totalCount })
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'conversation:getUnreadThreadsForDashboard'))
     }
   }
 

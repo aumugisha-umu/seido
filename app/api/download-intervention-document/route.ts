@@ -62,9 +62,12 @@ export async function GET(request: NextRequest) {
     logger.info({ document: document.storage_path }, "🔐 Generating signed URL for:")
 
     // Generate signed URL for download (valid for 1 hour)
+    // Pass download option to set Content-Disposition: attachment (forces download on cross-origin URLs)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from(document.storage_bucket || 'intervention-documents')
-      .createSignedUrl(document.storage_path, 3600) // 1 hour expiry
+      .from(document.storage_bucket || 'documents')
+      .createSignedUrl(document.storage_path, 3600, {
+        download: document.original_filename || true
+      })
 
     if (signedUrlError || !signedUrlData) {
       logger.error({ error: signedUrlError }, "❌ Error generating signed URL:")

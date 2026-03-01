@@ -206,54 +206,75 @@ export function WorkflowActions({
 
   // Handle action execution
   const handleAction = async (action: keyof typeof WORKFLOW_ACTIONS) => {
+    // 1. Capture all form state into local const FIRST (before any state changes)
+    const localRejectReason = rejectReason
+    const localCancelReason = cancelReason
+    const localManagerComment = managerComment
+    const localProviderComment = providerComment
+    const localSatisfaction = satisfaction
+    const localFinalCost = finalCost
+    const localSelectedProvider = selectedProvider
+
+    // 2. Validate BEFORE closing dialog
+    switch (action) {
+      case 'reject':
+        if (!localRejectReason || localRejectReason.length < 10) {
+          toast.error('Veuillez fournir une raison détaillée (min. 10 caractères)')
+          return
+        }
+        break
+      case 'cancel':
+        if (!localCancelReason || localCancelReason.length < 10) {
+          toast.error('Veuillez fournir une raison détaillée (min. 10 caractères)')
+          return
+        }
+        break
+      case 'requestQuote':
+        if (!localSelectedProvider) {
+          toast.error('Veuillez sélectionner un prestataire')
+          return
+        }
+        break
+    }
+
+    // 3. Close dialog immediately — validation passed
+    setDialogOpen(null)
+
+    // 4. Execute action (optimistic update handled by useInterventionWorkflow)
     try {
       switch (action) {
         case 'approve':
-          await workflow.approve(managerComment)
+          await workflow.approve(localManagerComment)
           break
         case 'reject':
-          if (!rejectReason || rejectReason.length < 10) {
-            toast.error('Veuillez fournir une raison détaillée (min. 10 caractères)')
-            return
-          }
-          await workflow.reject(rejectReason)
+          await workflow.reject(localRejectReason)
           break
         case 'requestQuote':
-          if (!selectedProvider) {
-            toast.error('Veuillez sélectionner un prestataire')
-            return
-          }
-          await workflow.requestQuote(selectedProvider)
+          await workflow.requestQuote(localSelectedProvider)
           break
         case 'startPlanning':
           await workflow.startPlanning()
           break
         case 'confirmSchedule':
-          // This would need slot selection logic
           toast.info('Sélection de créneau requise')
           break
         case 'startWork':
           await workflow.startWork()
           break
         case 'completeWork':
-          await workflow.completeWork(providerComment)
+          await workflow.completeWork(localProviderComment)
           break
         case 'validateWork':
-          await workflow.validateWork(satisfaction)
+          await workflow.validateWork(localSatisfaction)
           break
         case 'finalize':
-          await workflow.finalize(finalCost)
+          await workflow.finalize(localFinalCost)
           break
         case 'cancel':
-          if (!cancelReason || cancelReason.length < 10) {
-            toast.error('Veuillez fournir une raison détaillée (min. 10 caractères)')
-            return
-          }
-          await workflow.cancel(cancelReason)
+          await workflow.cancel(localCancelReason)
           break
       }
 
-      setDialogOpen(null)
       if (onStatusChange && WORKFLOW_ACTIONS[action].nextStatus) {
         onStatusChange(WORKFLOW_ACTIONS[action].nextStatus)
       }

@@ -15,6 +15,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   UnifiedModal,
   UnifiedModalHeader,
@@ -570,6 +571,7 @@ export function MultiSlotResponseModal({
   // STATE
   // ============================================================================
 
+  const router = useRouter()
   const [slotResponses, setSlotResponses] = useState<Record<string, SlotResponse>>({})
   const [globalComment, setGlobalComment] = useState('')
   const [proposedSlots, setProposedSlots] = useState<ProposedSlot[]>([])
@@ -747,7 +749,7 @@ export function MultiSlotResponseModal({
       )
       onClose()
       onSuccess?.()
-      window.location.reload()
+      router.refresh()
     } catch (err) {
       console.error('Error submitting responses:', err)
       const message = err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement'
@@ -766,7 +768,8 @@ export function MultiSlotResponseModal({
     hasAccepted,
     userProposedSlotIds,
     onClose,
-    onSuccess
+    onSuccess,
+    router
   ])
 
   // ============================================================================

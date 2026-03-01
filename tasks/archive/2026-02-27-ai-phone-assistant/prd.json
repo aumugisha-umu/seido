@@ -1,0 +1,260 @@
+{
+  "project": "SEIDO",
+  "featureName": "AI Phone Assistant",
+  "branchName": "feature/ai-phone-assistant",
+  "description": "Assistant telephonique IA par equipe. Un locataire appelle un numero dedie, l'IA mene une conversation guidee (FR/NL/EN), extrait les infos, cree une intervention SEIDO avec PDF et notifie le gestionnaire. Stack: Telnyx + ElevenLabs Conversational AI + Vercel AI SDK + @react-pdf/renderer.",
+  "createdAt": "2026-02-27",
+  "prdSource": "docs/AI/ai-phone-assistant-plan.md",
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Schema DB + migrations",
+      "description": "As a developer, I want the ai_phone_numbers, ai_phone_calls, ai_phone_usage tables created with RLS so that call data is stored securely.",
+      "acceptanceCriteria": [
+        "Migration creates 3 tables with all indexes",
+        "Column phone added to users (if absent)",
+        "Column source added to interventions (if absent)",
+        "RLS policies for gestionnaire/admin only",
+        "npm run supabase:types regenerates without error",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Provisioning Telnyx (API)",
+      "description": "As a gestionnaire, I want to activate a phone number for my team so that tenants can call the AI assistant.",
+      "acceptanceCriteria": [
+        "Server action provisionPhoneNumber(teamId) provisions a Belgian number via Telnyx API",
+        "Server action deprovisionPhoneNumber(teamId) releases the number",
+        "Number stored in ai_phone_numbers with telnyx IDs",
+        "Error handling: number unavailable, identity verification",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Configuration agent ElevenLabs",
+      "description": "As a developer, I want a service that creates/configures an ElevenLabs agent per team so that each team has its own AI assistant with the agency name.",
+      "acceptanceCriteria": [
+        "Service elevenlabs-agent.service.ts with createAgent, updateAgent, deleteAgent",
+        "System prompt template with [team_name] placeholder",
+        "LLM config: Claude Haiku 4.5, temperature 0.3",
+        "TTS: Flash v2.5, neutral female voice",
+        "Languages: FR, NL, EN (auto-detect)",
+        "Max duration: 8 minutes",
+        "Agent ID stored in ai_phone_numbers.elevenlabs_agent_id",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Webhook inbound call",
+      "description": "As a system, I want a webhook endpoint that receives call results from ElevenLabs so that each call automatically creates an intervention.",
+      "acceptanceCriteria": [
+        "Route POST /api/calls/inbound validates webhook signature",
+        "Identifies team via agent_id",
+        "Identifies tenant via caller phone lookup",
+        "Calls extractInterventionSummary (US-005)",
+        "Creates intervention via intervention-service",
+        "Generates PDF (US-006)",
+        "Stores call log in ai_phone_calls",
+        "Updates ai_phone_usage",
+        "Creates push + email notification (US-007)",
+        "Handles unidentified caller gracefully",
+        "Rate limiting via Upstash",
+        "Unit tests for handler",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001", "US-005", "US-006", "US-007"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Extraction structuree (AI SDK)",
+      "description": "As a system, I want to extract structured info from a call transcript so that the intervention is created with accurate data.",
+      "acceptanceCriteria": [
+        "Service call-transcript-analyzer.service.ts with extractInterventionSummary",
+        "Zod schema: title, description (FR), urgency, locationInUnit, categoryGuess, requiresQuote, tenantAvailability",
+        "Description ALWAYS generated in French (even if call was NL/EN)",
+        "Uses generateText from AI SDK with output schema",
+        "Model: Claude Haiku 4.5",
+        "Unit tests with sample transcripts (FR, NL, EN)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Generation PDF rapport",
+      "description": "As a gestionnaire, I want a PDF report for each call so that I have a complete documentary trace.",
+      "acceptanceCriteria": [
+        "CallReportPDF component with @react-pdf/renderer",
+        "Contains: header with SEIDO logo, structured summary, tenant info, full transcript, metadata",
+        "Service generateCallReportPDF stores PDF in Supabase Storage (documents bucket)",
+        "Creates intervention_documents entry linked to intervention",
+        "Unit tests for PDF generation",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Email recap gestionnaire",
+      "description": "As a gestionnaire, I want to receive an email with the call summary and PDF attachment so that I'm informed even when not on the app.",
+      "acceptanceCriteria": [
+        "React Email template in emails/calls/",
+        "Contains: structured summary, link to intervention, PDF attached",
+        "Uses existing Resend email notification system",
+        "Magic link to intervention included",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-006"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Page parametres telephone IA",
+      "description": "As a gestionnaire, I want a settings page to activate/deactivate the AI phone number so that I can manage this feature.",
+      "acceptanceCriteria": [
+        "Page /gestionnaire/parametres/telephone-ia",
+        "Toggle activation/deactivation",
+        "Display assigned phone number",
+        "Minutes progress bar (X/60 used)",
+        "Monthly stats: calls count, interventions created",
+        "Link to call history",
+        "Link to subscription management (Stripe)",
+        "Server Component with getServerAuthContext",
+        "Responsive mobile",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-002"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Historique des appels",
+      "description": "As a gestionnaire, I want to see the history of all calls received by the assistant so that I can track activity and find specific calls.",
+      "acceptanceCriteria": [
+        "Page /gestionnaire/parametres/telephone-ia/historique",
+        "List with: date, time, duration, tenant name, summary, status",
+        "Link to created intervention",
+        "Download PDF button",
+        "Date filter",
+        "Pagination",
+        "Server Component with getServerAuthContext",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-008"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Badge AI dans intervention",
+      "description": "As a gestionnaire, I want to see a visual indicator when an intervention was created by the phone assistant so that I know the request origin.",
+      "acceptanceCriteria": [
+        "Badge 'Created by phone assistant' in intervention detail view",
+        "Visible when source === 'phone_ai'",
+        "Link to transcript and PDF",
+        "Shows call duration and language",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Compteur de minutes + usage",
+      "description": "As a gestionnaire, I want to see my real-time minutes usage so that I can anticipate overages.",
+      "acceptanceCriteria": [
+        "Reusable PhoneUsageCounter component",
+        "Shows: minutes used/60, calls count, overage cost",
+        "Visual alert at 80% usage",
+        "Email alert at 90% usage (via cron)",
+        "Integrated in settings page (US-008)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-008"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Stripe add-on billing",
+      "description": "As a gestionnaire, I want the AI phone plan billed via Stripe so that billing is automated.",
+      "acceptanceCriteria": [
+        "New Stripe Price (metered) for phone AI add-on",
+        "Checkout flow to activate add-on",
+        "Usage records sent to Stripe end of month",
+        "Overage billed automatically",
+        "Add-on cancellation deprovisions the number",
+        "Integration with existing Customer Portal",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-002", "US-011"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Integration E2E test",
+      "description": "As a developer, I want integration tests that validate the full flow so that the system is reliable in production.",
+      "acceptanceCriteria": [
+        "Test: webhook inbound → intervention created → PDF generated",
+        "Test: caller ID match → tenant identified",
+        "Test: unknown caller → intervention created with flag",
+        "Test: structured extraction with FR, NL, EN transcripts",
+        "Test: minutes counter incremented",
+        "All tests pass",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-004"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

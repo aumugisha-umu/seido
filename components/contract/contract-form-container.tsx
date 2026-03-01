@@ -19,7 +19,7 @@ import ContactSelector, { ContactSelectorRef } from '@/components/contact-select
 import PropertySelector from '@/components/property-selector'
 import LeaseFormDetailsMerged from '@/components/contract/lease-form-details-merged-v1'
 import { DocumentChecklist } from '@/components/contract/document-checklist'
-import { LeaseInterventionsStep } from '@/components/contract/lease-interventions-step'
+import { LeaseInterventionsStep, type RentReminderConfig } from '@/components/contract/lease-interventions-step'
 import type { ScheduledInterventionData } from '@/components/contract/intervention-schedule-row'
 import { ParticipantChip } from '@/components/interventions/shared/layout/participants-row'
 import {
@@ -266,6 +266,13 @@ export default function ContractFormContainer({
 
   // Interventions planifiées (étape 3)
   const [scheduledInterventions, setScheduledInterventions] = useState<ScheduledInterventionData[]>([])
+  const [rentReminderConfig, setRentReminderConfig] = useState<RentReminderConfig>({
+    enabled: false,
+    dayOfMonth: 1,
+    assignedUsers: currentUser
+      ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
+      : []
+  })
 
   // État de l'overlap check (remonté depuis LeaseFormDetailsMerged pour validation step)
   // Note (2026-01): hasOverlap n'est plus bloquant (warning seulement), seul hasDuplicateTenant bloque
@@ -715,6 +722,57 @@ export default function ContractFormContainer({
           }
         }
 
+        // Create rent payment reminders
+        if (rentReminderConfig.enabled && formData.startDate && formData.durationMonths) {
+          const leaseStart = parseLocalDate(formData.startDate)
+          const leaseEnd = calculateContractEndDate(formData.startDate, formData.durationMonths)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+
+          const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+          const reminderDates: Date[] = []
+          const current = new Date(leaseStart.getFullYear(), leaseStart.getMonth(), 1)
+          const endMonth = new Date(leaseEnd.getFullYear(), leaseEnd.getMonth(), 1)
+
+          while (current <= endMonth) {
+            const reminderDate = new Date(current.getFullYear(), current.getMonth(), rentReminderConfig.dayOfMonth)
+            if (reminderDate >= today) {
+              reminderDates.push(reminderDate)
+            }
+            current.setMonth(current.getMonth() + 1)
+          }
+
+          if (reminderDates.length > 0) {
+            logger.info(`[CONTRACT-FORM] Creating ${reminderDates.length} rent payment reminders...`)
+            const reminderAssignments = rentReminderConfig.assignedUsers.length > 0
+              ? rentReminderConfig.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+              : undefined
+
+            const reminderResults = await Promise.allSettled(
+              reminderDates.map(date => {
+                const monthLabel = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+                const capitalizedMonth = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+                return createInterventionAction({
+                  title: `Rappel loyer — ${capitalizedMonth}`,
+                  description: 'Rappel mensuel de paiement du loyer',
+                  type: 'rappel_loyer',
+                  urgency: 'basse',
+                  lot_id: formData.lotId!,
+                  team_id: teamId,
+                  contract_id: contractId,
+                  requested_date: date
+                }, {
+                  useServiceRole: true,
+                  assignments: reminderAssignments
+                })
+              })
+            )
+
+            const reminderSuccess = reminderResults.filter(r => r.status === 'fulfilled' && r.value.success).length
+            logger.info({ reminderSuccess, total: reminderDates.length, contractId }, 'Rent payment reminders created')
+          }
+        }
+
         // Send notification
         await createContractNotification(contractId)
 
@@ -880,6 +938,8 @@ export default function ContractFormContainer({
             teamId={teamId}
             leaseTenantIds={(formData.contacts || []).filter(c => c.role === 'locataire').map(c => c.userId)}
             availableContacts={initialContacts}
+            rentReminderConfig={rentReminderConfig}
+            onRentReminderChange={setRentReminderConfig}
           />
         )
 
@@ -1104,7 +1164,7 @@ export default function ContractFormContainer({
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
-                {scheduledInterventions.filter(i => i.enabled && i.scheduledDate).length > 0 ? (
+                {(scheduledInterventions.filter(i => i.enabled && i.scheduledDate).length > 0 || rentReminderConfig.enabled) ? (
                   <div className="space-y-2">
                     {scheduledInterventions
                       .filter(i => i.enabled && i.scheduledDate)
@@ -1136,6 +1196,13 @@ export default function ContractFormContainer({
                         <span>
                           {scheduledInterventions.filter(i => !i.enabled).length} intervention(s) désactivée(s)
                         </span>
+                      </div>
+                    )}
+                    {rentReminderConfig.enabled && (
+                      <div className="mt-4 flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                        <span className="font-medium">Rappels de paiement du loyer</span>
+                        <span className="text-muted-foreground">— le {rentReminderConfig.dayOfMonth} de chaque mois</span>
                       </div>
                     )}
                   </div>

@@ -14,7 +14,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -27,12 +26,14 @@ import {
   Shield,
   FileSearch,
   Calendar,
-  Sparkles,
   UserPlus,
   Users,
   User,
-  Briefcase
+  Briefcase,
+  PenLine,
+  X
 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -47,7 +48,8 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Calculator,
   Shield,
   FileSearch,
-  Calendar
+  Calendar,
+  PenLine
 }
 
 /** Personne assignée à une intervention */
@@ -93,6 +95,12 @@ interface InterventionScheduleRowProps {
   onAssignType: (contactType: string) => void
   disabled?: boolean
   className?: string
+  /** Render title/description as editable inputs */
+  isEditable?: boolean
+  onTitleChange?: (title: string) => void
+  onDescriptionChange?: (desc: string) => void
+  onDelete?: () => void
+  showDelete?: boolean
 }
 
 export function InterventionScheduleRow({
@@ -102,7 +110,12 @@ export function InterventionScheduleRow({
   onSchedulingOptionChange,
   onAssignType,
   disabled = false,
-  className
+  className,
+  isEditable = false,
+  onTitleChange,
+  onDescriptionChange,
+  onDelete,
+  showDelete = false
 }: InterventionScheduleRowProps) {
   const IconComponent = ICON_MAP[intervention.icon] || Calendar
   const isCustomDate = intervention.selectedSchedulingOption === CUSTOM_DATE_VALUE
@@ -153,9 +166,7 @@ export function InterventionScheduleRow({
     <div
       className={cn(
         "flex items-start gap-3 p-4 rounded-lg border transition-colors",
-        intervention.enabled
-          ? "bg-card border-border"
-          : "bg-muted/30 border-transparent",
+        "bg-card border-border",
         className
       )}
     >
@@ -189,34 +200,43 @@ export function InterventionScheduleRow({
       {/* Contenu */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <h4
-            className={cn(
-              "font-medium text-sm",
-              !intervention.enabled && "text-muted-foreground"
-            )}
-          >
-            {intervention.title}
-          </h4>
-          {!isCustomDate && intervention.enabled && (
-            <Badge
-              variant="secondary"
-              className="text-xs gap-1 bg-primary/10 text-primary border-primary/20"
+          {isEditable ? (
+            <Input
+              value={intervention.title}
+              onChange={(e) => onTitleChange?.(e.target.value)}
+              placeholder="Titre de l'intervention..."
+              className="h-7 text-sm font-medium"
+            />
+          ) : (
+            <h4
+              className={cn(
+                "font-medium text-sm",
+                !intervention.enabled && "text-muted-foreground"
+              )}
             >
-              <Sparkles className="h-3 w-3" />
-              Auto
-            </Badge>
+              {intervention.title}
+            </h4>
           )}
         </div>
-        <p
-          className={cn(
-            "text-xs mt-0.5",
-            intervention.enabled
-              ? "text-muted-foreground"
-              : "text-muted-foreground/60"
-          )}
-        >
-          {intervention.description}
-        </p>
+        {isEditable ? (
+          <Input
+            value={intervention.description}
+            onChange={(e) => onDescriptionChange?.(e.target.value)}
+            placeholder="Description (optionnel)..."
+            className="h-7 text-xs mt-0.5"
+          />
+        ) : (
+          <p
+            className={cn(
+              "text-xs mt-0.5",
+              intervention.enabled
+                ? "text-muted-foreground"
+                : "text-muted-foreground/60"
+            )}
+          >
+            {intervention.description}
+          </p>
+        )}
 
         {/* Avatars des personnes assignées */}
         {intervention.enabled && assignCount > 0 && (
@@ -243,6 +263,13 @@ export function InterventionScheduleRow({
           </div>
         )}
       </div>
+
+      {/* Delete button for custom interventions */}
+      {showDelete && onDelete && (
+        <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive">
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      )}
 
       {/* Bouton d'assignation avec Popover pour choisir le type */}
       {intervention.enabled && (

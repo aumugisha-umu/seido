@@ -1,0 +1,48 @@
+# Progress Log — Unify Document Preview & Download across all roles
+# Started: 2026-02-26
+# Stories: 4 total | All COMPLETE
+---
+
+## US-001: Create shared useDocumentActions hook ✅
+- Created `components/interventions/shared/hooks/use-document-actions.tsx`
+- Created barrel export `hooks/index.ts`, added `export * from './hooks'` to `shared/index.ts`
+- Hook returns `{ handleViewDocument, handleDownloadDocument, previewModal }`
+- Uses sonner toast (available via root SonnerToaster)
+- `previewModal` is a ready-to-render ReactNode wrapping DocumentPreviewModal
+- **Learning**: Returning a ReactNode from a hook via `useMemo` lets consumers just render `{previewModal}` without wiring any state/callbacks — keeps API surface minimal
+
+## US-002: Refactor gestionnaire ✅
+- Removed ~70 lines of inline handlers + state from intervention-detail-client.tsx
+- Replaced `DocumentPreviewModal` direct import with `useDocumentActions` from shared
+- Also removed unused `createBrowserSupabaseClient` import
+- **Learning**: gestionnaire was the reference implementation — modal preview already worked, just needed to extract into shared hook
+
+## US-003: Refactor locataire ✅
+- Removed ~45 lines of inline handlers (including window.open) from intervention-detail-client.tsx
+- Added `useDocumentActions` import + `{previewModal}` in JSX
+- Locataire now gets modal preview instead of window.open — UX parity with gestionnaire
+- **Learning**: The window.open approach was a shortcut but broke UX consistency. API route + modal is both more secure (no exposed signed URLs in browser tab) and better UX
+
+## US-004: Refactor prestataire ✅
+- Same pattern as locataire — removed inline handlers, added hook
+- Kept `createBrowserSupabaseClient` import (still used for quote upload handlers at ~lines 718/755)
+- **Learning**: When shared hook doesn't cover all use-cases (quote uploads use different storage logic), keep role-specific imports alongside shared ones
+
+---
+
+## Cross-Cutting Learnings
+
+### API Route vs Client-Side Storage
+- `createBrowserSupabaseClient().storage.createSignedUrl()` is unreliable: browser JWT can be stale, RLS checks at CDN level fail silently
+- Server-side API routes (`/api/view-intervention-document`, `/api/download-intervention-document`) with `getApiAuthContext()` are reliable and use fresh cookies
+- Cross-origin `download` HTML attribute is IGNORED — must use `{ download: fileName }` option in `createSignedUrl()` to set `Content-Disposition: attachment` server-side
+
+### Hook-as-Component Pattern
+- Returning a pre-wired ReactNode from a custom hook (via `useMemo`) eliminates state/callback prop threading
+- Consumer code goes from ~50 lines of wiring to 2 lines: destructure hook + render `{previewModal}`
+- Trade-off: less flexible (can't customize modal per-role), but for our use-case identical behavior is the goal
+
+### Duplication Stats
+- Before: ~160 lines of duplicate logic across 3 files
+- After: 1 shared hook (128 lines) + 2 lines per consumer = ~134 lines total
+- Net reduction: ~26 lines, but more importantly: single source of truth

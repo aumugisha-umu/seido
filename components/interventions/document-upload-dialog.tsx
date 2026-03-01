@@ -194,34 +194,34 @@ export function DocumentUploadDialog({
       const uploadedIds: string[] = []
       const totalFiles = files.length
 
-      // Upload each file individually
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
+      // Upload files in parallel batches of 3
+      const CONCURRENCY = 3
+      let completedCount = 0
 
-        // Update progress (per file)
-        setUploadProgress(Math.round(((i) / totalFiles) * 100))
+      for (let i = 0; i < files.length; i += CONCURRENCY) {
+        const batch = files.slice(i, i + CONCURRENCY)
+        const results = await Promise.all(
+          batch.map(async (file) => {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('interventionId', interventionId)
+            formData.append('documentType', documentType)
+            formData.append('description', description || `Document ${documentType} - ${file.name}`)
 
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('interventionId', interventionId)
-        formData.append('documentType', documentType)
-        formData.append('description', description || `Document ${documentType} - ${file.name}`)
-
-        const response = await fetch('/api/upload-intervention-document', {
-          method: 'POST',
-          body: formData,
-        })
-
-        const result = await response.json()
-
-        if (!response.ok) {
-          throw new Error(result.error || `Erreur lors de l'upload de ${file.name}`)
-        }
-
-        uploadedIds.push(result.document.id)
-
-        // Update progress after each file
-        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100))
+            const response = await fetch('/api/upload-intervention-document', {
+              method: 'POST',
+              body: formData,
+            })
+            const result = await response.json()
+            if (!response.ok) {
+              throw new Error(result.error || `Erreur lors de l'upload de ${file.name}`)
+            }
+            return result.document.id
+          })
+        )
+        uploadedIds.push(...results)
+        completedCount += batch.length
+        setUploadProgress(Math.round((completedCount / totalFiles) * 100))
       }
 
       toast.success(`${uploadedIds.length} document(s) uploadé(s) avec succès`)

@@ -336,17 +336,13 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
             id: 'edit',
             label: 'Modifier',
             icon: Edit,
-            onClick: (contact) => {
-                window.location.href = `/gestionnaire/contacts/modifier/${contact.id}`
-            }
+            href: (contact) => `/gestionnaire/contacts/modifier/${contact.id}`
         },
         {
             id: 'view',
             label: 'Voir détails',
             icon: Eye,
-            onClick: (contact) => {
-                window.location.href = `/gestionnaire/contacts/details/${contact.id}`
-            }
+            href: (contact) => `/gestionnaire/contacts/details/${contact.id}`
         }
     ],
 
@@ -356,9 +352,7 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
         icon: Users,
         showCreateButton: true,
         createButtonText: 'Ajouter un contact',
-        createButtonAction: () => {
-            window.location.href = '/gestionnaire/contacts/nouveau'
-        }
+        createButtonHref: '/gestionnaire/contacts/nouveau'
     }
 }
 

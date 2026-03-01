@@ -286,7 +286,7 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
       .from('emails')
       .select(`
         *,
-        attachments:email_attachments(*)
+        attachments:email_attachments(id, filename, content_type, size_bytes)
       `, { count: 'estimated' })
       .eq('team_id', teamId)
       .eq('direction', 'received')
@@ -299,7 +299,7 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
       .from('emails')
       .select(`
         *,
-        attachments:email_attachments(*)
+        attachments:email_attachments(id, filename, content_type, size_bytes)
       `)
       .eq('team_id', teamId)
       .eq('direction', 'sent')

@@ -72,6 +72,7 @@ export const useInterventionPlanning = (
   providerInstructions?: Record<string, string>,
   confirmationRequired?: string[],
   requiresConfirmation?: boolean,
+  onSuccess?: () => void,
 ) => {
   // État des modals
   const [planningModal, setPlanningModal] = useState<PlanningModal>({
@@ -266,8 +267,8 @@ export const useInterventionPlanning = (
 
       resetProgrammingState()
 
-      // Rafraîchir la page pour afficher les changements
-      window.location.reload()
+      // Notify caller so it can refresh data (e.g. router.refresh())
+      onSuccess?.()
     } catch (error) {
       logger.error("Error programming intervention:", error)
       toast.error('Erreur lors de la planification')

@@ -88,24 +88,22 @@ export default async function ContractDetailsPage({
       notFound()
     }
 
-    // Load documents
-    logger.info('📍 [CONTRACT-PAGE-SERVER] Step 2: Loading documents...', { contractId: id })
-    const documentsResult = await contractService.getDocuments(id)
+    // ⚡ Parallelize documents + interventions loading (both independent after contract is validated)
+    logger.info('📍 [CONTRACT-PAGE-SERVER] Step 2: Loading documents + interventions in parallel...', { contractId: id })
+    const interventionService = await createServerInterventionService()
+
+    const [documentsResult, interventionsResult] = await Promise.all([
+      contractService.getDocuments(id),
+      interventionService.getByContract(id)
+    ])
+
     const documents = documentsResult.success ? documentsResult.data : []
+    const interventions = interventionsResult.success ? interventionsResult.data || [] : []
 
     logger.info('✅ [CONTRACT-PAGE-SERVER] Documents loaded', {
       documentCount: documents.length,
       elapsed: `${Date.now() - startTime}ms`
     })
-
-    // Load interventions linked to this contract (only those with contract_id = this contract)
-    logger.info('📍 [CONTRACT-PAGE-SERVER] Step 3: Loading interventions...', { contractId: id })
-    const interventionService = await createServerInterventionService()
-
-    // Load only interventions explicitly linked to this contract via contract_id
-    // (No fallback to lot_id - we only want contract-specific interventions)
-    const interventionsResult = await interventionService.getByContract(id)
-    const interventions = interventionsResult.success ? interventionsResult.data || [] : []
 
     logger.info('✅ [CONTRACT-PAGE-SERVER] Interventions loaded', {
       interventionCount: interventions.length,

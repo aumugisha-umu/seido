@@ -3,7 +3,7 @@
 import { useState, useRef } from "react"
 import { ContactSection } from "@/components/ui/contact-section"
 import { ContactDeleteConfirmModal } from "@/components/ui/contact-delete-confirm-modal"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { removeContactFromLotAction } from "@/app/gestionnaire/(no-navbar)/biens/immeubles/[id]/actions"
 import { assignContactToLotAction } from "@/app/gestionnaire/(no-navbar)/biens/lots/nouveau/actions"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
@@ -65,7 +65,6 @@ export function LotContactsGridPreview({
   teamId,
   hideTenants = false
 }: LotContactsGridPreviewProps) {
-  const { toast } = useToast()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
   const [deleteModal, setDeleteModal] = useState<{
@@ -102,20 +101,13 @@ export function LotContactsGridPreview({
       const result = await removeContactFromLotAction(lotContactId)
 
       if (result.success) {
-        toast({
-          title: "Contact retiré",
-          description: `${deleteModal.contact.name} a été retiré du lot.`,
-        })
+        toast("Contact retiré", { description: `${deleteModal.contact.name} a été retiré du lot.` })
         setDeleteModal({ isOpen: false, contact: null, contactType: '' })
       } else {
         throw new Error(result.error || 'Erreur lors de la suppression')
       }
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible de retirer le contact",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible de retirer le contact" })
     } finally {
       setIsDeleting(false)
     }
@@ -142,26 +134,15 @@ export function LotContactsGridPreview({
       const result = await assignContactToLotAction(lotId, contact.id)
 
       if (result.success) {
-        toast({
-          title: "Contact ajouté",
-          description: `${contact.name} a été ajouté au lot.`,
-        })
+        toast("Contact ajouté", { description: `${contact.name} a été ajouté au lot.` })
       } else {
         // Check if it's a "already assigned" error (not critical)
         const isAlreadyAssigned = result.error?.includes('déjà assigné')
 
-        toast({
-          title: isAlreadyAssigned ? "Contact déjà assigné" : "Erreur",
-          description: result.error || 'Erreur lors de l\'ajout',
-          variant: isAlreadyAssigned ? "default" : "destructive"
-        })
+        toast(isAlreadyAssigned ? "Contact déjà assigné" : "Erreur", { description: result.error || 'Erreur lors de l\'ajout' })
       }
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible d'ajouter le contact",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible d'ajouter le contact" })
     }
   }
 
@@ -177,23 +158,12 @@ export function LotContactsGridPreview({
       const result = await removeContactFromLotAction(lotContactId)
 
       if (result.success) {
-        toast({
-          title: "Contact retiré",
-          description: `Contact retiré du lot.`,
-        })
+        toast("Contact retiré", { description: `Contact retiré du lot.` })
       } else {
-        toast({
-          title: "Erreur",
-          description: result.error || "Impossible de retirer le contact",
-          variant: "destructive"
-        })
+        toast.error("Erreur", { description: result.error || "Impossible de retirer le contact" })
       }
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible de retirer le contact",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible de retirer le contact" })
     }
   }
 

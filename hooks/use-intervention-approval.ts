@@ -5,7 +5,7 @@ import {
   interventionActionsService,
   type InterventionAction,
 } from "@/lib/intervention-actions-service"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 interface ApprovalModal {
   isOpen: boolean
@@ -15,7 +15,6 @@ interface ApprovalModal {
 
 export const useInterventionApproval = (onSuccess?: () => void) => {
   const router = useRouter()
-  const { toast } = useToast()
 
   // État de la modale unique
   const [approvalModal, setApprovalModal] = useState<ApprovalModal>({
@@ -83,8 +82,7 @@ export const useInterventionApproval = (onSuccess?: () => void) => {
           internalComment?.trim() || undefined
         )
 
-        toast({
-          title: "Intervention approuvée",
+        toast("Intervention approuvée", {
           description: "L'intervention passe en phase de planification.",
         })
 
@@ -101,8 +99,7 @@ export const useInterventionApproval = (onSuccess?: () => void) => {
           internalComment?.trim() || undefined
         )
 
-        toast({
-          title: "Intervention rejetée",
+        toast("Intervention rejetée", {
           description: "Le locataire sera notifié du rejet.",
         })
       }
@@ -128,15 +125,13 @@ export const useInterventionApproval = (onSuccess?: () => void) => {
       const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue'
       setError(errorMessage)
 
-      toast({
-        title: "Erreur",
+      toast.error("Erreur", {
         description: errorMessage,
-        variant: "destructive",
       })
     } finally {
       setIsLoading(false)
     }
-  }, [approvalModal.action, approvalModal.intervention, rejectionReason, internalComment, onSuccess, router, toast])
+  }, [approvalModal.action, approvalModal.intervention, rejectionReason, internalComment, onSuccess, router])
 
   // Fermer la modale
   const closeApprovalModal = useCallback(() => {

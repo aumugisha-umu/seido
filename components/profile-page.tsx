@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
 import type { AuthUser } from "@/lib/auth-service"
 import { ChangePasswordModal, ChangeEmailModal } from "@/components/ui/security-modals"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { logger, logError } from '@/lib/logger'
 import {
@@ -37,7 +37,6 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
   const { user: contextUser, updateProfile } = useAuth()
   // ✅ Utiliser initialUser en priorité (chargé côté serveur), fallback sur contextUser
   const user = initialUser || contextUser
-  const { toast } = useToast()
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -131,11 +130,7 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
     const lastName = formData.lastName.trim()
     
     if (!firstName || !lastName) {
-      toast({
-        title: "Champs requis",
-        description: "Le prénom et le nom sont obligatoires",
-        variant: "destructive",
-      })
+      toast.error("Champs requis", { description: "Le prénom et le nom sont obligatoires" })
       return
     }
     
@@ -161,26 +156,14 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
       if (error) {
         logger.error("Erreur lors de la mise à jour du profil:", error)
         const errorMessage = error.message || "Une erreur est survenue lors de la mise à jour de votre profil"
-        toast({
-          title: "Erreur",
-          description: errorMessage,
-          variant: "destructive",
-        })
+        toast.error("Erreur", { description: errorMessage })
       } else {
         setIsEditing(false)
-        toast({
-          title: "Profil mis à jour",
-          description: "Vos informations personnelles ont été mises à jour avec succès",
-          variant: "default",
-        })
+        toast("Profil mis à jour", { description: "Vos informations personnelles ont été mises à jour avec succès" })
       }
     } catch (error) {
       logger.error("Erreur lors de la mise à jour du profil:", error)
-      toast({
-        title: "Erreur",
-        description: "Une erreur inattendue est survenue",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: "Une erreur inattendue est survenue" })
     } finally {
       setIsLoading(false)
     }
@@ -199,20 +182,12 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 
     if (file.size > maxSize) {
-      toast({
-        title: "Fichier trop volumineux",
-        description: "La taille maximale autorisée est de 5MB",
-        variant: "destructive",
-      })
+      toast.error("Fichier trop volumineux", { description: "La taille maximale autorisée est de 5MB" })
       return
     }
 
     if (!allowedTypes.includes(file.type)) {
-      toast({
-        title: "Type de fichier non supporté",
-        description: "Seuls les formats JPG, PNG et WebP sont acceptés",
-        variant: "destructive",
-      })
+      toast.error("Type de fichier non supporté", { description: "Seuls les formats JPG, PNG et WebP sont acceptés" })
       return
     }
 
@@ -233,22 +208,14 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
         throw new Error(data.error || "Erreur lors de l'upload")
       }
 
-      toast({
-        title: "Photo mise à jour",
-        description: "Votre photo de profil a été mise à jour avec succès",
-        variant: "default",
-      })
+      toast("Photo mise à jour", { description: "Votre photo de profil a été mise à jour avec succès" })
 
       // ⚡ Optimized refresh instead of full page reload
       router.refresh()
 
     } catch (error) {
       logger.error("Error uploading avatar:", error)
-      toast({
-        title: "Erreur d'upload",
-        description: error instanceof Error ? error.message : "Erreur inconnue",
-        variant: "destructive",
-      })
+      toast.error("Erreur d'upload", { description: error instanceof Error ? error.message : "Erreur inconnue" })
     } finally {
       setIsUploadingAvatar(false)
       // Reset file input

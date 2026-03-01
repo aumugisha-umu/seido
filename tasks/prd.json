@@ -1,79 +1,80 @@
 {
   "project": "SEIDO",
-  "featureName": "Unify Document Preview & Download across all roles",
+  "featureName": "Dashboard Interventions Perf & UX Optimization",
   "branchName": "preview",
-  "description": "Currently gestionnaire uses an in-app DocumentPreviewModal for preview while locataire/prestataire use window.open (new tab). Download handlers are duplicated across 3 files with identical logic. Create a single shared hook useDocumentActions that provides view/download via API routes + manages the preview modal state, then use it in all 3 role views.",
-  "createdAt": "2026-02-26",
-  "prdSource": "inline",
+  "description": "Remove period filter, sort by scheduled_date, add client-side pagination to cards view, add rejetee to Terminées tab.",
+  "createdAt": "2026-03-01",
+  "prdSource": "docs/plans/2026-03-01-dashboard-interventions-perf.md",
   "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Create shared useDocumentActions hook",
-      "description": "As a developer, I want a single hook that provides handleViewDocument, handleDownloadDocument, preview modal state, and a renderPreviewModal helper — so all 3 role views use identical logic without duplication.",
+      "title": "Remove PeriodSelector from dashboard",
+      "description": "As a gestionnaire, I want the dashboard to show all my interventions without a confusing date filter, so I can focus on status-based tabs.",
       "acceptanceCriteria": [
-        "Hook exported from components/interventions/shared/hooks/use-document-actions.ts",
-        "handleViewDocument calls /api/view-intervention-document and opens DocumentPreviewModal",
-        "handleDownloadDocument calls /api/download-intervention-document and triggers file download",
-        "Hook manages previewDocument state + isPreviewModalOpen state internally",
-        "Hook exports a PreviewModal component ready to render (no wiring needed by consumer)",
-        "Lint passes (npm run lint)"
+        "PeriodSelector component removed from dashboard header (both mobile and desktop)",
+        "period state, filteredInterventions date-filter useMemo, and progressData removed",
+        "InterventionsNavigator receives unfiltered interventions",
+        "Header title shows 'Interventions' (no period label)",
+        "Stats cards no longer show progressData",
+        "Lint passes"
       ],
-      "priority": 2,
+      "priority": 3,
       "dependsOn": [],
-      "sizing": "S",
+      "sizing": "M",
       "passes": true,
-      "notes": "Created components/interventions/shared/hooks/use-document-actions.tsx. Hook uses sonner toast (available via root layout SonnerToaster). Returns { handleViewDocument, handleDownloadDocument, previewModal }. previewModal is a ready-to-render ReactNode wrapping DocumentPreviewModal with all state wired."
+      "notes": "Removed PeriodSelector import, period state, filteredInterventions, progressData, celebration toast, period reset. Also removed toast import (no longer used)."
     },
     {
       "id": "US-002",
-      "title": "Refactor gestionnaire to use useDocumentActions",
-      "description": "As a gestionnaire, when I click preview/download on a document, it uses the shared hook instead of inline handlers — behavior unchanged (modal preview + download).",
+      "title": "Add rejetee to dashboard Terminées tab",
+      "description": "As a gestionnaire, I want rejected interventions to appear in the Terminées tab, so no intervention falls through the cracks.",
       "acceptanceCriteria": [
-        "handleViewDocument and handleDownloadDocument removed from intervention-detail-client.tsx",
-        "previewDocument/isPreviewModalOpen state removed (managed by hook)",
-        "DocumentPreviewModal rendered via hook's PreviewModal component",
-        "handleDownloadFromPreview uses hook's handleDownloadDocument",
-        "Lint passes (npm run lint)"
+        "terminees filter in interventions-navigator.tsx includes 'rejetee' status",
+        "Terminées count reflects rejected interventions",
+        "Lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-001"],
-      "sizing": "S",
+      "dependsOn": [],
+      "sizing": "XS",
       "passes": true,
-      "notes": "Removed ~70 lines of inline handlers + state. Replaced DocumentPreviewModal import with useDocumentActions from shared. Also removed unused createBrowserSupabaseClient import."
+      "notes": "Added 'rejetee' to terminees filter array in interventions-navigator.tsx"
     },
     {
       "id": "US-003",
-      "title": "Refactor locataire to use useDocumentActions with modal preview",
-      "description": "As a locataire, when I click the eye icon on a document, it opens an in-app modal preview (instead of a new browser tab) — matching gestionnaire behavior.",
+      "title": "Sort by scheduled_date (unscheduled first)",
+      "description": "As a gestionnaire, I want interventions sorted by scheduled date with unscheduled ones first, so I see what needs attention immediately.",
       "acceptanceCriteria": [
-        "handleViewDocument and handleDownloadDocument removed from intervention-detail-client.tsx",
-        "window.open replaced by modal preview via hook",
-        "DocumentPreviewModal rendered via hook's PreviewModal component",
-        "createBrowserSupabaseClient import already removed",
-        "Lint passes (npm run lint)"
+        "New sort option 'scheduled-asc' in SORT_OPTIONS: 'Date planifiée'",
+        "Sort logic: unscheduled (NULL scheduled_date) first sorted by urgency DESC then created_at DESC, then overdue (past) most overdue first, then upcoming soonest first",
+        "Default sort is 'scheduled-asc' when tabsPreset === 'dashboard'",
+        "Other sort options still available in dropdown",
+        "Lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-001"],
+      "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "Removed ~45 lines of inline handlers. Added useDocumentActions hook + {previewModal} in JSX. Locataire now gets modal preview instead of window.open."
+      "notes": "Added 'scheduled' to SortField type, new SORT_OPTIONS entry, 3-tier sort logic (null→overdue→upcoming), default for dashboard preset."
     },
     {
       "id": "US-004",
-      "title": "Refactor prestataire to use useDocumentActions with modal preview",
-      "description": "As a prestataire, when I click the eye icon on a document, it opens an in-app modal preview (instead of a new browser tab) — matching gestionnaire behavior.",
+      "title": "Client-side pagination on cards view",
+      "description": "As a gestionnaire, I want the cards view to show 12 items per page with pagination controls, so the dashboard renders fast even with 100+ interventions.",
       "acceptanceCriteria": [
-        "handleViewDocument and handleDownloadDocument removed from intervention-detail-client.tsx",
-        "window.open replaced by modal preview via hook",
-        "DocumentPreviewModal rendered via hook's PreviewModal component",
-        "Lint passes (npm run lint)"
+        "Cards view shows max 12 items per page (4 rows × 3 cols on desktop)",
+        "Pagination controls at bottom of cards grid (< Page X of Y >)",
+        "Tab switch resets to page 1",
+        "Search/filter change resets to page 1",
+        "List view pagination unchanged",
+        "Calendar view unchanged",
+        "Lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-001"],
-      "sizing": "S",
+      "dependsOn": [],
+      "sizing": "M",
       "passes": true,
-      "notes": "Same pattern as locataire. createBrowserSupabaseClient import kept (still used for quote upload handlers)."
+      "notes": "Second usePagination instance for cards (pageSize: 12). Destructured resetToFirstPage to avoid ESLint dependency warning. Pagination hidden when totalPages <= 1."
     }
   ]
 }

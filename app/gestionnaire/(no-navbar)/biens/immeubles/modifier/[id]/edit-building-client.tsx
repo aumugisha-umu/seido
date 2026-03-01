@@ -17,7 +17,7 @@ import {
   AlertTriangle,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import { GoogleMapsProvider } from "@/components/google-maps"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
@@ -82,8 +82,6 @@ export default function EditBuildingClient({
   initialTeamManagers,
 }: EditBuildingClientProps) {
   const router = useRouter()
-  const { toast } = useToast()
-
   // Step navigation
   const [currentStep, setCurrentStep] = useState(1)
 
@@ -528,11 +526,7 @@ export default function EditBuildingClient({
       }
 
       // Show success toast
-      toast({
-        title: "✅ Immeuble modifié avec succès",
-        description: `L'immeuble "${result.data.building.name}" a été mis à jour avec ${result.data.lots.length} lot(s).`,
-        variant: "success",
-      })
+      toast.success("✅ Immeuble modifié avec succès", { description: `L'immeuble "${result.data.building.name}" a été mis à jour avec ${result.data.lots.length} lot(s).` })
 
       // Redirect back to building details (toast will remain visible during navigation)
       router.push(`/gestionnaire/biens/immeubles/${buildingId}`)

@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-26
-**Total Learnings:** 95
+**Last Updated:** 2026-03-01
+**Total Learnings:** 100
 
 ---
 
@@ -196,6 +196,41 @@
 **Example:** `app/api/create-manager-intervention/route.ts`
 **When to Use:** Any code that creates intervention assignments
 **Added:** 2026-02-04 | **Source:** Intervention creation flow debugging
+
+#### Learning #096: Building-level tenant data must be resolved BEFORE thread creation — client only sends lot-level IDs
+**Problem:** The intervention creation form sends `selectedTenantIds` only for lot-level interventions (explicit contract selection). For building-level, `selectedTenantIds=[]` because tenants are resolved server-side via `contractService.getActiveTenantsByBuilding()`. But the thread creation code ran BEFORE the building tenant resolution, using `selectedTenantIds` — so building interventions never got tenant conversation threads (`tenant_to_managers`, `tenants_group`). Assignments were created correctly (later in the flow), but threads were already created with an empty tenant list.
+**Solution:** Pre-resolve building tenants BEFORE thread creation. Add an early resolution step: if `buildingId && !lotId && includeTenants !== false && resolvedTenantIds.length === 0`, fetch via `contractService.getActiveTenantsByBuilding()` with `excludedLotIds` filtering. Store in `resolvedTenantIds` and reuse for both thread creation AND assignment (eliminates duplicate DB query). Pattern: when a dependent step assumes client-sent IDs, verify that ALL code paths populate those IDs — server-resolved data may need to be injected earlier.
+**Example:** `app/api/create-manager-intervention/route.ts:408-437` — early building tenant resolution
+**When to Use:** Any API route where thread/notification creation depends on participant IDs that may come from the client (lot) OR be resolved server-side (building). Always check both housing types.
+**Added:** 2026-03-01 | **Source:** Building-level intervention missing tenant conversations
+
+#### Learning #097: Multi-contract tenants cause duplicate lot IDs — always deduplicate "get unique entities" methods built on junction tables
+**Problem:** `getSimpleTenantLots()` mapped `contract_contacts` → `contracts` → `lots` and returned the raw lot array. A tenant with 2 active contracts for the same lot (renewal, colocataire role) produced the same `lot.id` twice. React threw `Encountered two children with the same key` when rendering the lot selection cards.
+**Solution:** Deduplicate at the data service layer using `Set<string>` + `.filter()` on the entity ID. Don't fix at the UI layer (index-based keys mask the real problem: showing the same logement twice). The private `getTenantLots()` (per-contract data) stays un-deduped; only the public `getSimpleTenantLots()` (unique lots) deduplicates.
+**Example:** `lib/services/domain/tenant.service.ts:156-166` — Set-based dedup in getSimpleTenantLots
+**When to Use:** Any "get unique X" method that traverses junction tables (contract_contacts, lot_contacts, building_contacts). If entity A links to B through C, multiple C rows can point to the same B.
+**Added:** 2026-03-01 | **Source:** Locataire nouvelle-demande duplicate key error
+
+#### Learning #098: 1-to-N meta-card pattern — single UI card expanding to N database entities at submit
+**Problem:** Rent reminders need to create one intervention per month of the lease (could be 12-60 rows). Encoding all N as editable `scheduledInterventions[]` items would be UX chaos — too many cards, each needing day/month editing.
+**Solution:** Use a separate config state (`RentReminderConfig: { enabled, dayOfMonth, assignedUsers }`) for the single meta-card. At submit time, generate N `Date` objects from lease start to end (skip past dates), and call `createInterventionAction()` in a `Promise.allSettled` loop. The UI shows 1 card with a summary ("12 rappels seront créés"), the DB gets N interventions.
+**Example:** `components/contract/contract-form-container.tsx` — rent reminder submit block; `components/contract/lease-interventions-step.tsx` — RentReminderConfig UI
+**When to Use:** Any feature where a single user choice should produce multiple database entities (recurring events, batch creation, template expansion).
+**Added:** 2026-03-01 | **Source:** Lease rent reminder feature (Ralph US-002/US-003)
+
+#### Learning #099: Key prefix convention for preserving dynamic entries during useEffect template regeneration
+**Problem:** Property/lease intervention steps use a `useEffect` to regenerate template-based interventions when the selected type/building changes. This wiped user-created custom interventions on every re-render because the effect replaced the entire `scheduledInterventions` array.
+**Solution:** Prefix dynamic entries with `custom_` (or any stable prefix). In the `useEffect`, filter previous state to preserve custom entries: `prev.filter(i => i.key.startsWith('custom_'))`, then prepend to the new template array. The prefix acts as a lightweight type discriminator without needing a separate state or array.
+**Example:** `components/property-interventions-step.tsx` — useEffect preserves `custom_*` keys; `lib/constants/property-interventions.ts:createEmptyCustomIntervention()` — factory with `custom_` prefix
+**When to Use:** Any list managed by both template-generation (useEffect) and user input, where user entries must survive template refreshes.
+**Added:** 2026-03-01 | **Source:** Custom interventions in creation wizards
+
+#### Learning #100: Sentinel key routing for shared component instances serving multiple assignment targets
+**Problem:** The `ContactSelector` component (with its popover, search, role filtering) existed as a single ref instance on the page. Rent reminders needed their own contact assignment, but duplicating the entire ContactSelector was wasteful. The existing `activeAssignment.interventionKey` routing assumed all assignments mapped to `scheduledInterventions[]` entries.
+**Solution:** Use a sentinel key (`RENT_REMINDER_KEY = 'rent_reminders'`) that doesn't match any real intervention key. In `handleContactSelected`/`handleContactRemoved`, branch on `activeAssignment.interventionKey === RENT_REMINDER_KEY` to read/write from `rentReminderConfig.assignedUsers` instead of `scheduledInterventions`. Same pattern works for any "extra assignment target" added to a page with an existing shared selector.
+**Example:** `components/contract/lease-interventions-step.tsx` — RENT_REMINDER_KEY sentinel, branched handlers
+**When to Use:** When a shared component (selector, modal, popover) needs to serve N different data targets on the same page. Route via sentinel keys rather than duplicating the component.
+**Added:** 2026-03-01 | **Source:** Contact assignment on rent reminders
 
 #### Learning #010: RLS Access ≠ Explicit Participation
 **Problem:** Managers could view conversations via RLS (`team_id` match) but weren't in `conversation_participants`, breaking read tracking and participant lists.

@@ -8,6 +8,7 @@ import { Clock, FileText } from "lucide-react"
 import type { TenantIntervention } from "@/hooks/use-tenant-data"
 import type { TenantData as ServerTenantData } from "@/lib/services/domain/tenant.service"
 import { transformTenantDataForClient, transformInterventionForClient } from "@/lib/utils/tenant-transform"
+import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 
 interface LocataireDashboardProps {
   userName?: string
@@ -18,6 +19,8 @@ interface LocataireDashboardProps {
   serverError?: string | null
   userId?: string
   userRole?: string
+  unreadThreads?: UnreadThread[]
+  unreadThreadsTotalCount?: number
 }
 
 /**
@@ -35,7 +38,9 @@ export default function LocataireDashboard({
   serverTenantData,
   serverError,
   userId,
-  userRole
+  userRole,
+  unreadThreads,
+  unreadThreadsTotalCount
 }: LocataireDashboardProps) {
   // Pattern "mounted" to avoid React hydration error
   const [mounted, setMounted] = useState(false)
@@ -162,6 +167,8 @@ export default function LocataireDashboard({
           userInitial={userInitial}
           teamId={teamId}
           canCreateIntervention={false}
+          unreadThreads={unreadThreads}
+          unreadThreadsTotalCount={unreadThreadsTotalCount}
         />
       </>
     )
@@ -179,6 +186,8 @@ export default function LocataireDashboard({
       userInitial={userInitial}
       teamId={teamId}
       canCreateIntervention={true}
+      unreadThreads={unreadThreads}
+      unreadThreadsTotalCount={unreadThreadsTotalCount}
     />
   )
 }

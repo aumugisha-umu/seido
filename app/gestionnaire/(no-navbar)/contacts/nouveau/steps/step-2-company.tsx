@@ -10,7 +10,7 @@ import { CompanySelector } from "@/components/ui/company-selector"
 import { CompanySearch } from "@/components/ui/company-search"
 import { GoogleMapPreview } from "@/components/google-maps/google-map-preview"
 import { Building2, Plus, Loader2, MapPin, Hash, Globe, FileDigit } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import type { CompanyLookupResult } from '@/lib/types/cbeapi.types'
 import { getVatCodeForCountry } from "@/lib/constants/vat"
 
@@ -79,8 +79,6 @@ export function Step2Company({
   onFieldChange,
   onGeocodeResult
 }: Step2CompanyProps) {
-  const { toast } = useToast()
-
   // Geocoding library
   const geocoding = useMapsLibrary('geocoding')
 
@@ -278,11 +276,7 @@ export function Step2Company({
       company.country
     )
 
-    toast({
-      title: "Entreprise trouvee",
-      description: `Les donnees de ${company.name} ont ete pre-remplies.`,
-      variant: "default"
-    })
+    toast("Entreprise trouvee", { description: `Les donnees de ${company.name} ont ete pre-remplies.` })
   }
 
   /**

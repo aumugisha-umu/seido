@@ -61,8 +61,25 @@ export function EmailList({
 
       const matchesAttachments = !hasAttachments || email.has_attachments
 
-      // Date filter (simplified for dummy data)
-      const matchesDate = dateFilter === 'all' || true
+      const matchesDate = (() => {
+        if (dateFilter === 'all') return true
+        const emailDate = new Date(email.received_at || email.created_at)
+        const now = new Date()
+        switch (dateFilter) {
+          case 'today':
+            return emailDate.toDateString() === now.toDateString()
+          case 'week': {
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+            return emailDate >= weekAgo
+          }
+          case 'month': {
+            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+            return emailDate >= monthAgo
+          }
+          default:
+            return true
+        }
+      })()
 
       return matchesSearch && matchesAttachments && matchesDate
     })

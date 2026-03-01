@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
@@ -137,25 +137,8 @@ export async function POST(request: NextRequest) {
       logger.info({ interventionId }, "💬 [DEBUG] No internal comment to save (empty or missing)")
     }
 
-    // Send notifications with proper logic (personal/team)
-    try {
-      const notifResult = await notifyInterventionStatusChange({
-        interventionId: intervention.id,
-        oldStatus: 'demande',
-        newStatus: 'approuvee'
-      })
-
-      if (notifResult.success) {
-        logger.info({ count: notifResult.data?.length }, "📧 Notifications sent successfully")
-      } else {
-        logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
-      }
-    } catch (notifError) {
-      logger.warn({ notifError: notifError }, "⚠️ Could not send notifications:")
-      // Don't fail the approval for notification errors
-    }
-
-    return NextResponse.json({
+    // Build response FIRST
+    const response = NextResponse.json({
       success: true,
       intervention: {
         id: updatedIntervention.id,
@@ -165,6 +148,27 @@ export async function POST(request: NextRequest) {
       },
       message: 'Intervention approuvée avec succès'
     })
+
+    // Run notifications after response is sent
+    after(async () => {
+      try {
+        const notifResult = await notifyInterventionStatusChange({
+          interventionId: intervention.id,
+          oldStatus: 'demande',
+          newStatus: 'approuvee'
+        })
+
+        if (notifResult.success) {
+          logger.info({ count: notifResult.data?.length }, "📧 Notifications sent successfully")
+        } else {
+          logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+        }
+      } catch (notifError) {
+        logger.warn({ notifError: notifError }, "⚠️ Could not send notifications:")
+      }
+    })
+
+    return response
 
   } catch (error) {
     logger.error({ error: error }, "❌ Error in intervention-approve API:")

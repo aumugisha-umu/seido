@@ -1,0 +1,32 @@
+# Progress Log — Lease Payment Reminders
+# Started: 2026-02-28
+# Stories: 3 total — ALL COMPLETE
+---
+
+## 2026-02-28 — US-001: Migration DB rappel_loyer
+Files: supabase/migrations/20260228100000_add_rappel_loyer_type.sql (NEW)
+- New intervention type in bail category: rappel_loyer, Banknote icon, bg-emerald-600, sort 10
+- ON CONFLICT (code) DO NOTHING for idempotency
+
+## 2026-02-28 — US-002: Rent reminder card UI
+Files: components/contract/lease-interventions-step.tsx
+- RentReminderConfig interface exported (enabled + dayOfMonth)
+- New props: rentReminderConfig, onRentReminderChange
+- Banknote section between custom and standard interventions
+- Day-of-month Select (1-28) shown only when enabled
+- reminderCount useMemo computes future months only
+
+## 2026-02-28 — US-003: Parent state + submit expansion
+Files: components/contract/contract-form-container.tsx
+- rentReminderConfig state + passed as props
+- Submit: generates N monthly interventions from lease start to end (skip past dates)
+- Title: "Rappel loyer — Janvier 2026" (capitalized French month)
+- Uses toLocaleDateString('fr-FR') for month formatting
+- Confirmation step shows rent reminder summary
+- **KEY LEARNING**: 1 card → N interventions pattern uses separate state (not ScheduledInterventionData) to avoid bloating the intervention list UI
+
+---
+## Key Learnings
+1. Single-card-to-batch pattern: separate state (RentReminderConfig) not ScheduledInterventionData
+2. Day select limited to 1-28 to avoid February edge cases
+3. toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) for localized month names without importing fr locale

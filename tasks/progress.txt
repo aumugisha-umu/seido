@@ -1,48 +1,78 @@
-# Progress Log — Unify Document Preview & Download across all roles
-# Started: 2026-02-26
-# Stories: 4 total | All COMPLETE
+# Progress Log — Dashboard Interventions Perf & UX Optimization
+# Started: 2026-03-01
+# Stories: 4 total
 ---
 
-## US-001: Create shared useDocumentActions hook ✅
-- Created `components/interventions/shared/hooks/use-document-actions.tsx`
-- Created barrel export `hooks/index.ts`, added `export * from './hooks'` to `shared/index.ts`
-- Hook returns `{ handleViewDocument, handleDownloadDocument, previewModal }`
-- Uses sonner toast (available via root SonnerToaster)
-- `previewModal` is a ready-to-render ReactNode wrapping DocumentPreviewModal
-- **Learning**: Returning a ReactNode from a hook via `useMemo` lets consumers just render `{previewModal}` without wiring any state/callbacks — keeps API surface minimal
+## 2026-03-01 — US-001: Remove PeriodSelector from dashboard
+Files: components/dashboards/manager/manager-dashboard-v2.tsx
+- Removed PeriodSelector import, period state, filteredInterventions useMemo, progressData useMemo
+- Removed celebration toast + hasShownCelebration state + period reset useEffect
+- Removed toast import (no longer used)
+- InterventionsNavigator now receives unfiltered `interventions`
+- Header title simplified to "Interventions" (no period label)
+- Stats cards: removed progressData prop (optional, no breaking change)
 
-## US-002: Refactor gestionnaire ✅
-- Removed ~70 lines of inline handlers + state from intervention-detail-client.tsx
-- Replaced `DocumentPreviewModal` direct import with `useDocumentActions` from shared
-- Also removed unused `createBrowserSupabaseClient` import
-- **Learning**: gestionnaire was the reference implementation — modal preview already worked, just needed to extract into shared hook
+## 2026-03-01 — US-002: Add rejetee to Terminées tab
+Files: components/interventions/interventions-navigator.tsx
+- Added 'rejetee' to terminees filter array (1 line)
 
-## US-003: Refactor locataire ✅
-- Removed ~45 lines of inline handlers (including window.open) from intervention-detail-client.tsx
-- Added `useDocumentActions` import + `{previewModal}` in JSX
-- Locataire now gets modal preview instead of window.open — UX parity with gestionnaire
-- **Learning**: The window.open approach was a shortcut but broke UX consistency. API route + modal is both more secure (no exposed signed URLs in browser tab) and better UX
+## 2026-03-01 — US-003: Sort by scheduled_date
+Files: components/interventions/interventions-navigator.tsx
+- Added 'scheduled' to SortField union type
+- Added 'scheduled-asc' option to SORT_OPTIONS (first position, label: "Date planifiée")
+- Sort logic: NULL scheduled_date first (urgency DESC, created_at DESC), then by scheduled_date ASC
+- Default sort for dashboard preset changed from 'date-desc' to 'scheduled-asc'
 
-## US-004: Refactor prestataire ✅
-- Same pattern as locataire — removed inline handlers, added hook
-- Kept `createBrowserSupabaseClient` import (still used for quote upload handlers at ~lines 718/755)
-- **Learning**: When shared hook doesn't cover all use-cases (quote uploads use different storage logic), keep role-specific imports alongside shared ones
+## 2026-03-01 — US-004: Client-side pagination on cards view
+Files: components/interventions/interventions-view-container.tsx
+- Added second usePagination instance (cardsPagination, pageSize: 12)
+- Cards view now renders cardsPagination.paginatedItems instead of full array
+- InterventionPagination component shown below cards when totalPages > 1
+- Page size selector hidden for cards (fixed at 12)
+- Destructured resetCardsToFirstPage to satisfy ESLint exhaustive-deps
 
 ---
+ALL 4 STORIES COMPLETE — 2026-03-01
+Lint: 0 new warnings
 
-## Cross-Cutting Learnings
+## 2026-03-01 — Tab rename: "En cours" → "À venir"
+Files: components/interventions/interventions-navigator.tsx
+- Changed dashboard tab label from "En cours" to "À venir" (tab ID unchanged)
 
-### API Route vs Client-Side Storage
-- `createBrowserSupabaseClient().storage.createSignedUrl()` is unreliable: browser JWT can be stale, RLS checks at CDN level fail silently
-- Server-side API routes (`/api/view-intervention-document`, `/api/download-intervention-document`) with `getApiAuthContext()` are reliable and use fresh cookies
-- Cross-origin `download` HTML attribute is IGNORED — must use `{ download: fileName }` option in `createSignedUrl()` to set `Content-Disposition: attachment` server-side
+## 2026-03-01 — BUG FIX: Building-level intervention missing tenant conversations
+Files: app/api/create-manager-intervention/route.ts
+- Root cause: Thread creation used `selectedTenantIds` which is only populated client-side for lot-level interventions. For building-level, it was always `[]`.
+- Building tenants were resolved server-side via `contractService.getActiveTenantsByBuilding()` but AFTER thread creation — too late.
+- Fix: Added early resolution step before thread creation. `resolvedTenantIds` now covers both lot-level (from client) and building-level (from DB).
+- Unified assignment section: replaced 80+ lines of duplicated lot/building assignment code with a single path using `resolvedTenantIds`.
+- Learning: When a dependent step assumes client-sent IDs, verify ALL code paths populate those IDs. Server-resolved data may need injection earlier.
+- AGENTS.md: Added Learning #096
 
-### Hook-as-Component Pattern
-- Returning a pre-wired ReactNode from a custom hook (via `useMemo`) eliminates state/callback prop threading
-- Consumer code goes from ~50 lines of wiring to 2 lines: destructure hook + render `{previewModal}`
-- Trade-off: less flexible (can't customize modal per-role), but for our use-case identical behavior is the goal
+## 2026-03-01 — Custom Interventions in Creation Wizards
+Files: lib/constants/property-interventions.ts, components/contract/intervention-schedule-row.tsx, components/property-interventions-step.tsx, components/contract/lease-interventions-step.tsx
+- Added `createEmptyCustomIntervention()` factory with `custom_` key prefix
+- `InterventionScheduleRow` now supports `isEditable` prop → Input fields instead of static text
+- Property step: custom section with "+ Ajouter" button, useEffect preserves `custom_*` entries
+- Lease step: same pattern, custom section above standard interventions
+- UI: All cards now unconditionally `bg-card border-border` (no grey when unchecked), "Auto" badge removed
+- Learning: Key prefix convention protects user entries from template-regeneration useEffect
 
-### Duplication Stats
-- Before: ~160 lines of duplicate logic across 3 files
-- After: 1 shared hook (128 lines) + 2 lines per consumer = ~134 lines total
-- Net reduction: ~26 lines, but more importantly: single source of truth
+## 2026-03-01 — Lease Payment Reminders (Ralph: 3 stories)
+Files: supabase/migrations/20260228100000_add_rappel_loyer_type.sql, components/contract/lease-interventions-step.tsx, components/contract/contract-form-container.tsx
+- US-001: DB migration — new `rappel_loyer` intervention type (category: bail, icon: Banknote)
+- US-002: UI card — checkbox, day-of-month Select (1-28), description with reminder count, avatar chips
+- US-003: Parent state + submit — `RentReminderConfig` in contract-form-container, generates N monthly dates, Promise.allSettled creation
+- Decision: Separate state (`RentReminderConfig`) instead of encoding N entries in scheduledInterventions — 1-to-N meta-card pattern
+- Learning: 1-to-N meta-card + sentinel key routing for shared ContactSelector
+
+## 2026-03-01 — Contact Assignment on Rent Reminders
+Files: components/contract/lease-interventions-step.tsx, components/contract/contract-form-container.tsx
+- Gestionnaire pre-assigned on init, can add locataire via ContactSelector popover
+- Sentinel key `RENT_REMINDER_KEY` routes shared ContactSelector to rentReminderConfig.assignedUsers
+- Avatar chips with tooltips + role-colored borders (ROLE_COLORS map)
+
+## 2026-03-01 — BUG FIX: Duplicate React key in locataire nouvelle-demande
+Files: lib/services/domain/tenant.service.ts
+- Root cause: `getSimpleTenantLots()` traversed contract_contacts → contracts → lots without dedup. Multi-contract tenants (renewal, colocataire) produced same lot.id twice.
+- Fix: Set-based dedup by lot.id in getSimpleTenantLots (6 lines). Private getTenantLots stays un-deduped (per-contract data).
+- AGENTS.md: Added Learnings #097-#100

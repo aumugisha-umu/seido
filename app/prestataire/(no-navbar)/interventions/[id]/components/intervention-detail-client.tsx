@@ -220,7 +220,12 @@ export function PrestataireInterventionDetailClient({
     }
   }, [searchParams])
 
-  const [activeTab, setActiveTab] = useState('general')
+  // Deep-link support: ?tab=conversations&thread=group
+  const initialTab = searchParams.get('tab')
+  const initialThread = searchParams.get('thread')
+  const [activeTab, setActiveTab] = useState(
+    initialTab === 'conversations' ? 'conversations' : 'general'
+  )
   const [refreshing, setRefreshing] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
@@ -242,7 +247,7 @@ export function PrestataireInterventionDetailClient({
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // Thread type à utiliser pour InterventionChatTab
-  const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(undefined)
+  const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(initialThread || undefined)
 
   // Local state for threads with unread counts (for optimistic updates)
   const [localThreads, setLocalThreads] = useState(threads)

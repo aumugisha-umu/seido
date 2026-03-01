@@ -124,7 +124,7 @@ import {
 import { useAuth } from '@/hooks/use-auth'
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 import { useTeamStatus } from '@/hooks/use-team-status'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { useInterventionApproval } from '@/hooks/use-intervention-approval'
 import { useInterventionCancellation } from '@/hooks/use-intervention-cancellation'
 import { useActivityLogs } from '@/hooks/use-activity-logs'
@@ -318,8 +318,12 @@ export function InterventionDetailClient({
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const { currentUserTeam } = useTeamStatus()
-  const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState('general')
+  // Deep-link support: ?tab=conversations&thread=group
+  const initialTab = searchParams.get('tab')
+  const initialThread = searchParams.get('thread')
+  const [activeTab, setActiveTab] = useState(
+    initialTab === 'conversations' ? 'conversations' : 'general'
+  )
 
   // Local state for threads with unread counts (for optimistic updates)
   const [localThreads, setLocalThreads] = useState(threads)
@@ -371,7 +375,7 @@ export function InterventionDetailClient({
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // Thread type sélectionné pour le chat (utilisé quand on clique sur une icône message)
-  const [selectedThreadType, setSelectedThreadType] = useState<string>('group')
+  const [selectedThreadType, setSelectedThreadType] = useState<string>(initialThread || 'group')
 
   // État pour la modale d'upload de documents
   const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false)
@@ -859,6 +863,7 @@ export function InterventionDetailClient({
     modalProviderInstructions,
     confirmationRequired,
     requiresConfirmation,
+    () => router.refresh(),
   )
 
   // Reset participant selection and pre-fill scheduling state when programming modal opens
@@ -1064,20 +1069,13 @@ export function InterventionDetailClient({
             })
             const data = await response.json()
             if (data.success) {
-              toast({
-                title: 'Action effectuée',
-                description: 'L\'intervention a été clôturée'
-              })
+              toast('Action effectuée', { description: 'L\'intervention a été clôturée' })
               handleRefresh()
             } else {
               throw new Error(data.error || 'Erreur lors de l\'action')
             }
           } catch (error) {
-            toast({
-              title: 'Erreur',
-              description: error instanceof Error ? error.message : 'Impossible d\'effectuer l\'action',
-              variant: 'destructive'
-            })
+            toast.error('Erreur', { description: error instanceof Error ? error.message : 'Impossible d\'effectuer l\'action' })
           } finally {
             setActionLoading(null)
           }
@@ -1100,20 +1098,13 @@ export function InterventionDetailClient({
             })
             const data = await response.json()
             if (data.success) {
-              toast({
-                title: 'Relance envoyée',
-                description: 'Le locataire a été relancé par email'
-              })
+              toast('Relance envoyée', { description: 'Le locataire a été relancé par email' })
               handleRefresh()
             } else {
               throw new Error(data.error || 'Erreur lors de l\'envoi')
             }
           } catch (error) {
-            toast({
-              title: 'Erreur',
-              description: error instanceof Error ? error.message : 'Impossible d\'envoyer la relance',
-              variant: 'destructive'
-            })
+            toast.error('Erreur', { description: error instanceof Error ? error.message : 'Impossible d\'envoyer la relance' })
           } finally {
             setActionLoading(null)
           }
@@ -1162,20 +1153,13 @@ export function InterventionDetailClient({
         throw new Error('Failed to cancel quote request')
       }
 
-      toast({
-        title: 'Demande annulée',
-        description: 'La demande d\'estimation a été annulée avec succès'
-      })
+      toast('Demande annulée', { description: 'La demande d\'estimation a été annulée avec succès' })
 
       setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })
       handleRefresh()
     } catch (error) {
       console.error('Error canceling quote request:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue lors de l\'annulation de la demande',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue lors de l\'annulation de la demande' })
     } finally {
       setIsCancellingQuote(false)
     }
@@ -1223,21 +1207,14 @@ export function InterventionDetailClient({
 
       const result = await cancelResponse.json()
 
-      toast({
-        title: result.cancelledCount > 1 ? 'Demandes annulées' : 'Demande annulée',
-        description: result.message || 'Les demandes d\'estimation ont été annulées'
-      })
+      toast(result.cancelledCount > 1 ? 'Demandes annulées' : 'Demande annulée', { description: result.message || 'Les demandes d\'estimation ont été annulées' })
 
       setCancelQuoteConfirmModal({ isOpen: false, quoteCount: 0, providerNames: [] })
       handleRefresh()
     } catch (error) {
       console.error('Error cancelling quotes from toggle:', error)
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'annulation'
-      toast({
-        title: 'Erreur',
-        description: errorMessage,
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: errorMessage })
     } finally {
       setIsCancellingQuoteFromToggle(false)
     }
@@ -1258,18 +1235,10 @@ export function InterventionDetailClient({
     const result = await assignUserAction(intervention.id, contact.id, role)
 
     if (result.success) {
-      toast({
-        title: 'Contact assigné',
-        description: `${contact.name} a été assigné à l'intervention`,
-        variant: 'default'
-      })
+      toast('Contact assigné', { description: `${contact.name} a été assigné à l'intervention` })
       handleRefresh()
     } else {
-      toast({
-        title: 'Erreur',
-        description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
     }
   }
 
@@ -1278,18 +1247,10 @@ export function InterventionDetailClient({
     const result = await assignUserAction(intervention.id, contact.id, role)
 
     if (result.success) {
-      toast({
-        title: 'Contact créé et assigné',
-        description: `${contact.name} a été créé et assigné à l'intervention`,
-        variant: 'default'
-      })
+      toast('Contact créé et assigné', { description: `${contact.name} a été créé et assigné à l'intervention` })
       handleRefresh()
     } else {
-      toast({
-        title: 'Erreur',
-        description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
     }
   }
 
@@ -1298,18 +1259,10 @@ export function InterventionDetailClient({
     const result = await unassignUserAction(intervention.id, contactId, role)
 
     if (result.success) {
-      toast({
-        title: 'Contact retiré',
-        description: 'Le contact a été retiré de l\'intervention',
-        variant: 'default'
-      })
+      toast('Contact retiré', { description: 'Le contact a été retiré de l\'intervention' })
       handleRefresh()
     } else {
-      toast({
-        title: 'Erreur',
-        description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
     }
   }
 
@@ -1331,23 +1284,15 @@ export function InterventionDetailClient({
 
     assignUserAction(intervention.id, newContactId, role).then((result) => {
       if (result.success) {
-        toast({
-          title: 'Contact créé et assigné',
-          description: 'Le nouveau contact a été créé et assigné avec succès',
-          variant: 'default'
-        })
+        toast('Contact créé et assigné', { description: 'Le nouveau contact a été créé et assigné avec succès' })
         // Clean URL params and refresh
         router.replace(`/gestionnaire/interventions/${intervention.id}`)
         router.refresh()
       } else {
-        toast({
-          title: 'Erreur d\'assignation',
-          description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-          variant: 'destructive'
-        })
+        toast.error('Erreur d\'assignation', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
       }
     })
-  }, [newContactId, returnedContactType, intervention.id, router, toast])
+  }, [newContactId, returnedContactType, intervention.id, router])
 
   // Get badge counts for tabs
   const getBadgeCount = (tab: string) => {
@@ -1400,25 +1345,14 @@ export function InterventionDetailClient({
       const result = await response.json()
 
       if (result.success) {
-        toast({
-          title: 'Créneau approuvé',
-          description: 'L\'intervention a été planifiée avec succès'
-        })
+        toast('Créneau approuvé', { description: 'L\'intervention a été planifiée avec succès' })
         handleRefresh()
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Erreur lors de l\'approbation du créneau',
-          variant: 'destructive'
-        })
+        toast.error('Erreur', { description: result.error || 'Erreur lors de l\'approbation du créneau' })
       }
     } catch (error) {
       console.error('Error approving slot:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Erreur lors de l\'approbation du créneau',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: 'Erreur lors de l\'approbation du créneau' })
     }
   }
 
@@ -1483,25 +1417,14 @@ export function InterventionDetailClient({
       const result = await cancelQuoteAction(quoteId, intervention.id)
 
       if (result.success) {
-        toast({
-          title: 'Demande annulée',
-          description: 'La demande d\'estimation a été annulée'
-        })
+        toast('Demande annulée', { description: 'La demande d\'estimation a été annulée' })
         handleRefresh()
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Erreur lors de l\'annulation de la demande',
-          variant: 'destructive'
-        })
+        toast.error('Erreur', { description: result.error || 'Erreur lors de l\'annulation de la demande' })
       }
     } catch (error) {
       console.error('Error cancelling quote:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Erreur lors de l\'annulation de la demande',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: 'Erreur lors de l\'annulation de la demande' })
     }
   }
 
@@ -1575,25 +1498,14 @@ export function InterventionDetailClient({
       })
 
       if (result.success) {
-        toast({
-          title: 'Commentaire ajouté',
-          description: 'Votre commentaire a été enregistré'
-        })
+        toast('Commentaire ajouté', { description: 'Votre commentaire a été enregistré' })
         router.refresh()
       } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Impossible d\'ajouter le commentaire',
-          variant: 'destructive'
-        })
+        toast.error('Erreur', { description: result.error || 'Impossible d\'ajouter le commentaire' })
       }
     } catch (error) {
       console.error('Error adding comment:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Une erreur est survenue',
-        variant: 'destructive'
-      })
+      toast.error('Erreur', { description: 'Une erreur est survenue' })
     }
   }
 

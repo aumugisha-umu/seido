@@ -14,6 +14,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ContractExpiryBanner } from './contract-expiry-banner'
+import { ContractExpiryActions } from './contract-expiry-actions'
 import type { ContractCardProps } from '@/lib/types/contract.types'
 
 export function ContractCard({
@@ -23,7 +25,9 @@ export function ContractCard({
   onSelect,
   onView,
   onEdit,
-  onDelete
+  onDelete,
+  expiryInfo,
+  onRefresh
 }: ContractCardProps) {
   // Calculate monthly total
   const monthlyTotal = contract.rent_amount + (contract.charges_amount || 0)
@@ -39,12 +43,20 @@ export function ContractCard({
 
   const addressInfo = contract.lot?.building?.address || contract.lot?.street || contract.lot?.city || ''
 
+  const hasAlert = expiryInfo?.alertTier != null
+
   // BEM Classes
   const blockClass = cn(
     'contract-card',
     'group transition-all duration-200 h-full bg-white cursor-pointer',
     isSelected && 'ring-2 ring-primary',
-    'hover:shadow-md hover:border-primary/30'
+    hasAlert
+      ? expiryInfo.alertTier === 'deadline'
+        ? 'border-red-300 hover:shadow-md hover:border-red-400'
+        : expiryInfo.alertTier === 'warning'
+          ? 'border-red-200 hover:shadow-md hover:border-red-300'
+          : 'border-orange-200 hover:shadow-md hover:border-orange-300'
+      : 'hover:shadow-md hover:border-primary/30'
   )
 
   const headerClass = cn(
@@ -132,6 +144,11 @@ export function ContractCard({
 
       <CardContent className="p-3 pt-0">
         <div className={contentClass}>
+          {/* Expiry alert banner */}
+          {hasAlert && expiryInfo && (
+            <ContractExpiryBanner expiryInfo={expiryInfo} compact className="-mx-0.5" />
+          )}
+
           {/* Location - compact */}
           <div className="contract-card__location flex items-center gap-2 text-xs text-muted-foreground">
             <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
@@ -165,6 +182,18 @@ export function ContractCard({
                 contacts={contract.contacts}
                 maxDisplay={3}
                 showRoles
+              />
+            </div>
+          )}
+
+          {/* Expiry action buttons */}
+          {hasAlert && expiryInfo && (
+            <div className="pt-1.5 border-t border-border">
+              <ContractExpiryActions
+                contractId={contract.id}
+                expiryInfo={expiryInfo}
+                onRefresh={onRefresh}
+                compact
               />
             </div>
           )}

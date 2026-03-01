@@ -402,15 +402,16 @@ export async function notifyInterventionStatusChange({
     // EMAIL NOTIFICATIONS: Status change emails
     // ═══════════════════════════════════════════════════════════════════════════
     try {
-      const notificationRepository = await createServerNotificationRepository()
-      const interventionRepository = await createServerInterventionRepository()
-      const userRepository = await createServerUserRepository()
-      const buildingRepository = await createServerBuildingRepository()
-      const lotRepository = await createServerLotRepository()
+      const [interventionRepository, userRepository, buildingRepository, lotRepository] = await Promise.all([
+        createServerInterventionRepository(),
+        createServerUserRepository(),
+        createServerBuildingRepository(),
+        createServerLotRepository()
+      ])
       const emailService = new EmailService()
 
       const emailNotificationService = new EmailNotificationService(
-        notificationRepository,
+        repository,
         emailService,
         interventionRepository,
         userRepository,

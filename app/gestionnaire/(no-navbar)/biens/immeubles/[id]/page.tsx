@@ -109,11 +109,14 @@ export default async function BuildingDetailsPage({
   })
 
   try {
-    // Initialize services (server-side)
-    const buildingService = await createServerBuildingService()
-    const lotService = await createServerLotService()
-    const interventionService = await createServerInterventionService()
-    const supabase = await createServerSupabaseClient()
+    // Initialize all services in parallel (server-side)
+    const [buildingService, lotService, interventionService, contractService, supabase] = await Promise.all([
+      createServerBuildingService(),
+      createServerLotService(),
+      createServerInterventionService(),
+      createServerContractService(),
+      createServerSupabaseClient()
+    ])
 
     // Load building data
     logger.info('📍 [BUILDING-PAGE-SERVER] Step 1: Loading building...', { buildingId: id })
@@ -144,22 +147,73 @@ export default async function BuildingDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // ✅ 2025-12-26: Get occupied lot IDs from ACTIVE CONTRACTS (not lot_contacts)
-    // This ensures consistent occupation calculation across all pages
-    const contractService = await createServerContractService()
-    let occupiedLotIds = new Set<string>()
-    try {
-      const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
-      if (occupiedResult.success) {
-        occupiedLotIds = occupiedResult.data
-        logger.info('✅ [BUILDING-PAGE-SERVER] Occupied lots from contracts:', {
-          occupiedCount: occupiedLotIds.size,
-          elapsed: `${Date.now() - startTime}ms`
-        })
-      }
-    } catch (error) {
-      logger.warn('⚠️ [BUILDING-PAGE-SERVER] Could not get occupied lots from contracts')
-    }
+    // ✅ 2026-02-27: Parallelize independent queries after building + lots are loaded
+    // Group 1: occupiedLotIds, contracts, interventions, buildingContacts, address
+    // These all depend on building/lots/team but NOT on each other
+    const lotIds = lots.map((lot: any) => lot.id)
+
+    logger.info('📍 [BUILDING-PAGE-SERVER] Step 3: Running parallel queries (contracts, interventions, contacts, address)...')
+
+    const [
+      occupiedResult,
+      contractsResult,
+      interventionsResult,
+      buildingContactsResponse,
+      addressResponse
+    ] = await Promise.all([
+      // Occupied lot IDs from active contracts
+      contractService.getOccupiedLotIdsByTeam(team.id).catch(() => {
+        logger.warn('⚠️ [BUILDING-PAGE-SERVER] Could not get occupied lots from contracts')
+        return { success: false as const, data: new Set<string>() }
+      }),
+
+      // Batch load contracts for ALL lots in 1 query (N+1 -> 1 query)
+      contractService.getByLotIds(lotIds, { includeExpired: false }),
+
+      // Fetch building-level AND lot-level interventions in 1 query
+      // Uses .or(building_id.eq.X, lot_id.in.(Y)) to capture both XOR cases
+      interventionService.getByBuildingWithLots(id, lotIds),
+
+      // Building contacts
+      supabase
+        .from('building_contacts')
+        .select(`
+          id,
+          user_id,
+          is_primary,
+          user:user_id(
+            id,
+            name,
+            email,
+            phone,
+            role,
+            provider_category,
+            speciality
+          )
+        `)
+        .eq('building_id', id)
+        .order('is_primary', { ascending: false }),
+
+      // Address data (only if building has address_id)
+      building.address_id
+        ? supabase
+            .from('addresses')
+            .select('latitude, longitude, formatted_address')
+            .eq('id', building.address_id)
+            .single()
+        : Promise.resolve({ data: null })
+    ])
+
+    logger.info('✅ [BUILDING-PAGE-SERVER] Parallel queries completed', {
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
+    // Process occupied lot IDs
+    const occupiedLotIds = occupiedResult.success ? occupiedResult.data : new Set<string>()
+    logger.info('✅ [BUILDING-PAGE-SERVER] Occupied lots from contracts:', {
+      occupiedCount: occupiedLotIds.size,
+      elapsed: `${Date.now() - startTime}ms`
+    })
 
     // Apply occupation status from contracts to lots
     const lotsWithOccupation = lots.map((lot: any) => ({
@@ -167,11 +221,7 @@ export default async function BuildingDetailsPage({
       is_occupied: occupiedLotIds.has(lot.id)
     }))
 
-    // ✅ 2026-02-08: Batch load contracts for ALL lots in 1 query (N+1 → 1 query)
-    // Previously: N queries for N lots. Now: 1 query with .in('lot_id', lotIds)
-    logger.info('📍 [BUILDING-PAGE-SERVER] Step 2.5: Batch loading contracts for all lots...')
-    const lotIds = lots.map((lot: any) => lot.id)
-    const contractsResult = await contractService.getByLotIds(lotIds, { includeExpired: false })
+    // Process contracts result
     const allContracts = contractsResult.success ? (contractsResult.data || []) : []
 
     // Group contracts by lot_id using Map (O(n) client-side grouping)
@@ -230,99 +280,51 @@ export default async function BuildingDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // ✅ 2026-02-18: Fetch building-level AND lot-level interventions in 1 query
-    // Uses .or(building_id.eq.X, lot_id.in.(Y)) to capture both XOR cases
-    logger.info('📍 [BUILDING-PAGE-SERVER] Step 3: Batch loading interventions...')
-
-    const interventionsResult = await interventionService.getByBuildingWithLots(id, lotIds)
+    // Process interventions result
     const interventions: unknown[] = interventionsResult.success ? (interventionsResult.data || []) : []
-
     logger.info('✅ [BUILDING-PAGE-SERVER] Interventions batch loaded', {
       interventionCount: interventions.length,
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // Load interventions with documents (for documents tab)
-    logger.info('📍 [BUILDING-PAGE-SERVER] Step 4: Loading interventions with documents...')
-    const buildingInterventionsResult = await interventionService.getByBuilding(id)
+    // Group 2: Documents depend on interventions being loaded
+    // Batch load documents for all interventions (1 query instead of N)
+    logger.info('📍 [BUILDING-PAGE-SERVER] Step 4: Batch loading documents for all interventions...')
+    const interventionIds = (interventions as { id: string }[]).map(i => i.id)
+    const docsResult = await interventionService.getDocumentsByInterventionIds(interventionIds)
+    const docsMap = docsResult.success ? docsResult.data : new Map()
 
-    let interventionsWithDocs: unknown[] = []
-    if (buildingInterventionsResult.success && buildingInterventionsResult.data) {
-      const interventionsWithDocsData = await Promise.all(
-        buildingInterventionsResult.data.map(async (intervention: { id: string }) => {
-          try {
-            const docsResult = await interventionService.getDocuments(intervention.id)
-            return {
-              ...intervention,
-              documents: docsResult.success ? docsResult.data : []
-            }
-          } catch (error) {
-            logger.warn(`⚠️ [BUILDING-PAGE-SERVER] Could not load documents for intervention ${intervention.id}`)
-            return {
-              ...intervention,
-              documents: []
-            }
-          }
-        })
-      )
+    const interventionsWithDocs = (interventions as { id: string }[]).map(intervention => ({
+      ...intervention,
+      documents: docsMap.get(intervention.id) || []
+    }))
 
-      interventionsWithDocs = interventionsWithDocsData
-      logger.info('✅ [BUILDING-PAGE-SERVER] Interventions with documents loaded', {
-        count: interventionsWithDocs.length,
-        elapsed: `${Date.now() - startTime}ms`
-      })
-    }
+    logger.info('✅ [BUILDING-PAGE-SERVER] Interventions with documents loaded (batch)', {
+      count: interventionsWithDocs.length,
+      docsTotal: docsResult.success ? Array.from(docsMap.values()).reduce((sum, docs) => sum + docs.length, 0) : 0,
+      elapsed: `${Date.now() - startTime}ms`
+    })
 
-    // Load building contacts
-    logger.info('📍 [BUILDING-PAGE-SERVER] Step 5: Loading building contacts...')
-    const { data: buildingContactsData } = await supabase
-      .from('building_contacts')
-      .select(`
-        id,
-        user_id,
-        is_primary,
-        user:user_id(
-          id,
-          name,
-          email,
-          phone,
-          role,
-          provider_category,
-          speciality
-        )
-      `)
-      .eq('building_id', id)
-      .order('is_primary', { ascending: false })
-
-    const buildingContacts = buildingContactsData || []
+    // Process building contacts
+    const buildingContacts = buildingContactsResponse.data || []
     logger.info('✅ [BUILDING-PAGE-SERVER] Building contacts loaded', {
       contactCount: buildingContacts.length,
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // Step 6: Load address if building has address_id
+    // Process address data
     let buildingAddress: { latitude: number; longitude: number; formatted_address: string | null } | null = null
-    if (building.address_id) {
-      logger.info('📍 [BUILDING-PAGE-SERVER] Step 6: Loading building address...', {
-        addressId: building.address_id
-      })
-      const { data: addressData } = await supabase
-        .from('addresses')
-        .select('latitude, longitude, formatted_address')
-        .eq('id', building.address_id)
-        .single()
-
-      if (addressData && addressData.latitude && addressData.longitude) {
-        buildingAddress = {
-          latitude: addressData.latitude,
-          longitude: addressData.longitude,
-          formatted_address: addressData.formatted_address
-        }
-        logger.info('✅ [BUILDING-PAGE-SERVER] Building address loaded', {
-          hasCoordinates: true,
-          elapsed: `${Date.now() - startTime}ms`
-        })
+    const addressData = addressResponse.data
+    if (addressData && 'latitude' in addressData && 'longitude' in addressData && addressData.latitude && addressData.longitude) {
+      buildingAddress = {
+        latitude: addressData.latitude,
+        longitude: addressData.longitude,
+        formatted_address: addressData.formatted_address
       }
+      logger.info('✅ [BUILDING-PAGE-SERVER] Building address loaded', {
+        hasCoordinates: true,
+        elapsed: `${Date.now() - startTime}ms`
+      })
     }
 
     logger.info('🎉 [BUILDING-PAGE-SERVER] All data loaded successfully', {

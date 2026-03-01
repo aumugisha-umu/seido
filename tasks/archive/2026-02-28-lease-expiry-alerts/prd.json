@@ -1,0 +1,152 @@
+{
+  "project": "SEIDO",
+  "featureName": "Lease Expiry Alert System",
+  "branchName": "preview",
+  "description": "Système d'alertes multi-palier pour la gestion des échéances de baux selon le droit locatif belge. Calcul automatique de la catégorie légale (courte durée/9 ans/longue durée), paliers d'alerte (critique/warning/deadline), décisions gestionnaire (renouveler/résilier/tacite accepté), UI enrichie sur onglet contrats + fiche détail.",
+  "createdAt": "2026-02-28",
+  "prdSource": "docs/plans/2026-02-28-lease-expiry-design.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Types & logique métier expiry",
+      "description": "As a developer, I want LeaseCategory, AlertTier, and ContractExpiryInfo types plus pure helper functions so that the expiry logic is testable and reusable.",
+      "acceptanceCriteria": [
+        "LeaseCategory type added to contract.types.ts (courte_duree | neuf_ans | longue_duree)",
+        "AlertTier type added (critical | warning | deadline | null)",
+        "ContractExpiryInfo interface added with all fields (leaseCategory, daysRemaining, alertTier, noticeDeadlineDays, noticeDeadlineDate, noticeDeadlinePassed, tacitRenewalRisk)",
+        "ContractWithCalculations extended with expiryInfo field",
+        "Pure functions in contract.service.ts: getLeaseCategory(), getNoticeDeadlineDays(), getAlertTier(), getExpiryInfo()",
+        "enrichWithCalculations() extended to include expiryInfo",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Types added to contract.types.ts, pure functions in lib/utils/lease-expiry.ts (client-safe), re-exported from contract.service.ts. enrichWithCalculations extended."
+    },
+    {
+      "id": "US-002",
+      "title": "Repository: élargir findExpiringSoon à 270 jours",
+      "description": "As a developer, I want findExpiringSoon() to support up to 270 days window so that long-term leases are captured early enough for legal notice.",
+      "acceptanceCriteria": [
+        "findExpiringSoon() default param stays 30 but accepts up to 270",
+        "getExpiringSoon() service method passes dynamic window based on max alert threshold (270)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Added getExpiringWithAlerts() method passing 270-day window."
+    },
+    {
+      "id": "US-003",
+      "title": "Server action: setExpiryDecision",
+      "description": "As a gestionnaire, I want to record my expiry decision (renew/terminate/accept tacit) so that the alert disappears and my choice is tracked.",
+      "acceptanceCriteria": [
+        "New server action setExpiryDecision(contractId, decision) in contract-actions.ts",
+        "Writes to contracts.metadata.expiry_decision with decision, decided_at, decided_by",
+        "Validates decision enum (tacite_accepted | will_renew | will_terminate)",
+        "Auth check with getServerActionAuthContextOrNull()",
+        "Revalidates contract cache",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Server action writes to metadata.expiry_decision JSONB. Auth check + team access + revalidation."
+    },
+    {
+      "id": "US-004",
+      "title": "Contracts navigator: filtre dynamique + exclusion décision prise",
+      "description": "As a gestionnaire, I want the 'Expirent bientôt' tab to show contracts within the legal alert window (180j/270j) and hide those where I already made a decision.",
+      "acceptanceCriteria": [
+        "Filter uses getExpiryInfo() to determine if contract is in alert window",
+        "Contracts with metadata.expiry_decision are excluded from the tab",
+        "Tab count reflects filtered contracts correctly",
+        "Alert orange styling preserved (already done)",
+        "Tab hidden when count=0 (already done)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Filter uses getExpiryInfo() from lib/utils/lease-expiry.ts (client-safe). Server/client boundary solved by extracting pure functions."
+    },
+    {
+      "id": "US-005",
+      "title": "Contract expiry banner component",
+      "description": "As a gestionnaire, I want to see a color-coded alert banner on expiring contracts showing the tier, countdown, deadline date, and tacit renewal risk.",
+      "acceptanceCriteria": [
+        "New component contract-expiry-banner.tsx",
+        "3 color variants: orange (critical), red (warning), dark red (deadline)",
+        "Shows: tier label, days until notice deadline, deadline date formatted, tacit renewal risk text",
+        "Shows 'Deadline dépassée' state when past deadline",
+        "Responsive: stacks on mobile",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "3 color variants (orange/red/dark red), tier badge, countdown, deadline date, tacit risk. Compact mode for cards."
+    },
+    {
+      "id": "US-006",
+      "title": "Contract expiry actions component",
+      "description": "As a gestionnaire, I want 3 action buttons (Renouveler, Résilier, Tacite accepté) on expiring contract cards so that I can make a decision directly.",
+      "acceptanceCriteria": [
+        "New component contract-expiry-actions.tsx",
+        "3 buttons: Renouveler (links to /contrats/nouveau?renew=id), Résilier (calls terminateContract), Tacite accepté (calls setExpiryDecision)",
+        "Confirmation dialog for Résilier and Tacite accepté",
+        "Loading states during server actions",
+        "Calls onRefresh after action",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003", "US-005"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "3 buttons with AlertDialog confirmations. Renouveler routes to /contrats/nouveau?renew=id. Loading states + onRefresh callback."
+    },
+    {
+      "id": "US-007",
+      "title": "Intégrer banner + actions dans contract-card.tsx",
+      "description": "As a gestionnaire, I want to see the expiry banner and action buttons directly on contract cards in the 'Expirent bientôt' tab.",
+      "acceptanceCriteria": [
+        "ContractCard receives optional expiryInfo prop",
+        "When expiryInfo has alertTier, shows ContractExpiryBanner above card content",
+        "Shows ContractExpiryActions below card content when in alert",
+        "Card border color changes to match alert tier",
+        "Normal cards (no alert) unchanged",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-004", "US-005", "US-006"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Card border color matches alert tier. Banner above content, actions below with border separator. expiryInfo passed only on expire_bientot tab."
+    },
+    {
+      "id": "US-008",
+      "title": "Intégrer banner sur fiche détail contrat",
+      "description": "As a gestionnaire, I want to see the expiry alert banner on the contract detail page so that I'm warned when viewing any expiring contract.",
+      "acceptanceCriteria": [
+        "Contract detail page computes expiryInfo server-side via enrichWithCalculations",
+        "Passes expiryInfo to ContractDetailsClient",
+        "ContractDetailsClient renders ContractExpiryBanner + ContractExpiryActions at top when alert active",
+        "Banner contextual: shows lease category, deadline, risk",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-005", "US-006"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Computes expiryInfo client-side for active contracts. Banner + actions rendered above EntityPreviewLayout when alert active."
+    }
+  ]
+}

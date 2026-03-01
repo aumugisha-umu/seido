@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { useViewMode } from '@/hooks/use-view-mode'
 import { Search, LayoutGrid, List, FileText, AlertTriangle, Archive, CheckCircle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { logger } from '@/lib/logger'
+import { getExpiryInfo } from '@/lib/utils/lease-expiry'
 import type { ContractWithRelations, ContractsNavigatorProps } from '@/lib/types/contract.types'
 import {
   AlertDialog,
@@ -33,15 +34,6 @@ import {
 // Modifiers: contracts-section__tab--active, __view-btn--active
 // ============================================================================
 
-/**
- * Parse une chaîne de date ISO (YYYY-MM-DD) en Date locale.
- * Évite le bug de timezone où new Date("2026-01-01") devient 31 déc en UTC+1.
- */
-const parseLocalDate = (dateStr: string): Date => {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
 type TabId = 'actifs' | 'a_venir' | 'expire_bientot' | 'termines' | 'tous'
 
 interface Tab {
@@ -53,10 +45,10 @@ interface Tab {
 
 const TABS: Tab[] = [
   {
-    id: 'actifs',
-    label: 'Actifs',
-    icon: CheckCircle,
-    filter: (c) => c.status === 'actif'
+    id: 'tous',
+    label: 'Tous',
+    icon: FileText,
+    filter: () => true
   },
   {
     id: 'a_venir',
@@ -65,17 +57,20 @@ const TABS: Tab[] = [
     filter: (c) => c.status === 'a_venir'
   },
   {
+    id: 'actifs',
+    label: 'Actifs',
+    icon: CheckCircle,
+    filter: (c) => c.status === 'actif'
+  },
+  {
     id: 'expire_bientot',
     label: 'Expirent bientôt',
     icon: AlertTriangle,
     filter: (c) => {
       if (c.status !== 'actif') return false
-      const endDate = parseLocalDate(c.end_date)
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      endDate.setHours(0, 0, 0, 0)
-      const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-      return daysRemaining > 0 && daysRemaining <= 30
+      const info = getExpiryInfo(c.end_date, c.duration_months, c.metadata || {})
+      // Only show contracts in alert window AND without a decision already taken
+      return info.alertTier !== null && info.decision === null
     }
   },
   {
@@ -83,12 +78,6 @@ const TABS: Tab[] = [
     label: 'Terminés',
     icon: Archive,
     filter: (c) => c.status === 'expire' || c.status === 'resilie' || c.status === 'renouvele'
-  },
-  {
-    id: 'tous',
-    label: 'Tous',
-    icon: FileText,
-    filter: () => true
   }
 ]
 
@@ -100,7 +89,7 @@ export function ContractsNavigator({
   className
 }: ContractsNavigatorProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<TabId>('actifs')
+  const [activeTab, setActiveTab] = useState<TabId>('tous')
   const [searchTerm, setSearchTerm] = useState('')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [contractToDelete, setContractToDelete] = useState<string | null>(null)
@@ -145,6 +134,13 @@ export function ContractsNavigator({
       return acc
     }, {} as Record<TabId, number>)
   }, [contracts])
+
+  // Fallback: if on expire_bientot tab and count drops to 0, switch to actifs
+  useEffect(() => {
+    if (activeTab === 'expire_bientot' && tabCounts.expire_bientot === 0) {
+      setActiveTab('tous')
+    }
+  }, [activeTab, tabCounts.expire_bientot])
 
   // Handlers
   const handleView = useCallback((id: string) => {
@@ -215,24 +211,36 @@ export function ContractsNavigator({
     'flex-shrink-0 inline-flex h-10 bg-slate-100 rounded-md p-1 overflow-x-auto'
   )
 
-  const getTabClass = (isActive: boolean) => cn(
+  const getTabClass = (isActive: boolean, isAlert = false) => cn(
     'contracts-section__tab',
     'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all',
     isActive
-      ? 'contracts-section__tab--active bg-white text-primary shadow-sm'
-      : 'text-slate-600 hover:bg-slate-200/60'
+      ? isAlert
+        ? 'bg-orange-50 text-orange-700 shadow-sm border border-orange-200'
+        : 'contracts-section__tab--active bg-white text-primary shadow-sm'
+      : isAlert
+        ? 'text-orange-600 hover:bg-orange-50'
+        : 'text-slate-600 hover:bg-slate-200/60'
   )
 
-  const getTabIconClass = (isActive: boolean) => cn(
+  const getTabIconClass = (isActive: boolean, isAlert = false) => cn(
     'contracts-section__tab-icon',
     'h-4 w-4 mr-2',
-    isActive ? 'text-primary' : 'text-slate-600'
+    isAlert
+      ? isActive ? 'text-orange-700' : 'text-orange-600'
+      : isActive ? 'text-primary' : 'text-slate-600'
   )
 
-  const getTabBadgeClass = (isActive: boolean) => cn(
+  const getTabBadgeClass = (isActive: boolean, isAlert = false) => cn(
     'contracts-section__tab-badge',
     'ml-2 text-xs px-2 py-0.5 rounded',
-    isActive ? 'bg-primary/10 text-primary' : 'bg-slate-200 text-slate-700'
+    isActive
+      ? isAlert
+        ? 'bg-orange-100 text-orange-800 border-orange-200'
+        : 'bg-primary/10 text-primary'
+      : isAlert
+        ? 'bg-orange-50 text-orange-700 border-orange-200'
+        : 'bg-slate-200 text-slate-700'
   )
 
   const controlsClass = cn(
@@ -300,16 +308,20 @@ export function ContractsNavigator({
                 const Icon = tab.icon
                 const isActive = activeTab === tab.id
                 const count = tabCounts[tab.id]
+                const isAlert = tab.id === 'expire_bientot'
+
+                // Hide "Expirent bientôt" when no expiring contracts
+                if (isAlert && count === 0) return null
 
                 return (
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
-                    className={getTabClass(isActive)}
+                    className={getTabClass(isActive, isAlert)}
                   >
-                    <Icon className={getTabIconClass(isActive)} />
+                    <Icon className={getTabIconClass(isActive, isAlert)} />
                     <span className="hidden sm:inline">{tab.label}</span>
-                    <span className={getTabBadgeClass(isActive)}>{count}</span>
+                    <span className={getTabBadgeClass(isActive, isAlert)}>{count}</span>
                   </button>
                 )
               })}
@@ -388,15 +400,22 @@ export function ContractsNavigator({
               />
             ) : (
               <div className={gridClass}>
-                {filteredContracts.map((contract) => (
-                  <ContractCard
-                    key={contract.id}
-                    contract={contract}
-                    onView={handleView}
-                    onEdit={handleEdit}
-                    onDelete={handleDeleteClick}
-                  />
-                ))}
+                {filteredContracts.map((contract) => {
+                  const info = activeTab === 'expire_bientot'
+                    ? getExpiryInfo(contract.end_date, contract.duration_months, contract.metadata || {})
+                    : null
+                  return (
+                    <ContractCard
+                      key={contract.id}
+                      contract={contract}
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onDelete={handleDeleteClick}
+                      expiryInfo={info}
+                      onRefresh={onRefresh}
+                    />
+                  )
+                })}
               </div>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 import { logger, logError } from '@/lib/logger'
 interface CancelQuoteResponse {
   success: boolean
@@ -15,7 +15,6 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
   const [isLoading, setIsLoading] = useState(false)
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
   const [pendingQuoteId, setPendingQuoteId] = useState<string | null>(null)
-  const { toast } = useToast()
 
   const cancelQuote = async (_quoteId: string) => {
     try {
@@ -36,11 +35,8 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
       }
 
       // Notification de succès
-      toast({
-        title: "Estimation annulée",
+      toast.success("Estimation annulée", {
         description: "Votre estimation a été annulée avec succès. Les gestionnaires ont été notifiés.",
-        variant: "default",
-        className: "bg-green-50 border-green-200 text-green-800"
       })
 
       // Callback de succès
@@ -51,10 +47,8 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
       logger.error('❌ Error cancelling quote:', error)
 
       // Notification d'erreur
-      toast({
-        title: "Erreur",
+      toast.error("Erreur", {
         description: error instanceof Error ? error.message : "Impossible d'annuler l'estimation",
-        variant: "destructive"
       })
 
       return { success: false, error: error instanceof Error ? error.message : 'Erreur inconnue' }

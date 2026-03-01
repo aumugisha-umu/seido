@@ -17,6 +17,8 @@ import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+import { UnreadMessagesSection } from "@/components/dashboards/shared/unread-messages-section"
+import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 
 // Helper functions for formatting
 const formatDate = (dateStr?: string) => {
@@ -71,6 +73,8 @@ interface LocataireDashboardHybridProps {
   userInitial?: string
   teamId?: string
   canCreateIntervention?: boolean  // If false, hide intervention creation button
+  unreadThreads?: UnreadThread[]
+  unreadThreadsTotalCount?: number
 }
 
 export default function LocataireDashboardHybrid({
@@ -82,7 +86,9 @@ export default function LocataireDashboardHybrid({
   userName: serverUserName,
   userInitial: serverUserInitial,
   teamId: serverTeamId,
-  canCreateIntervention = true
+  canCreateIntervention = true,
+  unreadThreads,
+  unreadThreadsTotalCount
 }: LocataireDashboardHybridProps) {
   const router = useRouter()
   const { user } = useAuth()
@@ -421,6 +427,17 @@ export default function LocataireDashboardHybrid({
           >
             <Plus className="h-6 w-6" />
           </Button>
+        )}
+
+        {/* Unread Messages Section */}
+        {unreadThreads && unreadThreads.length > 0 && (
+          <div className="mb-4">
+            <UnreadMessagesSection
+              threads={unreadThreads}
+              role="locataire"
+              totalCount={unreadThreadsTotalCount ?? unreadThreads.length}
+            />
+          </div>
         )}
 
         {/* --- INTERVENTIONS SECTION (Unified InterventionsNavigator) --- */}

@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Plus,
 } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -29,6 +30,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuAction,
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar"
@@ -42,14 +44,16 @@ interface NavigationItem {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
+  createHref?: string
+  createLabel?: string
 }
 
 const mainNavItems: NavigationItem[] = [
   { href: "/gestionnaire/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/gestionnaire/biens", label: "Patrimoine", icon: Building2 },
-  { href: "/gestionnaire/contacts", label: "Contacts", icon: Users },
-  { href: "/gestionnaire/contrats", label: "Contrats", icon: FileText },
-  { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench },
+  { href: "/gestionnaire/biens", label: "Patrimoine", icon: Building2, createHref: "/gestionnaire/biens/lots/nouveau", createLabel: "Nouveau lot" },
+  { href: "/gestionnaire/contacts", label: "Contacts", icon: Users, createHref: "/gestionnaire/contacts/nouveau", createLabel: "Nouveau contact" },
+  { href: "/gestionnaire/contrats", label: "Contrats", icon: FileText, createHref: "/gestionnaire/contrats/nouveau", createLabel: "Nouveau contrat" },
+  { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench, createHref: "/gestionnaire/interventions/nouvelle-intervention", createLabel: "Nouvelle intervention" },
   { href: "/gestionnaire/mail", label: "Emails", icon: Mail },
 ]
 
@@ -156,6 +160,30 @@ export default function GestionnaireSidebar({
             <span>{item.label}</span>
           </Link>
         </SidebarMenuButton>
+        {item.createHref && (
+          <SidebarMenuAction
+            asChild
+            className={cn(
+              "right-2 flex h-6 w-6 items-center justify-center rounded-md",
+              "bg-sidebar-accent/50 text-sidebar-foreground/60",
+              "hover:bg-white hover:text-primary hover:shadow-sm",
+              "peer-data-[active=true]/menu-button:bg-white peer-data-[active=true]/menu-button:text-primary peer-data-[active=true]/menu-button:shadow-sm",
+              "group-hover/menu-item:bg-white group-hover/menu-item:text-primary group-hover/menu-item:shadow-sm",
+              "transition-all duration-150",
+              "[&>svg]:size-3.5"
+            )}
+          >
+            <Link
+              href={item.createHref}
+              onClick={handleNavClick}
+              title={item.createLabel}
+              data-testid={`sidebar-create-${item.href.split('/').pop()}`}
+            >
+              <Plus />
+              <span className="sr-only">{item.createLabel}</span>
+            </Link>
+          </SidebarMenuAction>
+        )}
       </SidebarMenuItem>
     )
   }

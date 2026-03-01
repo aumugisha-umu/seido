@@ -29,7 +29,7 @@ import {
   Pencil,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { useSaveFormState, useRestoreFormState } from "@/hooks/use-form-persistence"
@@ -133,7 +133,6 @@ export default function NouvelleInterventionClient({
   // ✅ FIX 2026-01-26: Move router/auth hooks to the top to avoid "Cannot access before initialization"
   // These hooks must be called before any useMemo/useCallback that reference their values
   const router = useRouter()
-  const { toast } = useToast()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
 
@@ -154,7 +153,7 @@ export default function NouvelleInterventionClient({
   const fileUpload = useInterventionUpload({
     documentType: 'intervention_photo',
     onUploadError: (error) => {
-      toast({ title: "Erreur", description: error, variant: "destructive" })
+      toast.error("Erreur")
     }
   })
 
@@ -335,7 +334,7 @@ export default function NouvelleInterventionClient({
     }
   }, []) // Empty deps = runs once on mount, cleanup on final unmount
 
-  // ✅ NOTE: router, toast, searchParams, user hooks moved to top of component (lines 112-115)
+  // ✅ NOTE: router, searchParams, user hooks moved to top of component (lines 112-115)
 
   // ✅ NEW: Lazy service initialization - Services créés uniquement quand auth est prête
   const [services, setServices] = useState<{
@@ -1454,11 +1453,7 @@ export default function NouvelleInterventionClient({
     if (!validation.valid) {
       // Afficher les erreurs avec toast
       validation.errors.forEach(error => {
-        toast({
-          title: "Validation échouée",
-          description: error,
-          variant: "destructive"
-        })
+        toast.error("Validation échouée", { description: error })
       })
       return
     }
@@ -1729,11 +1724,7 @@ export default function NouvelleInterventionClient({
       logger.info("✅ Intervention created successfully:", result)
 
       // ✅ Pattern simplifié: toast + redirect immédiat (sans délai 500ms)
-      toast({
-        title: "Intervention créée avec succès",
-        description: `L'intervention "${result.intervention.title}" a été créée et assignée.`,
-        variant: "success",
-      })
+      toast.success("Intervention créée avec succès", { description: `L'intervention "${result.intervention.title}" a été créée et assignée.` })
 
       // Redirect immédiat vers la page de détail de l'intervention
       router.push(`/gestionnaire/interventions/${result.intervention.id}`)

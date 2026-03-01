@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { type InterventionAction, InterventionActionsService, type CancellationData } from "@/lib/intervention-actions-service"
 import { logger, logError } from '@/lib/logger'
 interface CancellationModal {
@@ -12,7 +12,6 @@ interface CancellationModal {
 
 export const useInterventionCancellation = () => {
   const router = useRouter()
-  const { toast } = useToast()
   
   // État des modales
   const [cancellationModal, setCancellationModal] = useState<CancellationModal>({
@@ -87,10 +86,8 @@ export const useInterventionCancellation = () => {
       )
 
       // Toast de succès
-      toast({
-        title: "Intervention annulée",
+      toast.success("Intervention annulée", {
         description: `L'intervention "${cancellationModal.intervention.title}" a été annulée avec succès.`,
-        variant: "success",
       })
 
       // Fermer la modale de confirmation
@@ -100,10 +97,7 @@ export const useInterventionCancellation = () => {
       setCancellationReason("")
       setInternalComment("")
       
-      // Rafraîchir les données après succès
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
+      router.refresh()
 
     } catch (error) {
       logger.error("Error cancelling intervention:", error)

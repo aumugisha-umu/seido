@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useManagerStats } from "@/hooks/use-manager-stats"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { logger } from "@/lib/logger"
 import {
   createServerTeamService,
@@ -71,7 +71,6 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { data: managerData } = useManagerStats()
-  const { toast } = useToast()
 
   // Services initialization
   const [services] = useState(() => ({
@@ -720,10 +719,8 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
         config.onSuccess(result)
       } else {
         // ✅ Pattern simplifié: toast + redirect immédiat (sans délai 500ms)
-        toast({
-          title: formData.mode === 'building' ? "Immeuble créé avec succès" : "Lot créé avec succès",
+        toast.success(formData.mode === 'building' ? "Immeuble créé avec succès" : "Lot créé avec succès", {
           description: result.message,
-          variant: "success",
         })
         router.push("/gestionnaire/biens")
       }
@@ -742,7 +739,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     } finally {
       setIsCreating(false)
     }
-  }, [formData, teamData, user, validateStep, services, config, toast, router])
+  }, [formData, teamData, user, validateStep, services, config, router])
 
   // Validation utilities
   const validateForm = useCallback((): boolean => {

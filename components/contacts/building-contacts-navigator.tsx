@@ -33,8 +33,7 @@ import { logger } from '@/lib/logger'
 import { ContactTypeDropdown } from "@/components/contact-type-dropdown"
 import { removeContactFromBuildingAction, removeContactFromLotAction } from "@/app/gestionnaire/biens/immeubles/[id]/actions"
 import { determineAssignmentType } from '@/lib/services'
-import { useToast } from "@/components/ui/use-toast"
-
+import { toast } from "sonner"
 // Types
 interface BuildingContact {
   id: string
@@ -103,7 +102,6 @@ export function BuildingContactsNavigator({
   isEmbeddedInCard = false
 }: BuildingContactsNavigatorProps) {
   const router = useRouter()
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -301,26 +299,15 @@ export function BuildingContactsNavigator({
     try {
       const result = await removeContactFromBuildingAction(contactId, buildingId)
       if (result.success) {
-        toast({
-          title: "Contact retiré",
-          description: "Le contact a été retiré de l'immeuble avec succès."
-        })
+        toast("Contact retiré", { description: "Le contact a été retiré de l'immeuble avec succès." })
         await loadAllContacts()
         onContactsUpdate?.()
       } else {
-        toast({
-          title: "Erreur",
-          description: result.error || "Erreur lors de la suppression du contact",
-          variant: "destructive"
-        })
+        toast.error("Erreur", { description: result.error || "Erreur lors de la suppression du contact" })
       }
     } catch (err) {
       logger.error("❌ Error removing building contact:", err)
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la suppression du contact",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: "Erreur lors de la suppression du contact" })
     }
   }
 
@@ -328,26 +315,15 @@ export function BuildingContactsNavigator({
     try {
       const result = await removeContactFromLotAction(contactId, lotId)
       if (result.success) {
-        toast({
-          title: "Contact retiré",
-          description: "Le contact a été retiré du lot avec succès."
-        })
+        toast("Contact retiré", { description: "Le contact a été retiré du lot avec succès." })
         await loadAllContacts()
         onContactsUpdate?.()
       } else {
-        toast({
-          title: "Erreur",
-          description: result.error || "Erreur lors de la suppression du contact",
-          variant: "destructive"
-        })
+        toast.error("Erreur", { description: result.error || "Erreur lors de la suppression du contact" })
       }
     } catch (err) {
       logger.error("❌ Error removing lot contact:", err)
-      toast({
-        title: "Erreur",
-        description: "Erreur lors de la suppression du contact",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: "Erreur lors de la suppression du contact" })
     }
   }
 

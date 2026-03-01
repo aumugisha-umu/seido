@@ -14,14 +14,16 @@
 
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
 
-import { CalendarCheck, FileSearch } from 'lucide-react'
+import { CalendarCheck, FileSearch, PenLine, Plus } from 'lucide-react'
 
 import { InterventionScheduleRow, type ScheduledInterventionData } from './contract/intervention-schedule-row'
 import ContactSelector, { type ContactSelectorRef } from '@/components/contact-selector'
 import {
   type PropertyEntityType,
   generatePropertyInterventions,
+  createEmptyCustomIntervention,
   CUSTOM_DATE_VALUE
 } from '@/lib/constants/property-interventions'
 
@@ -103,7 +105,7 @@ export function PropertyInterventionsStep({
   const missingDocsKey = JSON.stringify(missingDocuments)
   const currentUserKey = currentUser?.id ?? ''
 
-  // Initialize interventions when inputs change
+  // Initialize interventions when inputs change — preserve custom ones
   useEffect(() => {
     const results = generatePropertyInterventions(entityType, documentExpiryDates, missingDocuments)
 
@@ -127,15 +129,22 @@ export function PropertyInterventionsStep({
       assignedUsers: defaultAssignedUsers
     }))
 
-    onInterventionsChange(interventions)
+    onInterventionsChange(prev => {
+      const existingCustom = prev.filter(i => i.key.startsWith('custom_'))
+      const customOnes = existingCustom.length > 0
+        ? existingCustom
+        : [createEmptyCustomIntervention(currentUser)]
+      return [...customOnes, ...interventions]
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, expiryDatesKey, missingDocsKey, currentUserKey])
 
-  // Séparer les interventions standard et documents manquants
-  const { standardInterventions, documentInterventions } = useMemo(() => {
-    const standard = scheduledInterventions.filter(i => !i.key.startsWith('retrieve_document_'))
+  // Séparer les interventions custom, standard et documents manquants
+  const { customInterventions, standardInterventions, documentInterventions } = useMemo(() => {
+    const custom = scheduledInterventions.filter(i => i.key.startsWith('custom_'))
+    const standard = scheduledInterventions.filter(i => !i.key.startsWith('retrieve_document_') && !i.key.startsWith('custom_'))
     const documents = scheduledInterventions.filter(i => i.key.startsWith('retrieve_document_'))
-    return { standardInterventions: standard, documentInterventions: documents }
+    return { customInterventions: custom, standardInterventions: standard, documentInterventions: documents }
   }, [scheduledInterventions])
 
   // Toggle une intervention
@@ -174,6 +183,33 @@ export function PropertyInterventionsStep({
         }
       })
     )
+  }
+
+  // ─── Custom intervention handlers ──────────────────────────────
+  const handleCustomTitleChange = (key: string, title: string) => {
+    onInterventionsChange(prev =>
+      prev.map(i => i.key === key ? { ...i, title, enabled: title.trim().length > 0 } : i)
+    )
+  }
+
+  const handleCustomDescriptionChange = (key: string, description: string) => {
+    onInterventionsChange(prev =>
+      prev.map(i => i.key === key ? { ...i, description } : i)
+    )
+  }
+
+  const handleAddCustomIntervention = () => {
+    onInterventionsChange(prev => {
+      const lastCustomIdx = prev.reduce((acc, item, idx) => item.key.startsWith('custom_') ? idx : acc, -1)
+      const newCustom = createEmptyCustomIntervention(currentUser)
+      const result = [...prev]
+      result.splice(lastCustomIdx + 1, 0, newCustom)
+      return result
+    })
+  }
+
+  const handleDeleteCustomIntervention = (key: string) => {
+    onInterventionsChange(prev => prev.filter(i => i.key !== key))
   }
 
   // Clic sur un type dans le Popover → ouvrir ContactSelector
@@ -240,24 +276,9 @@ export function PropertyInterventionsStep({
     )
   }, [activeAssignment, onInterventionsChange])
 
-  // If no interventions to display, return null for lot_in_building (parent handles layout)
-  // or show a "nothing to plan" message for standalone entity types
-  if (standardInterventions.length === 0 && documentInterventions.length === 0) {
-    if (entityType === 'lot_in_building') return null
-
-    return (
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="text-center max-w-2xl mx-auto">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <CalendarCheck className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-bold">{ENTITY_TITLES[entityType]}</h2>
-          </div>
-          <p className="text-muted-foreground">
-            Aucune intervention à planifier pour ce bien. Tous les documents recommandés ont été ajoutés.
-          </p>
-        </div>
-      </div>
-    )
+  // lot_in_building with nothing returns null (parent handles layout)
+  if (standardInterventions.length === 0 && documentInterventions.length === 0 && entityType === 'lot_in_building') {
+    return null
   }
 
   return (
@@ -278,6 +299,39 @@ export function PropertyInterventionsStep({
       {/* Liste des interventions */}
       <div className="max-w-4xl mx-auto">
         <div className="space-y-6 py-2">
+            {/* Custom interventions */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <PenLine className="h-4 w-4 text-indigo-500" />
+                  Interventions personnalisées
+                </h3>
+                <Button variant="outline" size="sm" onClick={handleAddCustomIntervention} className="h-7 text-xs gap-1">
+                  <Plus className="h-3.5 w-3.5" />
+                  Ajouter
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {customInterventions.map((intervention, index) => (
+                  <InterventionScheduleRow
+                    key={intervention.key}
+                    intervention={intervention}
+                    isEditable
+                    onTitleChange={(title) => handleCustomTitleChange(intervention.key, title)}
+                    onDescriptionChange={(desc) => handleCustomDescriptionChange(intervention.key, desc)}
+                    onToggle={(enabled) => handleToggle(intervention.key, enabled)}
+                    onDateChange={(date) => handleDateChange(intervention.key, date)}
+                    onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
+                    onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
+                    onDelete={() => handleDeleteCustomIntervention(intervention.key)}
+                    showDelete={index > 0}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {(standardInterventions.length > 0 || documentInterventions.length > 0) && <Separator />}
+
             {/* Interventions standard */}
             {standardInterventions.length > 0 && (
               <div className="space-y-3">

@@ -37,12 +37,12 @@ function AnalyticsTracker() {
  * ```
  */
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
-  const { consent } = useCookieConsent()
+  const { consentState } = useCookieConsent()
 
   return (
     <>
       {/* Ne tracker que si l'utilisateur a consenti aux analytics */}
-      {consent?.analytics && (
+      {consentState.preferences.analytics && (
         <Suspense fallback={null}>
           <AnalyticsTracker />
         </Suspense>

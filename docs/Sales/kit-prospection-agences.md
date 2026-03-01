@@ -1,9 +1,9 @@
 # Kit de Prospection SEIDO — Agences Immobilieres Belges
 
-**Version** : Fevrier 2026 — v2 (copy optimise)
+**Version** : Fevrier 2026 — v3 (features alignees codebase)
 **Audience** : Commercial SEIDO / Fondateur en appel de prospection
 **Ton** : Consultatif, pair-a-pair. Jamais vendeur.
-**Regle absolue** : Chaque feature mentionnee est verifiable dans l'application. Zero promesse non livree. Zero IA mentionnee.
+**Regle absolue** : Chaque feature mentionnee est verifiable dans l'application. Zero promesse non livree. Zero IA mentionnee dans les features actuelles.
 
 ---
 
@@ -12,9 +12,10 @@
 1. [Cadence de prospection multi-canal](#1--cadence-de-prospection-multi-canal)
 2. [Sequence emails (4 emails)](#2--sequence-emails-4-emails)
 3. [Script d'appel (4 phases)](#3--script-dappel-4-phases)
-4. [Reponses aux objections](#4--reponses-aux-objections)
-5. [Principes cles](#5--principes-cles-de-la-prospection-seido)
-6. [Boite a outils : formulations et chiffres](#6--boite-a-outils)
+4. [Email post-demo](#4--email-post-demo)
+5. [Reponses aux objections](#5--reponses-aux-objections)
+6. [Principes cles](#6--principes-cles-de-la-prospection-seido)
+7. [Boite a outils : formulations et chiffres](#7--boite-a-outils)
 
 ---
 
@@ -63,9 +64,9 @@ Objets A/B test :
 >
 > C'est ce qu'on appelle le **trou noir operationnel** — et c'est exactement ce que SEIDO resout.
 >
-> Concretement, vos locataires signalent un probleme depuis leur telephone. Vos prestataires recoivent la mission avec toutes les infos. Vos proprietaires voient l'avancement sans vous appeler. Et vous ? Vous pilotez tout depuis un seul ecran.
+> Concretement, vos locataires signalent un probleme depuis leur telephone. Vos prestataires recoivent la mission avec toutes les infos. Vos proprietaires voient l'avancement sans vous appeler. Et vos emails sont lies aux bons dossiers, directement dans la plateforme. Vous pilotez tout depuis un seul ecran.
 >
-> Pour tester sans risque : **essai gratuit 14 jours**, sans carte bancaire. 1-2 biens ? **Gratuit. A vie.**
+> Pour tester sans risque : **essai gratuit 30 jours**, sans carte bancaire. 1-2 biens ? **Gratuit. A vie.**
 >
 > **[Tester SEIDO avec mes donnees →]**
 >
@@ -73,7 +74,7 @@ Objets A/B test :
 >
 > [Signature]
 
-**Regles** : ~130 mots. Structure PAS (Problem-Agitate-Solve). Un seul CTA. Zero feature technique (pas de "Gmail", "IMAP", "9 etapes"). Uniquement des outcomes.
+**Regles** : ~140 mots. Structure PAS (Problem-Agitate-Solve). Un seul CTA. Zero feature technique (pas de "Gmail", "IMAP", "9 etapes"). Uniquement des outcomes.
 
 ---
 
@@ -93,7 +94,7 @@ La question du devis perdu (avec solution)
 >
 > Un gestionnaire belge nous a raconte la meme chose. Sa solution avant SEIDO : un dossier Outlook par immeuble, un fichier Excel par prestataire, et 45 minutes par jour a recouper les deux.
 >
-> Avec SEIDO, le prestataire soumet son devis dans l'app. Le gestionnaire compare, valide, et le locataire choisit un creneau — sans un seul email. Le devis, le creneau et la validation sont lies a la meme intervention. Impossible de perdre le fil.
+> Avec SEIDO, le prestataire soumet son devis dans l'app. Le gestionnaire compare les devis cote a cote, valide, et le locataire choisit un creneau — sans un seul email. Le devis, le creneau et la validation sont lies a la meme intervention. Et l'historique complet est accessible a tout moment — photos, messages, documents.
 >
 > Si vous voulez voir a quoi ca ressemble avec vos donnees, je vous cree un compte demo en 30 minutes.
 >
@@ -127,10 +128,11 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 > — Ses prestataires recoivent les missions avec photos et adresse
 > — Son assistante gere les urgences depuis son propre acces
 > — Les proprietaires consultent l'avancement sans appeler
+> — Ses emails sont automatiquement lies aux bons biens et dossiers
 >
 > Le resultat : il gere toujours 120 lots. Mais il rentre chez lui a 18h.
 >
-> Essayez par vous-meme : 14 jours gratuits, sans carte bancaire. 1-2 biens ? Gratuit a vie.
+> Essayez par vous-meme : 30 jours gratuits, sans carte bancaire. 1-2 biens ? Gratuit a vie.
 >
 > **[Demarrer mon essai gratuit →]**
 >
@@ -156,7 +158,7 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 >
 > Juste une question : est-ce que la gestion de vos interventions est toujours un sujet pour vous en ce moment ?
 >
-> Si oui, votre compte d'essai est toujours disponible. 14 jours, sans carte bancaire. Et si vous avez 1 ou 2 biens, c'est gratuit a vie — sans limite de temps.
+> Si oui, votre compte d'essai est toujours disponible. 30 jours, sans carte bancaire. Et si vous avez 1 ou 2 biens, c'est gratuit a vie — sans limite de temps.
 >
 > Si ce n'est pas le bon moment, aucun souci. Je reste disponible quand ca le sera.
 >
@@ -173,9 +175,9 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 ### Regles transversales des emails
 
-- **Jamais** mentionner l'IA (elle n'existe pas dans l'app)
+- **Jamais** mentionner l'IA comme feature actuelle (elle n'existe pas encore)
 - **Jamais** de stats d'adoption inventees
-- **Toujours** mentionner l'essai gratuit + la gratuite 1-2 biens
+- **Toujours** mentionner l'essai gratuit 30 jours + la gratuite 1-2 biens
 - **Adapter** la reference client au profil du prospect (independant vs agence)
 - **Maximum** 150 mots par email
 - **Un seul CTA** par email — toujours un bouton, jamais un lien dans le texte
@@ -241,23 +243,21 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 > **REGLE** : Pas de monologue > 90 secondes. Des pattern interrupts tous les 20-30 secondes.
 
-> "Lundi matin, votre locataire a une fuite. Il ouvre SEIDO sur son telephone — rien a installer. Description, 2 photos, 2 minutes. **Ca vous parle deja ?**
+> "Lundi matin, votre locataire a une fuite. Il ouvre SEIDO sur son telephone — rien a installer, c'est une app web. Description, 2 photos, 2 minutes. **Ca vous parle deja ?**
 >
 > *(pause — laisser reagir)*
 >
-> Vous recevez ca sur votre tableau de bord. Vous assignez un prestataire. Lui, il recoit tout sur son telephone : l'adresse, les photos, l'historique. Zero allers-retours.
+> Vous recevez ca sur votre tableau de bord. Vous assignez un prestataire. Lui, il recoit tout sur son telephone : l'adresse, les photos, l'historique du bien. Zero allers-retours.
 >
-> Besoin d'un devis ? Le prestataire le soumet dans l'app. Vous comparez, vous validez. Le locataire choisit un creneau. **Personne ne vous appelle.**
+> Besoin d'un devis ? Le prestataire le soumet dans l'app. Vous comparez les devis cote a cote, vous validez. Le locataire choisit un creneau. **Personne ne vous appelle.**
 >
 > Et pendant ce temps, le proprietaire voit ou ca en est depuis son portail. **Sans vous appeler non plus.**
 >
-> Le resultat ? Tout le monde est informe. Et vous, vous n'avez passe aucun coup de fil.
->
-> Ah, et vos emails sont connectes — chaque email lie au bon bien, au bon dossier. Plus jamais 'c'est ou ce devis ?'.
+> Le resultat ? Tout le monde est informe. Tout est documente — photos, messages, rapports, factures. Et vos emails sont connectes : chaque email lie au bon bien, au bon dossier.
 >
 > **Est-ce que ca correspond au type de frustrations que vous vivez ?**"
 
-**Decompte** : ~155 mots = 85-90 secondes a debit naturel.
+**Decompte** : ~160 mots = 90 secondes a debit naturel.
 
 **Pattern interrupts integres** :
 1. "Ca vous parle deja ?" (a 20 sec — micro-engagement)
@@ -287,15 +287,15 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 >
 > Je peux meme vous creer un **compte demo avec vos vrais biens**. En 30 minutes, vous voyez SEIDO avec vos donnees.
 >
-> Sinon, vous pouvez aussi demarrer seul : **essai gratuit 14 jours, sans carte bancaire**. Et si vous avez 1 ou 2 biens, c'est **gratuit a vie**.
+> Sinon, vous pouvez aussi demarrer seul : **essai gratuit 30 jours, sans carte bancaire**. Et si vous avez 1 ou 2 biens, c'est **gratuit a vie**.
 >
 > Qu'est-ce qui vous convient le mieux ?"
 
 **Si hesitant** — utiliser la technique Feel-Felt-Found :
 
-> "Je comprends. *(FEEL)* La plupart des gestionnaires qu'on rencontre hesitent au debut — ils ont deja teste 2, 3 outils. *(FELT)* Ce qu'ils nous disent, c'est que la difference avec SEIDO, c'est qu'on connecte les 3 parties — locataire, prestataire, gestionnaire — au lieu de remplacer un tableur. *(FOUND)*
+> "Je comprends. *(FEEL)* La plupart des gestionnaires qu'on rencontre hesitent au debut — ils ont deja teste 2, 3 outils. *(FELT)* Ce qu'ils nous disent, c'est que la difference avec SEIDO, c'est qu'on connecte les 4 parties — locataire, prestataire, gestionnaire et proprietaire — au lieu de remplacer un tableur. *(FOUND)*
 >
-> Aucun engagement. 14 jours gratuits, sans CB. Vous testez, et si ca ne change rien, vous arretez."
+> Aucun engagement. 30 jours gratuits, sans CB. Vous testez, et si ca ne change rien, vous arretez."
 
 **Si non** :
 
@@ -313,13 +313,71 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 **"J'ai deja essaye des logiciels, ca n'a jamais marche"**
 
-> "Je comprends cette lassitude. *(FEEL)* Beaucoup de gestionnaires qu'on rencontre ont teste 2, 3 outils avant. *(FELT)* Ce qu'ils nous disent, c'est que la difference avec SEIDO, c'est qu'on ne remplace pas juste un tableur — on connecte les 3 parties. Le locataire, le prestataire, le gestionnaire. C'est ca qui change la donne. *(FOUND)*
+> "Je comprends cette lassitude. *(FEEL)* Beaucoup de gestionnaires qu'on rencontre ont teste 2, 3 outils avant. *(FELT)* Ce qu'ils nous disent, c'est que la difference avec SEIDO, c'est qu'on ne remplace pas juste un tableur — on connecte les 4 parties. Le locataire, le prestataire, le gestionnaire et le proprietaire. C'est ca qui change la donne. *(FOUND)*
 >
 > Quel outil aviez-vous teste, et qu'est-ce qui n'avait pas fonctionne ?"
 
 ---
 
-## 4 — Reponses aux objections
+## 4 — Email post-demo
+
+**Quand envoyer** : Dans les 2h apres une demo qui s'est bien passee.
+**Objectif** : Ancrer ce qui a ete vu, presenter la proposition co-developpement, obtenir un engagement.
+
+---
+
+### Objet :
+
+```
+Suite a notre demo — Rejoindre le programme co-developpement Seido
+```
+
+### Corps :
+
+> Bonjour [Prenom],
+>
+> Merci pour le temps que vous m'avez accorde [jour de la demo]. Vos retours sur [point concret evoque, ex : la gestion des prestataires / le suivi des interventions] confirment qu'on s'attaque aux bons problemes.
+>
+> **Ce que vous avez vu en action :**
+>
+> - Le locataire signale depuis son telephone → vous pilotez depuis votre ecran → le prestataire execute avec toutes les infos → le proprietaire suit sans appeler
+> - Devis structures avec comparaison cote a cote, creneaux choisis par le locataire
+> - Vos emails connectes et lies aux bons biens et dossiers
+> - Baux, documents, historique — tout centralise avec alertes automatiques
+> - Import de vos donnees depuis Excel en 30 minutes
+>
+> **Ce qu'on prepare :** assistance IA pour pre-qualifier les demandes, suivi financier des loyers, indexation automatique adaptee aux 3 regions belges, et une marketplace de prestataires qualifies.
+>
+> **Notre proposition : le programme co-developpement**
+>
+> Vous utilisez la plateforme, vous nous faites vos retours terrain, et en contrepartie :
+>
+> - Vous influencez directement la roadmap produit
+> - **-25% a vie** sur tous les tarifs, en tant que partenaire fondateur
+> - Acces prioritaire aux nouvelles fonctionnalites
+>
+> N'hesitez pas a revenir vers moi par mail ou par telephone. Sinon, on en rediscute lors de notre prochain rendez-vous.
+>
+> Bien a vous,
+> Arthur Umugisha
+> Fondateur, Seido
+> [telephone] — [email]
+
+---
+
+### Instructions de personnalisation
+
+| Element | Comment personnaliser |
+|---------|----------------------|
+| [jour de la demo] | "mardi dernier" / "ce matin" / la date exacte |
+| [point concret evoque] | Reprendre MOT POUR MOT un probleme qu'ils ont decrit pendant la demo |
+| Features mises en avant | Adapter l'ordre selon ce qui a le plus resonne pendant la demo. Mettre en premier ce qui les a fait reagir. |
+| Roadmap | Si un besoin specifique a ete mentionne (ex: indexation), le mettre en premier dans la roadmap |
+| Co-developpement | Si le prospect etait enthousiaste, insister sur l'influence roadmap. S'il etait reserve, insister sur le tarif preferentiel. |
+
+---
+
+## 5 — Reponses aux objections
 
 **Format** : Acknowledge → Reframe → Evidence → Bridge (question de relance)
 **Regle** : Maximum 4 phrases. Conversationnel, pas recite.
@@ -352,9 +410,9 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 > **Acknowledge** : "Si ca demandait 3 jours de formation, je vous dirais de fuir."
 >
-> **Reframe** : "Comptez 30 minutes de setup. L'interface ressemble a Gmail et WhatsApp — vos collaborateurs ont deja les reflexes."
+> **Reframe** : "Comptez 30 minutes de setup. L'interface ressemble a Gmail et WhatsApp — vos collaborateurs ont deja les reflexes. Et on peut importer vos biens et contacts depuis un fichier Excel."
 >
-> **Evidence** : "Guide utilisateur integre dans l'app, 9 sections, recherche incluse. Et support 7j/7 avec l'annuel."
+> **Evidence** : "Guide utilisateur integre dans l'app, 9 sections, recherche incluse. Et vous pouvez nous contacter directement pour toute question."
 >
 > **Bridge** : "Quel outil utilisez-vous aujourd'hui ? On peut estimer le temps de migration concretement."
 
@@ -376,7 +434,7 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 > **Acknowledge** : "Ca tombe bien — c'est exactement ce qu'on veut eviter."
 >
-> **Reframe** : "SEIDO ne s'ajoute pas a votre stack. Il la simplifie. Votre email se connecte. Vos prestataires quittent WhatsApp parce qu'ils ont leur portail. Vos locataires arretent d'appeler. Moins d'outils, pas plus."
+> **Reframe** : "SEIDO ne s'ajoute pas a votre stack. Il la simplifie. Votre email se connecte directement. Vos prestataires quittent WhatsApp parce qu'ils ont leur portail. Vos locataires arretent d'appeler. Moins d'outils, pas plus."
 >
 > **Bridge** : "Combien d'outils differents utilisez-vous pour gerer une seule intervention aujourd'hui ?"
 
@@ -384,7 +442,7 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 > **Acknowledge** : "Smovin et Rentila font tres bien la comptabilite locative."
 >
-> **Reframe** : "SEIDO fait l'operationnel. Email integre nativement, portails dedies prestataires et locataires, devis structures avec comparaison, planification de creneaux, 16 types de notifications push. Ils gerent les chiffres. On gere le terrain."
+> **Reframe** : "SEIDO fait l'operationnel. Email integre nativement, portails dedies pour prestataires, locataires et proprietaires, devis structures avec comparaison cote a cote, planification de creneaux, chat temps reel par intervention, notifications push. Ils gerent les chiffres. On gere le terrain."
 >
 > **Evidence** : "Les deux sont complementaires — plusieurs gestionnaires utilisent les deux."
 >
@@ -398,7 +456,7 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 > **Acknowledge** : "Question essentielle, surtout en Belgique avec l'APD."
 >
-> **Reframe** : "Hebergement exclusif UE — Frankfurt. Chiffrement AES-256. Chaque role ne voit que ses propres donnees : le locataire voit ses demandes, le prestataire voit ses missions."
+> **Reframe** : "Hebergement exclusif UE — Frankfurt. Chiffrement AES-256. Chaque role ne voit que ses propres donnees : le locataire voit ses demandes, le prestataire voit ses missions, le proprietaire voit ses biens."
 >
 > **Evidence** : "Vous pouvez exporter toutes vos donnees en CSV a tout moment. Zero verrouillage."
 >
@@ -424,7 +482,7 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 >
 > **Reframe** : "La reference Federia estime qu'un gestionnaire de 100 lots perd 36 000 euros par an en gestion reactive — c'est 2h par jour a 45 euros de l'heure brut belge. SEIDO, pour 100 lots, c'est 6 000 euros par an. Pour chaque euro investi, vous en recuperez plus de 6."
 >
-> **Evidence** : "Et l'annuel descend a 50 euros par lot par an, migration de vos donnees incluse."
+> **Evidence** : "Et l'annuel descend a 50 euros par lot par an — 2 mois offerts. L'import de vos donnees est inclus."
 >
 > **Bridge** : "Si je vous montre sur 30 minutes comment ca fonctionne avec vos vrais biens, ca vaut le coup d'investir ce temps ?"
 
@@ -442,7 +500,7 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 #### "Ca fonctionne avec Gmail ?"
 
-> **Acknowledge** : "Gmail est connecte nativement via OAuth — le meme systeme que quand vous liez Gmail a une autre app."
+> **Acknowledge** : "Gmail est connecte nativement via OAuth — le meme systeme que quand vous liez Gmail a une autre app Google."
 >
 > **Reframe** : "Pour les autres boites (Outlook, etc.), on utilise IMAP/SMTP standard. Vos emails apparaissent dans SEIDO, lies au bon bien et au bon contact. Vous repondez depuis SEIDO, l'email part depuis votre vraie adresse."
 >
@@ -462,7 +520,7 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 ---
 
-## 5 — Principes cles de la prospection SEIDO
+## 6 — Principes cles de la prospection SEIDO
 
 ### Principe 1 — Ecouter d'abord, pitcher ensuite
 
@@ -502,7 +560,49 @@ La confiance se construit en montrant ce qui existe, pas ce qui est prevu. La ro
 
 ---
 
-## 6 — Boite a outils
+## 7 — Boite a outils
+
+### Reference rapide : Features actuelles vs Roadmap
+
+**A utiliser pendant les appels et demos pour savoir exactement quoi dire.**
+
+#### Features en production (verifiables dans l'app)
+
+| Feature | Description courte | Benefice prospect |
+|---------|--------------------|-------------------|
+| Ticketing intelligent | Signalement → qualification → assignation → cloture | "Rien ne tombe dans le vide" |
+| Portail locataire | App web, formulaire guide, photos, suivi temps reel | "Le locataire suit comme un colis" |
+| Portail prestataire | Missions, devis, creneaux, rapport avec photos | "Votre prestataire sait ce qui l'attend" |
+| Portail proprietaire | Dashboard, notifications etapes cles | "Sans vous appeler" |
+| Comparaison de devis | Multi-prestataire, cote a cote, validation directe | "Plus de devis perdus dans les mails" |
+| Planification creneaux | 3 modes (fixe, creneaux, flexible), confirmation | "Le locataire choisit lui-meme" |
+| Module email | Gmail OAuth + IMAP/SMTP, liaison aux dossiers | "Chaque email lie au bon bien" |
+| Chat temps reel | Par intervention, canaux separes, fichiers joints | "Tout est au meme endroit" |
+| Notifications push | Sur telephone, meme app fermee, 10 types | "Informe en temps reel" |
+| Notifications email | Lien de connexion en un clic (magic link) | "Un clic et il est dans le dossier" |
+| Gestion des baux | Creation, suivi, documents, alertes echeances | "Rien n'expire sans que vous le sachiez" |
+| Gestion documentaire | Photos, devis, factures, certificats, notes vocales | "Preuve beton" |
+| Checklist documents | PEB, electrique, gaz, amiante, etc. par immeuble | "Ne rien oublier cote conformite" |
+| Import Excel/CSV | Biens, contacts, contrats, societes en masse | "Migration en 30 minutes" |
+| Lookup TVA belge | Recherche entreprise via BCE | "Pas de ressaisie" |
+| PWA mobile | Fonctionne sur telephone sans Play Store | "Votre bureau dans la poche" |
+| Google Maps | Autocompletion adresse + carte | "L'adresse exacte, zero erreur" |
+| Multi-equipe | Plusieurs portefeuilles, vue consolidee | "Ideal pour multi-agence" |
+| Guide in-app | 9 sections, 20+ FAQ, recherche | "Zero formation" |
+| Audit trail | Chaque action tracee et horodatee | "Tracabilite complete" |
+
+#### Features roadmap (NE PAS presenter comme actuelles)
+
+| Feature | Horizon | Description |
+|---------|---------|-------------|
+| Assistance IA | 2026 | Pre-qualification, categorisation, suggestion prestataire |
+| Suivi financier | 2026 | Encaissements loyers, rappels impayes |
+| Indexation auto | 2026 | 3 regions belges, reglementation respective |
+| Analytics avances | 2026-2027 | Couts maintenance, performance prestataires, tendances |
+| Marketplace prestataires | 2027 | Annuaire qualifie, notes communaute |
+| Integrations bancaires | 2027 | Rapprochement paiements / factures |
+
+---
 
 ### Power Words — 15 formulations immobilier belge
 
@@ -538,11 +638,12 @@ Formulations calibrees pour le marche belge francophone. Ton consultatif, zero a
 | Prix mensuel | 5 EUR / lot / mois | Pricing SEIDO |
 | Prix annuel | 50 EUR / lot / an | Pricing SEIDO (2 mois offerts) |
 | Gratuite | 1-2 biens, a vie | Pricing SEIDO |
-| Essai gratuit | 14 jours, sans CB | Pricing SEIDO |
+| Essai gratuit | 30 jours, sans CB | Pricing SEIDO |
 | Temps de setup | ~30 minutes | Reference interne |
-| Etapes intervention | 9 | Application (workflow reel) |
-| Types de notifications push | 16+ | Application (push-notification-manager) |
-| Canaux de conversation | 3 par intervention | Application (group, prestataire↔managers, locataire↔managers) |
+| Statuts intervention | 10 | Application (workflow reel) |
+| Types de notifications | 10 categories | Application (notification types) |
+| Canaux chat par intervention | jusqu'a 5 | Application (group, prestataire↔managers, locataire↔managers, etc.) |
+| Types de documents | 20+ | Application (devis, factures, certificats, PEB, etc.) |
 | Sections guide in-app | 9 sections, 20+ FAQ | Application (/gestionnaire/aide) |
 
 ### Chiffres a NE PAS utiliser
@@ -560,16 +661,31 @@ Formulations calibrees pour le marche belge francophone. Ton consultatif, zero a
 
 | A dire | A ne JAMAIS dire |
 |--------|-----------------|
-| "automatisation" / "notifications intelligentes" / "alertes automatiques" | "IA" / "intelligence artificielle" / "machine learning" |
+| "notifications intelligentes" / "alertes automatiques" | "IA" / "intelligence artificielle" / "machine learning" (pas en prod) |
 | "depuis votre tableau de bord" / "en 2 minutes" | "en un clic" (simplification excessive) |
 | "serenite" | "revolution" / "disruptif" |
 | "tout voir sans rien demander" | "tout est automatique" |
-| "devis en 2 clics" | "devis instantane" |
+| "devis structure, comparaison cote a cote" | "devis instantane" |
 | "le trou noir operationnel" | "le chaos" (trop generique) |
 | "bureau dans la poche" (PWA mobile) | "app mobile native" (c'est une PWA) |
 | "preuve beton" (photos + horodatage) | "tracabilite totale" (trop vague) |
+| "roadmap" / "en cours de developpement" | "bientot disponible" (trop vague et risque de promesse) |
 
 ---
 
-*Derniere mise a jour : Fevrier 2026 — v2*
-*Regle : Ce document ne contient aucune mention d'IA ni aucune statistique inventee.*
+### Pricing — Aide-memoire
+
+| Offre | Details |
+|-------|---------|
+| **Gratuit a vie** | 1-2 biens, toutes features, sans limite de temps |
+| **Essai gratuit** | 30 jours, sans carte bancaire, toutes features |
+| **Mensuel** | 5 EUR / lot / mois |
+| **Annuel** | 50 EUR / lot / an (= 2 mois offerts) |
+| **Utilisateurs** | Illimites (locataires, prestataires, proprietaires = gratuit) |
+| **Stockage** | Illimite |
+| **Co-developpement** | -25% a vie sur tous les tarifs |
+
+---
+
+*Derniere mise a jour : Fevrier 2026 — v3*
+*Regle : Ce document ne contient aucune mention d'IA dans les features actuelles, ni aucune statistique inventee. Chaque feature listee comme "actuelle" est verifiable dans l'application.*

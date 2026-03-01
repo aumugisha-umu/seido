@@ -136,7 +136,7 @@ export function DashboardStatsCards({
                     sublabel="actifs"
                     secondaryValue={
                         contractStats.expiringNext30Days > 0 ? (
-                            <span className="text-warning font-medium flex items-center gap-1">
+                            <span className="text-amber-600 font-medium flex items-center gap-1">
                                 <AlertCircle className="h-3 w-3" />
                                 {contractStats.expiringNext30Days} expire{contractStats.expiringNext30Days > 1 ? 'nt' : ''} bientot
                             </span>

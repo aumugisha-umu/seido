@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { ChevronDown, ChevronUp, Home, Users, Eye, ScrollText, Shield } from "lucide-react"
 import { ContactSection } from "@/components/ui/contact-section"
 import { ContactDeleteConfirmModal } from "@/components/ui/contact-delete-confirm-modal"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { removeContactFromLotAction } from "@/app/gestionnaire/(no-navbar)/biens/immeubles/[id]/actions"
 import { assignContactToLotAction } from "@/app/gestionnaire/(no-navbar)/biens/lots/nouveau/actions"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
@@ -97,7 +97,6 @@ export function LotsWithContactsPreview({
   buildingOthers = []
 }: LotsWithContactsPreviewProps) {
   const router = useRouter()
-  const { toast } = useToast()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
   const [expandedLots, setExpandedLots] = useState<Record<string, boolean>>({})
   const [currentLotId, setCurrentLotId] = useState<string | undefined>(undefined)
@@ -149,20 +148,13 @@ export function LotsWithContactsPreview({
       const result = await removeContactFromLotAction(lotContact.id)
 
       if (result.success) {
-        toast({
-          title: "Contact retiré",
-          description: `${deleteModal.contact.name} a été retiré du lot ${deleteModal.lotReference}.`,
-        })
+        toast("Contact retiré", { description: `${deleteModal.contact.name} a été retiré du lot ${deleteModal.lotReference}.` })
         setDeleteModal({ isOpen: false, contact: null, lotId: '', lotReference: '', contactType: '' })
       } else {
         throw new Error(result.error || 'Erreur lors de la suppression')
       }
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible de retirer le contact",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible de retirer le contact" })
     } finally {
       setIsDeleting(false)
     }
@@ -193,28 +185,17 @@ export function LotsWithContactsPreview({
 
       if (result.success) {
         const lot = lots.find(l => l.id === context.lotId)
-        toast({
-          title: "Contact ajouté",
-          description: `${contact.name} a été ajouté au lot ${lot?.reference || ''}.`,
-        })
+        toast("Contact ajouté", { description: `${contact.name} a été ajouté au lot ${lot?.reference || ''}.` })
       } else {
         // Check if it's a "already assigned" error (not critical)
         const errorMessage = result.error?.message || result.error || 'Erreur lors de l\'ajout'
         const isAlreadyAssigned = errorMessage.includes('déjà assigné')
 
         const lot = lots.find(l => l.id === context.lotId)
-        toast({
-          title: isAlreadyAssigned ? "Contact déjà assigné" : "Erreur",
-          description: isAlreadyAssigned ? `${contact.name} est déjà assigné au lot ${lot?.reference || ''}.` : errorMessage,
-          variant: isAlreadyAssigned ? "default" : "destructive"
-        })
+        toast(isAlreadyAssigned ? "Contact déjà assigné" : "Erreur", { description: isAlreadyAssigned ? `${contact.name} est déjà assigné au lot ${lot?.reference || ''}.` : errorMessage })
       }
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible d'ajouter le contact",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible d'ajouter le contact" })
     }
   }
 
@@ -235,18 +216,11 @@ export function LotsWithContactsPreview({
       const result = await removeContactFromLotAction(contactInfo.lotContactId)
 
       if (result.success) {
-        toast({
-          title: "Contact retiré",
-          description: `Contact retiré du lot ${contactInfo.lotReference}.`,
-        })
+        toast("Contact retiré", { description: `Contact retiré du lot ${contactInfo.lotReference}.` })
         // Server action handles revalidation - no router.refresh() needed
       } else {
         console.error('❌ [DEBUG-LOT-REMOVAL] Server action failed:', result.error)
-        toast({
-          title: "Erreur",
-          description: result.error || "Impossible de retirer le contact",
-          variant: "destructive"
-        })
+        toast.error("Erreur", { description: result.error || "Impossible de retirer le contact" })
       }
     } catch (error) {
       console.error('❌ [DEBUG-LOT-REMOVAL] Exception caught:', {
@@ -254,11 +228,7 @@ export function LotsWithContactsPreview({
         errorMessage: error instanceof Error ? error.message : String(error),
         errorStack: error instanceof Error ? error.stack : undefined
       })
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible de retirer le contact",
-        variant: "destructive"
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Impossible de retirer le contact" })
     }
   }
 

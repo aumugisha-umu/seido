@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest, NextResponse, after } from "next/server"
 import { Database } from "@/lib/database.types"
 import { createServerInterventionService } from '@/lib/services'
 import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
@@ -143,32 +143,36 @@ export async function POST(request: NextRequest) {
       // Ne pas faire échouer la requête pour un problème de log
     }
 
-    // Envoyer les notifications
-    try {
-      logger.info({}, "📧 Sending cancellation notifications...")
-
-      const notifResult = await notifyInterventionStatusChange({
-        interventionId: updatedIntervention.id,
-        oldStatus: intervention.status,
-        newStatus: "annulee",
-        reason: cancellationReason
-      })
-
-      if (notifResult.success) {
-        logger.info({ count: notifResult.data?.length }, "✅ Cancellation notifications sent successfully")
-      } else {
-        logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
-      }
-    } catch (notificationError) {
-      logger.error({ error: notificationError }, "❌ Error sending notifications:")
-      // Ne pas faire échouer la requête pour un problème de notification
-    }
-
-    return NextResponse.json({
+    // Build response FIRST
+    const response = NextResponse.json({
       success: true,
       intervention: updatedIntervention,
       message: "Intervention annulée avec succès"
     })
+
+    // Run notifications after response is sent
+    after(async () => {
+      try {
+        logger.info({}, "📧 Sending cancellation notifications...")
+
+        const notifResult = await notifyInterventionStatusChange({
+          interventionId: updatedIntervention.id,
+          oldStatus: intervention.status,
+          newStatus: "annulee",
+          reason: cancellationReason
+        })
+
+        if (notifResult.success) {
+          logger.info({ count: notifResult.data?.length }, "✅ Cancellation notifications sent successfully")
+        } else {
+          logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+        }
+      } catch (notificationError) {
+        logger.error({ error: notificationError }, "❌ Error sending notifications:")
+      }
+    })
+
+    return response
 
   } catch (error) {
     logger.error({ error: error }, "❌ API Error:")

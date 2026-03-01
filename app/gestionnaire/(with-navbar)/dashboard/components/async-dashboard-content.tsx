@@ -12,6 +12,7 @@ import {
   createServerActionInterventionService,
   createServerActionContractService,
   createServerSupabaseClient,
+  ConversationRepository,
 } from "@/lib/services"
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { InterventionWithRelations } from "@/lib/services"
@@ -288,6 +289,18 @@ export async function AsyncDashboardContent({
     logger.warn('[ASYNC-DASHBOARD] Onboarding check failed, skipping', { error })
   }
 
+  // Fetch unread conversation threads for dashboard (separate try/catch to not break dashboard)
+  let unreadThreads: Awaited<ReturnType<ConversationRepository['getUnreadThreadsForDashboard']>>['data'] = { threads: [], totalCount: 0 }
+  try {
+    const conversationRepo = new ConversationRepository(supabase)
+    const unreadResult = await conversationRepo.getUnreadThreadsForDashboard(profile.id)
+    if (unreadResult.success && unreadResult.data) {
+      unreadThreads = unreadResult.data
+    }
+  } catch (error) {
+    logger.warn('[ASYNC-DASHBOARD] Unread threads fetch failed, skipping', { error })
+  }
+
   return (
     <ManagerDashboardV2
       stats={stats}
@@ -297,6 +310,8 @@ export async function AsyncDashboardContent({
       pendingCount={pendingActionsCount}
       onboardingProgress={onboardingProgress}
       isTrialing={isTrialing}
+      unreadThreads={unreadThreads?.threads}
+      unreadThreadsTotalCount={unreadThreads?.totalCount}
     />
   )
 }

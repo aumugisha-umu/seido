@@ -811,15 +811,9 @@ input[autocomplete="cc-number"],
      ============================================ */
 
   /* Dashboard Block - Main container */
-  /* Mobile: no height constraint → natural scroll via <main overflow-y-auto> */
-  /* Desktop (lg+): h-full → dashboard fills viewport, interventions section grows to fill remaining space */
+  /* All breakpoints: natural height, scrolls via <main overflow-y-auto> parent */
   .dashboard {
     @apply bg-slate-50 font-sans;
-  }
-  @media (min-width: 1024px) {
-    .dashboard {
-      @apply h-full;
-    }
   }
 
   /* Dashboard Container - Manages external padding */
@@ -854,9 +848,9 @@ input[autocomplete="cc-number"],
     margin-bottom: var(--dashboard-section-gap);
   }
 
-  /* Dashboard Content - Main content section, fills remaining vertical space */
+  /* Dashboard Content - Main content section */
   .dashboard__content {
-    @apply flex-1 min-h-0 flex flex-col;
+    @apply flex flex-col;
   }
 
   /* Sticky footer base styles (without negative margins) */

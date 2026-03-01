@@ -4278,6 +4278,14 @@ export type Database = {
           profile_id: string
         }[]
       }
+      get_notification_reply_groups: {
+        Args: { p_team_id: string }
+        Returns: {
+          email_count: number
+          intervention_id: string
+          intervention_title: string
+        }[]
+      }
       get_team_id_from_document_path: {
         Args: { storage_path: string }
         Returns: string

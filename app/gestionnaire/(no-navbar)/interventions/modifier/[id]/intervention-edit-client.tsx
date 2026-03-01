@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
 import { URGENCY_LEVELS } from "@/lib/intervention-data"
@@ -118,7 +118,6 @@ export default function InterventionEditClient({
   currentUserId,
 }: InterventionEditClientProps) {
   const router = useRouter()
-  const { toast } = useToast()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
   // Step state - Start at step 2 since location is read-only and shown in the blue info box
@@ -280,11 +279,7 @@ export default function InterventionEditClient({
   const handleNext = () => {
     const validation = validateCurrentStep()
     if (!validation.valid) {
-      toast({
-        title: "Champs requis",
-        description: validation.message,
-        variant: "destructive",
-      })
+      toast.error("Champs requis", { description: validation.message })
       return
     }
     if (currentStep < 4) {
@@ -339,10 +334,7 @@ export default function InterventionEditClient({
 
   const handleContactCreated = (contact: any) => {
     // Refresh the contacts list if needed
-    toast({
-      title: "Contact créé",
-      description: `${contact.name} a été ajouté`,
-    })
+    toast("Contact créé", { description: `${contact.name} a été ajouté` })
   }
 
   // Time slots handlers
@@ -423,27 +415,16 @@ export default function InterventionEditClient({
       })
 
       if (result.success) {
-        toast({
-          title: "Intervention modifiée",
-          description: "Les modifications ont été enregistrées avec succès",
-        })
+        toast("Intervention modifiée", { description: "Les modifications ont été enregistrées avec succès" })
         router.push(`/gestionnaire/interventions/${initialData.intervention.id}`)
       } else {
         setError(result.error || "Erreur lors de la modification")
-        toast({
-          title: "Erreur",
-          description: result.error || "Impossible de modifier l'intervention",
-          variant: "destructive",
-        })
+        toast.error("Erreur", { description: result.error || "Impossible de modifier l'intervention" })
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue"
       setError(message)
-      toast({
-        title: "Erreur",
-        description: message,
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: message })
     } finally {
       setIsSaving(false)
     }

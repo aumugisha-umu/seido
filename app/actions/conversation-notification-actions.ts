@@ -61,20 +61,34 @@ export async function sendConversationNotifications(
     const supabase = await createServerSupabaseClient()
 
     // ════════════════════════════════════════════════════════════
-    // 1. Get thread details and participants
+    // 1. Get thread, managers, and sender in parallel
     // ════════════════════════════════════════════════════════════
-    const { data: thread, error: threadError } = await supabase
-      .from('conversation_threads')
-      .select(`
-        id,
-        thread_type,
-        intervention_id,
-        last_email_notification_at,
-        participants:conversation_participants(user_id)
-      `)
-      .eq('id', threadId)
-      .single()
+    const [threadResult, managersResult, senderResult] = await Promise.all([
+      supabase
+        .from('conversation_threads')
+        .select(`
+          id,
+          thread_type,
+          intervention_id,
+          last_email_notification_at,
+          participants:conversation_participants(user_id)
+        `)
+        .eq('id', threadId)
+        .single(),
+      supabase
+        .from('users')
+        .select('id')
+        .eq('team_id', teamId)
+        .in('role', ['gestionnaire', 'admin'])
+        .not('auth_user_id', 'is', null),
+      supabase
+        .from('users')
+        .select('id, name, first_name, last_name, role')
+        .eq('id', messageUserId)
+        .single()
+    ])
 
+    const { data: thread, error: threadError } = threadResult
     if (threadError || !thread) {
       logger.warn({ threadId, error: threadError }, '⚠️ [CONV-NOTIF] Thread not found')
       return { success: false, pushSent: 0, emailsSent: 0 }
@@ -86,16 +100,10 @@ export async function sendConversationNotifications(
       .filter((id: string) => id !== messageUserId)
 
     // ════════════════════════════════════════════════════════════
-    // 2. Add team managers (transparency)
+    // 2. Merge participants + managers (transparency)
     // ✅ FIX 2026-02-01: Only include managers with auth accounts
     // ════════════════════════════════════════════════════════════
-    const { data: managers } = await supabase
-      .from('users')
-      .select('id')
-      .eq('team_id', teamId)
-      .in('role', ['gestionnaire', 'admin'])
-      .not('auth_user_id', 'is', null)  // Only invited managers with accounts
-
+    const managers = managersResult.data
     const managerIds = (managers || []).map(m => m.id)
     const recipientIds = [...new Set([...participantIds, ...managerIds])]
       .filter(id => id !== messageUserId)
@@ -106,13 +114,9 @@ export async function sendConversationNotifications(
     }
 
     // ════════════════════════════════════════════════════════════
-    // 3. Get sender info
+    // 3. Sender info (already fetched in parallel)
     // ════════════════════════════════════════════════════════════
-    const { data: sender } = await supabase
-      .from('users')
-      .select('id, name, first_name, last_name, role')
-      .eq('id', messageUserId)
-      .single()
+    const sender = senderResult.data
 
     const senderName = formatUserName(sender, 'Un participant')
 

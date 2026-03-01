@@ -405,6 +405,37 @@ export async function POST(request: NextRequest) {
     const intervention = interventionResult.data
     logger.info({ interventionId: intervention.id }, "✅ Intervention created successfully")
 
+    // ✅ RESOLVE BUILDING TENANTS EARLY (before thread creation)
+    // For building-level interventions, tenants are not sent by the client (selectedTenantIds=[]).
+    // We resolve them here so that conversation threads are created correctly.
+    let resolvedTenantIds: string[] = selectedTenantIds || []
+    if (buildingId && !lotId && includeTenants !== false && resolvedTenantIds.length === 0) {
+      try {
+        const { createServerContractService } = await import('@/lib/services')
+        const contractService = await createServerContractService()
+        const tenantsResult = await contractService.getActiveTenantsByBuilding(buildingId)
+
+        if (tenantsResult.success && tenantsResult.data.tenants.length > 0) {
+          const excludedLotIdsSet = new Set(excludedLotIds as string[])
+          const uniqueTenants = new Map<string, string>()
+          for (const tenant of tenantsResult.data.tenants) {
+            if (excludedLotIdsSet.has(tenant.lot_id)) continue
+            if (!uniqueTenants.has(tenant.user_id)) {
+              uniqueTenants.set(tenant.user_id, tenant.user_id)
+            }
+          }
+          resolvedTenantIds = Array.from(uniqueTenants.keys())
+          logger.info({
+            buildingId,
+            resolvedCount: resolvedTenantIds.length,
+            excludedLots: excludedLotIdsSet.size
+          }, "✅ Resolved building tenants for thread creation + assignment")
+        }
+      } catch (error) {
+        logger.error({ error }, "⚠️ Error resolving building tenants early (non-blocking)")
+      }
+    }
+
     // ✅ CREATE CONVERSATION THREADS (BEFORE assignments)
     // Threads must be created BEFORE assignments so that the trigger
     // add_assignment_to_conversation_participants can find and populate them
@@ -424,22 +455,22 @@ export async function POST(request: NextRequest) {
 
       // Fetch tenant info for personalized messages
       // ✅ FIX 2026-02-01: Only include users with auth_id (invited users with accounts)
-      // Users without auth_id are informational contacts - they can't log in or receive notifications
+      // ✅ FIX 2026-03-01: Use resolvedTenantIds (covers both lot-level and building-level)
       let tenants: Array<{ id: string; name: string }> = []
-      if (selectedTenantIds && selectedTenantIds.length > 0) {
+      if (resolvedTenantIds.length > 0) {
         const { data: tenantUsers } = await supabase
           .from('users')
           .select('id, name')
-          .in('id', selectedTenantIds)
+          .in('id', resolvedTenantIds)
           .not('auth_user_id', 'is', null)  // Only invited users with accounts
         tenants = tenantUsers || []
 
         // Log for debugging if some tenants were filtered out
-        if (tenants.length < selectedTenantIds.length) {
+        if (tenants.length < resolvedTenantIds.length) {
           logger.info({
-            selectedCount: selectedTenantIds.length,
+            selectedCount: resolvedTenantIds.length,
             invitedCount: tenants.length,
-            filteredOut: selectedTenantIds.length - tenants.length
+            filteredOut: resolvedTenantIds.length - tenants.length
           }, "ℹ️ Some tenants filtered out (no auth account - informational contacts)")
         }
       }
@@ -783,122 +814,42 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ✅ UPDATED 2025-12-10: Auto-assign tenants from ACTIVE CONTRACTS (not lot_contacts)
-    // Only contracts with status='actif' are considered (not 'a_venir')
-    // ✅ UPDATED 2026-01-05: Respect includeTenants toggle from wizard
-    // ✅ UPDATED 2026-01-06: Support building-level tenant assignment
-    // ✅ FIX 2026-01-25: Respect selectedTenantIds from wizard (explicit contract selection)
-    if (lotId && includeTenants !== false) {
-      // LOT-LEVEL: Assign tenants based on explicit selection from wizard
-      const explicitTenantIds = selectedTenantIds || []
-
-      if (explicitTenantIds.length > 0) {
-        // ✅ FIX: Use ONLY the explicitly selected tenants from the wizard
-        // This respects the contract selection made by the user
-        logger.info({
-          selectedTenantIds: explicitTenantIds,
-          count: explicitTenantIds.length
-        }, "👤 Assigning explicitly selected tenants from wizard...")
-
-        try {
-          // Prepare tenant assignments from explicit selection
-          const tenantAssignments = explicitTenantIds.map((userId: string, index: number) => ({
-            intervention_id: intervention.id,
-            user_id: userId,
-            role: 'locataire',
-            is_primary: index === 0, // First selected tenant is primary
-            assigned_by: user.id
-          }))
-
-          // Insert tenant assignments
-          const { error: tenantAssignError } = await supabase
-            .from('intervention_assignments')
-            .insert(tenantAssignments)
-
-          if (tenantAssignError) {
-            logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
-          } else {
-            logger.info({
-              count: tenantAssignments.length
-            }, "✅ Tenants assigned from explicit selection")
-          }
-        } catch (error) {
-          logger.error({ error }, "❌ Error in tenant assignment")
-          // Don't fail the entire operation for tenant assignment errors
-        }
-      } else {
-        // ✅ FIX: No tenants selected (no contract chosen or lot unoccupied)
-        // Don't auto-assign ANY tenants - this was the bug causing 7 tenants to be assigned
-        logger.info({
-          lotId,
-          includeTenants,
-          selectedTenantIdsProvided: !!selectedTenantIds,
-          contractId: contractId || null
-        }, "ℹ️ No tenants explicitly selected - skipping tenant auto-assignment")
-      }
-    } else if (buildingId && !lotId && includeTenants !== false) {
-      // 🆕 BUILDING-LEVEL: Assign tenants from selected lots in the building
-      const excludedLotIdsSet = new Set(excludedLotIds as string[])
-      logger.info({ includeTenants, buildingId, excludedLotsCount: excludedLotIdsSet.size }, "👤 Extracting and assigning tenants from building's lots...")
+    // ✅ ASSIGN TENANTS using resolvedTenantIds (pre-resolved for both lot and building)
+    // ✅ FIX 2026-03-01: Unified path — resolvedTenantIds already covers:
+    //   - Lot-level: from client selectedTenantIds (explicit contract selection)
+    //   - Building-level: from contractService.getActiveTenantsByBuilding() (resolved before threads)
+    if ((lotId || (buildingId && !lotId)) && includeTenants !== false && resolvedTenantIds.length > 0) {
+      logger.info({
+        resolvedTenantIds,
+        count: resolvedTenantIds.length,
+        source: lotId ? 'lot-wizard' : 'building-contracts'
+      }, "👤 Assigning resolved tenants...")
 
       try {
-        const { createServerContractService } = await import('@/lib/services')
-        const contractService = await createServerContractService()
-        const tenantsResult = await contractService.getActiveTenantsByBuilding(buildingId)
+        const tenantAssignments = resolvedTenantIds.map((userId: string, index: number) => ({
+          intervention_id: intervention.id,
+          user_id: userId,
+          role: 'locataire',
+          is_primary: index === 0,
+          assigned_by: user.id
+        }))
 
-        if (!tenantsResult.success) {
-          logger.error({ error: tenantsResult.error }, "⚠️ Error fetching tenants from building's active contracts")
-        } else if (tenantsResult.data.tenants.length > 0) {
-          // Filter out tenants from excluded lots, then deduplicate by user_id
-          const uniqueTenants = new Map<string, typeof tenantsResult.data.tenants[0]>()
-          for (const tenant of tenantsResult.data.tenants) {
-            // Skip tenants from excluded lots
-            if (excludedLotIdsSet.has(tenant.lot_id)) {
-              continue
-            }
-            // Keep first occurrence (already sorted by lot reference, then primary)
-            if (!uniqueTenants.has(tenant.user_id)) {
-              uniqueTenants.set(tenant.user_id, tenant)
-            }
-          }
+        const { error: tenantAssignError } = await supabase
+          .from('intervention_assignments')
+          .insert(tenantAssignments)
 
-          if (uniqueTenants.size > 0) {
-            // Prepare tenant assignments
-            const tenantAssignments = Array.from(uniqueTenants.values()).map((tenant, index) => ({
-              intervention_id: intervention.id,
-              user_id: tenant.user_id,
-              role: 'locataire',
-              is_primary: index === 0, // First tenant is primary for building-level
-              assigned_by: user.id
-            }))
-
-            // Insert tenant assignments
-            const { error: tenantAssignError } = await supabase
-              .from('intervention_assignments')
-              .insert(tenantAssignments)
-
-            if (tenantAssignError) {
-              logger.error({ error: tenantAssignError }, "⚠️ Error assigning building tenants")
-            } else {
-              logger.info({
-                count: tenantAssignments.length,
-                uniqueCount: uniqueTenants.size,
-                excludedLots: excludedLotIdsSet.size,
-                fromLots: tenantsResult.data.occupiedLotsCount - excludedLotIdsSet.size
-              }, "✅ Building tenants auto-assigned from active contracts")
-            }
-          } else {
-            logger.info({ buildingId, excludedLotsCount: excludedLotIdsSet.size }, "ℹ️ No tenants to assign (all lots excluded or no active tenants)")
-          }
+        if (tenantAssignError) {
+          logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
         } else {
-          logger.info({ buildingId }, "ℹ️ No active tenants found in building's lots")
+          logger.info({ count: tenantAssignments.length }, "✅ Tenants assigned")
         }
       } catch (error) {
-        logger.error({ error }, "❌ Error in building tenant auto-assignment")
-        // Don't fail the entire operation for tenant assignment errors
+        logger.error({ error }, "❌ Error in tenant assignment")
       }
     } else if ((lotId || buildingId) && includeTenants === false) {
       logger.info({}, "ℹ️ Tenant auto-assignment skipped (includeTenants=false)")
+    } else if ((lotId || buildingId) && resolvedTenantIds.length === 0) {
+      logger.info({ lotId, buildingId, includeTenants }, "ℹ️ No tenants resolved - skipping assignment")
     }
 
     // Handle scheduling slots if provided (slots mode only)

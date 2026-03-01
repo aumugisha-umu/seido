@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   UnifiedModal,
   UnifiedModalHeader,
@@ -42,6 +43,7 @@ export function CancelSlotModal({
   interventionId,
   onSuccess
 }: CancelSlotModalProps) {
+  const router = useRouter()
   const [cancelling, setCancelling] = useState(false)
 
   const handleConfirm = async () => {
@@ -55,8 +57,7 @@ export function CancelSlotModal({
         toast.success('Créneau annulé avec succès')
         onClose()
         onSuccess?.()
-        // Reload to show updated data
-        window.location.reload()
+        router.refresh()
       } else {
         toast.error(result.error || 'Erreur lors de l\'annulation')
       }

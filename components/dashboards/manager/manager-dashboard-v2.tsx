@@ -22,11 +22,10 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
+import { UnreadMessagesSection } from "@/components/dashboards/shared/unread-messages-section"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
-import { useToast } from "@/hooks/use-toast"
 import { GestionnaireFAB } from "@/components/ui/fab"
-import { PeriodSelector, getDefaultPeriod, type Period } from "@/components/ui/period-selector"
 import { OnboardingChecklist } from "@/components/billing/onboarding-checklist"
 import { useSubscription } from "@/hooks/use-subscription"
 import { useStrategicNotification } from "@/hooks/use-strategic-notification"
@@ -36,6 +35,7 @@ import { PageActions } from "@/components/page-actions"
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
 import type { OnboardingProgress } from "@/app/actions/subscription-actions"
+import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 
 // Type for intervention row from Supabase (used in realtime callback)
 type DbIntervention = Database['public']['Tables']['interventions']['Row']
@@ -48,20 +48,14 @@ interface ManagerDashboardProps {
     pendingCount: number
     onboardingProgress?: OnboardingProgress | null
     isTrialing?: boolean
+    unreadThreads?: UnreadThread[]
+    unreadThreadsTotalCount?: number
 }
 
-export function ManagerDashboardV2({ stats, contactStats, contractStats, interventions: initialInterventions, pendingCount, onboardingProgress, isTrialing }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, contactStats, contractStats, interventions: initialInterventions, pendingCount, onboardingProgress, isTrialing, unreadThreads, unreadThreadsTotalCount }: ManagerDashboardProps) {
     const router = useRouter()
-    const { toast } = useToast()
-
     // Local state for interventions (enables realtime updates)
     const [interventions, setInterventions] = useState(initialInterventions)
-
-    // Period filter state - defaults to 30 days
-    const [period, setPeriod] = useState<Period>(getDefaultPeriod('30d'))
-
-    // Celebration flag for 100% completion (show toast once per session)
-    const [hasShownCelebration, setHasShownCelebration] = useState(false)
 
     // Strategic notification hook (upgrade prompts at positive moments)
     const { daysLeftTrial } = useSubscription()
@@ -96,69 +90,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     const navigateToNewLot = useCallback(() => router.push('/gestionnaire/biens/lots/nouveau'), [router])
     const navigateToNewContact = useCallback(() => router.push('/gestionnaire/contacts/nouveau'), [router])
     const navigateToContracts = useCallback(() => router.push('/gestionnaire/biens/contrats'), [router])
-
-    // Filter interventions by selected period
-    const filteredInterventions = useMemo(() => {
-        if (period.value === 'all' || !period.startDate) {
-            return interventions
-        }
-
-        return interventions.filter(intervention => {
-            const interventionDate = new Date(intervention.created_at)
-
-            if (period.startDate && interventionDate < period.startDate) {
-                return false
-            }
-
-            if (period.endDate && interventionDate > period.endDate) {
-                return false
-            }
-
-            return true
-        })
-    }, [interventions, period])
-
-    // Calculate progress data for the period (integrated into "En cours" KPI card)
-    const progressData = useMemo(() => {
-        // Exclude rejected and cancelled from valid interventions
-        const validInterventions = filteredInterventions.filter(i =>
-            !['rejetee', 'annulee'].includes(i.status)
-        )
-
-        // Count completed interventions
-        const completed = validInterventions.filter(i =>
-            ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire'].includes(i.status)
-        ).length
-
-        const total = validInterventions.length
-        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
-
-        // Generate period label
-        const periodLabel = period.value === '7d' ? 'cette semaine'
-            : period.value === '30d' ? 'ce mois'
-            : period.value === '90d' ? 'ce trimestre'
-            : 'au total'
-
-        return { completed, total, percentage, periodLabel }
-    }, [filteredInterventions, period])
-
-    // Celebration toast when reaching 100% completion
-    useEffect(() => {
-        if (progressData.percentage === 100 && progressData.total > 0 && !hasShownCelebration) {
-            toast({
-                title: "Toutes les interventions sont complètes !",
-                description: `Vous avez finalisé ${progressData.total} intervention${progressData.total > 1 ? 's' : ''} ${progressData.periodLabel}.`,
-                variant: "default",
-                duration: 5000
-            })
-            setHasShownCelebration(true)
-        }
-    }, [progressData, hasShownCelebration, toast])
-
-    // Reset celebration flag when period changes
-    useEffect(() => {
-        setHasShownCelebration(false)
-    }, [period.value])
 
     // Realtime updates for interventions
     const closedStatuses = ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']
@@ -219,15 +150,9 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
 
     return (
         <div className="dashboard">
-            <div className="dashboard__container pb-24 lg:pb-6 flex flex-col lg:h-full">
+            <div className="dashboard__container pb-24 lg:pb-6 flex flex-col">
                 {/* Header Actions (rendered in topbar via portal) */}
                 <PageActions>
-                    <div className="hidden sm:block">
-                        <PeriodSelector
-                            value={period.value}
-                            onChange={setPeriod}
-                        />
-                    </div>
                     <Button
                         variant="outline"
                         onClick={navigateToImport}
@@ -284,15 +209,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                     </DropdownMenu>
                 </PageActions>
 
-                {/* Mobile period selector (stays in content area) */}
-                <div className="sm:hidden mb-4">
-                    <PeriodSelector
-                        value={period.value}
-                        onChange={setPeriod}
-                        compact
-                    />
-                </div>
-
                 {/* Stats Section - Mobile Grid (2x2 + hero "Actions requises") */}
                 <div className="dashboard__stats lg:hidden">
                     <KPIMobileGrid
@@ -308,8 +224,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                             tenantCount,
                             contractStats,
                             onContractClick: navigateToContracts,
-                            onActionsClick: handleActionsClick,
-                            progressData
+                            onActionsClick: handleActionsClick
                         })}
                     />
                 </div>
@@ -327,7 +242,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                         occupancyRate={stats.occupancyRate}
                         tenantCount={tenantCount}
                         contractStats={contractStats}
-                        progressData={progressData}
                         onActionsClick={handleActionsClick}
                     />
                 </div>
@@ -337,21 +251,32 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                     <OnboardingChecklist className="mb-4" progress={onboardingProgress} isTrialing={isTrialing ?? false} />
                 </div>
 
+                {/* Unread Messages Section */}
+                {unreadThreads && unreadThreads.length > 0 && (
+                    <div className="lg:order-2 mb-4">
+                        <UnreadMessagesSection
+                            threads={unreadThreads}
+                            role="gestionnaire"
+                            totalCount={unreadThreadsTotalCount ?? unreadThreads.length}
+                        />
+                    </div>
+                )}
+
                 {/* Content Section - Unified InterventionsNavigator */}
                 <div
                     ref={interventionsRef}
                     className={cn(
-                        "dashboard__content lg:order-3 lg:flex-1 flex flex-col min-h-0 transition-all duration-300 rounded-lg",
+                        "dashboard__content lg:order-3 lg:max-h-[700px] transition-all duration-300 rounded-lg",
                         focusInterventions && "ring-2 ring-amber-400/60 ring-offset-2"
                     )}
                 >
                     <InterventionsNavigator
-                        interventions={filteredInterventions}
+                        interventions={interventions}
                         userContext="gestionnaire"
                         tabsPreset="dashboard"
                         showHeader={true}
                         headerConfig={{
-                            title: period.value !== 'all' ? `Interventions (${period.label})` : "Interventions",
+                            title: "Interventions",
                             icon: Wrench
                         }}
                         showSortOptions={true}

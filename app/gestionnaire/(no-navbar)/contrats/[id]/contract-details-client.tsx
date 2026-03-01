@@ -63,6 +63,9 @@ import { cn } from '@/lib/utils'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 import { InterventionsNavigator } from '@/components/interventions/interventions-navigator'
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
+import { ContractExpiryBanner } from '@/components/contracts/contract-expiry-banner'
+import { ContractExpiryActions } from '@/components/contracts/contract-expiry-actions'
+import { getExpiryInfo } from '@/lib/utils/lease-expiry'
 import { logger } from '@/lib/logger'
 import type {
   ContractWithRelations,
@@ -89,6 +92,12 @@ export default function ContractDetailsClient({
 
   // Calculate monthly total
   const monthlyTotal = contract.rent_amount + (contract.charges_amount || 0)
+
+  // Calculate expiry info for alert banner
+  const expiryInfo = contract.status === 'actif'
+    ? getExpiryInfo(contract.end_date, contract.duration_months, contract.metadata || {})
+    : null
+  const showExpiryAlert = expiryInfo?.alertTier != null && expiryInfo.decision === null
 
   // Get location info
   const locationInfo = contract.lot ? (
@@ -294,6 +303,18 @@ export default function ContractDetailsClient({
 
       {/* Main content */}
       <main className="content-max-width px-4 sm:px-6 lg:px-8 py-8">
+        {/* Expiry alert banner */}
+        {showExpiryAlert && expiryInfo && (
+          <div className="mb-6 space-y-3">
+            <ContractExpiryBanner expiryInfo={expiryInfo} />
+            <ContractExpiryActions
+              contractId={contract.id}
+              expiryInfo={expiryInfo}
+              onRefresh={() => router.refresh()}
+            />
+          </div>
+        )}
+
         <EntityPreviewLayout>
           <EntityTabs
             activeTab={activeTab}

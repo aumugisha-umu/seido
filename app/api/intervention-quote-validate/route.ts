@@ -1,16 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
-import { createServerInterventionService } from '@/lib/services'
+import { logger } from '@/lib/logger'
+import { createServerInterventionService, createServerNotificationRepository } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { validateQuoteSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { NotificationService } from '@/lib/services/domain/notification.service'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ intervention-quote-validate API route called")
 
   // Initialize services
   const interventionService = await createServerInterventionService()
+  const notificationRepository = await createServerNotificationRepository()
+  const notificationService = new NotificationService(notificationRepository)
 
   try {
     // ✅ AUTH + ROLE CHECK: 73 lignes → 3 lignes! (gestionnaire required)
@@ -136,6 +139,9 @@ export async function POST(request: NextRequest) {
 
     logger.info({ status: action === 'approve' ? 'approved' : 'rejected' }, `✅ Quote ${action === 'approve' ? 'approved' : 'rejected'} successfully`)
 
+    // Track rejected quotes for background notifications
+    let rejectedOtherQuotes: Array<{ id: string; providerId: string }> = []
+
     // If quote is approved, update intervention status and reject other pending quotes
     if (action === 'approve') {
       logger.info("🔄 Updating intervention status to 'planifiee'...")
@@ -157,8 +163,14 @@ export async function POST(request: NextRequest) {
         .neq('id', quoteId)
 
       if (otherQuotes && otherQuotes.length > 0) {
+        // Capture for background notifications before DB updates
+        rejectedOtherQuotes = otherQuotes.map(q => ({
+          id: q.id,
+          providerId: q.provider.id
+        }))
+
         const rejectPromises = otherQuotes.map(async (otherQuote) => {
-          // Update quote status
+          // Update quote status (synchronous — must complete before response)
           await supabase
             .from('intervention_quotes')
             .update({
@@ -169,38 +181,6 @@ export async function POST(request: NextRequest) {
               updated_at: new Date().toISOString()
             })
             .eq('id', otherQuote.id)
-
-          // Notify provider of rejection
-          try {
-            // Vérifier si le prestataire est assigné à l'intervention
-            const { data: providerAssignment } = await supabase
-              .from('intervention_assignments')
-              .select('id')
-              .eq('intervention_id', quote.intervention_id)
-              .eq('user_id', otherQuote.provider.id)
-              .eq('role', 'prestataire')
-              .maybeSingle()
-
-            await notificationService.createNotification({
-              userId: otherQuote.provider.id,
-              teamId: quote.intervention.team_id,
-              createdBy: user.id,
-              type: 'intervention',
-              title: 'Estimation non retenue',
-              message: `Votre estimation pour l'intervention "${quote.intervention.title}" n'a pas été retenue. Un autre prestataire a été sélectionné.`,
-              isPersonal: !!providerAssignment,
-              metadata: {
-                interventionId: quote.intervention_id,
-                interventionTitle: quote.intervention.title,
-                quoteId: otherQuote.id,
-                rejectionReason: 'Une autre estimation a été sélectionnée pour cette intervention'
-              },
-              relatedEntityType: 'intervention',
-              relatedEntityId: quote.intervention_id
-            })
-          } catch (notifError) {
-            logger.warn(`⚠️ Could not send rejection notification to provider ${otherQuote.provider.id}:`, notifError)
-          }
         })
 
         await Promise.all(rejectPromises)
@@ -208,67 +188,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send notification to provider about quote validation
-    try {
-      // Vérifier si le prestataire est assigné à l'intervention
-      const { data: providerAssignment } = await supabase
-        .from('intervention_assignments')
-        .select('id')
-        .eq('intervention_id', quote.intervention_id)
-        .eq('user_id', quote.provider.id)
-        .eq('role', 'prestataire')
-        .maybeSingle()
-
-      const notificationData = {
-        userId: quote.provider.id,
-        teamId: quote.intervention.team_id,
-        createdBy: user.id,
-        type: 'intervention' as const,
-        title: action === 'approve' ? 'Estimation approuvée !' : 'Estimation rejetée',
-        message: action === 'approve'
-          ? `Félicitations ! Votre estimation de ${quote.total_amount.toFixed(2)}€ pour l'intervention "${quote.intervention.title}" a été approuvée.`
-          : `Votre estimation pour l'intervention "${quote.intervention.title}" a été rejetée. Motif: ${rejectionReason}`,
-        isPersonal: !!providerAssignment,
-        metadata: {
-          interventionId: quote.intervention_id,
-          interventionTitle: quote.intervention.title,
-          quoteId: quoteId,
-          quoteAmount: quote.total_amount,
-          validationAction: action,
-          ...(action === 'approve' && { actionRequired: 'intervention_planning' }),
-          ...(action === 'reject' && { rejectionReason })
-        },
-        relatedEntityType: 'intervention' as const,
-        relatedEntityId: quote.intervention_id
-      }
-
-      await notificationService.createNotification(notificationData)
-      logger.info({}, "📧 Quote validation notification sent to provider")
-    } catch (notifError) {
-      logger.warn({ notifError }, "⚠️ Could not send quote validation notification")
-      // Don't fail the validation for notification errors
-    }
-
-    // Send status change notifications if intervention status changed
-    if (action === 'approve') {
-      try {
-        const notifResult = await notifyInterventionStatusChange({
-          interventionId: quote.intervention.id,
-          oldStatus: 'demande_de_devis',
-          newStatus: 'planifiee'
-        })
-
-        if (notifResult.success) {
-          logger.info({ count: notifResult.data?.length }, "📧 Intervention status change notifications sent")
-        } else {
-          logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
-        }
-      } catch (notifError) {
-        logger.warn({ notifError }, "⚠️ Could not send status change notifications")
-      }
-    }
-
-    return NextResponse.json({
+    // Build response
+    const response = NextResponse.json({
       success: true,
       quote: {
         id: updatedQuote.id,
@@ -285,6 +206,104 @@ export async function POST(request: NextRequest) {
         ? `Devis de ${quote.provider.name} approuvé avec succès`
         : `Devis de ${quote.provider.name} rejeté`
     })
+
+    // All notifications run in background after response is sent
+    after(async () => {
+      try {
+        // 1. Notify rejected providers (when a quote is approved, others get auto-rejected)
+        for (const otherQuote of rejectedOtherQuotes) {
+          try {
+            const { data: providerAssignment } = await supabase
+              .from('intervention_assignments')
+              .select('id')
+              .eq('intervention_id', quote.intervention_id)
+              .eq('user_id', otherQuote.providerId)
+              .eq('role', 'prestataire')
+              .maybeSingle()
+
+            await notificationService.createNotification({
+              userId: otherQuote.providerId,
+              teamId: quote.intervention.team_id,
+              createdBy: user.id,
+              type: 'intervention',
+              title: 'Estimation non retenue',
+              message: `Votre estimation pour l'intervention "${quote.intervention.title}" n'a pas été retenue. Un autre prestataire a été sélectionné.`,
+              isPersonal: !!providerAssignment,
+              metadata: {
+                interventionId: quote.intervention_id,
+                interventionTitle: quote.intervention.title,
+                quoteId: otherQuote.id,
+                rejectionReason: 'Une autre estimation a été sélectionnée pour cette intervention'
+              },
+              relatedEntityType: 'intervention',
+              relatedEntityId: quote.intervention_id
+            })
+          } catch (notifError) {
+            logger.warn({ notifError, providerId: otherQuote.providerId }, '⚠️ Could not notify rejected provider')
+          }
+        }
+
+        // 2. Notify the main provider about approval/rejection
+        try {
+          const { data: providerAssignment } = await supabase
+            .from('intervention_assignments')
+            .select('id')
+            .eq('intervention_id', quote.intervention_id)
+            .eq('user_id', quote.provider.id)
+            .eq('role', 'prestataire')
+            .maybeSingle()
+
+          await notificationService.createNotification({
+            userId: quote.provider.id,
+            teamId: quote.intervention.team_id,
+            createdBy: user.id,
+            type: 'intervention',
+            title: action === 'approve' ? 'Estimation approuvée !' : 'Estimation rejetée',
+            message: action === 'approve'
+              ? `Félicitations ! Votre estimation de ${quote.total_amount.toFixed(2)}€ pour l'intervention "${quote.intervention.title}" a été approuvée.`
+              : `Votre estimation pour l'intervention "${quote.intervention.title}" a été rejetée. Motif: ${rejectionReason}`,
+            isPersonal: !!providerAssignment,
+            metadata: {
+              interventionId: quote.intervention_id,
+              interventionTitle: quote.intervention.title,
+              quoteId: quoteId,
+              quoteAmount: quote.total_amount,
+              validationAction: action,
+              ...(action === 'approve' && { actionRequired: 'intervention_planning' }),
+              ...(action === 'reject' && { rejectionReason })
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: quote.intervention_id
+          })
+          logger.info({}, "📧 Quote validation notification sent to provider")
+        } catch (notifError) {
+          logger.warn({ notifError }, '⚠️ Could not send quote validation notification')
+        }
+
+        // 3. Status change notification (only when approved)
+        if (action === 'approve') {
+          try {
+            const notifResult = await notifyInterventionStatusChange({
+              interventionId: quote.intervention.id,
+              oldStatus: 'demande_de_devis',
+              newStatus: 'planifiee'
+            })
+
+            if (notifResult.success) {
+              logger.info({ count: notifResult.data?.length }, "📧 Intervention status change notifications sent")
+            } else {
+              logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+            }
+          } catch (notifError) {
+            logger.warn({ notifError }, "⚠️ Could not send status change notifications")
+          }
+        }
+      } catch (error) {
+        logger.error({ error }, '⚠️ Background notification error in quote-validate')
+      }
+    })
+
+    return response
 
   } catch (error) {
     logger.error({ error }, "❌ Error in intervention-quote-validate API:")

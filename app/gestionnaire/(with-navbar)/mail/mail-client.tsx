@@ -24,7 +24,7 @@ import { Plus, RefreshCw, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
-import { LinkedEmail } from '@/lib/types/email-links'
+import { LinkedEmail, EmailLinkWithDetails } from '@/lib/types/email-links'
 import { MailboxEmail, Building, Lot, generateConversationId, extractSenderName, extractEmailAddress } from './components/types'
 import { ComposeEmailModal } from './components/compose-email-modal'
 import { useRealtimeEmailsV2 } from '@/hooks/use-realtime-emails-v2'
@@ -181,6 +181,9 @@ export function MailClient({
   // Compose modal
   const [composeOpen, setComposeOpen] = useState(false)
 
+  // Email links cache (shared across EmailDetail instances to survive key-based remounts)
+  const emailLinksCache = useRef<Map<string, EmailLinkWithDetails[]>>(new Map())
+
   // Pagination
   const [totalEmails, setTotalEmails] = useState(initialTotalEmails)
   const [offset, setOffset] = useState(50)
@@ -195,6 +198,11 @@ export function MailClient({
 
   // AbortController: cancel in-flight requests on rapid folder switching
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Stable refs for values used inside memoized callbacks (avoids re-creating callbacks on state change)
+  const currentFolderRef = useRef(currentFolder)
+  currentFolderRef.current = currentFolder
+  const fetchEmailsRef = useRef<(isLoadMore?: boolean, sourceOverride?: string) => Promise<void>>(null as any)
 
   // Pre-built Maps for O(1) lookup in adaptEmail (replaces O(n) Array.find per email)
   const { buildingMap, lotMap } = useMemo(() => {
@@ -214,47 +222,75 @@ export function MailClient({
   const selectedEmail = emails.find(e => e.id === selectedEmailId)
 
   // ============================================================================
-  // REALTIME & POLLING
+  // REALTIME & POLLING (memoized callbacks to prevent subscription churn)
   // ============================================================================
+
+  // Invalidate cache for a specific folder or all folders
+  // Declared here (before memoized callbacks) to avoid TDZ issues
+  const invalidateCache = useCallback((folder?: string) => {
+    if (folder) {
+      // Invalidate all source variants for this folder
+      for (const key of folderCacheRef.current.keys()) {
+        if (key.startsWith(`${folder}:`)) {
+          folderCacheRef.current.delete(key)
+        }
+      }
+    } else {
+      folderCacheRef.current.clear()
+    }
+  }, [])
+
+  // Stable callback: new email from realtime subscription
+  // Uses refs for currentFolder to avoid re-subscribing on folder change
+  const handleRealtimeNewEmail = useCallback((newEmail: Email) => {
+    // Invalidate cache for the folder receiving the new email
+    if (newEmail.direction === 'received') invalidateCache('inbox')
+    if (newEmail.direction === 'sent') invalidateCache('sent')
+
+    const folder = currentFolderRef.current
+    if (folder === 'inbox' && newEmail.direction === 'received') {
+      setRealEmails(prev => [newEmail, ...prev])
+      setCounts(prev => ({ ...prev, inbox: prev.inbox + 1 }))
+      setTotalEmails(prev => prev + 1)
+    }
+    if (folder === 'sent' && newEmail.direction === 'sent') {
+      setRealEmails(prev => [newEmail, ...prev])
+      setCounts(prev => ({ ...prev, sent: prev.sent + 1 }))
+      setTotalEmails(prev => prev + 1)
+    }
+  }, [invalidateCache])
+
+  // Stable callback: counts changed from polling
+  // Only uses state setters (stable by React guarantee)
+  const handleCountsChange = useCallback((newCounts: { inbox: number; processed: number; sent: number; archive: number; drafts: number }) => {
+    setCounts(prev => ({
+      ...prev,
+      inbox: newCounts.inbox,
+      processed: newCounts.processed,
+      sent: newCounts.sent,
+      archive: newCounts.archive
+    }))
+  }, [])
+
+  // Stable callback: new emails detected by polling
+  // Uses refs for currentFolder and fetchEmails to stay stable
+  const handlePollingNewEmails = useCallback((newEmailIds: string[]) => {
+    if (newEmailIds.length > 0 && currentFolderRef.current === 'inbox') {
+      fetchEmailsRef.current?.(false)
+    }
+  }, [])
 
   useRealtimeEmailsV2({
     teamId,
     showToast: true,
-    onNewEmail: (newEmail) => {
-      // Invalidate cache for the folder receiving the new email
-      if (newEmail.direction === 'received') invalidateCache('inbox')
-      if (newEmail.direction === 'sent') invalidateCache('sent')
-
-      if (currentFolder === 'inbox' && newEmail.direction === 'received') {
-        setRealEmails(prev => [newEmail, ...prev])
-        setCounts(prev => ({ ...prev, inbox: prev.inbox + 1 }))
-        setTotalEmails(prev => prev + 1)
-      }
-      if (currentFolder === 'sent' && newEmail.direction === 'sent') {
-        setRealEmails(prev => [newEmail, ...prev])
-        setCounts(prev => ({ ...prev, sent: prev.sent + 1 }))
-        setTotalEmails(prev => prev + 1)
-      }
-    }
+    onNewEmail: handleRealtimeNewEmail
   })
 
   const { refresh: manualRefresh, resetKnownEmails } = useEmailPolling({
     interval: 60000,
     enabled: !entityFilter,
-    onCountsChange: (newCounts) => {
-      setCounts(prev => ({
-        ...prev,
-        inbox: newCounts.inbox,
-        processed: newCounts.processed,
-        sent: newCounts.sent,
-        archive: newCounts.archive
-      }))
-    },
-    onNewEmails: (newEmailIds) => {
-      if (newEmailIds.length > 0 && currentFolder === 'inbox') {
-        fetchEmails(false)
-      }
-    }
+    onCountsChange: handleCountsChange,
+    onNewEmails: handlePollingNewEmails
   })
 
   // ============================================================================
@@ -292,20 +328,6 @@ export function MailClient({
       setCounts(data)
     } catch (error) {
       console.error('Failed to fetch counts:', error)
-    }
-  }, [])
-
-  // Invalidate cache for a specific folder or all folders
-  const invalidateCache = useCallback((folder?: string) => {
-    if (folder) {
-      // Invalidate all source variants for this folder
-      for (const key of folderCacheRef.current.keys()) {
-        if (key.startsWith(`${folder}:`)) {
-          folderCacheRef.current.delete(key)
-        }
-      }
-    } else {
-      folderCacheRef.current.clear()
     }
   }, [])
 
@@ -405,6 +427,9 @@ export function MailClient({
     }
   }, [offset, selectedSource, currentFolder])
 
+  // Keep ref in sync so memoized callbacks always call the latest version
+  fetchEmailsRef.current = fetchEmails
+
   const fetchFullEmail = useCallback(async (emailId: string): Promise<Email | null> => {
     try {
       const response = await fetch(`/api/emails/${emailId}`)
@@ -466,6 +491,7 @@ export function MailClient({
   }, [fetchEmails])
 
   const handleEntityClick = useCallback(async (type: string, id: string) => {
+    setIsLoading(true)
     try {
       const response = await fetch(`/api/entities/${type}/${id}/emails`)
       if (!response.ok) {
@@ -489,6 +515,8 @@ export function MailClient({
     } catch (error) {
       console.error('Error filtering by entity:', error)
       toast.error('Erreur lors du filtrage')
+    } finally {
+      setIsLoading(false)
     }
   }, [linkedEntities])
 
@@ -840,6 +868,7 @@ export function MailClient({
               allEmails={emails}
               buildings={buildings}
               teamId={teamId}
+              emailLinksCache={emailLinksCache}
 
               onArchive={handleArchive}
               onDelete={handleDelete}

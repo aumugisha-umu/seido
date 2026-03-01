@@ -142,7 +142,7 @@ export const StatsCard = memo(function StatsCard({
                 "dark:backdrop-blur-sm dark:shadow-none",
                 styles.card,
                 isClickable && "cursor-pointer hover:transform hover:-translate-y-1",
-                alertRing && "ring-2 ring-warning/50",
+                alertRing && "ring-2 ring-amber-500",
                 className
             )}
             onClick={isClickable ? handleClick : undefined}

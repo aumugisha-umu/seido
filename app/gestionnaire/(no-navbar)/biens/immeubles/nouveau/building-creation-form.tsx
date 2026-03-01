@@ -888,44 +888,70 @@ export default function NewImmeubleePage({
         throw new Error(errorMessage)
       }
 
-      // Upload building documents if any were staged
+      // Upload all documents + create all interventions in parallel
+      const allPostCreationPromises: Promise<unknown>[] = []
+
+      // Building docs
       if (buildingDocUpload.hasFiles) {
-        try {
-          await buildingDocUpload.uploadFiles(result.data.building.id, userTeam!.id)
-          logger.info('✅ Building documents uploaded for building:', result.data.building.id)
-        } catch (docError) {
-          logger.error('⚠️ Document upload failed (building created successfully):', docError)
-        }
+        allPostCreationPromises.push(
+          buildingDocUpload.uploadFiles(result.data.building.id, userTeam!.id)
+            .then(() => logger.info('✅ Building documents uploaded for building:', result.data.building.id))
+            .catch((docError: unknown) => logger.error('⚠️ Document upload failed (building created successfully):', docError))
+        )
       }
 
-      // Upload per-lot documents if any were staged
+      // Per-lot docs — all in parallel
       for (let i = 0; i < lots.length; i++) {
         const tempLotId = lots[i].id
         const realLotId = result.data.lots[i]?.id
         if (realLotId && lotDocUploads[tempLotId]?.hasFiles) {
-          try {
-            await uploadLotDocs(tempLotId, realLotId, userTeam!.id)
-            logger.info(`✅ Lot documents uploaded for lot ${realLotId}`)
-          } catch (docError) {
-            logger.error(`⚠️ Lot document upload failed for lot ${realLotId}:`, docError)
-          }
+          allPostCreationPromises.push(
+            uploadLotDocs(tempLotId, realLotId, userTeam!.id)
+              .then(() => logger.info(`✅ Lot documents uploaded for lot ${realLotId}`))
+              .catch((docError: unknown) => logger.error(`⚠️ Lot document upload failed for lot ${realLotId}:`, docError))
+          )
         }
       }
 
-      // Create scheduled interventions (building-level → building_id only, no lot_id)
+      // Building-level interventions — all in parallel
       const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
-      if (toCreate.length > 0) {
-        try {
-          const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+      if (toCreate.length > 0 || Object.keys(lotInterventions).length > 0) {
+        const { createInterventionAction } = await import('@/app/actions/intervention-actions')
 
-          const results = await Promise.allSettled(
-            toCreate.map(async (intervention) => {
-              return createInterventionAction({
+        for (const intervention of toCreate) {
+          allPostCreationPromises.push(
+            createInterventionAction({
+              title: intervention.title,
+              description: intervention.description,
+              type: intervention.interventionTypeCode,
+              urgency: 'basse',
+              building_id: result.data.building.id,
+              team_id: userTeam!.id,
+              requested_date: intervention.scheduledDate || undefined
+            }, {
+              useServiceRole: true,
+              assignments: intervention.assignedUsers.length > 0
+                ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                : undefined
+            })
+          )
+        }
+
+        // Per-lot interventions — flattened into the same batch
+        for (let i = 0; i < lots.length; i++) {
+          const tempLotId = lots[i].id
+          const realLotId = result.data.lots[i]?.id
+          if (!realLotId) continue
+
+          const lotIntervs = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
+          for (const intervention of lotIntervs) {
+            allPostCreationPromises.push(
+              createInterventionAction({
                 title: intervention.title,
                 description: intervention.description,
                 type: intervention.interventionTypeCode,
                 urgency: 'basse',
-                building_id: result.data.building.id,
+                lot_id: realLotId,
                 team_id: userTeam!.id,
                 requested_date: intervention.scheduledDate || undefined
               }, {
@@ -934,54 +960,15 @@ export default function NewImmeubleePage({
                   ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
                   : undefined
               })
-            })
-          )
-
-          const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length
-          logger.info({ successCount, total: results.length, buildingId: result.data.building.id }, 'Building interventions created')
-        } catch (interventionError) {
-          logger.error('⚠️ Intervention creation failed (building created successfully):', interventionError)
+            )
+          }
         }
       }
 
-      // Create per-lot interventions (each lot gets its own set)
-      if (Object.keys(lotInterventions).length > 0) {
-        try {
-          const { createInterventionAction } = await import('@/app/actions/intervention-actions')
-
-          for (let i = 0; i < lots.length; i++) {
-            const tempLotId = lots[i].id
-            const realLotId = result.data.lots[i]?.id
-            if (!realLotId) continue
-
-            const lotIntervs = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
-            if (lotIntervs.length === 0) continue
-
-            const lotResults = await Promise.allSettled(
-              lotIntervs.map(intervention =>
-                createInterventionAction({
-                  title: intervention.title,
-                  description: intervention.description,
-                  type: intervention.interventionTypeCode,
-                  urgency: 'basse',
-                  lot_id: realLotId,
-                  team_id: userTeam!.id,
-                  requested_date: intervention.scheduledDate || undefined
-                }, {
-                  useServiceRole: true,
-                  assignments: intervention.assignedUsers.length > 0
-                    ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
-                    : undefined
-                })
-              )
-            )
-
-            const lotSuccessCount = lotResults.filter(r => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length
-            logger.info({ lotSuccessCount, total: lotResults.length, lotId: realLotId }, 'Lot interventions created')
-          }
-        } catch (lotInterventionError) {
-          logger.error('⚠️ Lot intervention creation failed (building created successfully):', lotInterventionError)
-        }
+      const postCreationResults = await Promise.allSettled(allPostCreationPromises)
+      const failedCount = postCreationResults.filter(r => r.status === 'rejected').length
+      if (failedCount > 0) {
+        logger.warn({ failedCount, total: postCreationResults.length }, 'Some post-creation tasks failed')
       }
 
       // Succès - Rediriger vers la page des biens

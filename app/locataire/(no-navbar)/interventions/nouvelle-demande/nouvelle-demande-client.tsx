@@ -31,8 +31,7 @@ import { tenantInterventionSteps } from "@/lib/step-configurations"
 import { InterventionConfirmationSummary, type InterventionConfirmationData } from "@/components/interventions/intervention-confirmation-summary"
 import { useInterventionUpload, DOCUMENT_TYPES } from "@/hooks/use-intervention-upload"
 import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"
-import { useToast } from "@/hooks/use-toast"
-
+import { toast } from "sonner"
 // Props from server component
 interface NouvelleDemandPageProps {
   userId: string
@@ -62,7 +61,6 @@ export default function NouvelleDemandePage({
   tenantLots
 }: NouvelleDemandPageProps) {
   const router = useRouter()
-  const { toast } = useToast()
   const { getTypeLabel } = useInterventionTypes()
 
   // State for the form
@@ -80,7 +78,7 @@ export default function NouvelleDemandePage({
   // File upload hook
   const fileUpload = useInterventionUpload({
     onUploadError: (error) => {
-      toast({ title: "Erreur", description: error, variant: "destructive" })
+      toast.error("Erreur")
     }
   })
 
@@ -260,11 +258,7 @@ export default function NouvelleDemandePage({
       setCreatedInterventionId(result.intervention.id)
 
       // ✅ Toast amélioré: feedback humain pour le persona locataire (Emma)
-      toast({
-        title: "Demande envoyée !",
-        description: "C'est noté ! On revient vers vous sous 24h.",
-        variant: "success",
-      })
+      toast.success("Demande envoyée !", { description: "C'est noté ! On revient vers vous sous 24h." })
 
       // Redirect vers la page de l'intervention pour que le locataire puisse suivre sa demande
       router.push(`/locataire/interventions/${result.intervention.id}`)

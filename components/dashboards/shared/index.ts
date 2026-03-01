@@ -16,5 +16,8 @@ export { ProgressMini } from './progress-mini'
 export { InterventionCard, PendingActionsCard } from './intervention-card'
 export { PendingActionsSection } from './pending-actions-section'
 
+// Unread Messages Section (Multi-Role)
+export { UnreadMessagesSection } from './unread-messages-section'
+
 // Note: DashboardInterventionsSection a été remplacé par InterventionsNavigator
 // Importer depuis: @/components/interventions/interventions-navigator

@@ -11,7 +11,7 @@ import {
   UnifiedModalFooter,
 } from "@/components/ui/unified-modal"
 import { X, Loader2, AlertTriangle } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { logger } from '@/lib/logger'
 
 interface QuoteRejectionModalProps {
@@ -33,15 +33,9 @@ export function QuoteRejectionModal({
 }: QuoteRejectionModalProps) {
   const [reason, setReason] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const { toast } = useToast()
-
   const handleReject = async () => {
     if (!reason.trim()) {
-      toast({
-        title: "Motif requis",
-        description: "Veuillez indiquer un motif de rejet",
-        variant: "destructive",
-      })
+      toast.error("Motif requis", { description: "Veuillez indiquer un motif de rejet" })
       return
     }
 
@@ -60,10 +54,7 @@ export function QuoteRejectionModal({
         throw new Error(data.error || 'Erreur lors du rejet')
       }
 
-      toast({
-        title: "Estimation rejetée",
-        description: "L'estimation a été rejetée avec succès.",
-      })
+      toast("Estimation rejetée", { description: "L'estimation a été rejetée avec succès." })
 
       setReason("")
       onClose()
@@ -71,11 +62,7 @@ export function QuoteRejectionModal({
 
     } catch (error) {
       logger.error('Erreur lors du rejet:', error)
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors du rejet",
-        variant: "destructive",
-      })
+      toast.error("Erreur", { description: error instanceof Error ? error.message : "Erreur lors du rejet" })
     } finally {
       setIsLoading(false)
     }

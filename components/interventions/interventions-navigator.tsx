@@ -32,7 +32,7 @@ import type { InterventionWithRelations } from "@/lib/services"
 // CONSTANTS - Sort & Filter Options
 // ============================================================================
 
-type SortField = 'date' | 'urgency' | 'status' | 'title'
+type SortField = 'date' | 'scheduled' | 'urgency' | 'status' | 'title'
 type SortOrder = 'asc' | 'desc'
 
 const STATUS_OPTIONS = [
@@ -52,6 +52,7 @@ const URGENCY_OPTIONS = [
 ]
 
 const SORT_OPTIONS = [
+  { value: 'scheduled-asc', label: 'Date planifiée' },
   { value: 'date-desc', label: 'Plus récent' },
   { value: 'date-asc', label: 'Plus ancien' },
   { value: 'urgency-desc', label: 'Urgence (haute → basse)' },
@@ -192,8 +193,8 @@ export function InterventionsNavigator({
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<string | undefined>(initialActiveTab)
 
-  // NEW: Sort & Filter state
-  const [sortBy, setSortBy] = useState<string>('date-desc')
+  // NEW: Sort & Filter state — dashboard defaults to scheduled date sort
+  const [sortBy, setSortBy] = useState<string>(tabsPreset === 'dashboard' ? 'scheduled-asc' : 'date-desc')
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [selectedUrgencies, setSelectedUrgencies] = useState<string[]>([])
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -309,16 +310,40 @@ export function InterventionsNavigator({
         let comparison = 0
 
         switch (field) {
-          case 'date':
+          case 'scheduled': {
+            // Scheduled date sort: unscheduled first → overdue → upcoming
+            const schedA = (a as any).scheduled_date
+            const schedB = (b as any).scheduled_date
+            const hasA = !!schedA
+            const hasB = !!schedB
+
+            // Unscheduled items come first
+            if (!hasA && !hasB) {
+              // Both unscheduled: sort by urgency DESC then created_at DESC
+              const urgA = urgencyOrder[a.urgency as keyof typeof urgencyOrder] || 1
+              const urgB = urgencyOrder[b.urgency as keyof typeof urgencyOrder] || 1
+              if (urgA !== urgB) return urgB - urgA
+              return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+            }
+            if (!hasA) return -1
+            if (!hasB) return 1
+
+            // Both scheduled: ascending (soonest first)
+            comparison = new Date(schedA).getTime() - new Date(schedB).getTime()
+            break
+          }
+          case 'date': {
             const dateA = new Date(a.created_at || 0).getTime()
             const dateB = new Date(b.created_at || 0).getTime()
             comparison = dateA - dateB
             break
-          case 'urgency':
+          }
+          case 'urgency': {
             const urgencyA = urgencyOrder[a.urgency as keyof typeof urgencyOrder] || urgencyOrder[(a as any).priority as keyof typeof urgencyOrder] || 1
             const urgencyB = urgencyOrder[b.urgency as keyof typeof urgencyOrder] || urgencyOrder[(b as any).priority as keyof typeof urgencyOrder] || 1
             comparison = urgencyA - urgencyB
             break
+          }
           case 'status':
             comparison = (a.status || '').localeCompare(b.status || '')
             break
@@ -352,7 +377,7 @@ export function InterventionsNavigator({
       "demande", "approuvee", "demande_de_devis", "planification", "planifiee"
     ].includes(i.status)),
     terminees: () => filteredInterventions.filter(i => [
-      "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee"
+      "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"
     ].includes(i.status)),
 
     // Prestataire preset filters (specific order: en_cours, terminees, toutes)
@@ -476,7 +501,7 @@ export function InterventionsNavigator({
       dashboardTabs.push(
         {
           id: "en_cours",
-          label: "En cours",
+          label: "À venir",
           icon: Clock,
           count: getFilteredByTab("en_cours").length,
           content: renderTabContent("en_cours")

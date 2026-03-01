@@ -31,7 +31,7 @@
  */
 
 import { useRouter } from "next/navigation"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { useCallback } from "react"
 import { logger } from '@/lib/logger'
 
@@ -50,7 +50,6 @@ interface CreationSuccessOptions {
  */
 export function useCreationSuccess() {
   const router = useRouter()
-  const { toast } = useToast()
 
   const handleSuccess = useCallback(async ({
     successTitle,
@@ -72,10 +71,8 @@ export function useCreationSuccess() {
 
     // 1. Afficher le toast immédiatement (seulement si un titre est fourni)
     if (successTitle) {
-      toast({
-        title: successTitle,
+      toast.success(successTitle, {
         description: successDescription,
-        variant: "success",
       })
     }
 
@@ -109,7 +106,7 @@ export function useCreationSuccess() {
       }, 500)
     }
 
-  }, [router, toast])
+  }, [router])
 
   return { handleSuccess }
 }

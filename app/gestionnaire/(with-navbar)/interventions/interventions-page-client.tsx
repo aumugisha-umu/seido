@@ -123,7 +123,11 @@ export function InterventionsPageClient({
   // ✅ Hooks avec Server Props Pattern - passer teamId depuis le serveur
   const approvalHook = useInterventionApproval(refetch)
   const quotingHook = useInterventionQuoting(teamId)
-  const planningHook = useInterventionPlanning()
+  const planningHook = useInterventionPlanning(
+    undefined, undefined, undefined, undefined, undefined,
+    undefined, undefined, undefined, undefined,
+    () => router.refresh()
+  )
   const executionHook = useInterventionExecution()
   const finalizationHook = useInterventionFinalization()
 

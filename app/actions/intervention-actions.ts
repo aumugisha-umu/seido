@@ -16,6 +16,7 @@ import {
 } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath, revalidateTag } from 'next/cache'
+import { after } from 'next/server'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
@@ -55,26 +56,20 @@ async function sendParticipantAddedSystemMessage(
 ) {
   const supabase = createServiceRoleSupabaseClient()
 
-  // Get the added user's details
-  const { data: addedUser, error: userError } = await supabase
-    .from('users')
-    .select('id, name, role')
-    .eq('id', addedUserId)
-    .single()
+  // Fetch user details and group thread in parallel (independent queries)
+  const [userResult, threadResult] = await Promise.all([
+    supabase.from('users').select('id, name, role').eq('id', addedUserId).single(),
+    supabase.from('conversation_threads').select('id')
+      .eq('intervention_id', interventionId).eq('thread_type', 'group').single()
+  ])
+
+  const { data: addedUser, error: userError } = userResult
+  const { data: groupThread, error: threadError } = threadResult
 
   if (userError || !addedUser) {
     logger.error('❌ [SYSTEM-MESSAGE] Could not find added user:', userError)
     return
   }
-
-  // Find the GROUP thread for this intervention
-  const { data: groupThread, error: threadError } = await supabase
-    .from('conversation_threads')
-    .select('id')
-    .eq('intervention_id', interventionId)
-    .eq('thread_type', 'group')
-    .single()
-
   if (threadError || !groupThread) {
     logger.error('❌ [SYSTEM-MESSAGE] Could not find group thread:', threadError)
     return
@@ -175,7 +170,11 @@ async function checkInterventionLotLocked(interventionId: string, teamId: string
  * Centralise l'invalidation du cache pour les interventions
  * Utilise à la fois revalidateTag (pour unstable_cache) et revalidatePath (pour Full Route Cache)
  */
-function revalidateInterventionCaches(interventionId: string, teamId?: string) {
+function revalidateInterventionCaches(
+  interventionId: string,
+  teamId?: string,
+  affectedRoles: ('gestionnaire' | 'locataire' | 'prestataire')[] = ['gestionnaire', 'locataire', 'prestataire']
+) {
   // Tags pour unstable_cache
   revalidateTag('interventions')
   revalidateTag('stats')
@@ -184,13 +183,11 @@ function revalidateInterventionCaches(interventionId: string, teamId?: string) {
     revalidateTag(`team-${teamId}-stats`)
   }
 
-  // Paths pour Full Route Cache
-  revalidatePath('/gestionnaire/interventions')
-  revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-  revalidatePath('/locataire/interventions')
-  revalidatePath(`/locataire/interventions/${interventionId}`)
-  revalidatePath('/prestataire/interventions')
-  revalidatePath(`/prestataire/interventions/${interventionId}`)
+  // Paths pour Full Route Cache — scoped to affected roles
+  for (const role of affectedRoles) {
+    revalidatePath(`/${role}/interventions`)
+    revalidatePath(`/${role}/interventions/${interventionId}`)
+  }
 }
 
 // Validation schemas
@@ -405,12 +402,14 @@ export async function createInterventionAction(
     // Invalidate caches
     revalidateInterventionCaches(intervention.id, validatedData.data.team_id)
 
-    // Create notification for managers
-    try {
-      await createInterventionNotification(intervention.id)
-    } catch (notifError) {
-      logger.warn({ error: notifError }, 'Failed to create intervention notification (non-blocking)')
-    }
+    // Create notification for managers (non-blocking, runs after response)
+    after(async () => {
+      try {
+        await createInterventionNotification(intervention.id)
+      } catch (notifError) {
+        logger.warn({ error: notifError }, 'Failed to create intervention notification (non-blocking)')
+      }
+    })
 
     logger.info({ interventionId: intervention.id }, 'Intervention created successfully by tenant')
 
@@ -774,13 +773,13 @@ export async function updateInterventionAction(
       }
 
       // UPDATE - Mettre à jour les slots modifiés
-      for (const update of slotsToUpdate) {
-        await supabase
-          .from('intervention_time_slots')
-          .update(update.data)
-          .eq('id', update.id)
-      }
       if (slotsToUpdate.length > 0) {
+        await Promise.all(slotsToUpdate.map(update =>
+          supabase
+            .from('intervention_time_slots')
+            .update(update.data)
+            .eq('id', update.id)
+        ))
         logger.info({ count: slotsToUpdate.length, changes: slotsToUpdate }, '✏️ Updated time slots')
       }
 
@@ -817,14 +816,16 @@ export async function updateInterventionAction(
 
     // Update provider instructions per assignment (for 'separate' mode)
     if (data.providerInstructions && Object.keys(data.providerInstructions).length > 0) {
-      for (const [providerId, instructions] of Object.entries(data.providerInstructions)) {
-        await supabase
-          .from('intervention_assignments')
-          .update({ provider_instructions: instructions })
-          .eq('intervention_id', interventionId)
-          .eq('user_id', providerId)
-          .eq('role', 'prestataire')
-      }
+      await Promise.all(
+        Object.entries(data.providerInstructions).map(([providerId, instructions]) =>
+          supabase
+            .from('intervention_assignments')
+            .update({ provider_instructions: instructions })
+            .eq('intervention_id', interventionId)
+            .eq('user_id', providerId)
+            .eq('role', 'prestataire')
+        )
+      )
       logger.info({ count: Object.keys(data.providerInstructions).length }, 'Provider instructions updated')
     }
 

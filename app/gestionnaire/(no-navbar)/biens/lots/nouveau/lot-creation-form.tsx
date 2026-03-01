@@ -25,7 +25,7 @@ import type { IndependentLot } from "@/components/ui/independent-lot-input-card-
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { createLotService, createContactInvitationService } from "@/lib/services"
 import type { Team, User as UserType, Contact } from "@/lib/services/core/service-types"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction } from "./actions"
 
 
@@ -186,7 +186,6 @@ export default function LotCreationForm({
   prefillBuildingId,
 }: LotCreationFormProps) {
   const router = useRouter()
-  const { toast } = useToast()
   const { data: managerData } = useManagerStats()
   const [currentStep, setCurrentStepState] = useState(1)
   const [maxStepReached, setMaxStepReached] = useState(1)
@@ -230,7 +229,7 @@ export default function LotCreationForm({
     entityId: undefined, // Set after lot creation
     teamId: userTeam?.id,
     slotConfigs: LOT_DOCUMENT_SLOTS,
-    onUploadError: (err) => toast({ title: 'Erreur upload', description: err, variant: 'destructive' })
+    onUploadError: (err) => toast.error('Erreur upload')
   })
 
   const [lotData, setLotData] = useState<LotData>({
@@ -328,7 +327,7 @@ export default function LotCreationForm({
     lotIds: multiLotIds,
     teamId: userTeam?.id,
     slotConfigs: LOT_DOCUMENT_SLOTS,
-    onUploadError: (err) => toast({ title: 'Erreur upload', description: err, variant: 'destructive' })
+    onUploadError: (err) => toast.error('Erreur upload')
   })
 
   // Services initialized immediately — auth already verified server-side
@@ -699,11 +698,7 @@ export default function LotCreationForm({
         setExistingBuildingLots(normalizedExistingLots)
       } catch (error) {
         logger.error("❌ [LOT-CREATION] Error loading building data:", error)
-        toast({
-          title: "Erreur de chargement",
-          description: "Impossible de charger les données de l'immeuble. Veuillez réessayer.",
-          variant: "destructive",
-        })
+        toast.error("Erreur de chargement", { description: "Impossible de charger les données de l'immeuble. Veuillez réessayer." })
         // Reset on error - format identique à l'initialisation
         setBuildingManagers([])
         setBuildingContacts({
@@ -719,7 +714,7 @@ export default function LotCreationForm({
     }
 
     loadBuildingData()
-  }, [lotData.buildingAssociation, lotData.selectedBuilding, toast])
+  }, [lotData.buildingAssociation, lotData.selectedBuilding])
 
   // ========================================
   // HELPER FUNCTIONS (after ALL hooks)
@@ -838,11 +833,7 @@ export default function LotCreationForm({
 
   const removeLot = (lotId: string) => {
     if (lots.length <= 1) {
-      toast({
-        title: "⚠️ Impossible de supprimer",
-        description: "Au moins un lot est requis",
-        variant: "destructive"
-      })
+      toast.error("⚠️ Impossible de supprimer", { description: "Au moins un lot est requis" })
       return
     }
 
@@ -975,11 +966,7 @@ export default function LotCreationForm({
 
   const removeIndependentLot = (lotId: string) => {
     if (independentLots.length <= 1) {
-      toast({
-        title: "⚠️ Impossible de supprimer",
-        description: "Au moins un lot est requis",
-        variant: "destructive"
-      })
+      toast.error("⚠️ Impossible de supprimer", { description: "Au moins un lot est requis" })
       return
     }
 
@@ -1149,11 +1136,7 @@ export default function LotCreationForm({
     if (currentStep === 2 && lotData.buildingAssociation === "independent") {
       const validation = validateIndependentLots()
       if (!validation.valid) {
-        toast({
-          title: "⚠️ Validation requise",
-          description: validation.message || "Veuillez corriger les erreurs avant de continuer",
-          variant: "destructive"
-        })
+        toast.error("⚠️ Validation requise", { description: validation.message || "Veuillez corriger les erreurs avant de continuer" })
         logger.warn(`⚠️ [VALIDATION] Blocked navigation: ${validation.message}`)
         return
       }
@@ -1208,21 +1191,13 @@ export default function LotCreationForm({
     try {
       if (!userProfile?.id) {
         logger.error("❌ User not found")
-        toast({
-          title: "Erreur d'authentification",
-          description: "Utilisateur non connecté. Veuillez vous reconnecter.",
-          variant: "destructive",
-        })
+        toast.error("Erreur d'authentification", { description: "Utilisateur non connecté. Veuillez vous reconnecter." })
         return
       }
 
     if (!userTeam?.id) {
       logger.error("❌ User team not found. User ID:", userProfile.id, "Teams:", teams)
-      toast({
-        title: "Erreur d'équipe",
-        description: "Aucune équipe n'a été trouvée pour votre compte. Veuillez contacter un administrateur.",
-        variant: "destructive",
-      })
+      toast.error("Erreur d'équipe", { description: "Aucune équipe n'a été trouvée pour votre compte. Veuillez contacter un administrateur." })
       return
     }
 
@@ -1312,29 +1287,29 @@ export default function LotCreationForm({
           }
         }
 
-        // Create interventions for ALL successfully created lots
+        // Create interventions + upload documents for ALL lots in parallel
+        const allPostCreationPromises: Promise<unknown>[] = []
+
         for (const { createdLot } of successfulCreations) {
-          await createInterventionsForLot(createdLot.id, userTeam.id)
+          allPostCreationPromises.push(
+            createInterventionsForLot(createdLot.id, userTeam.id)
+          )
         }
 
-        // Upload staged documents for each lot
         for (const { lot, createdLot } of successfulCreations) {
           const upload = lotDocUploads[lot.id]
           if (upload?.hasFiles) {
-            try {
-              await uploadLotDocs(lot.id, createdLot.id, userTeam.id)
-            } catch (docError) {
-              logger.error(`⚠️ Document upload failed for lot ${createdLot.id}:`, docError)
-            }
+            allPostCreationPromises.push(
+              uploadLotDocs(lot.id, createdLot.id, userTeam.id)
+                .catch((docError: unknown) => logger.error(`⚠️ Document upload failed for lot ${createdLot.id}:`, docError))
+            )
           }
         }
 
+        await Promise.allSettled(allPostCreationPromises)
+
         // Succès - Rediriger vers la page de l'immeuble (navigation immédiate)
-        toast({
-          title: `${successfulCreations.length} lot${successfulCreations.length > 1 ? 's créés' : ' créé'} avec succès`,
-          description: `Les lots ont été créés et assignés à l'immeuble.`,
-          variant: "success",
-        })
+        toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's créés' : ' créé'} avec succès`, { description: `Les lots ont été créés et assignés à l'immeuble.` })
         router.push(`/gestionnaire/biens/immeubles/${lotData.selectedBuilding}`)
 
         return
@@ -1345,11 +1320,7 @@ export default function LotCreationForm({
         }
 
         logger.error("❌ Error in multi-lot creation:", error)
-        toast({
-          title: "Erreur lors de la création des lots",
-          description: "Une erreur est survenue. Veuillez réessayer.",
-          variant: "destructive",
-        })
+        toast.error("Erreur lors de la création des lots", { description: "Une erreur est survenue. Veuillez réessayer." })
         return
       }
     }
@@ -1360,11 +1331,7 @@ export default function LotCreationForm({
         // Validation finale avant soumission
         const validation = validateIndependentLots()
         if (!validation.valid) {
-          toast({
-            title: "⚠️ Validation échouée",
-            description: validation.message || "Veuillez corriger les erreurs avant de soumettre",
-            variant: "destructive"
-          })
+          toast.error("⚠️ Validation échouée", { description: validation.message || "Veuillez corriger les erreurs avant de soumettre" })
           logger.error(`❌ [VALIDATION] Submission blocked: ${validation.message}`)
           return
         }
@@ -1501,29 +1468,29 @@ export default function LotCreationForm({
           }
         }
 
-        // Create interventions for ALL successfully created lots
+        // Create interventions + upload documents for ALL lots in parallel
+        const allIndependentPostCreationPromises: Promise<unknown>[] = []
+
         for (const { createdLot } of successfulCreations) {
-          await createInterventionsForLot(createdLot.id, userTeam.id)
+          allIndependentPostCreationPromises.push(
+            createInterventionsForLot(createdLot.id, userTeam.id)
+          )
         }
 
-        // Upload staged documents for each lot
         for (const { lot, createdLot } of successfulCreations) {
           const upload = lotDocUploads[lot.id]
           if (upload?.hasFiles) {
-            try {
-              await uploadLotDocs(lot.id, createdLot.id, userTeam.id)
-            } catch (docError) {
-              logger.error(`⚠️ Document upload failed for lot ${createdLot.id}:`, docError)
-            }
+            allIndependentPostCreationPromises.push(
+              uploadLotDocs(lot.id, createdLot.id, userTeam.id)
+                .catch((docError: unknown) => logger.error(`⚠️ Document upload failed for lot ${createdLot.id}:`, docError))
+            )
           }
         }
 
+        await Promise.allSettled(allIndependentPostCreationPromises)
+
         // Succès - Rediriger vers la page des biens (navigation immédiate)
-        toast({
-          title: `${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`,
-          description: `Les lots ont été créés avec leurs adresses respectives.`,
-          variant: "success",
-        })
+        toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
         router.push(`/gestionnaire/biens`)
 
         return
@@ -1534,11 +1501,7 @@ export default function LotCreationForm({
         }
 
         logger.error("❌ Error in independent multi-lot creation:", error)
-        toast({
-          title: "Erreur lors de la création des lots indépendants",
-          description: "Une erreur est survenue. Veuillez réessayer.",
-          variant: "destructive",
-        })
+        toast.error("Erreur lors de la création des lots indépendants", { description: "Une erreur est survenue. Veuillez réessayer." })
         return
       }
     }
@@ -1575,11 +1538,7 @@ export default function LotCreationForm({
 
       if (!result.success || !result.data) {
         logger.error("❌ Lot creation failed:", result.error)
-        toast({
-          title: "Erreur lors de la création du lot",
-          description: result.error?.message || "Une erreur est survenue",
-          variant: "destructive",
-        })
+        toast.error("Erreur lors de la création du lot", { description: result.error?.message || "Une erreur est survenue" })
         return
       }
 
@@ -1650,25 +1609,25 @@ export default function LotCreationForm({
         })
       }
 
-      // Upload property documents if any were staged
+      // Upload documents + create interventions in parallel
+      const singleLotPostCreation: Promise<unknown>[] = []
+
       if (lotDocUpload.hasFiles) {
-        try {
-          await lotDocUpload.uploadFiles(createdLot.id, userTeam.id)
-          logger.info('✅ Lot documents uploaded for lot:', createdLot.id)
-        } catch (docError) {
-          logger.error('⚠️ Document upload failed (lot created successfully):', docError)
-        }
+        singleLotPostCreation.push(
+          lotDocUpload.uploadFiles(createdLot.id, userTeam.id)
+            .then(() => logger.info('✅ Lot documents uploaded for lot:', createdLot.id))
+            .catch((docError: unknown) => logger.error('⚠️ Document upload failed (lot created successfully):', docError))
+        )
       }
 
-      // Create scheduled interventions
-      await createInterventionsForLot(createdLot.id, userTeam.id)
+      singleLotPostCreation.push(
+        createInterventionsForLot(createdLot.id, userTeam.id)
+      )
+
+      await Promise.allSettled(singleLotPostCreation)
 
       // Succès - Rediriger vers la page des biens (navigation immédiate)
-      toast({
-        title: "Lot créé avec succès",
-        description: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.`,
-        variant: "success",
-      })
+      toast.success("Lot créé avec succès", { description: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.` })
       router.push("/gestionnaire/biens")
 
     } catch (error) {
@@ -1678,11 +1637,7 @@ export default function LotCreationForm({
       }
 
       logger.error("❌ Error creating lot:", error)
-      toast({
-        title: "Erreur lors de la création",
-        description: "Une erreur est survenue lors de la création du lot. Veuillez réessayer.",
-        variant: "destructive",
-      })
+      toast.error("Erreur lors de la création", { description: "Une erreur est survenue lors de la création du lot. Veuillez réessayer." })
     }
     } finally {
       setIsSubmitting(false)
@@ -2079,20 +2034,12 @@ export default function LotCreationForm({
   const openBuildingManagerModal = () => {
     // Pour le mode lot creation, on ne gère pas les managers de l'immeuble
     // (l'immeuble existe déjà, on ne peut pas modifier ses managers)
-    toast({
-      title: "Fonction non disponible",
-      description: "Les gestionnaires de l'immeuble ne peuvent pas être modifiés lors de la création de lots.",
-      variant: "default",
-    })
+    toast("Fonction non disponible", { description: "Les gestionnaires de l'immeuble ne peuvent pas être modifiés lors de la création de lots." })
   }
 
   const removeBuildingManager = (managerId: string) => {
     // Idem - on ne peut pas supprimer les managers de l'immeuble existant
-    toast({
-      title: "Fonction non disponible",
-      description: "Les gestionnaires de l'immeuble ne peuvent pas être modifiés lors de la création de lots.",
-      variant: "default",
-    })
+    toast("Fonction non disponible", { description: "Les gestionnaires de l'immeuble ne peuvent pas être modifiés lors de la création de lots." })
   }
 
   const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
@@ -2116,11 +2063,7 @@ export default function LotCreationForm({
 
   const handleBuildingContactRemove = (contactId: string, contactType: string) => {
     // Pour le mode lot creation, on ne gère pas les contacts de l'immeuble
-    toast({
-      title: "Fonction non disponible",
-      description: "Les contacts de l'immeuble ne peuvent pas être modifiés lors de la création de lots.",
-      variant: "default",
-    })
+    toast("Fonction non disponible", { description: "Les contacts de l'immeuble ne peuvent pas être modifiés lors de la création de lots." })
   }
 
   const removeContactFromLot = (lotId: string, contactType: string, contactId: string) => {

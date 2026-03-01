@@ -1,0 +1,64 @@
+{
+  "project": "SEIDO",
+  "featureName": "Lease Payment Reminders",
+  "branchName": "preview",
+  "description": "Ajouter une section 'Rappels de paiement' dans le step interventions du bail. Une card unique avec jour configurable (1-28). Si cochée, crée un rappel mensuel pour chaque mois restant du bail (skip dates passées). Nouveau type d'intervention rappel_loyer.",
+  "createdAt": "2026-02-28",
+  "prdSource": "inline",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Migration DB: type rappel_loyer",
+      "description": "As a developer, I want a dedicated rappel_loyer intervention type in the bail category so that payment reminders are properly categorized.",
+      "acceptanceCriteria": [
+        "New migration adds rappel_loyer to intervention_types (category bail)",
+        "Icon: Banknote, Color: bg-emerald-600, Sort order: 10",
+        "supabase:types regenerated",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Done"
+    },
+    {
+      "id": "US-002",
+      "title": "Rent reminder card UI in LeaseInterventionsStep",
+      "description": "As a gestionnaire, I want a 'Rappels de paiement' section with a single card showing a checkbox, day-of-month selector, and count of reminders so that I can enable monthly rent reminders.",
+      "acceptanceCriteria": [
+        "New section 'Rappels de paiement' rendered between custom and standard sections",
+        "Card with Checkbox + Banknote icon + title 'Rappel de paiement du loyer'",
+        "Day-of-month Select (1-28) visible when enabled",
+        "Description shows computed count: 'X rappels mensuels seront créés'",
+        "Props: rentReminderEnabled, rentReminderDay, onRentReminderChange from parent",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Done"
+    },
+    {
+      "id": "US-003",
+      "title": "Parent state + submit expansion",
+      "description": "As a gestionnaire, I want my payment reminders to be created as actual interventions when the lease is submitted so that they appear in my intervention list.",
+      "acceptanceCriteria": [
+        "contract-form-container manages rentReminderEnabled + rentReminderDay state",
+        "Props passed to LeaseInterventionsStep",
+        "Submit handler generates N monthly interventions from max(startDate, today) to endDate",
+        "Each intervention: title='Rappel loyer — {Month YYYY}', type=rappel_loyer",
+        "Skips months already past",
+        "Created via existing createInterventionAction batch pattern",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Done"
+    }
+  ]
+}

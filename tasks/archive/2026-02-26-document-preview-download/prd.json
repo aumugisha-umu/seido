@@ -1,0 +1,79 @@
+{
+  "project": "SEIDO",
+  "featureName": "Unify Document Preview & Download across all roles",
+  "branchName": "preview",
+  "description": "Currently gestionnaire uses an in-app DocumentPreviewModal for preview while locataire/prestataire use window.open (new tab). Download handlers are duplicated across 3 files with identical logic. Create a single shared hook useDocumentActions that provides view/download via API routes + manages the preview modal state, then use it in all 3 role views.",
+  "createdAt": "2026-02-26",
+  "prdSource": "inline",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create shared useDocumentActions hook",
+      "description": "As a developer, I want a single hook that provides handleViewDocument, handleDownloadDocument, preview modal state, and a renderPreviewModal helper — so all 3 role views use identical logic without duplication.",
+      "acceptanceCriteria": [
+        "Hook exported from components/interventions/shared/hooks/use-document-actions.ts",
+        "handleViewDocument calls /api/view-intervention-document and opens DocumentPreviewModal",
+        "handleDownloadDocument calls /api/download-intervention-document and triggers file download",
+        "Hook manages previewDocument state + isPreviewModalOpen state internally",
+        "Hook exports a PreviewModal component ready to render (no wiring needed by consumer)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Created components/interventions/shared/hooks/use-document-actions.tsx. Hook uses sonner toast (available via root layout SonnerToaster). Returns { handleViewDocument, handleDownloadDocument, previewModal }. previewModal is a ready-to-render ReactNode wrapping DocumentPreviewModal with all state wired."
+    },
+    {
+      "id": "US-002",
+      "title": "Refactor gestionnaire to use useDocumentActions",
+      "description": "As a gestionnaire, when I click preview/download on a document, it uses the shared hook instead of inline handlers — behavior unchanged (modal preview + download).",
+      "acceptanceCriteria": [
+        "handleViewDocument and handleDownloadDocument removed from intervention-detail-client.tsx",
+        "previewDocument/isPreviewModalOpen state removed (managed by hook)",
+        "DocumentPreviewModal rendered via hook's PreviewModal component",
+        "handleDownloadFromPreview uses hook's handleDownloadDocument",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Removed ~70 lines of inline handlers + state. Replaced DocumentPreviewModal import with useDocumentActions from shared. Also removed unused createBrowserSupabaseClient import."
+    },
+    {
+      "id": "US-003",
+      "title": "Refactor locataire to use useDocumentActions with modal preview",
+      "description": "As a locataire, when I click the eye icon on a document, it opens an in-app modal preview (instead of a new browser tab) — matching gestionnaire behavior.",
+      "acceptanceCriteria": [
+        "handleViewDocument and handleDownloadDocument removed from intervention-detail-client.tsx",
+        "window.open replaced by modal preview via hook",
+        "DocumentPreviewModal rendered via hook's PreviewModal component",
+        "createBrowserSupabaseClient import already removed",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Removed ~45 lines of inline handlers. Added useDocumentActions hook + {previewModal} in JSX. Locataire now gets modal preview instead of window.open."
+    },
+    {
+      "id": "US-004",
+      "title": "Refactor prestataire to use useDocumentActions with modal preview",
+      "description": "As a prestataire, when I click the eye icon on a document, it opens an in-app modal preview (instead of a new browser tab) — matching gestionnaire behavior.",
+      "acceptanceCriteria": [
+        "handleViewDocument and handleDownloadDocument removed from intervention-detail-client.tsx",
+        "window.open replaced by modal preview via hook",
+        "DocumentPreviewModal rendered via hook's PreviewModal component",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Same pattern as locataire. createBrowserSupabaseClient import kept (still used for quote upload handlers)."
+    }
+  ]
+}

@@ -157,8 +157,17 @@ export function LocataireInterventionDetailClient({
 }: LocataireInterventionDetailClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const planning = useInterventionPlanning()
-  const [activeTab, setActiveTab] = useState('general')
+  const planning = useInterventionPlanning(
+    undefined, undefined, undefined, undefined, undefined,
+    undefined, undefined, undefined, undefined,
+    () => router.refresh(),
+  )
+  // Deep-link support: ?tab=conversations&thread=group
+  const initialTab = searchParams.get('tab')
+  const initialThread = searchParams.get('thread')
+  const [activeTab, setActiveTab] = useState(
+    initialTab === 'conversations' ? 'conversations' : 'general'
+  )
 
   // Auto-open tenant validation modal when navigated from dashboard card
   const autoAction = searchParams.get('action')
@@ -247,7 +256,7 @@ export function LocataireInterventionDetailClient({
   })
 
   // Thread type à utiliser pour InterventionChatTab
-  const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(undefined)
+  const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(initialThread || undefined)
 
   // Local state for threads with unread counts (for optimistic updates)
   const [localThreads, setLocalThreads] = useState(threads)

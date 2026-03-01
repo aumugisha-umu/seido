@@ -120,6 +120,19 @@ export function InterventionsViewContainer({
   const [pageSize, setPageSize] = useState(10)
 
   // Pagination for list view (dynamic page size)
+  const listPagination = usePagination({
+    items: interventions,
+    pageSize: pageSize
+  })
+
+  // Pagination for cards view (fixed 12 items = 4 rows × 3 cols)
+  const cardsPagination = usePagination({
+    items: interventions,
+    pageSize: 12
+  })
+  const resetCardsToFirstPage = cardsPagination.resetToFirstPage
+
+  // Aliases for list view (keep existing references)
   const {
     paginatedItems,
     currentPage,
@@ -131,15 +144,13 @@ export function InterventionsViewContainer({
     hasNextPage,
     hasPreviousPage,
     resetToFirstPage
-  } = usePagination({
-    items: interventions,
-    pageSize: pageSize
-  })
+  } = listPagination
 
-  // Reset pagination when interventions change (e.g., tab switch, search)
+  // Reset both paginations when interventions change (tab switch, search)
   useEffect(() => {
     resetToFirstPage()
-  }, [interventions, resetToFirstPage])
+    resetCardsToFirstPage()
+  }, [interventions, resetToFirstPage, resetCardsToFirstPage])
 
   // Prevent hydration mismatch
   if (!mounted) {
@@ -222,18 +233,36 @@ export function InterventionsViewContainer({
   }
 
   /**
-   * 🃏 Render cards view (existing InterventionsList with PendingActionsCard)
+   * 🃏 Render cards view (paginated grid)
    */
   const renderCardsView = () => {
     return (
-      <InterventionsList
-        interventions={interventions}
-        loading={loading}
-        emptyStateConfig={emptyStateConfig}
-        showStatusActions={showStatusActions}
-        userContext={userContext}
-        userId={user?.id}
-      />
+      <div className="flex flex-col h-full">
+        <div className="flex-1 min-h-0">
+          <InterventionsList
+            interventions={cardsPagination.paginatedItems}
+            loading={loading}
+            emptyStateConfig={emptyStateConfig}
+            showStatusActions={showStatusActions}
+            userContext={userContext}
+            userId={user?.id}
+          />
+        </div>
+        {cardsPagination.totalPages > 1 && (
+          <div className="flex-shrink-0 mt-2">
+            <InterventionPagination
+              currentPage={cardsPagination.currentPage}
+              totalPages={cardsPagination.totalPages}
+              totalItems={cardsPagination.totalItems}
+              startIndex={cardsPagination.startIndex}
+              endIndex={cardsPagination.endIndex}
+              onPageChange={cardsPagination.goToPage}
+              hasNextPage={cardsPagination.hasNextPage}
+              hasPreviousPage={cardsPagination.hasPreviousPage}
+            />
+          </div>
+        )}
+      </div>
     )
   }
 

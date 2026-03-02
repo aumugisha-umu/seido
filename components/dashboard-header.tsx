@@ -135,7 +135,6 @@ export default function DashboardHeader({
     error: popoverNotificationsError,
     markAsRead,
     markAsUnread,
-    archive,
     refetch: refetchPopoverNotifications
   } = useNotificationPopover({
     teamId: serverTeamId,
@@ -330,10 +329,10 @@ export default function DashboardHeader({
                       error={popoverNotificationsError}
                       onMarkAsRead={markAsRead}
                       onMarkAsUnread={markAsUnread}
-                      onArchive={archive}
                       onMarkAllAsRead={handleMarkAllAsRead}
                       role={role}
                       onClose={() => setIsNotificationPopoverOpen(false)}
+                      unreadCount={globalUnreadCount}
                     />
                   </PopoverContent>
                 </Popover>

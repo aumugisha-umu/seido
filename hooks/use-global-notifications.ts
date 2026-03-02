@@ -30,7 +30,17 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
   const effectiveTeamStatus = propTeamId ? 'verified' : teamStatus
   const effectiveHasTeam = propTeamId ? true : hasTeam
 
+  // ✅ Cooldown: after optimistic delta updates, block refetches for 2s to prevent stale API data overwrite
+  const lastDeltaTimestampRef = useRef<number>(0)
+
   const fetchUnreadCount = useCallback(async () => {
+    // Skip refetch during cooldown after optimistic delta — prevents stale data overwriting correct count
+    const msSinceLastDelta = Date.now() - lastDeltaTimestampRef.current
+    if (msSinceLastDelta < 2000) {
+      logger.info('⏳ [GLOBAL-NOTIFICATIONS] Skipping refetch — optimistic delta cooldown active', { msSinceLastDelta })
+      return
+    }
+
     logger.info('🔍 [GLOBAL-NOTIFICATIONS] fetchUnreadCount called with:', {
       effectiveUserId,
       effectiveTeamStatus,
@@ -163,16 +173,37 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
   }, [user?.id, teamStatus, hasTeam, userTeamId])
   */
 
+  // ✅ Debounce timer for batching multiple rapid notification events into one refetch
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // Écouter les événements de mise à jour des notifications
-  // ✅ PERF: Use ref to avoid re-registering listener on every fetchUnreadCount change
+  // ✅ PERF: Apply delta instantly, cooldown blocks stale refetches from ALL paths
   useEffect(() => {
-    const handleNotificationUpdate = () => {
-      fetchUnreadCountRef.current()
+    const handleNotificationUpdate = (event: Event) => {
+      const delta = (event as CustomEvent)?.detail?.delta
+      if (typeof delta === 'number' && delta !== 0) {
+        // Optimistic instant update — delta is the source of truth
+        setUnreadCount(prev => Math.max(0, prev + delta))
+        // Activate cooldown to block refetches (from realtime, parent, etc.) for 2s
+        lastDeltaTimestampRef.current = Date.now()
+        return
+      }
+      // No delta: fall back to debounced refetch (legacy events)
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+      debounceTimerRef.current = setTimeout(() => {
+        fetchUnreadCountRef.current()
+        debounceTimerRef.current = null
+      }, 500)
     }
 
     window.addEventListener('notificationUpdated', handleNotificationUpdate)
     return () => {
       window.removeEventListener('notificationUpdated', handleNotificationUpdate)
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
     }
   }, [])
 

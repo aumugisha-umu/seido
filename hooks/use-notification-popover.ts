@@ -111,6 +111,12 @@ export const useNotificationPopover = (
     limitRef.current = limit
   })
 
+  // ✅ Ref stable pour accéder aux notifications dans archive() sans re-créer le callback
+  const notificationsRef = useRef(notifications)
+  useEffect(() => {
+    notificationsRef.current = notifications
+  })
+
   // Realtime subscription for instant updates
   useRealtimeNotificationsV2({
     enabled: !!user?.id,
@@ -148,6 +154,7 @@ export const useNotificationPopover = (
 
       const result = await repository.markAsRead(id)
       if (!result.success) throw new Error(result.error?.message || 'Failed to mark as read')
+      window.dispatchEvent(new CustomEvent('notificationUpdated', { detail: { delta: -1 } }))
     } catch (err) {
       await fetchNotifications() // Revert on error
       throw err
@@ -166,6 +173,7 @@ export const useNotificationPopover = (
 
       const result = await repository.update(id, { read: false, read_at: null })
       if (!result.success) throw new Error(result.error?.message || 'Failed to mark as unread')
+      window.dispatchEvent(new CustomEvent('notificationUpdated', { detail: { delta: 1 } }))
     } catch (err) {
       await fetchNotifications() // Revert on error
       throw err
@@ -174,11 +182,14 @@ export const useNotificationPopover = (
 
   // Archive notification (optimistic update)
   const archive = useCallback(async (id: string) => {
+    // Check read status via ref before optimistic removal
+    const wasUnread = notificationsRef.current.find(n => n.id === id)?.read === false
     try {
       setNotifications(prev => prev.filter(notif => notif.id !== id))
 
       const result = await repository.archive(id)
       if (!result.success) throw new Error(result.error?.message || 'Failed to archive notification')
+      window.dispatchEvent(new CustomEvent('notificationUpdated', { detail: { delta: wasUnread ? -1 : 0 } }))
     } catch (err) {
       await fetchNotifications() // Revert on error
       throw err

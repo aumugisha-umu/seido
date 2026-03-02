@@ -125,7 +125,6 @@ export default function LocataireDashboardHybrid({
     error: popoverNotificationsError,
     markAsRead,
     markAsUnread,
-    archive,
     refetch: refetchPopoverNotifications
   } = useNotificationPopover({
     teamId: teamId,
@@ -262,10 +261,10 @@ export default function LocataireDashboardHybrid({
                     error={popoverNotificationsError}
                     onMarkAsRead={markAsRead}
                     onMarkAsUnread={markAsUnread}
-                    onArchive={archive}
                     onMarkAllAsRead={handleMarkAllAsRead}
                     role="locataire"
                     onClose={() => setIsNotificationPopoverOpen(false)}
+                    unreadCount={globalUnreadCount}
                   />
                 </PopoverContent>
               </Popover>

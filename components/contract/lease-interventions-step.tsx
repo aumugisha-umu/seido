@@ -10,7 +10,7 @@
  * - Assignation de personnes via ContactSelector (réutilisé)
  */
 
-import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
+import { useMemo, useRef, useState, useCallback } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -105,18 +105,6 @@ export function LeaseInterventionsStep({
     contactType: string
   } | null>(null)
   const [rentPopoverOpen, setRentPopoverOpen] = useState(false)
-
-  // Initialize one empty custom intervention when the list first populates
-  const hasInitializedCustom = useRef(false)
-  useEffect(() => {
-    if (!hasInitializedCustom.current && scheduledInterventions.length > 0) {
-      const hasCustom = scheduledInterventions.some(i => i.key.startsWith('custom_'))
-      if (!hasCustom) {
-        hasInitializedCustom.current = true
-        onInterventionsChange(prev => [createEmptyCustomIntervention(), ...prev])
-      }
-    }
-  }, [scheduledInterventions.length, onInterventionsChange])
 
   // Séparer les interventions custom, standard et documents manquants
   const { customInterventions, standardInterventions, documentInterventions } = useMemo(() => {
@@ -354,7 +342,7 @@ export function LeaseInterventionsStep({
                     onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
                     onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
                     onDelete={() => handleDeleteCustomIntervention(intervention.key)}
-                    showDelete={index > 0}
+                    showDelete={true}
                   />
                 ))}
               </div>

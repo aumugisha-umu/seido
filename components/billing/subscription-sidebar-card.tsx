@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Building2, Lock, Plus } from 'lucide-react'
+import { CreditCard, Building2, Lock, Plus, Clock } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -104,7 +104,7 @@ export function SubscriptionSidebarCard() {
     const tooltipText = isOverage
       ? `Essai — ${actualLots}/${FREE_TIER_LIMIT} lots — ${lockedCount} seront verrouillés`
       : isTrialing
-        ? `Essai — ${actualLots} lot${actualLots !== 1 ? 's' : ''}`
+        ? `Essai — ${actualLots} lot${actualLots !== 1 ? 's' : ''} — ${daysLeftTrial != null && daysLeftTrial > 0 ? `${daysLeftTrial}j restant${daysLeftTrial > 1 ? 's' : ''}` : "Expire aujourd'hui"}`
         : `Abonnement: ${planLabel} — ${actualLots}/${maxLots} lots`
 
     return (
@@ -209,6 +209,18 @@ export function SubscriptionSidebarCard() {
               {isTrialing ? `${actualLots} lot${actualLots !== 1 ? 's' : ''}` : `${actualLots}/${maxLots} lots`}
             </span>
           </div>
+
+          {/* Row 2b: Days left in trial */}
+          {isTrialing && daysLeftTrial != null && (
+            <div className="mt-1 flex items-center gap-2">
+              <Clock className="size-3.5 text-sidebar-foreground/50 flex-shrink-0" />
+              <span className="text-xs text-sidebar-foreground/70">
+                {daysLeftTrial > 0
+                  ? `${daysLeftTrial} jour${daysLeftTrial > 1 ? 's' : ''} restant${daysLeftTrial > 1 ? 's' : ''}`
+                  : "Expire aujourd'hui"}
+              </span>
+            </div>
+          )}
 
           {/* Row 3: Progress bar (hidden during trial — no limit) */}
           {!isTrialing && (

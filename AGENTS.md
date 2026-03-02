@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-03-02
-**Total Learnings:** 110
+**Total Learnings:** 114
 
 ---
 
@@ -450,6 +450,34 @@
 **Example:** `intervention-actions.ts:createBatchRentRemindersAction` (72→18 queries), `stats.repository.ts` (7 count queries with head:true)
 **When to Use:** Any loop of individual insert actions (batch them) or any query where you only need the count (use head:true)
 **Added:** 2026-03-02 | **Source:** Performance optimization US-007/008/013 — batch operations + stats optimization
+
+#### Learning #111: useRef for stable callback deps — prevent useEffect re-registration and channel thrashing
+**Problem:** Two common React hook anti-patterns: (1) `useEffect` deps include a function/value that changes every render, causing listener re-registration (e.g., `fetchUnreadCount` in event listener deps → un/resubscribe every render). (2) Realtime channel subscription `useEffect` includes `optimisticMessages` in deps → every new optimistic message causes channel unsubscribe/resubscribe (channel thrashing). Both waste resources and cause flicker.
+**Solution:** Store the volatile value in a `useRef` and update `.current` on every render. In the effect callback, read from `ref.current`. Then use `[]` or minimal stable deps for the effect. Pattern: `const fnRef = useRef(fn); fnRef.current = fn;` then `useEffect(() => { fnRef.current() }, [])`. CRITICAL: declare `useRef(value)` AFTER the hook that produces `value` to avoid TDZ (Temporal Dead Zone) crash.
+**Example:** `hooks/use-global-notifications.ts` (fetchUnreadCountRef), `hooks/use-realtime-chat-v2.ts` (optimisticMessagesRef declared AFTER useOptimistic)
+**When to Use:** Any useEffect that registers listeners/subscriptions and has volatile deps that change frequently
+**Added:** 2026-03-02 | **Source:** Performance optimization US-020/021 — event listener + Realtime channel stability
+
+#### Learning #112: SSR pre-fetch hybrid — Server Component fetches, Client Component renders with initial data
+**Problem:** Fully `'use client'` pages show loading spinners on first paint because data is fetched in `useEffect` after mount. Users see blank/skeleton UI for 200-500ms while client-side fetch happens.
+**Solution:** Split into: (1) Server Component `page.tsx` that fetches initial data using `getServerAuthContext` + direct Supabase queries, (2) Client Component receives `initialConnections`/`initialBlacklist` as props, initializes `useState(initialData)` with SSR data. Client still has `fetchX()` for mutations. Remove `isLoading` states for initial render (data already present). For tables requiring service_role (e.g., JOINs blocked by RLS), use `createServiceRoleSupabaseClient()` in the Server Component — security is already validated by `getServerAuthContext`.
+**Example:** `app/gestionnaire/(with-navbar)/parametres/emails/page.tsx` (Server) + `email-settings-client.tsx` (Client)
+**When to Use:** Any fully client-side page that loads data in useEffect — especially settings pages, config pages, or any page where first-paint speed matters
+**Added:** 2026-03-02 | **Source:** Performance optimization US-028 — email settings SSR pre-fetch
+
+#### Learning #113: SQL COUNT FILTER for multi-category aggregation — single scan replaces N queries
+**Problem:** Counting emails by category (inbox, processed, sent, archive) required 4 separate `head:true` count queries — already parallelized via `Promise.all` but still 4 DB round trips. Each query scans the same `emails` table with overlapping `WHERE team_id = X` conditions.
+**Solution:** Create a SQL RPC function using PostgreSQL `COUNT(*) FILTER (WHERE ...)` syntax. Returns all counts as columns from a single table scan: `COUNT(*) FILTER (WHERE direction = 'received' AND status = 'unread') AS inbox, ...`. Mark as `STABLE` (pure read), `SECURITY DEFINER` (bypass RLS since auth is validated at the page level). Call with `.rpc('get_email_counts', { p_team_id: teamId }).single()`. Note: `COUNT(*)` returns `bigint` — cast with `Number()` on the client.
+**Example:** `supabase/migrations/20260302120000_create_get_email_counts_rpc.sql`, `app/gestionnaire/(with-navbar)/mail/page.tsx`
+**When to Use:** Any scenario with multiple count queries on the same table with different filter conditions — especially dashboards and sidebar count badges
+**Added:** 2026-03-02 | **Source:** Performance optimization US-029 — 4 count queries → 1 RPC
+
+#### Learning #114: React cache() for Server Component service deduplication
+**Problem:** Server Components that create service instances (e.g., `await createServerActionBuildingService()`) do so independently. If the same factory is called in both the layout and a child component within the same request, two separate Supabase clients and service instances are created — doubling cookie reads and auth validation.
+**Solution:** Wrap service factory calls with React's `cache()` at module level: `const getCachedService = cache(() => createServerActionService())`. React `cache()` memoizes by arguments within a single React render request — zero-arg functions are memoized once per request. Unlike `unstable_cache` (which persists across requests with TTL), `cache()` is request-scoped only and needs no invalidation.
+**Example:** `app/gestionnaire/(with-navbar)/dashboard/components/async-dashboard-content.tsx` — 6 cached service factories
+**When to Use:** Any Server Component that creates services also created by its parent layout or sibling components in the same render tree
+**Added:** 2026-03-02 | **Source:** Performance optimization US-026 — dashboard service deduplication
 
 ### Security
 

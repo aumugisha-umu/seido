@@ -5,6 +5,7 @@
  * Wrap in <Suspense> for streaming partial content as it loads.
  */
 
+import { cache } from 'react'
 import {
   createServerActionUserService,
   createServerActionBuildingService,
@@ -21,6 +22,15 @@ import { filterPendingActions } from '@/lib/intervention-alert-utils'
 import { loadMultiTeamData, createTeamNameMap } from "@/lib/multi-team-helpers"
 import { ManagerDashboardV2 } from "@/components/dashboards/manager/manager-dashboard-v2"
 import type { OnboardingProgress } from "@/app/actions/subscription-actions"
+
+// ✅ PERF: React cache() deduplicates service creation within a single request render tree.
+// If the layout or other server components call the same factories, they reuse this instance.
+const getCachedUserService = cache(() => createServerActionUserService())
+const getCachedBuildingService = cache(() => createServerActionBuildingService())
+const getCachedLotService = cache(() => createServerActionLotService())
+const getCachedInterventionService = cache(() => createServerActionInterventionService())
+const getCachedContractService = cache(() => createServerActionContractService())
+const getCachedSupabaseClient = cache(() => createServerSupabaseClient())
 
 interface AsyncDashboardContentProps {
   profile: { id: string }
@@ -40,13 +50,13 @@ export async function AsyncDashboardContent({
   const teamNameMap = createTeamNameMap(sameRoleTeams)
   const effectiveTeamId = team.id
 
-  // Initialize all services
-  const userService = await createServerActionUserService()
-  const buildingService = await createServerActionBuildingService()
-  const lotService = await createServerActionLotService()
-  const interventionService = await createServerActionInterventionService()
-  const contractService = await createServerActionContractService()
-  const supabase = await createServerSupabaseClient()
+  // Initialize all services (cache()-wrapped for request deduplication)
+  const userService = await getCachedUserService()
+  const buildingService = await getCachedBuildingService()
+  const lotService = await getCachedLotService()
+  const interventionService = await getCachedInterventionService()
+  const contractService = await getCachedContractService()
+  const supabase = await getCachedSupabaseClient()
 
   let stats = {
     buildingsCount: 0,

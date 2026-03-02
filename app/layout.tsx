@@ -82,7 +82,7 @@ export default function RootLayout({
         <Analytics />
         <Script
           src="https://t.contentsquare.net/uxa/b3cbc84e830fe.js"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
       </body>
     </html>

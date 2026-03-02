@@ -27,9 +27,9 @@ export const metadata: Metadata = {
   },
 }
 
-export default function HomePage() {
-  // Server-side: read latest blog articles from filesystem
-  const latestArticles = getLatestArticles(3)
+export default async function HomePage() {
+  // Server-side: read latest blog articles from filesystem (cached)
+  const latestArticles = await getLatestArticles(3)
 
   return (
     <>

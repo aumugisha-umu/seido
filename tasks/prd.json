@@ -1,10 +1,10 @@
 {
   "project": "SEIDO",
-  "featureName": "Performance Optimization — TIER 1+2",
+  "featureName": "Performance Optimization — TIER 1+2+3",
   "branchName": "preview",
-  "description": "Comprehensive performance audit fix: remove redundant auth checks, parallelize sequential queries, defer synchronous side-effects, clean up dead cache invalidation, and fix N+1 query patterns. Total estimated savings: 500ms-3s+ on entity creation flows, 100-400ms on page loads. VERIFIED by 4 Opus agents before implementation.",
+  "description": "Comprehensive performance optimization: TIER 1+2 (13 stories, COMPLETE) — auth dedup, parallelization, batch operations, dead code removal, caching, RPC. TIER 3 (16 stories, IN PROGRESS) — hook stability fixes, memory leak fixes, notification deferral, cron batching, DB aggregation, blog/dashboard caching, SSR pre-fetch. Total: 29 stories from 6-agent audit (96+83 findings consolidated, verified by 3 agents to 16 actionable items).",
   "createdAt": "2026-03-02",
-  "prdSource": "audit-consolidation (6 agents, 96 findings) + verification (4 agents)",
+  "prdSource": "audit-consolidation (6+6 agents, 179 raw findings) + verification (4+3 agents)",
   "status": "complete",
   "userStories": [
     {
@@ -230,6 +230,265 @@
       "sizing": "S",
       "passes": true,
       "notes": "DONE: head:true on all count-only queries. after() for contract status transitions + expiry checks. getInterventionStats has no callers (dead code)."
+    },
+    {
+      "id": "US-014",
+      "title": "Parallelize rent reminder notifications with Promise.allSettled",
+      "description": "In intervention-actions.ts ~line 522, the after() callback loops sequentially over interventions with await createInterventionNotification(). Replace for...of+await with Promise.allSettled() to parallelize all notification sends.",
+      "acceptanceCriteria": [
+        "after() callback uses Promise.allSettled instead of sequential for loop",
+        "Each notification failure is still logged individually",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "TIER 3A. Verified: intervention-actions.ts:522-530 — sequential await in for loop inside after()."
+    },
+    {
+      "id": "US-015",
+      "title": "Add Cache-Control headers for static assets + Contentsquare lazyOnload",
+      "description": "Two config-level quick wins: (1) In next.config.ts, add Cache-Control: public, max-age=31536000, immutable header for /_next/static/* paths. (2) In app/layout.tsx ~line 83, change Contentsquare Script strategy from afterInteractive to lazyOnload (non-critical analytics).",
+      "acceptanceCriteria": [
+        "next.config.ts has Cache-Control immutable header for /_next/static/* routes",
+        "Contentsquare Script strategy changed to lazyOnload",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "TIER 3A. Two one-line changes. Cache-Control saves redundant re-downloads of static JS/CSS."
+    },
+    {
+      "id": "US-016",
+      "title": "Middleware: extract shared Supabase client factory",
+      "description": "In middleware.ts, the Supabase client is created twice with identical config (lines 86-106 for auth pages, lines 183-202 for protected routes). Extract a createMiddlewareSupabaseClient(request, response) helper and call it once at the top.",
+      "acceptanceCriteria": [
+        "Single createMiddlewareSupabaseClient helper function",
+        "Supabase client created once per middleware invocation",
+        "Both auth redirect and protected route logic use same client",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "TIER 3A. Verified: middleware.ts has 2 identical createServerClient blocks."
+    },
+    {
+      "id": "US-017",
+      "title": "PWA register: clearInterval on unmount",
+      "description": "In components/pwa-register.tsx ~line 15, setInterval() for service worker update check (every hour) is created without storing the interval ID. Store intervalId, return cleanup function from useEffect.",
+      "acceptanceCriteria": [
+        "setInterval return value stored in variable",
+        "useEffect cleanup function calls clearInterval",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "TIER 3A. Verified: pwa-register.tsx:15 — setInterval without cleanup."
+    },
+    {
+      "id": "US-018",
+      "title": "Contact searchContacts: DB-side filtering instead of in-memory",
+      "description": "In contact.service.ts ~line 340, searchContacts() calls findAll() (loads ALL contacts into memory) then filters client-side by name/email/role. Replace with a parameterized DB query using ilike for text search and eq for role/team filters.",
+      "acceptanceCriteria": [
+        "searchContacts uses parameterized DB query with ilike (not findAll)",
+        "Role and team filters applied at DB level",
+        "Results limited to reasonable page size (e.g. 50)",
+        "Existing call sites still work",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "TIER 3B. Verified: contact.service.ts:340-367 — loads ALL contacts then filters in memory."
+    },
+    {
+      "id": "US-019",
+      "title": "Cron intervention-reminders: batch notifications + parallelize",
+      "description": "In app/api/cron/intervention-reminders/route.ts lines 162-301, notification INSERTs and email sends are sequential (for loop with await inside). Batch notification INSERTs into single bulk insert, and parallelize email sends with Promise.allSettled.",
+      "acceptanceCriteria": [
+        "Notification INSERTs batched per group (not individual per manager)",
+        "Email sends parallelized with Promise.allSettled",
+        "Push notifications parallelized with Promise.allSettled",
+        "team_managers query reused across groups (not re-fetched)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "TIER 3B. Verified: 3 groups with sequential loops for notifications, emails, push."
+    },
+    {
+      "id": "US-020",
+      "title": "Fix useGlobalNotifications event listener memory leak",
+      "description": "In hooks/use-global-notifications.ts lines 166-176, the useEffect registering 'notificationUpdated' event listener has fetchUnreadCount in its dependency array. Since fetchUnreadCount has multiple deps that change frequently, the listener is re-registered on every render cycle. Fix: use useRef for fetchUnreadCount or remove it from deps.",
+      "acceptanceCriteria": [
+        "Event listener useEffect has stable dependency array",
+        "fetchUnreadCount accessed via ref (not direct dep)",
+        "Listener not re-registered on every render",
+        "Notification updates still trigger fetchUnreadCount",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "TIER 3B. Verified: use-global-notifications.ts:166-176 — fetchUnreadCount in deps."
+    },
+    {
+      "id": "US-021",
+      "title": "Fix useRealtimeChat channel thrashing from optimisticMessages dep",
+      "description": "In hooks/use-realtime-chat-v2.ts ~line 255, the Realtime subscription useEffect has optimisticMessages in its dependency array. Every new optimistic message causes channel unsubscribe/resubscribe. Remove optimisticMessages from the dependency array — the subscription callback doesn't need it.",
+      "acceptanceCriteria": [
+        "optimisticMessages removed from useEffect dependency array",
+        "Realtime channel stays stable during message sends",
+        "New messages still appear in real-time",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "TIER 3B. Verified: use-realtime-chat-v2.ts:255 — optimisticMessages causes channel reconnection."
+    },
+    {
+      "id": "US-022",
+      "title": "Fix useBuildings infinite loop risk from data.buildings.length dep",
+      "description": "In hooks/use-buildings.ts ~line 204, fetchBuildings useCallback has data.buildings.length in its dependency array. When setData updates buildings, the array length changes, recreating fetchBuildings, which triggers the useEffect (line 227) that calls fetchBuildings again — potential infinite loop. Fix: remove data.buildings.length from deps (use empty array or a ref).",
+      "acceptanceCriteria": [
+        "fetchBuildings useCallback has stable dependencies (no data.buildings.length)",
+        "useEffect does not re-trigger on data change",
+        "Buildings still load correctly on mount and manual refresh",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "TIER 3B. Verified: use-buildings.ts:204 — HIGH RISK infinite loop pattern."
+    },
+    {
+      "id": "US-023",
+      "title": "Fix useManagerStats dependency cleanup",
+      "description": "In hooks/use-manager-stats.ts ~line 134, fetchStats is in useEffect deps but already has empty deps ([]) in useCallback. While the pattern is mitigated by cache logic, clean it up: remove fetchStats from useEffect deps since it's stable, or use an explicit ref pattern.",
+      "acceptanceCriteria": [
+        "useEffect dependency array cleaned (no unnecessary fetchStats if stable)",
+        "Stats still load on mount",
+        "No rapid refetch cycles on user change",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "TIER 3B. Partially mitigated by cache. Still worth cleaning up."
+    },
+    {
+      "id": "US-024",
+      "title": "Blog articles: add unstable_cache for fs reads",
+      "description": "In lib/blog.ts line 44, getAllArticles() calls fs.readFileSync on every request. Wrap with unstable_cache (1h TTL, tag: 'blog-articles'). Blog content changes only on deploy, so caching is safe.",
+      "acceptanceCriteria": [
+        "getAllArticles wrapped in unstable_cache",
+        "Cache TTL: 3600s (1 hour)",
+        "Cache tag: blog-articles (for manual revalidation)",
+        "Blog page still renders articles correctly",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "DONE: unstable_cache wrapper with 1h TTL, tag blog-articles. All callers made async."
+    },
+    {
+      "id": "US-025",
+      "title": "Quote processExpiredQuotes: batch UPDATE instead of loop",
+      "description": "In quote-repository.ts ~line 516-548, processExpiredQuotes() fetches expired quote IDs then loops with individual markExpired() UPDATE per quote. Replace with a single bulk UPDATE using .in('id', expiredIds).",
+      "acceptanceCriteria": [
+        "processExpiredQuotes uses single UPDATE with .in() filter",
+        "All expired quotes updated in one DB operation",
+        "Return value still indicates success/failure per quote (or total count)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "DONE: Single batch UPDATE with .in('id', expiredIds) instead of N individual markExpired() calls."
+    },
+    {
+      "id": "US-026",
+      "title": "Dashboard service creation: React cache() wrapper",
+      "description": "In components/dashboards/async-dashboard-content.tsx lines 44-49, 5 service factories are called on every Suspense stream without React cache() deduplication. Wrap each service creation in cache() so concurrent renders reuse the same instance.",
+      "acceptanceCriteria": [
+        "Service factory calls wrapped in React cache()",
+        "Duplicate service creation eliminated within same request",
+        "Dashboard still renders all data correctly",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "DONE: 6 service factories wrapped in React cache() for request-level deduplication."
+    },
+    {
+      "id": "US-027",
+      "title": "Lot category count: SQL aggregate instead of JS reduce",
+      "description": "In lot.repository.ts ~line 671-698, getCountByCategory() fetches ALL lots for a team then counts categories with .reduce() in JavaScript. Replace with a DB-level COUNT(*) GROUP BY category query.",
+      "acceptanceCriteria": [
+        "getCountByCategory uses DB-level GROUP BY (not JS reduce)",
+        "Query returns {category: string, count: number}[] directly",
+        "No full lot dataset transferred to server",
+        "Existing call sites receive same data shape",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "DONE: 6 parallel head:true count queries per category instead of fetch-all+JS reduce."
+    },
+    {
+      "id": "US-028",
+      "title": "Email settings: SSR pre-fetch hybrid",
+      "description": "In app/gestionnaire/(with-navbar)/parametres/emails/page.tsx, the page is fully client-side ('use client') with all data fetched in useEffect after mount. Convert to SSR pre-fetch: create a Server Component wrapper that fetches email connections + blacklist, passes as props to a client component.",
+      "acceptanceCriteria": [
+        "Server Component wrapper fetches email connections and blacklist",
+        "Data passed as props to client component (no useEffect initial fetch)",
+        "Client component still handles mutations and refreshes",
+        "Page loads with data visible immediately (no loading spinner on first paint)",
+        "Lint passes"
+      ],
+      "priority": 5,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "DONE: SSR hybrid — Server Component fetches connections+blacklist, passes to client. No loading spinner on first paint."
+    },
+    {
+      "id": "US-029",
+      "title": "Mail page: consolidate 4 count queries into single RPC",
+      "description": "In mail/page.tsx lines 27-63, getEmailCounts() runs 4 separate count queries (inbox, processed, sent, archive) in Promise.all. Already parallelized but 4 DB round trips. Consider a single SQL RPC with conditional COUNT or a single query with CASE WHEN. Lower priority since already parallel.",
+      "acceptanceCriteria": [
+        "Email counts fetched in single DB operation (RPC or CASE WHEN)",
+        "Migration with new SQL function if RPC approach chosen",
+        "All 4 counts still correct (inbox, processed, sent, archive)",
+        "Lint passes"
+      ],
+      "priority": 5,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "DONE: Single RPC get_email_counts with COUNT FILTER replaces 4 separate queries."
     }
   ]
 }

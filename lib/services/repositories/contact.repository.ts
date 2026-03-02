@@ -290,6 +290,42 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   }
 
   /**
+   * Search contacts by name or email with DB-side filtering
+   * ✅ PERF: Uses ilike instead of loading all contacts into memory
+   */
+  async search(query: string, options?: { role?: string; teamId?: string; limit?: number }) {
+    // Sanitize query to prevent PostgREST filter injection
+    // Strip characters that have special meaning in PostgREST filter syntax
+    const sanitized = query.replace(/[%,().]/g, '').trim()
+    if (!sanitized) {
+      return { success: true as const, data: [] as any[] }
+    }
+
+    let queryBuilder = this.supabase
+      .from(this.tableName)
+      .select('*')
+      .is('deleted_at', null)
+      .or(`name.ilike.%${sanitized}%,email.ilike.%${sanitized}%`)
+      .order('created_at', { ascending: false })
+      .limit(options?.limit ?? 50)
+
+    if (options?.role) {
+      queryBuilder = queryBuilder.eq('role', options.role)
+    }
+    if (options?.teamId) {
+      queryBuilder = queryBuilder.eq('team_id', options.teamId)
+    }
+
+    const { data, error } = await queryBuilder
+
+    if (error) {
+      return createErrorResponse(handleError(error, `${this.tableName}:search`))
+    }
+
+    return { success: true as const, data: data || [] }
+  }
+
+  /**
    * Check if email already exists in a specific team
    * NEW SCHEMA: UNIQUE(email, team_id) - email can exist in multiple teams
    */

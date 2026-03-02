@@ -30,6 +30,28 @@ import { logger } from '@/lib/logger'
  * - Rate limits différenciés par type de route
  * - Upstash Redis (production) + fallback in-memory (dev)
  */
+
+// ✅ PERF: Shared Supabase client factory for middleware (avoids duplicate code)
+const createMiddlewareSupabaseClient = (request: NextRequest, response: NextResponse) => {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
+            response.cookies.set(name, value, options)
+          })
+        },
+      },
+    }
+  )
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -86,24 +108,7 @@ export async function middleware(request: NextRequest) {
   if (AUTH_REDIRECT_IF_LOGGED_IN.some(page => pathname === page || pathname.startsWith(page + '/'))) {
     // Créer un client Supabase pour vérifier la session
     let response = NextResponse.next({ request: { headers: request.headers } })
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              request.cookies.set(name, value)
-              response.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
+    const supabase = createMiddlewareSupabaseClient(request, response)
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -180,26 +185,7 @@ export async function middleware(request: NextRequest) {
     })
 
     // ✅ PATTERN OFFICIEL SUPABASE: Créer client serveur pour middleware
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll()
-          },
-          setAll(cookiesToSet) {
-            // ✅ IMPORTANT: Propager les cookies vers le browser ET les Server Components
-            cookiesToSet.forEach(({ name, value, options }) => {
-              // Set cookie in the request for Server Components
-              request.cookies.set(name, value)
-              // Set cookie in the response for the browser
-              response.cookies.set(name, value, options)
-            })
-          },
-        },
-      }
-    )
+    const supabase = createMiddlewareSupabaseClient(request, response)
 
     // 🎯 Ne pas attendre AuthProvider pour les requêtes document (GET HTML) : la navigation
     // doit toujours être authentifiée côté middleware pour éviter chargement long / pass-through.

@@ -119,3 +119,24 @@ Files: building-creation-form.tsx, lot-creation-form.tsx, contact-creation-clien
 - Removed redundant router.refresh() after router.push() to new route
 - Contrat + intervention already redirected to detail — now all 6 entity types are consistent
 - Learning: router.push() to a new route already fetches fresh data; router.refresh() only needed for same-route re-fetch
+
+## 2026-03-02 — TIER 3: Performance Optimization (16 stories)
+Files: 13 source files + 2 new files + 1 migration
+- US-014: Promise.allSettled for rent reminder notifications (intervention-actions.ts)
+- US-015: Cache-Control immutable headers + Contentsquare lazyOnload (next.config.js, layout.tsx)
+- US-016: Middleware Supabase client factory extraction (middleware.ts)
+- US-017: PWA register clearInterval cleanup (pwa-register.tsx)
+- US-018: Contact search DB-side ilike filtering (contact.repository.ts, contact.service.ts)
+- US-019: Cron reminders batch INSERT + parallel emails/push (intervention-reminders/route.ts)
+- US-020: Global notifications stable event listener deps (use-global-notifications.ts)
+- US-021: Realtime chat: removed optimisticMessages from deps (use-realtime-chat-v2.ts)
+- US-022: useBuildings: removed infinite loop risk (use-buildings.ts)
+- US-023: useManagerStats: verified correct pattern — no change needed
+- US-024: Blog unstable_cache with 1h TTL (lib/blog.ts, blog pages)
+- US-025: Quote expiry batch UPDATE (quote-repository.ts)
+- US-026: Dashboard React cache() wrappers (async-dashboard-content.tsx)
+- US-027: Lot category counts head:true queries (lot.repository.ts)
+- US-028: Email settings SSR pre-fetch hybrid (emails/page.tsx + email-settings-client.tsx)
+- US-029: Mail counts COUNT FILTER RPC (migration + mail/page.tsx)
+- Learnings: useRef for stable deps (#111), SSR pre-fetch hybrid (#112), COUNT FILTER (#113), React cache() (#114)
+- Decision: Used SECURITY DEFINER for RPC functions (auth validated at page level, RPC just aggregates)

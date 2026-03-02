@@ -133,9 +133,7 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: 13 stories perf optimization + post-creation redirect UX + 110 learnings in AGENTS.md*
 
 ## Files Recently Modified
-### 2026-03-02 17:47:00 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/systemPatterns.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/techContext.md`
-- `C:/Users/arthu/.claude/projects/C--Users-arthu-Desktop-Coding-Seido-app/memory/MEMORY.md`
+### 2026-03-02 19:48:16 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-03-02-performance-optimization-tier3-retrospective.md`

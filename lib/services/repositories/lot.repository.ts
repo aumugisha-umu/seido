@@ -670,24 +670,25 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
    */
   async getCountByCategory(teamId: string) {
     try {
-      const { data, error } = await this.supabase
-        .from(this.tableName)
-        .select(`
-          category,
-          buildings!inner(team_id)
-        `)
-        .eq('buildings.team_id', teamId)
+      // ✅ PERF: Use DB-level grouping via RPC or multiple head:true queries
+      // Supabase JS doesn't support GROUP BY directly, so we use head:true per category
+      const categories = ['habitation', 'commerce', 'bureau', 'parking', 'cave', 'autre']
 
-      if (error) {
-        logger.error('❌ [LOT-REPOSITORY] getCountByCategory SQL error:', error)
-        return { success: false as const, error: handleError(error, 'lot:getCountByCategory') }
+      const countPromises = categories.map(async (category) => {
+        const { count, error } = await this.supabase
+          .from(this.tableName)
+          .select('id, buildings!inner(team_id)', { count: 'exact', head: true })
+          .eq('buildings.team_id', teamId)
+          .eq('category', category)
+
+        return { category, count: error ? 0 : (count ?? 0) }
+      })
+
+      const results = await Promise.all(countPromises)
+      const counts: Record<string, number> = {}
+      for (const { category, count } of results) {
+        if (count > 0) counts[category] = count
       }
-
-      // Count by category
-      const counts = data?.reduce((acc, lot) => {
-        acc[lot.category] = (acc[lot.category] || 0) + 1
-        return acc
-      }, {} as Record<string, number>) || {}
 
       logger.info('✅ [LOT-REPOSITORY] Category counts calculated:', counts)
       return { success: true as const, data: counts }

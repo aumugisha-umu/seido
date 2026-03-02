@@ -338,32 +338,8 @@ export class ContactService {
    * NEW SCHEMA: Searches users table directly
    */
   async searchContacts(query: string, options?: { role?: User['role']; teamId?: string }) {
-    try {
-      const allContactsResult = await this.repository.findAll()
-      const allContacts = allContactsResult.data || []
-
-      let filteredContacts = allContacts.filter(contact => {
-        // Search in name and email (users table fields)
-        const searchText = `${contact.name || ''} ${contact.email || ''}`.toLowerCase()
-        const matchesQuery = searchText.includes(query.toLowerCase())
-
-        // Apply role filter if specified
-        const matchesRole = !options?.role || (contact.role === options.role)
-
-        return matchesQuery && matchesRole
-      })
-
-      // Filter by team if specified
-      if (options?.teamId) {
-        filteredContacts = filteredContacts.filter(contact =>
-          contact.team_id === options.teamId
-        )
-      }
-
-      return { success: true as const, data: filteredContacts }
-    } catch (error) {
-      throw error
-    }
+    // ✅ PERF: DB-side filtering via repository instead of loading ALL contacts into memory
+    return this.repository.search(query, options)
   }
 
   /**

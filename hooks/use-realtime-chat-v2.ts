@@ -121,6 +121,10 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
     }
   )
 
+  // ✅ PERF: Ref to avoid channel thrashing when optimisticMessages changes
+  const optimisticMessagesRef = useRef(optimisticMessages)
+  optimisticMessagesRef.current = optimisticMessages
+
   // ────────────────────────────────────────────────────────────────────────
   // Fetch initial messages
   // ────────────────────────────────────────────────────────────────────────
@@ -201,8 +205,8 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
 
             const newMessage = newRecord as ConversationMessage
 
-            // Skip if optimistic message
-            const isOptimistic = optimisticMessages.some(
+            // Skip if optimistic message (use ref to avoid channel thrashing)
+            const isOptimistic = optimisticMessagesRef.current.some(
               msg => msg.is_optimistic && msg.content === newMessage.content
             )
             if (isOptimistic) return
@@ -252,7 +256,7 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
     })
 
     return unsubscribe
-  }, [threadId, realtimeContext, optimisticMessages])
+  }, [threadId, realtimeContext])
 
   // ────────────────────────────────────────────────────────────────────────
   // Actions

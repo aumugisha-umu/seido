@@ -532,15 +532,28 @@ export class QuoteRepository extends BaseRepository<InterventionQuote, Intervent
         return createErrorResponse(handleError(selectError, 'quotes:processExpiredQuotes:select'))
       }
 
-      const results = []
-      for (const quote of expiredQuotes || []) {
-        const result = await this.markExpired(quote.id)
-        results.push({ id: quote.id, success: result.success })
+      if (!expiredQuotes || expiredQuotes.length === 0) {
+        return createSuccessResponse({ processed: 0, results: [] })
+      }
+
+      // ✅ PERF: Batch UPDATE instead of individual markExpired() per quote
+      const expiredIds = expiredQuotes.map(q => q.id)
+      const { error: updateError, count } = await this.supabase
+        .from('intervention_quotes')
+        .update({
+          status: 'expired',
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', expiredIds)
+        .eq('status', 'sent') // Safety: only update if still in 'sent' status
+
+      if (updateError) {
+        return createErrorResponse(handleError(updateError, 'quotes:processExpiredQuotes:batchUpdate'))
       }
 
       return createSuccessResponse({
-        processed: results.length,
-        results
+        processed: count ?? expiredIds.length,
+        results: expiredIds.map(id => ({ id, success: true }))
       })
     } catch (error) {
       return createErrorResponse(handleError(error, 'quotes:processExpiredQuotes'))

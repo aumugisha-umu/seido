@@ -12,14 +12,14 @@ interface BlogArticlePageProps {
 }
 
 export const generateStaticParams = async () => {
-  return getAllSlugs().map((slug) => ({ slug }))
+  return (await getAllSlugs()).map((slug) => ({ slug }))
 }
 
 export const generateMetadata = async ({
   params,
 }: BlogArticlePageProps): Promise<Metadata> => {
   const { slug } = await params
-  const article = getArticleBySlug(slug)
+  const article = await getArticleBySlug(slug)
 
   if (!article) {
     return { title: 'Article introuvable' }
@@ -52,7 +52,7 @@ export const generateMetadata = async ({
 
 export default async function BlogArticlePage({ params }: BlogArticlePageProps) {
   const { slug } = await params
-  const article = getArticleBySlug(slug)
+  const article = await getArticleBySlug(slug)
 
   if (!article) {
     notFound()

@@ -164,16 +164,17 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
   */
 
   // Écouter les événements de mise à jour des notifications
+  // ✅ PERF: Use ref to avoid re-registering listener on every fetchUnreadCount change
   useEffect(() => {
     const handleNotificationUpdate = () => {
-      fetchUnreadCount()
+      fetchUnreadCountRef.current()
     }
 
     window.addEventListener('notificationUpdated', handleNotificationUpdate)
     return () => {
       window.removeEventListener('notificationUpdated', handleNotificationUpdate)
     }
-  }, [fetchUnreadCount])
+  }, [])
 
   return {
     unreadCount,

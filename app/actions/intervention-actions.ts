@@ -520,13 +520,14 @@ export async function createBatchRentRemindersAction(
 
     // Notifications deferred to after() — non-blocking
     after(async () => {
-      for (const intervention of interventions) {
-        try {
-          await createInterventionNotification(intervention.id)
-        } catch (e) {
-          logger.warn({ error: e, interventionId: intervention.id }, 'Rent reminder notification failed (non-blocking)')
+      const results = await Promise.allSettled(
+        interventions.map(intervention => createInterventionNotification(intervention.id))
+      )
+      results.forEach((result, i) => {
+        if (result.status === 'rejected') {
+          logger.warn({ error: result.reason, interventionId: interventions[i].id }, 'Rent reminder notification failed (non-blocking)')
         }
-      }
+      })
     })
 
     logger.info({ successCount: interventions.length, totalCount: reminders.length, contractId: config.contract_id }, 'Batch rent reminders created')

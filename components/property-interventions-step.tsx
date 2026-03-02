@@ -131,10 +131,7 @@ export function PropertyInterventionsStep({
 
     onInterventionsChange(prev => {
       const existingCustom = prev.filter(i => i.key.startsWith('custom_'))
-      const customOnes = existingCustom.length > 0
-        ? existingCustom
-        : [createEmptyCustomIntervention(currentUser)]
-      return [...customOnes, ...interventions]
+      return [...existingCustom, ...interventions]
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, expiryDatesKey, missingDocsKey, currentUserKey])
@@ -324,7 +321,7 @@ export function PropertyInterventionsStep({
                     onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
                     onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
                     onDelete={() => handleDeleteCustomIntervention(intervention.key)}
-                    showDelete={index > 0}
+                    showDelete={true}
                   />
                 ))}
               </div>

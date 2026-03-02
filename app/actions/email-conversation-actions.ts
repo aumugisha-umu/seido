@@ -11,7 +11,7 @@
 
 import { createServerActionSupabaseClient, createServiceRoleSupabaseClient } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
-import { revalidatePath } from 'next/cache'
+// Pages are force-dynamic — no cache invalidation needed
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
@@ -257,8 +257,6 @@ export async function createEmailConversationAction(
       threadId: newThread.id,
       participantCount: uniqueParticipantIds.length
     })
-
-    revalidatePath('/gestionnaire/mail')
 
     return {
       success: true,

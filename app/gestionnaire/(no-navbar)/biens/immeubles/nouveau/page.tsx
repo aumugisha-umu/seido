@@ -1,7 +1,6 @@
 import { getServerAuthContext } from '@/lib/server-context'
 import { createServerTeamService, createServerLotService } from '@/lib/services'
 import NewImmeubleePage from './building-creation-form'
-import { logger } from '@/lib/logger'
 
 /**
  * 🎯 SERVER COMPONENT - Building Creation Page
@@ -17,10 +16,19 @@ export default async function NewBuildingPage() {
   // ✅ Server-side auth + team verification (single call, cached with React 19 cache())
   const { profile, team, teams } = await getServerAuthContext('gestionnaire')
 
-  // ✅ Load team managers server-side
-  const teamService = await createServerTeamService()
-  const membersResult = await teamService.getTeamMembers(team.id)
+  // ── Phase 0: Service instantiation + all queries in parallel ──────────
+  const [teamService, lotService] = await Promise.all([
+    createServerTeamService(),
+    createServerLotService(),
+  ])
+
+  const [membersResult, categoryCountsResult] = await Promise.all([
+    teamService.getTeamMembers(team.id),
+    lotService.getLotStatsByCategory(team.id).catch(() => ({ data: {} as Record<string, number> })),
+  ])
+
   const teamMembers = membersResult?.data || []
+  const categoryCountsByTeam: Record<string, number> = categoryCountsResult?.data || {}
 
   // Filter for managers only - Use member.role (team role) not member.user.role (global user role)
   const teamManagers = teamMembers.filter(
@@ -42,18 +50,6 @@ export default async function NewBuildingPage() {
       },
       role: 'admin'
     })
-  }
-
-  // ✅ Load category counts server-side
-  const lotService = await createServerLotService()
-  let categoryCountsByTeam: Record<string, number> = {}
-
-  try {
-    const categoryCountsResult = await lotService.getLotStatsByCategory(team.id)
-    categoryCountsByTeam = categoryCountsResult?.data || {}
-  } catch (error) {
-    logger.info('No lots found for team (likely first building), initializing with zero counts:', error instanceof Error ? error.message : String(error))
-    categoryCountsByTeam = {}
   }
 
   // ✅ Pass ALL data to Client Component (no client-side loading needed!)

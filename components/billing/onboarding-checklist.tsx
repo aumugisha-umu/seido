@@ -215,15 +215,18 @@ export function OnboardingChecklist({ className, progress, isTrialing }: Onboard
 
             return (
               <div key={step.id}>
-                <button
+                <div
+                  role="button"
+                  tabIndex={isComplete ? -1 : 0}
                   onClick={() => handleStepClick(step)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleStepClick(step) } }}
                   onMouseEnter={() => {
                     if (isComplete && !celebratingStep) {
                       setCelebratingStep(step.id)
                       setTimeout(() => setCelebratingStep(null), 1000)
                     }
                   }}
-                  disabled={isComplete}
+                  aria-disabled={isComplete}
                   className={cn(
                     'w-full flex items-center gap-3 p-2.5 rounded-md text-left transition-all',
                     isComplete
@@ -288,7 +291,7 @@ export function OnboardingChecklist({ className, progress, isTrialing }: Onboard
                       {step.ctaLabel}
                     </Button>
                   )}
-                </button>
+                </div>
 
                 {/* Tutorial content + CTA — visible for current step only */}
                 {isCurrent && !isComplete && (

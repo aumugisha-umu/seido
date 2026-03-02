@@ -9,7 +9,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
+// Pages are force-dynamic — no cache invalidation needed
 import { headers } from 'next/headers'
 import { z } from 'zod'
 import { setBetaAccessCookie } from '@/lib/beta-access'
@@ -100,9 +100,6 @@ export async function validateBetaPassword(
     // ✅ SUCCÈS: Définir le cookie d'accès
     await setBetaAccessCookie()
     logger.info('✅ [BETA-PASSWORD] Beta access granted, cookie set')
-
-    // ✅ REVALIDATE: Forcer refresh de la page signup
-    revalidatePath('/auth/signup')
 
     // ✅ REDIRECTION: Vers la page signup (qui affichera maintenant le formulaire)
     redirect('/auth/signup')
@@ -280,9 +277,6 @@ export async function submitBetaInterest(
     }
 
     logger.info(`✅ [FONDATEURS-2026] Candidature enregistrée: ${validatedData.company} - ${data?.id}`)
-
-    // ✅ REVALIDATE: Forcer refresh
-    revalidatePath('/auth/signup')
 
     // ✅ REDIRECTION: Vers page de remerciement
     redirect('/auth/beta-thank-you')

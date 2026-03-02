@@ -94,42 +94,30 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
    */
   async getSystemStats(): Promise<{ success: true; data: SystemStats }> {
     try {
-      // Get total counts from all services
-      const [usersResult, buildingsResult, interventionsResult] = await Promise.all([
-        this.supabase.from('users').select('id', { count: 'exact' }),
-        this.supabase.from('buildings').select('id', { count: 'exact' }),
-        this.supabase.from('interventions').select('id, status', { count: 'exact' })
+      // Get total counts (head:true = count only, no row data transferred)
+      const oneMonthAgo = new Date()
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+
+      const [usersResult, buildingsResult, interventionsResult, completedResult,
+             usersGrowthResult, buildingsGrowthResult, interventionsGrowthResult] = await Promise.all([
+        this.supabase.from('users').select('*', { count: 'exact', head: true }),
+        this.supabase.from('buildings').select('*', { count: 'exact', head: true }),
+        this.supabase.from('interventions').select('*', { count: 'exact', head: true }),
+        this.supabase.from('interventions').select('*', { count: 'exact', head: true })
+          .in('status', ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']),
+        this.supabase.from('users').select('*', { count: 'exact', head: true })
+          .gte('created_at', oneMonthAgo.toISOString()),
+        this.supabase.from('buildings').select('*', { count: 'exact', head: true })
+          .gte('created_at', oneMonthAgo.toISOString()),
+        this.supabase.from('interventions').select('*', { count: 'exact', head: true })
+          .gte('created_at', oneMonthAgo.toISOString()),
       ])
 
       if (usersResult.error) throw usersResult.error
       if (buildingsResult.error) throw buildingsResult.error
       if (interventionsResult.error) throw interventionsResult.error
 
-      // Calculate completed interventions and revenue
-      const completedInterventions = interventionsResult.data?.filter(
-        i => i.status === 'cloturee_par_prestataire' || i.status === 'cloturee_par_locataire' || i.status === 'cloturee_par_gestionnaire'
-      ) || []
-
-      const totalRevenue = completedInterventions.length * 450 // 450€ average per intervention
-
-      // Get growth data (compare with previous month)
-      const oneMonthAgo = new Date()
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
-
-      const [usersGrowthResult, buildingsGrowthResult, interventionsGrowthResult] = await Promise.all([
-        this.supabase
-          .from('users')
-          .select('id', { count: 'exact' })
-          .gte('created_at', oneMonthAgo.toISOString()),
-        this.supabase
-          .from('buildings')
-          .select('id', { count: 'exact' })
-          .gte('created_at', oneMonthAgo.toISOString()),
-        this.supabase
-          .from('interventions')
-          .select('id', { count: 'exact' })
-          .gte('created_at', oneMonthAgo.toISOString())
-      ])
+      const totalRevenue = (completedResult.count || 0) * 450 // 450€ average per intervention
 
       const stats: SystemStats = {
         totalUsers: usersResult.count || 0,
@@ -330,20 +318,20 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
 
       if (userError) throw userError
 
-      // Get intervention stats
+      // Get intervention stats (head:true = count only, no row data transferred)
       const [createdResult, completedResult, activityResult] = await Promise.all([
         this.supabase
           .from('interventions')
-          .select('id', { count: 'exact' })
+          .select('*', { count: 'exact', head: true })
           .eq('created_by', userId),
         this.supabase
           .from('interventions')
-          .select('id', { count: 'exact' })
+          .select('*', { count: 'exact', head: true })
           .or(`assigned_gestionnaire.eq.${userId},assigned_prestataire.eq.${userId}`)
           .in('status', ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']),
         this.supabase
           .from('activity_logs')
-          .select('id, created_at', { count: 'exact' })
+          .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
           .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
       ])

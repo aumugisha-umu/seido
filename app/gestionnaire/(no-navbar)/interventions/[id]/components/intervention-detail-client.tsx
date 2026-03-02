@@ -2009,6 +2009,7 @@ export function InterventionDetailClient({
           }))}
           onConfirm={planning.handleProgrammingConfirm}
           isFormValid={planning.isProgrammingFormValid()}
+          isSubmitting={planning.isSubmitting}
           teamId={teamId || ''}
           requireQuote={requireQuote}
           onRequireQuoteChange={setRequireQuote}

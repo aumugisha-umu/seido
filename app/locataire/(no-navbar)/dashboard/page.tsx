@@ -12,36 +12,40 @@ export default async function LocataireDashboardPage() {
   const userInitial = userName.charAt(0).toUpperCase()
   const teamId = profile.team_id
 
-  // ✅ Fetch tenant data server-side - no client-side fetch needed
-  let tenantData = null
-  let tenantError = null
+  // ── Both data chains run in parallel (independent services + tables) ──
+  const [tenantResult, unreadThreads] = await Promise.all([
+    // Chain A: Tenant data
+    (async () => {
+      try {
+        const tenantService = await createServerTenantService()
+        const data = await tenantService.getTenantData(profile.id)
+        logger.info('✅ [LOCATAIRE-PAGE] Tenant data loaded server-side:', {
+          userId: profile.id,
+          lotsCount: data?.lots?.length || 0,
+          contractStatus: data?.contractStatus,
+          interventionsCount: data?.interventions?.length || 0
+        })
+        return { data, error: null }
+      } catch (error) {
+        logger.error('❌ [LOCATAIRE-PAGE] Failed to load tenant data server-side:', error)
+        return { data: null, error: error instanceof Error ? error.message : 'Erreur de chargement' }
+      }
+    })(),
+    // Chain B: Unread conversation threads
+    (async (): Promise<{ threads: UnreadThread[]; totalCount: number }> => {
+      try {
+        const supabase = await createServerSupabaseClient()
+        const conversationRepo = new ConversationRepository(supabase)
+        const result = await conversationRepo.getUnreadThreadsForDashboard(profile.id)
+        return (result.success && result.data) ? result.data : { threads: [], totalCount: 0 }
+      } catch {
+        return { threads: [], totalCount: 0 }
+      }
+    })(),
+  ])
 
-  try {
-    const tenantService = await createServerTenantService()
-    tenantData = await tenantService.getTenantData(profile.id)
-    logger.info('✅ [LOCATAIRE-PAGE] Tenant data loaded server-side:', {
-      userId: profile.id,
-      lotsCount: tenantData?.lots?.length || 0,
-      contractStatus: tenantData?.contractStatus,
-      interventionsCount: tenantData?.interventions?.length || 0
-    })
-  } catch (error) {
-    logger.error('❌ [LOCATAIRE-PAGE] Failed to load tenant data server-side:', error)
-    tenantError = error instanceof Error ? error.message : 'Erreur de chargement'
-  }
-
-  // Fetch unread conversation threads
-  let unreadThreads: { threads: UnreadThread[]; totalCount: number } = { threads: [], totalCount: 0 }
-  try {
-    const supabase = await createServerSupabaseClient()
-    const conversationRepo = new ConversationRepository(supabase)
-    const unreadResult = await conversationRepo.getUnreadThreadsForDashboard(profile.id)
-    if (unreadResult.success && unreadResult.data) {
-      unreadThreads = unreadResult.data
-    }
-  } catch (error) {
-    logger.warn('[LOCATAIRE-PAGE] Unread threads fetch failed, skipping', { error })
-  }
+  const tenantData = tenantResult.data
+  const tenantError = tenantResult.error
 
   return (
     <LocataireDashboard

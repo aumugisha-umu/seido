@@ -2,8 +2,8 @@
 
 **Date** : 2026-03-01
 **Statut** : Design valide, pret pour implementation
-**Ref** : `docs/AI/ai-phone-assistant-plan.md` (plan technique v3.2)
-**Derniere review** : 2026-03-01 (audit documentation + securite)
+**Ref** : `docs/AI/ai-phone-assistant-plan.md` (plan technique v3.5)
+**Derniere review** : 2026-03-02 (audit technique complet — alignement plan v3.6)
 
 ---
 
@@ -11,7 +11,7 @@
 
 Le plan technique v3.0 couvre la configuration manuelle (1 numero, 1 agent, 1 equipe).
 Ce design etend le plan pour supporter le **self-service multi-tenant** :
-un gestionnaire souscrit a l'add-on, recoit un numero auto-provisionne,
+un gestionnaire souscrit a l'add-on, recoit un numero auto-provisionne (telephone + WhatsApp),
 peut personnaliser le prompt, et les transcriptions sont routees vers son compte.
 
 ---
@@ -71,7 +71,7 @@ Cela permet une activation **instantanee** (minutes, pas 72h d'attente).
 ### Flux complet
 
 ```
-Gestionnaire souscrit add-on ($15/mo)
+Gestionnaire souscrit add-on IA (Solo 49€ / Equipe 99€ / Agence 149€)
          │
          ▼
   Stripe webhook (checkout.session.completed)
@@ -98,7 +98,15 @@ Gestionnaire souscrit add-on ($15/mo)
   │     PATCH /v1/convai/phone-numbers/{id}     │
   │     body: { agent_id }                      │
   │                                             │
-  │  5. Sauver en DB                            │
+  │  5. Enregistrer numero dans WABA Meta       │
+  │     POST graph.facebook.com/.../phone_nums  │
+  │     → whatsapp_phone_number_id              │
+  │     (optional — rollback si echec)          │
+  │                                             │
+  │  6. Connecter WhatsApp a l'agent ElevenLabs │
+  │     Via ElevenLabs Settings/API             │
+  │                                             │
+  │  7. Sauver en DB                            │
   │     INSERT INTO ai_phone_numbers (...)      │
   └─────────────────────────────────────────────┘
 ```
@@ -137,7 +145,8 @@ Gestionnaire souscrit add-on ($15/mo)
       "prompt": {
         "prompt": buildSystemPrompt(teamName, customInstructions),
         "llm": "claude-haiku-4-5",
-        "temperature": 0.3
+        "temperature": 0.2,
+        "max_tokens": 150
       },
       "first_message": `Bonjour, vous avez contacté ${teamName}. Je suis l'assistant vocal pour les demandes d'intervention. Comment puis-je vous aider ?`,
       "language": "fr"
@@ -204,12 +213,16 @@ Gestionnaire souscrit add-on ($15/mo)
 CREATE TABLE ai_phone_numbers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  phone_number TEXT NOT NULL,
+  phone_number TEXT NOT NULL,              -- meme numero pour SIP + WhatsApp
   telnyx_connection_id TEXT,
   telnyx_phone_number_id TEXT,
-  elevenlabs_agent_id TEXT,
+  elevenlabs_agent_id TEXT,                -- gere tel + WhatsApp
   elevenlabs_phone_number_id TEXT,
-  custom_instructions TEXT,        -- max 500 chars
+  whatsapp_phone_number_id TEXT,           -- ID numero Meta WhatsApp
+  whatsapp_enabled BOOLEAN DEFAULT false,  -- canal WhatsApp active
+  ai_tier TEXT DEFAULT 'solo',             -- 'solo' | 'equipe' | 'agence'
+  auto_topup BOOLEAN DEFAULT false,        -- Recharge automatique a 100%
+  custom_instructions TEXT,                -- max 500 chars
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
@@ -222,11 +235,16 @@ CREATE TABLE ai_phone_calls (
   phone_number_id UUID REFERENCES ai_phone_numbers(id),
   elevenlabs_conversation_id TEXT NOT NULL,
   caller_phone TEXT,
-  duration_seconds INTEGER,
-  transcript JSONB,                -- structured transcript
-  extracted_data JSONB,            -- nom, adresse, probleme, urgence
+  channel TEXT NOT NULL DEFAULT 'phone',  -- phone | whatsapp_text | whatsapp_voice | whatsapp_call
+  duration_seconds INTEGER,               -- NULL pour whatsapp_text
+  identified_user_id UUID REFERENCES users(id),  -- Locataire identifie (nullable)
   intervention_id UUID REFERENCES interventions(id),
-  status TEXT DEFAULT 'pending',   -- pending | processed | failed
+  transcript TEXT,                         -- Transcript complet (plain text)
+  structured_summary JSONB,                -- Resume structure (output AI SDK)
+  language TEXT DEFAULT 'fr',              -- Langue detectee (fr/nl/en)
+  call_status TEXT DEFAULT 'completed',    -- completed | failed | abandoned | transferred
+  pdf_document_path TEXT,                  -- Path dans Supabase Storage
+  media_urls JSONB DEFAULT '[]'::jsonb,   -- Media WhatsApp [{type, url, storage_path}]
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(elevenlabs_conversation_id)
 );
@@ -242,7 +260,9 @@ Si une etape echoue, rollback les etapes precedentes :
 | ElevenLabs agent | Annuler commande Telnyx |
 | ElevenLabs import numero | Supprimer agent ElevenLabs + annuler Telnyx |
 | ElevenLabs assign | Supprimer phone number ElevenLabs + agent + annuler Telnyx |
-| DB insert | Supprimer tout ElevenLabs + annuler Telnyx |
+| WhatsApp enregistrement | **Continuer sans WhatsApp** (`whatsapp_enabled = false`). Telephone fonctionne. |
+| WhatsApp connexion agent | **Continuer sans WhatsApp** (`whatsapp_enabled = false`). Telephone fonctionne. |
+| DB insert | Supprimer tout (WhatsApp + ElevenLabs + Telnyx) |
 
 ---
 
@@ -330,36 +350,54 @@ Pour deployer des changements de prompt de maniere securisee :
 
 ### Emplacement
 
-`/gestionnaire/parametres/assistant-vocal` (nouvel onglet dans les parametres)
+`/gestionnaire/parametres/assistant-ia` (nouvel onglet dans les parametres)
 
 ### Etats possibles
 
 **Etat 1 : Non souscrit**
 ```
 ┌──────────────────────────────────────────────┐
-│  🤖 Assistant Vocal IA                       │
+│  🤖 Assistant IA Multi-Canal                 │
 │                                              │
-│  Activez un assistant telephonique IA pour   │
-│  vos locataires. Il prend les demandes       │
-│  d'intervention par telephone 24h/24.        │
+│  Activez un assistant IA pour vos            │
+│  locataires. Il prend les demandes           │
+│  d'intervention par telephone et             │
+│  WhatsApp 24h/24.                            │
 │                                              │
 │  • Numero belge (+32) dedie                  │
+│  • Telephone + WhatsApp sur le meme numero   │
 │  • Transcription automatique                 │
 │  • Creation de demandes dans SEIDO           │
 │                                              │
-│  15 EUR/mois + 0,25 EUR/min apres 60 min    │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐     │
+│  │  Solo   │  │ Equipe  │  │ Agence  │     │
+│  │ 49€/mo  │  │ 99€/mo  │  │ 149€/mo │     │
+│  │ 100 min │  │ 250 min │  │ 500 min │     │
+│  └─────────┘  └─────────┘  └─────────┘     │
+│  WhatsApp inclus dans tous les packs        │
 │                                              │
-│  [ Activer l'assistant vocal ]               │
+│  [ Choisir un pack ]                         │
 └──────────────────────────────────────────────┘
 ```
 
 **Etat 2 : Actif**
 ```
 ┌──────────────────────────────────────────────┐
-│  🤖 Assistant Vocal IA          ● Actif      │
+│  🤖 Assistant IA Multi-Canal    ● Actif      │
+│                                              │
+│  Pack : Equipe (99 EUR/mois — 250 min)      │
+│  [ Changer de pack ▼ ]                       │
 │                                              │
 │  Votre numero : +32 4 260 08 08             │
-│  Appels ce mois : 12 (47 min)               │
+│  📞 Telephone : actif                        │
+│  💬 WhatsApp : actif                         │
+│                                              │
+│  ── Usage ce mois ──                         │
+│  ████████████░░░░░░░░  127/250 min (51%)    │
+│  23 appels tel. (98 min) + 14 WhatsApp      │
+│                                              │
+│  [ Recharger 100 min — 40 EUR ]              │
+│  ☐ Recharge automatique a 100%              │
 │                                              │
 │  ── Instructions personnalisees ──           │
 │  ┌──────────────────────────────────────┐    │
@@ -372,10 +410,10 @@ Pour deployer des changements de prompt de maniere securisee :
 │  [ Sauvegarder ]  [ Tester l'assistant ]     │
 │                                              │
 │  ── Derniers appels ──                       │
-│  │ 28/02 14:32 │ +32 498 12 34 56 │ 3:42 │ │
-│  │ 27/02 09:15 │ +32 474 98 76 54 │ 2:18 │ │
+│  │ 28/02 14:32 │ 📞 │ +32 498 ... │ 3:42 │ │
+│  │ 27/02 09:15 │ 💬 │ +32 474 ... │ txt  │ │
 │                                              │
-│  [ Desactiver l'assistant ]                  │
+│  [ Gerer l'abonnement ] [ Desactiver ]       │
 └──────────────────────────────────────────────┘
 ```
 
@@ -510,7 +548,7 @@ try {
         caller_name: z.string(),
         address: z.string(),
         problem_description: z.string(),
-        urgency: z.enum(['normale', 'urgente']),
+        urgency: z.enum(['basse', 'normale', 'haute', 'urgente']),
         additional_notes: z.string().optional()
       })
     })
@@ -630,9 +668,12 @@ Si vide, cette section est omise du prompt.
 | Decision | Choix | Alternative rejetee |
 |----------|-------|---------------------|
 | Agent par equipe | Clone individuel | Agent partage (pas de customisation) |
-| Numero par equipe | Numero unique | Numero partage (pas d'identification) |
+| Numero par equipe | Numero unique (SIP + WhatsApp) | Numero partage (pas d'identification) |
+| Dual-canal | Meme numero pour telephone + WhatsApp | 2 numeros separes (confus pour locataire) |
+| WhatsApp multi-tenant | 1 WABA → N numeros (1/equipe) | 1 WABA par equipe (impossible a scale) |
+| WhatsApp rollback | Optional (telephone continue si echec) | Bloquer tout si WhatsApp echoue (trop strict) |
 | Requirement group | Reutiliser existant | Nouveau groupe (72h d'attente) |
-| Webhook | 1 endpoint workspace | N endpoints par agent (pas supporte) |
+| Webhook | 1 endpoint workspace (tel + WhatsApp) | N endpoints par agent (pas supporte) |
 | Prompt customisation | Instructions appendees (500 chars) | Full prompt editable (trop risque) |
 | Mode dev | Variables DEV_* | Sandbox Telnyx (n'existe pas) |
 | EU data residency | `api.elevenlabs.io` (Pro), upgrade Enterprise pour EU residency | EU endpoint inaccessible sans Enterprise |
@@ -643,3 +684,6 @@ Si vide, cette section est omise du prompt.
 ---
 
 **Prochaine etape :** Implementation via `/ralph` (PRD → stories → TDD)
+
+> **WhatsApp :** Le canal WhatsApp est integre au provisioning (etapes 5-6) et au webhook.
+> Voir Section 14 du plan principal pour les details complets.

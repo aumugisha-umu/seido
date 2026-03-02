@@ -1,0 +1,71 @@
+{
+  "project": "SEIDO",
+  "featureName": "Locataire Lot Details Page",
+  "branchName": "preview",
+  "description": "Add a lot details page for locataire role, reusing the gestionnaire LotDetailsClient with a role prop. Scoped to 3 tabs (Contrats, Interventions, Documents). Includes a 'Voir les details' button on the dashboard purple card.",
+  "createdAt": "2026-03-02",
+  "prdSource": "docs/plans/2026-03-02-locataire-lot-details.md",
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Refactor LotDetailsClient with role prop",
+      "description": "As a developer, I want LotDetailsClient to accept a role prop so that the same component works for gestionnaire and locataire with scoped tabs and actions.",
+      "acceptanceCriteria": [
+        "role prop added (default: 'gestionnaire')",
+        "contacts and buildingContacts props made optional (default: [])",
+        "Tabs filtered: locataire sees only contracts, interventions, documents",
+        "Default tab: 'contracts' for locataire, 'overview' for gestionnaire",
+        "Header actions empty for locataire (no Modifier/Supprimer/Creer intervention)",
+        "Back button navigates to /locataire/dashboard for locataire role",
+        "InterventionsNavigator uses userContext matching role",
+        "Intervention links use /locataire/... prefix for locataire",
+        "Contract empty state hides 'Creer un contrat' button for locataire",
+        "Gestionnaire behavior unchanged (regression check)",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added role prop with isLocataire derived boolean. Tab filtering, action hiding, back nav, empty states all conditioned on role. Zero new lint warnings."
+    },
+    {
+      "id": "US-002",
+      "title": "Create locataire lot details server page",
+      "description": "As a locataire, I want to access /locataire/lots/[id] to see my lot details with contracts, interventions and documents.",
+      "acceptanceCriteria": [
+        "Route exists at app/locataire/(no-navbar)/lots/[id]/page.tsx",
+        "Uses getServerAuthContext('locataire') for auth",
+        "Verifies locataire has access to lot via contract_contacts",
+        "Redirects to /locataire/dashboard if no access",
+        "Fetches lot, contracts, interventions, interventionsWithDocs in parallel",
+        "Passes role='locataire' to LotDetailsClient",
+        "Passes empty contacts and buildingContacts arrays",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Server page with contract_contacts access check, parallel data fetching, address resolution. Reuses LotDetailsClient with role='locataire'."
+    },
+    {
+      "id": "US-003",
+      "title": "Add 'Voir les details' button on dashboard purple card",
+      "description": "As a locataire, I want a 'Voir les details' button on my dashboard property card so I can navigate to the lot details page.",
+      "acceptanceCriteria": [
+        "Outlined white button with ExternalLink icon under property details line",
+        "Only visible when a specific lot is selected (not 'Vue d'ensemble')",
+        "Links to /locataire/lots/{currentProperty.id}",
+        "Button styled consistently with the purple card theme",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Outlined Link with ExternalLink icon, ml-7 aligned with property details, white/40 border on purple card."
+    }
+  ]
+}

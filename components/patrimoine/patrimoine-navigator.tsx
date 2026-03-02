@@ -226,14 +226,14 @@ export function PatrimoineNavigator({
     // ========================================
     const blockClass = cn(
         "patrimoine-section",
-        "flex-1 min-h-0 flex flex-col overflow-hidden",
+        "flex-1 min-h-0 flex flex-col",
         "border border-slate-200 rounded-lg shadow-sm bg-white",
         className
     )
 
     const contentClass = cn(
         "patrimoine-section__content",
-        "p-4 space-y-4 flex-1 flex flex-col min-h-0 overflow-hidden"
+        "p-4 space-y-4 flex-1 flex flex-col min-h-0"
     )
 
     const headerClass = cn(
@@ -305,7 +305,7 @@ export function PatrimoineNavigator({
     return (
         <div className={blockClass}>
             <div className={contentClass}>
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col overflow-hidden">
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
                     {/* Header with tabs and search */}
                     <div className={headerClass}>
                         {/* Tabs */}

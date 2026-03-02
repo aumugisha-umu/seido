@@ -6,7 +6,7 @@ import {
   type InterventionAction,
   type PlanningData
 } from "@/lib/intervention-actions-service"
-import { programInterventionAction, updateInterventionAction } from "@/app/actions/intervention-actions"
+import { programInterventionAction } from "@/app/actions/intervention-actions"
 
 interface PlanningModal {
   isOpen: boolean
@@ -121,6 +121,7 @@ export const useInterventionPlanning = (
     endTime: "",
   })
   const [programmingProposedSlots, setProgrammingProposedSlots] = useState<TimeSlot[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Actions de planification (après acceptation d'un devis)
   const handlePlanningModal = (intervention: InterventionAction, acceptedQuote?: unknown) => {
@@ -173,60 +174,33 @@ export const useInterventionPlanning = (
   }
 
   const handleProgrammingConfirm = async () => {
-    if (!programmingModal.intervention || !programmingOption) return
+    if (!programmingModal.intervention || !programmingOption || isSubmitting) return
 
-    const planningData: PlanningData = {
-      option: programmingOption,
-      directSchedule: programmingOption === "direct" ? programmingDirectSchedule : undefined,
-      proposedSlots: programmingOption === "propose" ? programmingProposedSlots : undefined,
-      // Add quote request data
-      requireQuote: requireQuote,
-      selectedProviders: selectedProviders || [],
-      instructions: instructions || undefined,
-      assignmentMode: assignmentMode || undefined,
-      providerInstructions: providerInstructions && Object.keys(providerInstructions).length > 0
-        ? providerInstructions
-        : undefined,
-      confirmationRequired: confirmationRequired && confirmationRequired.length > 0
-        ? confirmationRequired
-        : undefined,
-      requiresConfirmation: requiresConfirmation || undefined,
-    }
-
+    setIsSubmitting(true)
     try {
-      // ── Step 1: Sync assignments FIRST ──
-      // Assignments must exist before programInterventionAction sets confirmation flags.
-      // (Mirrors creation flow: create assignments → then set confirmation requirements)
-      if (selectedManagers || selectedProviders || selectedTenants) {
-        logger.info("👥 Syncing participant assignments (before scheduling)", {
-          managers: selectedManagers?.length,
-          providers: selectedProviders?.length,
-          tenants: selectedTenants?.length,
-        })
-        const assignmentResult = await updateInterventionAction(
-          programmingModal.intervention.id,
-          {
-            assignedManagerIds: selectedManagers,
-            assignedProviderIds: selectedProviders,
-            assignedTenantIds: selectedTenants,
-          }
-        )
-        if (!assignmentResult.success) {
-          logger.error("Failed to sync assignments:", assignmentResult.error)
-          toast.error('Les participants n\'ont pas pu être mis à jour')
-          return
-        }
-      }
-
-      // ── Step 2: Schedule intervention (sets confirmation flags on synced assignments) ──
-      logger.info("📅 Using Server Action for programming intervention", {
-        requireQuote,
-        providerCount: selectedProviders?.length || 0
-      })
-
+      // Single server action call — assignments + scheduling + quotes merged
       const result = await programInterventionAction(
         programmingModal.intervention.id,
-        planningData
+        {
+          option: programmingOption,
+          directSchedule: programmingOption === "direct" ? programmingDirectSchedule : undefined,
+          proposedSlots: programmingOption === "propose" ? programmingProposedSlots : undefined,
+          requireQuote: requireQuote,
+          selectedProviders: selectedProviders || [],
+          instructions: instructions || undefined,
+          assignmentMode: assignmentMode || undefined,
+          providerInstructions: providerInstructions && Object.keys(providerInstructions).length > 0
+            ? providerInstructions
+            : undefined,
+          confirmationRequired: confirmationRequired && confirmationRequired.length > 0
+            ? confirmationRequired
+            : undefined,
+          requiresConfirmation: requiresConfirmation || undefined,
+          // Assignments merged into single call (no separate updateInterventionAction roundtrip)
+          assignedManagerIds: selectedManagers,
+          assignedProviderIds: selectedProviders,
+          assignedTenantIds: selectedTenants,
+        }
       )
 
       if (!result.success) {
@@ -258,7 +232,6 @@ export const useInterventionPlanning = (
         }
       }
 
-      // Message de succès adapté pour planification
       const successMessage = programmingOption === 'organize'
         ? 'Planification autonome activée'
         : 'Créneaux proposés avec succès'
@@ -266,12 +239,12 @@ export const useInterventionPlanning = (
       toast.success(successMessage)
 
       resetProgrammingState()
-
-      // Notify caller so it can refresh data (e.g. router.refresh())
       onSuccess?.()
     } catch (error) {
       logger.error("Error programming intervention:", error)
       toast.error('Erreur lors de la planification')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -468,5 +441,8 @@ export const useInterventionPlanning = (
     // Validation
     isPlanningFormValid,
     isProgrammingFormValid,
+
+    // Loading state
+    isSubmitting,
   }
 }

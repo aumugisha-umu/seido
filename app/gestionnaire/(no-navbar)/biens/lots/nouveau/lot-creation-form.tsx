@@ -1499,7 +1499,7 @@ export default function LotCreationForm({
 
         // Succès - Rediriger vers la page des biens (navigation immédiate)
         toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
-        router.push(`/gestionnaire/biens`)
+        router.push(`/gestionnaire/biens/lots/${successfulCreations[0].createdLot.id}`)
 
         return
       } catch (error) {
@@ -1636,7 +1636,7 @@ export default function LotCreationForm({
 
       // Succès - Rediriger vers la page des biens (navigation immédiate)
       toast.success("Lot créé avec succès", { description: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.` })
-      router.push("/gestionnaire/biens")
+      router.push(`/gestionnaire/biens/lots/${createdLot.id}`)
 
     } catch (error) {
       // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur

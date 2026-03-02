@@ -430,8 +430,7 @@ export function ContactCreationClient({
         logger.info(`🔙 [CREATE-CONTACT] Returning to origin: ${redirectUrl}`)
         router.push(redirectUrl)
       } else {
-        router.push('/gestionnaire/contacts')
-        router.refresh()
+        router.push(`/gestionnaire/contacts/details/${newContactId}`)
       }
     } catch (error) {
       logger.error("❌ [CREATE-CONTACT] Error:", error)

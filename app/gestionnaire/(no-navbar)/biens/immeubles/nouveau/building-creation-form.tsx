@@ -975,7 +975,7 @@ export default function NewImmeubleePage({
       toast.success("Immeuble créé avec succès", {
         description: `L'immeuble "${result.data.building.name}" a été créé avec ${result.data.lots.length} lot(s).`
       })
-      router.push('/gestionnaire/biens')
+      router.push(`/gestionnaire/biens/immeubles/${result.data.building.id}`)
 
     } catch (err) {
       logger.error("Error creating building:", err)

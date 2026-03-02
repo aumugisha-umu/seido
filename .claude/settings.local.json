@@ -74,7 +74,10 @@
       "WebFetch(domain:deepwiki.com)",
       "WebFetch(domain:support.exotel.com)",
       "WebFetch(domain:status.elevenlabs.io)",
-      "WebFetch(domain:www.npmjs.com)"
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:business.whatsapp.com)",
+      "WebFetch(domain:stripe.com)",
+      "WebFetch(domain:medium.com)"
     ],
     "deny": [],
     "ask": []

@@ -13,7 +13,7 @@
 import { createServerActionContractService } from '@/lib/services/domain/contract.service'
 import { createServerActionSupabaseClient } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
-import { revalidatePath, revalidateTag } from 'next/cache'
+// Pages are force-dynamic — no cache invalidation needed
 import { logger } from '@/lib/logger'
 import type {
   Contract,
@@ -119,26 +119,8 @@ async function getAuthContext() {
   }
 }
 
-/**
- * Verify user has access to a team
- */
-async function verifyTeamAccess(userId: string, teamId: string) {
-  const supabase = await createServerActionSupabaseClient()
-
-  const { data: membership, error } = await supabase
-    .from('team_members')
-    .select('id, role')
-    .eq('user_id', userId)
-    .eq('team_id', teamId)
-    .is('left_at', null)
-    .maybeSingle()
-
-  if (!membership || error) {
-    return { success: false, error: 'User is not a member of this team' }
-  }
-
-  return { success: true, role: membership.role }
-}
+// Team access is enforced by RLS policies (user_belongs_to_team_v2, can_manage_contract)
+// No manual verifyTeamAccess needed — the authenticated Supabase client handles this.
 
 // ============================================================================
 // CONTRACT CRUD ACTIONS
@@ -163,11 +145,7 @@ export async function createContract(
       return { success: false, error: auth.error }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, data.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Create contract
     const service = await createServerActionContractService()
@@ -181,12 +159,6 @@ export async function createContract(
         contractId: result.data.id,
         title: result.data.title
       })
-
-      // Invalidate caches
-      revalidateTag('contracts')
-      revalidateTag(`contracts-team-${data.team_id}`)
-      revalidateTag(`contracts-lot-${data.lot_id}`)
-      revalidatePath('/gestionnaire/contrats')
 
       return { success: true, data: result.data }
     }
@@ -226,24 +198,13 @@ export async function updateContract(
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, existing.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Update contract
     const result = await service.update(id, updates)
 
     if (result.success) {
       logger.info('✅ [CONTRACT-ACTION] Contract updated:', { id })
-
-      // Invalidate caches
-      revalidateTag('contracts')
-      revalidateTag(`contracts-team-${existing.team_id}`)
-      revalidateTag(`contract-${id}`)
-      revalidatePath('/gestionnaire/contrats')
-      revalidatePath(`/gestionnaire/contrats/${id}`)
 
       return { success: true, data: result.data }
     }
@@ -280,23 +241,13 @@ export async function deleteContract(id: string): Promise<ActionResult<null>> {
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, existing.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Delete contract
     const result = await service.delete(id, auth.user!.id)
 
     if (result.success) {
       logger.info('✅ [CONTRACT-ACTION] Contract deleted:', { id })
-
-      // Invalidate caches
-      revalidateTag('contracts')
-      revalidateTag(`contracts-team-${existing.team_id}`)
-      revalidateTag(`contract-${id}`)
-      revalidatePath('/gestionnaire/contrats')
 
       return { success: true, data: null }
     }
@@ -331,11 +282,7 @@ export async function getContract(id: string): Promise<ActionResult<ContractWith
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, contract.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     return { success: true, data: contract }
 
@@ -362,11 +309,7 @@ export async function getTeamContracts(
       return { success: false, error: auth.error }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, teamId)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Get contracts
     const service = await createServerActionContractService()
@@ -412,24 +355,13 @@ export async function activateContract(id: string): Promise<ActionResult<Contrac
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, existing.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Activate contract
     const result = await service.activate(id)
 
     if (result.success) {
       logger.info('✅ [CONTRACT-ACTION] Contract activated:', { id })
-
-      // Invalidate caches
-      revalidateTag('contracts')
-      revalidateTag(`contracts-team-${existing.team_id}`)
-      revalidateTag(`contract-${id}`)
-      revalidatePath('/gestionnaire/contrats')
-      revalidatePath(`/gestionnaire/contrats/${id}`)
 
       return { success: true, data: result.data }
     }
@@ -469,24 +401,13 @@ export async function terminateContract(
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, existing.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Terminate contract
     const result = await service.terminate(id, reason)
 
     if (result.success) {
       logger.info('✅ [CONTRACT-ACTION] Contract terminated:', { id })
-
-      // Invalidate caches
-      revalidateTag('contracts')
-      revalidateTag(`contracts-team-${existing.team_id}`)
-      revalidateTag(`contract-${id}`)
-      revalidatePath('/gestionnaire/contrats')
-      revalidatePath(`/gestionnaire/contrats/${id}`)
 
       return { success: true, data: result.data }
     }
@@ -526,11 +447,7 @@ export async function renewContract(
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, existing.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Renew contract
     const result = await service.renew(id, {
@@ -543,12 +460,6 @@ export async function renewContract(
         oldId: id,
         newId: result.data.id
       })
-
-      // Invalidate caches
-      revalidateTag('contracts')
-      revalidateTag(`contracts-team-${existing.team_id}`)
-      revalidateTag(`contract-${id}`)
-      revalidatePath('/gestionnaire/contrats')
 
       return { success: true, data: result.data }
     }
@@ -595,11 +506,7 @@ export async function addContractContact(
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, contract.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Add contact
     const result = await service.addContact(data)
@@ -609,10 +516,6 @@ export async function addContractContact(
         contractId: data.contract_id,
         contactId: result.data.id
       })
-
-      // Invalidate caches
-      revalidateTag(`contract-${data.contract_id}`)
-      revalidatePath(`/gestionnaire/contrats/${data.contract_id}`)
 
       return { success: true, data: result.data }
     }
@@ -625,6 +528,57 @@ export async function addContractContact(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
     }
+  }
+}
+
+/**
+ * Batch add contacts to a contract (replaces N × addContractContact loop).
+ * 1 auth check, 1 bulk insert, 1 cache invalidation.
+ * UNIQUE(contract_id, user_id, role) constraint protects against duplicates.
+ */
+export async function addContractContactsBatch(
+  contacts: Array<{
+    contract_id: string
+    user_id: string
+    role: string
+    is_primary: boolean
+  }>
+): Promise<ActionResult<{ successCount: number }>> {
+  try {
+    if (contacts.length === 0) {
+      return { success: true, data: { successCount: 0 } }
+    }
+
+    // 1 auth check for ALL contacts
+    const auth = await getAuthContext()
+    if (!auth.success) {
+      return { success: false, error: auth.error }
+    }
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Bulk INSERT all contacts at once (RLS enforces team access)
+    const contractId = contacts[0].contract_id
+    const { data, error } = await supabase
+      .from('contract_contacts')
+      .insert(contacts.map(c => ({
+        contract_id: c.contract_id,
+        user_id: c.user_id,
+        role: c.role,
+        is_primary: c.is_primary
+      })))
+      .select('id')
+
+    if (error) {
+      logger.error({ error, contractId }, 'Failed to batch insert contract contacts')
+      return { success: false, error: 'Échec de l\'ajout des contacts' }
+    }
+
+    logger.info({ count: data?.length || 0, contractId }, 'Batch contract contacts added')
+    return { success: true, data: { successCount: data?.length || 0 } }
+  } catch (error) {
+    logger.error({ error }, 'Unexpected error in addContractContactsBatch')
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
@@ -653,21 +607,13 @@ export async function updateContractContact(
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, contract.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Update contact
     const result = await service.updateContact(id, updates)
 
     if (result.success) {
       logger.info('✅ [CONTRACT-ACTION] Contract contact updated:', { id })
-
-      // Invalidate caches
-      revalidateTag(`contract-${contractId}`)
-      revalidatePath(`/gestionnaire/contrats/${contractId}`)
 
       return { success: true, data: result.data }
     }
@@ -707,21 +653,13 @@ export async function removeContractContact(
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, contract.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Remove contact
     const result = await service.removeContact(id)
 
     if (result.success) {
       logger.info('✅ [CONTRACT-ACTION] Contract contact removed:', { id })
-
-      // Invalidate caches
-      revalidateTag(`contract-${contractId}`)
-      revalidatePath(`/gestionnaire/contrats/${contractId}`)
 
       return { success: true, data: null }
     }
@@ -768,11 +706,7 @@ export async function addContractDocument(
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, contract.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Add document
     const result = await service.addDocument({
@@ -785,10 +719,6 @@ export async function addContractDocument(
         contractId: data.contract_id,
         documentId: result.data.id
       })
-
-      // Invalidate caches
-      revalidateTag(`contract-${data.contract_id}`)
-      revalidatePath(`/gestionnaire/contrats/${data.contract_id}`)
 
       return { success: true, data: result.data }
     }
@@ -828,21 +758,13 @@ export async function deleteContractDocument(
       return { success: false, error: 'Contract not found' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, contract.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Delete document
     const result = await service.deleteDocument(id, auth.user!.id)
 
     if (result.success) {
       logger.info('✅ [CONTRACT-ACTION] Contract document deleted:', { id })
-
-      // Invalidate caches
-      revalidateTag(`contract-${contractId}`)
-      revalidatePath(`/gestionnaire/contrats/${contractId}`)
 
       return { success: true, data: null }
     }
@@ -875,11 +797,7 @@ export async function getContractStats(
       return { success: false, error: auth.error }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, teamId)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Get stats
     const service = await createServerActionContractService()
@@ -910,11 +828,7 @@ export async function getExpiringContracts(
       return { success: false, error: auth.error }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, teamId)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Get expiring contracts
     const service = await createServerActionContractService()
@@ -1556,11 +1470,7 @@ export async function setExpiryDecision(
       return { success: false, error: 'Contrat introuvable' }
     }
 
-    // Verify team access
-    const teamAccess = await verifyTeamAccess(auth.user!.id, existing.team_id)
-    if (!teamAccess.success) {
-      return { success: false, error: teamAccess.error }
-    }
+    // Team access enforced by RLS (user_belongs_to_team_v2, can_manage_contract)
 
     // Merge expiry_decision into existing metadata
     const updatedMetadata = {
@@ -1580,13 +1490,6 @@ export async function setExpiryDecision(
         decision,
         decidedBy: auth.user!.id
       })
-
-      // Invalidate caches
-      revalidateTag('contracts')
-      revalidateTag(`contract-${contractId}`)
-      revalidateTag(`contracts-team-${existing.team_id}`)
-      revalidatePath('/gestionnaire/contrats')
-      revalidatePath(`/gestionnaire/contrats/${contractId}`)
 
       return { success: true, data: result.data }
     }

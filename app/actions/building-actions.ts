@@ -11,7 +11,7 @@
 import { createServerActionCompositeService, createServerActionBuildingService } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { createServiceRoleSubscriptionService } from '@/lib/services/domain/subscription-helpers'
-import { revalidatePath, revalidateTag } from 'next/cache'
+// Pages are force-dynamic — no cache invalidation needed
 import type { CreateCompletePropertyData, CompositeOperationResult } from '@/lib/services/domain/composite.service'
 import type { Building, Lot } from '@/lib/services/core/service-types'
 import { logger } from '@/lib/logger'
@@ -67,13 +67,6 @@ export async function createCompleteProperty(
         lotsCreated: result.data.lots.length
       })
 
-      // ✅ Revalidate using both tags and paths for guaranteed cache invalidation
-      revalidateTag('buildings')
-      revalidateTag(`buildings-team-${data.building.team_id}`)
-      revalidateTag('lots')
-      revalidateTag(`lots-team-${data.building.team_id}`)
-      revalidatePath('/gestionnaire/biens')
-      revalidatePath('/gestionnaire/biens/immeubles')
     } else {
       logger.error('❌ [SERVER-ACTION] Property creation failed:', result.error)
     }
@@ -198,37 +191,7 @@ export async function updateCompleteProperty(data: {
       }
     }
 
-    // Verify user is a member of the building's team
-    const { data: teamMembersCheck, error: teamCheckError } = await debugSupabase
-      .from('team_members')
-      .select('id, team_id, role, left_at')
-      .eq('user_id', userData.id)
-      .eq('team_id', existingBuilding.team_id)
-      .is('left_at', null)
-      .maybeSingle()
-
-    logger.info('🔍 [DEBUG] Team Membership Check (Update):', {
-      authUserId: authUser.id,
-      databaseUserId: userData.id,
-      teamId: existingBuilding.team_id,
-      hasTeamMembership: !!teamMembersCheck,
-      membershipRole: teamMembersCheck?.role,
-      teamCheckError: teamCheckError?.message
-    })
-
-    if (!teamMembersCheck) {
-      logger.error('❌ [AUTH-ERROR] User is not a member of this team!')
-      return {
-        success: false,
-        data: {
-          building: {} as Building,
-          lots: []
-        },
-        error: `User ${authUser.email} is not a member of team ${existingBuilding.team_id}`,
-        operations: []
-      }
-    }
-
+    // RLS enforces team access via is_team_manager(team_id) on buildings_update policy
     // Create server action composite service
     const compositeService = await createServerActionCompositeService()
 
@@ -248,16 +211,6 @@ export async function updateCompleteProperty(data: {
         lotsCount: result.data.lots.length
       })
 
-      // ✅ Revalidate using both tags and paths for guaranteed cache invalidation
-      revalidateTag('buildings')
-      revalidateTag(`buildings-team-${existingBuilding.team_id}`)
-      revalidateTag(`building-${data.buildingId}`)
-      revalidateTag('lots')
-      revalidateTag(`lots-team-${existingBuilding.team_id}`)
-      revalidatePath('/gestionnaire/biens')
-      revalidatePath('/gestionnaire/biens/immeubles')
-      revalidatePath(`/gestionnaire/biens/immeubles/${data.buildingId}`)
-      revalidatePath(`/gestionnaire/biens/immeubles/modifier/${data.buildingId}`)  // ✅ FIX: Invalidate edit page cache
     } else {
       logger.error('❌ [SERVER-ACTION] Property update failed:', result.error)
     }

@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Plus, Bell, ChevronDown, Building2, LayoutGrid, Home, Calendar, CreditCard } from "lucide-react"
+import { Plus, Bell, ChevronDown, ChevronLeft, ChevronRight, Building2, LayoutGrid, Home, Calendar, CreditCard, Car, Store, MoreHorizontal, ExternalLink } from "lucide-react"
+import { LOT_CATEGORY_CONFIG, type LotCategory } from "@/lib/lot-types"
 import { useRouter } from "next/navigation"
 import { TenantData, TenantIntervention } from "@/hooks/use-tenant-data"
 import { cn } from "@/lib/utils"
@@ -63,6 +64,15 @@ const calculateRemainingTime = (endDate?: string) => {
   return { text: `${months} mois restants`, isExpired: false, isExpiringSoon: false, days: diffDays }
 }
 
+// Map lot category to Lucide icon component
+const LOT_CATEGORY_ICONS: Record<string, typeof Building2> = {
+  appartement: Building2,
+  maison: Home,
+  garage: Car,
+  local_commercial: Store,
+  autre: MoreHorizontal,
+}
+
 interface LocataireDashboardHybridProps {
   tenantData: TenantData | null
   tenantProperties: TenantData[]
@@ -93,7 +103,11 @@ export default function LocataireDashboardHybrid({
   const router = useRouter()
   const { user } = useAuth()
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | 'all'>(tenantData?.id || 'all')
+  const [contractIndex, setContractIndex] = useState(0)
   const [isNotificationPopoverOpen, setIsNotificationPopoverOpen] = useState(false)
+
+  // Reset au bail actif quand on change de lot
+  useEffect(() => { setContractIndex(0) }, [selectedPropertyId])
 
   // Use server props with fallback to client-side values
   const displayName = serverUserName || user?.name || user?.email?.split('@')[0] || "Utilisateur"
@@ -133,6 +147,38 @@ export default function LocataireDashboardHybrid({
   if (error) return <div className="p-4 text-red-500">{error}</div>
   if (!tenantData) return null
 
+  // --- Dedup lots et groupement contrats ---
+  const contractsByLotId = new Map<string, TenantData[]>()
+  for (const p of tenantProperties) {
+    const existing = contractsByLotId.get(p.id) || []
+    contractsByLotId.set(p.id, [...existing, p])
+  }
+  // Tri : actif en premier par lot
+  contractsByLotId.forEach((entries, lotId) => {
+    contractsByLotId.set(lotId, [...entries].sort((a, b) => {
+      if (a.contract?.status === 'actif') return -1
+      if (b.contract?.status === 'actif') return 1
+      return 0
+    }))
+  })
+  // Un entry représentant par lot (actif en priorité)
+  const uniqueLots = Array.from(contractsByLotId.values()).map(entries => entries[0])
+
+  // --- Lot et contrat courants ---
+  const currentLot: TenantData = selectedPropertyId === 'all'
+    ? { id: 'all', reference: 'all', building: null }
+    : uniqueLots.find(l => l.id === selectedPropertyId) || tenantData
+
+  const lotContracts = selectedPropertyId === 'all'
+    ? [] : contractsByLotId.get(selectedPropertyId) || []
+
+  const currentContractEntry = lotContracts[contractIndex] ?? lotContracts[0]
+
+  // Compose : infos lot + contrat courant → downstream code inchangé
+  const currentProperty: TenantData = selectedPropertyId === 'all'
+    ? currentLot
+    : { ...currentLot, contract: currentContractEntry?.contract }
+
   // Filter interventions based on selected property
   // Includes building-level interventions when the selected lot is in the same building
   const filteredInterventions = selectedPropertyId === 'all'
@@ -142,29 +188,18 @@ export default function LocataireDashboardHybrid({
 
       // Cas 1: Intervention au niveau lot - lot_id doit matcher
       if (interventionLotId) {
-        return interventionLotId === selectedPropertyId
+        return interventionLotId === currentProperty.id
       }
 
       // Cas 2: Intervention au niveau immeuble - vérifier si le lot sélectionné est dans le même immeuble
-      const selectedProperty = tenantProperties.find(p => p.id === selectedPropertyId)
       const interventionBuildingId = i.building?.id || (i as any).building_id
-      return interventionBuildingId && selectedProperty?.building?.id === interventionBuildingId
+      return interventionBuildingId && currentProperty?.building?.id === interventionBuildingId
     })
 
   // Sort by date desc
   const sortedInterventions = [...filteredInterventions].sort((a, b) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
-
-  // Get current property display info
-  // When 'all' is selected, use a minimal object; otherwise use the actual property data
-  const currentProperty: TenantData = selectedPropertyId === 'all'
-    ? {
-        id: 'all',
-        reference: 'all',
-        building: null
-      }
-    : tenantProperties.find(p => p.id === selectedPropertyId) || tenantData
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
@@ -260,7 +295,12 @@ export default function LocataireDashboardHybrid({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-2 text-left hover:opacity-90 transition-opacity group">
-                    <Home className="h-5 w-5 opacity-70 flex-shrink-0" />
+                    {(() => {
+                      const TriggerIcon = selectedPropertyId === 'all'
+                        ? LayoutGrid
+                        : LOT_CATEGORY_ICONS[(currentProperty.category as LotCategory) || 'appartement'] || Building2
+                      return <TriggerIcon className="h-5 w-5 opacity-70 flex-shrink-0" />
+                    })()}
                     <div className="min-w-0">
                       <h2 className="text-xl font-bold flex items-center gap-2">
                         <span className="truncate">
@@ -273,14 +313,14 @@ export default function LocataireDashboardHybrid({
                       </h2>
                       <p className="text-white/80 text-sm mt-0.5 line-clamp-2 sm:line-clamp-1">
                         {selectedPropertyId === 'all'
-                          ? `${tenantProperties.length} logement${tenantProperties.length > 1 ? 's' : ''}`
+                          ? `${uniqueLots.length} logement${uniqueLots.length > 1 ? 's' : ''}`
                           : currentProperty.building?.address_record?.formatted_address
                             || `${currentProperty.building?.address_record?.street || ''}, ${currentProperty.building?.address_record?.postal_code || ''} ${currentProperty.building?.address_record?.city || ''}`}
                       </p>
                     </div>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-72">
+                <DropdownMenuContent align="start" className="w-80">
                   <DropdownMenuItem
                     onClick={() => setSelectedPropertyId('all')}
                     className={cn(
@@ -294,27 +334,31 @@ export default function LocataireDashboardHybrid({
                       <div className="text-xs text-gray-500">Tous les logements</div>
                     </div>
                   </DropdownMenuItem>
-                  {tenantProperties.map((property) => (
+                  {uniqueLots.map((lot) => {
+                    const LotIcon = LOT_CATEGORY_ICONS[(lot.category as LotCategory) || 'appartement'] || Building2
+                    return (
                     <DropdownMenuItem
-                      key={property.id}
-                      onClick={() => setSelectedPropertyId(property.id)}
+                      key={lot.id}
+                      onClick={() => setSelectedPropertyId(lot.id)}
                       className={cn(
                         "cursor-pointer",
-                        selectedPropertyId === property.id && "bg-slate-100"
+                        selectedPropertyId === lot.id && "bg-slate-100"
                       )}
                     >
-                      <Building2 className="h-4 w-4 mr-2" />
-                      <div className="flex-1">
-                        <div className="font-medium">
-                          {property.building?.name || property.reference}
-                          {property.apartment_number && ` - ${property.apartment_number}`}
+                      <LotIcon className="h-4 w-4 mr-2 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">
+                          {LOT_CATEGORY_CONFIG[(lot.category as LotCategory) || 'appartement']?.label || 'Lot'} {lot.reference}
+                          {lot.floor !== undefined && lot.floor !== null && (lot.floor === 0 ? ' · RDC' : ` · ${lot.floor}ème`)}
+                          {lot.apartment_number && ` · ${lot.apartment_number}`}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {property.building?.address_record?.street || property.building?.address_record?.formatted_address || ''}
+                        <div className="text-xs text-gray-500 truncate">
+                          {lot.building?.name}
+                          {lot.building?.address_record?.street && ` · ${lot.building.address_record.street}`}
                         </div>
                       </div>
                     </DropdownMenuItem>
-                  ))}
+                  )})}
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -332,6 +376,19 @@ export default function LocataireDashboardHybrid({
                       <span>{detail}</span>
                     </span>
                   ))}
+                </div>
+              )}
+
+              {/* "Voir les détails" button — pl-7 aligns with text (past icon+gap) */}
+              {selectedPropertyId !== 'all' && (
+                <div className="pl-7 mt-2">
+                <Link
+                  href={`/locataire/lots/${currentProperty.id}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white border border-white/40 rounded-md hover:bg-white/15 transition-colors"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Voir les détails
+                </Link>
                 </div>
               )}
             </div>
@@ -403,13 +460,38 @@ export default function LocataireDashboardHybrid({
                     )}
                   </p>
                 )}
+
+                {/* Navigation chevrons entre baux d'un même lot */}
+                {lotContracts.length > 1 && (
+                  <div className="mt-3 flex items-center lg:justify-end gap-2">
+                    <button
+                      onClick={() => setContractIndex(i => Math.max(0, i - 1))}
+                      disabled={contractIndex === 0}
+                      className="p-1 rounded hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                      aria-label="Bail précédent"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <span className="text-xs text-white/80 whitespace-nowrap">
+                      Bail {contractIndex + 1} sur {lotContracts.length}
+                    </span>
+                    <button
+                      onClick={() => setContractIndex(i => Math.min(lotContracts.length - 1, i + 1))}
+                      disabled={contractIndex === lotContracts.length - 1}
+                      className="p-1 rounded hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+                      aria-label="Bail suivant"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Overview stats when "all" is selected */}
             {selectedPropertyId === 'all' && (
               <div className="flex-shrink-0 lg:text-right lg:border-l lg:border-white/20 lg:pl-6 pt-4 lg:pt-0 border-t lg:border-t-0 border-white/20">
-                <p className="text-lg font-semibold">{tenantProperties.length} logement{tenantProperties.length > 1 ? 's' : ''}</p>
+                <p className="text-lg font-semibold">{uniqueLots.length} logement{uniqueLots.length > 1 ? 's' : ''}</p>
                 <p className="text-sm text-white/80">
                   {sortedInterventions.length} intervention{sortedInterventions.length !== 1 ? 's' : ''}
                 </p>

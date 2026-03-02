@@ -82,7 +82,73 @@
 - [x] **Lot Access Restriction** (2026-02-22) - Trial overage banner, locked lot cards, server-side gates
 - [x] **Billing Audit Fixes** (2026-02-22) - mapStripeStatus consolidation, fail-closed patterns, error boundaries
 
-## Sprint Actuel (Feb 2026)
+## Sprint Actuel (Mar 2026)
+
+### 2026-03-02 - Performance Optimization TIER 1+2 (13 stories)
+
+**Session: Comprehensive app-wide performance optimization from 6-agent audit**
+
+| Story | Title | Impact |
+|-------|-------|--------|
+| US-001 | Composite index conversation_participants | 1 new index (7 proposed already existed) |
+| US-002 | Remove redundant auth checks | ~80 lines removed, ~16 queries/action eliminated |
+| US-003 | Parallelize intervention edit page | 12 sequential → 3 phases |
+| US-004 | Parallelize 6 entity creation pages | Phase 0 → Wave 1 → Wave 2 pattern |
+| US-005 | Parallelize intervention API | Removed redundant FK validation |
+| US-006 | Parallelize 5 dashboards/detail pages | Parallel query chains |
+| US-007 | Batch rent reminder creation | 72+ queries → ~18 queries |
+| US-008 | Bulk contract contact insertion | N × (auth+insert) → 1 × (auth+bulk) |
+| US-009 | Defer invitation email to after() | Immediate response, email post-response |
+| US-010 | Remove dead revalidation code | ~85 calls, ~120 lines removed |
+| US-011 | Cache Stripe subscription info | unstable_cache 15min + webhook invalidation |
+| US-012 | RPC for thread unread counts | 15 queries → 1 RPC call |
+| US-013 | Stats head:true + contrats after() | Zero row data transfer for counts |
+
+**New patterns established:**
+- Server Component parallelization (Phase 0 → Wave 1 → Wave 2)
+- RLS-as-authorization (no manual auth checks needed)
+- next/server `after()` for deferred non-critical work
+- `SECURITY DEFINER` RPC for batch cross-RLS operations
+- Supabase bulk `.insert()` + `{ head: true }` for counts
+
+**Learnings added:** AGENTS.md #105-#110
+**Retrospective:** `docs/learnings/2026-03-02-performance-optimization-tier1-tier2-retrospective.md`
+
+---
+
+### 2026-03-02 - Post-Creation Redirect to Detail Page
+
+**Session: UX improvement — 4 one-line edits in 3 files**
+
+| Entity | Before | After |
+|--------|--------|-------|
+| Immeuble | `/gestionnaire/biens` (list) | `/gestionnaire/biens/immeubles/{id}` (detail) |
+| Lot (single) | `/gestionnaire/biens` (list) | `/gestionnaire/biens/lots/{id}` (detail) |
+| Lot (multi independent) | `/gestionnaire/biens` (list) | `/gestionnaire/biens/lots/{firstId}` (detail) |
+| Contact (standalone) | `/gestionnaire/contacts` (list) | `/gestionnaire/contacts/details/{id}` (detail) |
+
+Also removed redundant `router.refresh()` after `router.push()`.
+**Learning:** AGENTS.md #104
+
+---
+
+### 2026-03-01 - Confirmation Logic + Slot-Count Business Rules + Billing Polish
+
+**Session: Multi-topic fixes — business logic, billing UI, onboarding**
+
+| Change | Description |
+|--------|-------------|
+| Slot-count logic | `isMultiSlot = schedulingType === 'slots' && timeSlots.length >= 2` — 1 slot = Date fixe behavior |
+| Non-invited contacts | Confirmation logic fix for contacts without accounts |
+| Billing interval | Enhanced monthly/yearly display in subscription UI |
+| Onboarding checklist | Swapped steps 2↔3, hid useless building option |
+| Beta gate removal | Removed beta access check from signup page |
+
+**Learnings:** AGENTS.md #101-#103
+
+---
+
+## Previous Sprint (Feb 2026)
 
 ### 2026-02-26 - Unify Document Preview & Download (Ralph, 4 stories)
 
@@ -396,33 +462,33 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-02-22)
+## Metriques Projet (2026-03-02)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | **21** (+2: subscription, stripe-customer) |
-| Domain Services | **34** (+2: subscription, subscription-email) |
-| API Routes | **120** (+6: 4 CRON, 1 webhook, 1 settings) |
-| Hooks | **71** (+3: useSubscription, useStrategicNotification, useDocumentActions) |
-| Components | **381** (+11: billing UI) |
-| Pages | **89** (+1: billing settings) |
+| Repositories | **21** |
+| Domain Services | **34** |
+| API Routes | **120** |
+| Hooks | **71** |
+| Components | **381** |
+| Pages | **90** |
 | Blog Articles | **2** (Jan 2026, Feb 2026) |
 | DB Tables | **44** |
 | DB Enums | 39 |
-| DB Functions | **79** (+5: subscription helpers) |
-| Migrations | **176** (+9: 4 Stripe, 2 trial init, 1 signup fix, 1 RLS team_members, 1 storage auth) |
+| DB Functions | **80** (+1: get_thread_unread_counts) |
+| Migrations | **178** (+2: conversation_participants index, unread counts RPC) |
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **95** (+18: #078-#095) |
-| **systemPatterns.md Patterns** | **29** |
+| **AGENTS.md Learnings** | **110** (+15: #096-#103 slot/billing, #104 redirect, #105-#110 perf) |
+| **systemPatterns.md Patterns** | **32** (+3: parallelization, after(), RLS-as-auth) |
 | **Shared Cards** | **15** |
 | **Quote Status Enum (DB)** | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
 | **E2E Test Files** | **8** (smoke, building, lot, contract, 4 intervention) |
 | **E2E Page Objects** | **8** (dashboard, login, 3 wizards, 3 intervention) |
 | **E2E Total Tests** | **25+** (wizards) + intervention workflow |
-| **Unit Test Files** | **12** (+5: Stripe tests) |
-| **Integration Test Files** | **5** (+1: Stripe) |
+| **Unit Test Files** | **12** |
+| **Integration Test Files** | **5** |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
 
@@ -486,7 +552,15 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | **2026-02-26** | **requireRole → getServerAuthContext** | **Consistent auth pattern, cache() dedup, team context** | **7 files migrated, 0 requireRole in app/ pages, AGENTS.md #087** |
 | **2026-02-26** | **Storage bucket + RLS auth fix** | **404 bucket not found, auth.uid() ≠ users.id** | **Migration, 3 upload routes, `get_my_profile_ids()` in storage policies** |
 | **2026-02-26** | **useDocumentActions shared hook** | **Unify document preview/download across 3 roles** | **1 hook, 3 consumers, ~160 lines duplication eliminated, AGENTS.md #093-#095** |
+| **2026-03-01** | **Slot-count business logic** | **1 slot = Date fixe, 2+ = mandatory confirmation** | **isMultiSlot derivation shared across UI + API, AGENTS.md #101-#103** |
+| **2026-03-02** | **Server Component parallelization** | **Phase 0 → Wave 1 → Wave 2 for all page.tsx** | **11 pages parallelized, up to 12→3 sequential phases, AGENTS.md #105** |
+| **2026-03-02** | **RLS-as-authorization** | **Remove manual team_members auth checks** | **~80 lines removed, ~16 queries/action eliminated, AGENTS.md #106** |
+| **2026-03-02** | **next/server after()** | **Defer emails/notifications post-response** | **Invitation email response now immediate, AGENTS.md #107** |
+| **2026-03-02** | **unstable_cache on force-dynamic** | **Data cache works independently of route cache** | **Subscription cached 15min + webhook invalidation, AGENTS.md #108** |
+| **2026-03-02** | **SECURITY DEFINER RPC batch** | **Single SQL function for N×M cross-RLS queries** | **Thread unread: 15 queries → 1 RPC, AGENTS.md #109** |
+| **2026-03-02** | **Supabase bulk patterns** | **Array .insert() + { head: true } for counts** | **Rent reminders 72→18 queries, stats zero data transfer, AGENTS.md #110** |
+| **2026-03-02** | **Post-creation redirect** | **Entity creation → detail page, not list** | **4 entities fixed, router.refresh() removed, AGENTS.md #104** |
 
 ---
-*Derniere mise a jour: 2026-02-26*
-*Session: Document preview unification complete, 95 learnings in AGENTS.md*
+*Derniere mise a jour: 2026-03-02*
+*Session: Performance optimization TIER 1+2 (13 stories) + post-creation redirect UX, 110 learnings in AGENTS.md*

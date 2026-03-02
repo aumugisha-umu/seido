@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-01
-**Total Learnings:** 103
+**Last Updated:** 2026-03-02
+**Total Learnings:** 110
 
 ---
 
@@ -178,6 +178,13 @@
 **Example:** `components/contacts/contact-selector.tsx`
 **When to Use:** When embedding selection logic in custom modal layouts
 **Added:** 2026-02-04 | **Source:** Provider assignment modal refactor
+
+#### Learning #104: router.push() makes router.refresh() redundant — and post-creation should redirect to detail
+**Problem:** After entity creation, `router.push('/list')` followed by `router.refresh()` is unnecessary. Also, redirecting to the list page forces the user to hunt for the entity they just created.
+**Solution:** (1) `router.push()` to a new route already fetches fresh Server Component data — `refresh()` is only needed when re-fetching the *current* route after a mutation. (2) Always redirect to the detail page after creation: `router.push(\`/entity/${id}\`)`. The entity ID is always available in scope from the creation response.
+**Example:** `building-creation-form.tsx:978`, `lot-creation-form.tsx:1502+1639`, `contact-creation-client.tsx:432`
+**When to Use:** Any form that creates an entity and needs to redirect after success
+**Added:** 2026-03-02 | **Source:** Post-creation redirect UX improvement
 
 ### Notifications
 
@@ -401,6 +408,48 @@
 **Example:** `app/gestionnaire/(with-navbar)/mail/page.tsx:124-290` — mirrors `app/api/email-linked-entities/route.ts`
 **When to Use:** Any SSR page that has a corresponding API endpoint — verify both paths use the same filtering logic
 **Added:** 2026-02-23 | **Source:** Mail sidebar showing all DB entities instead of only email-linked ones
+
+#### Learning #105: Server Component page parallelization — Phase 0 → Wave 1 → Wave 2
+**Problem:** Server Component pages with 8-12 sequential `await` calls (service inits + queries) add up to 500ms+ total wait time. Each `await` blocks the next, even when queries are independent.
+**Solution:** Structure every Server Component page in 3 phases: **Phase 0** — `Promise.all` for service instantiations (5-10ms each but sequential = 50ms). **Wave 1** — `Promise.all` for all independent queries (buildings, lots, teamMembers, etc.). **Wave 2** — sequential queries that depend on Wave 1 results (e.g., signedUrls need documents). For async IIFE inside Promise.all when a query needs intermediate transforms: `(async () => { const raw = await fetch(); return transform(raw); })()`.
+**Example:** `interventions/modifier/[id]/page.tsx` (12→3 sequential phases), `nouvelle-intervention/page.tsx`, `contrats/nouveau/page.tsx`
+**When to Use:** Any Server Component page.tsx with 3+ sequential `await` calls — audit and parallelize
+**Added:** 2026-03-02 | **Source:** Performance optimization US-003/004/006 — 11 pages parallelized
+
+#### Learning #106: RLS makes manual team_members auth checks redundant in server actions
+**Problem:** Server actions had manual `team_members` queries (e.g., `verifyTeamAccess()`, `supabase.from('team_members').select().eq('user_id', user.id)`) BEFORE the actual data operation. With an authenticated Supabase client (session cookie), RLS policies like `is_team_manager(team_id)` and `user_belongs_to_team_v2()` already enforce the exact same access control. Result: ~16 redundant DB queries per action flow, ~50ms each.
+**Solution:** Delete manual team_members auth checks in server actions. The authenticated client's RLS is the real access control. If the action uses `getServerActionAuthContextOrNull()`, the user is authenticated — RLS handles authorization. Exception: when you need the team_members data for business logic (not just access control).
+**Example:** `contract-actions.ts` (deleted `verifyTeamAccess()` + 16 callsites), `building-actions.ts`, `lot-actions.ts`, `intervention-actions.ts`
+**When to Use:** Any server action that queries `team_members` purely for access control before a Supabase data operation
+**Added:** 2026-03-02 | **Source:** Performance optimization US-002 — ~80 lines removed, ~16 DB queries eliminated
+
+#### Learning #107: next/server after() for deferred non-critical work
+**Problem:** Server actions and API routes waited for emails, notifications, and activity_logs INSERTs before returning a response. The user sees a spinner until ALL side effects complete — even though emails take 200-500ms and don't affect the response payload.
+**Solution:** Use `after()` from `next/server` to defer non-critical work to post-response execution. The response returns immediately after DB mutations, and side effects run afterward. Pattern: capture all needed variables as `const` BEFORE the `after()` closure (closure captures references). Keep synchronous work that affects the response (e.g., `generateLink()` for hashed tokens) OUTSIDE `after()`.
+**Example:** `app/api/invite-user/route.ts` — emails + activity_logs deferred. `contract-form-container.tsx` — notifications fire-and-forget with `.catch(() => {})`.
+**When to Use:** Any API route or server action where emails, push notifications, activity logs, or analytics can run after the response
+**Added:** 2026-03-02 | **Source:** Performance optimization US-009 — invitation email response time
+
+#### Learning #108: force-dynamic pages — revalidation is dead code, but unstable_cache still works
+**Problem:** Two distinct misunderstandings: (1) `revalidatePath`/`revalidateTag` calls in server actions that only affect force-dynamic pages — these are dead code because there's no route cache to invalidate. Each call costs ~1-2ms of synchronous no-op. (2) Thinking `unstable_cache` won't work on force-dynamic pages — it DOES because `unstable_cache` is a DATA cache (stored in the data cache store), separate from the route cache (full-page cache). Tags on `unstable_cache` entries can be invalidated with `revalidateTag()`.
+**Solution:** (1) Audit and remove all `revalidatePath`/`revalidateTag` calls in server actions when pages are force-dynamic and no `unstable_cache` entries use those tags. Keep only `revalidatePath('/', 'layout')` for full auth state changes (login/signup). (2) USE `unstable_cache` for expensive, rarely-changing queries (e.g., Stripe subscription info, reference data) even on force-dynamic pages — it saves DB round-trips between `revalidate` intervals.
+**Example:** `app/gestionnaire/layout.tsx` — `getCachedSubscriptionInfo` with `revalidate: 900` + webhook invalidation. 7 action files cleaned of ~85 dead revalidation calls.
+**When to Use:** Before adding `revalidatePath` — check if target page is force-dynamic (if so, it's a no-op). Before dismissing `unstable_cache` — it works regardless of route caching strategy.
+**Added:** 2026-03-02 | **Source:** Performance optimization US-010+011 — dead code removal + subscription caching
+
+#### Learning #109: SECURITY DEFINER RPC for batch operations crossing multiple RLS-protected tables
+**Problem:** Computing unread counts per conversation thread required 3 queries per thread: (1) get participant row, (2) get last_read timestamp, (3) count messages after last_read. With 5 threads, that's 15 sequential queries, each going through RLS evaluation. N×M query pattern that scales terribly.
+**Solution:** Create a SQL RPC function with `SECURITY DEFINER` that accepts an array of thread IDs and a user ID. Uses `unnest()` + `LEFT JOIN` for batch processing across `conversation_participants` and `conversation_messages`. Returns `(thread_id, unread_count)` rows. `GRANT EXECUTE ON FUNCTION ... TO authenticated` ensures only logged-in users can call it. Call with `supabase.rpc('get_thread_unread_counts', { p_thread_ids: ids, p_user_id: userId })`.
+**Example:** `supabase/migrations/20260302110000_create_get_thread_unread_counts_rpc.sql`, all 3 role intervention detail pages
+**When to Use:** Any N×M query pattern where N entities need M lookups across RLS-protected tables — batch into a single RPC
+**Added:** 2026-03-02 | **Source:** Performance optimization US-012 — 15 queries → 1 RPC call
+
+#### Learning #110: Supabase bulk patterns — array .insert() + { head: true } for counts
+**Problem:** Two common sub-optimal patterns: (1) Looping N individual server action calls (each with auth + service init + insert) instead of batching. E.g., 12 rent reminder interventions = 72+ queries. (2) Fetching full rows just to count them — `select('*')` then `.length` transfers all row data over the wire.
+**Solution:** (1) **Bulk insert**: `supabase.from('table').insert([row1, row2, ...])` accepts arrays. Create a batch server action that does 1 auth check + 1 bulk insert instead of N × (auth + insert). For updates with different values per row, `Promise.all` individual updates (no bulk update API). (2) **Count-only queries**: `supabase.from('table').select('*', { count: 'exact', head: true }).eq(...)` returns only the count in HTTP headers — zero row data transferred. Use for dashboards, stats, quota checks.
+**Example:** `intervention-actions.ts:createBatchRentRemindersAction` (72→18 queries), `stats.repository.ts` (7 count queries with head:true)
+**When to Use:** Any loop of individual insert actions (batch them) or any query where you only need the count (use head:true)
+**Added:** 2026-03-02 | **Source:** Performance optimization US-007/008/013 — batch operations + stats optimization
 
 ### Security
 

@@ -105,27 +105,30 @@ interface LotDetailsClientProps {
     [key: string]: unknown
   }
   interventions: Intervention[]
-  contacts: LotContact[]
-  buildingContacts: LotContact[]
+  contacts?: LotContact[]
+  buildingContacts?: LotContact[]
   interventionsWithDocs: Intervention[]
   contracts: ContractWithRelations[]
   isOccupied: boolean
   teamId: string
   lotAddress?: LotAddress | null
+  role?: 'gestionnaire' | 'locataire'
 }
 
 export default function LotDetailsClient({
   lot,
   interventions,
-  contacts: initialContacts,
-  buildingContacts,
+  contacts: initialContacts = [],
+  buildingContacts = [],
   interventionsWithDocs,
   contracts,
   isOccupied: initialIsOccupied,
   teamId,
-  lotAddress
+  lotAddress,
+  role = 'gestionnaire'
 }: LotDetailsClientProps) {
-  const [activeTab, setActiveTab] = useState("overview")
+  const isLocataire = role === 'locataire'
+  const [activeTab, setActiveTab] = useState("general")
   const router = useRouter()
 
   // Local state
@@ -236,7 +239,9 @@ export default function LotDetailsClient({
   }
 
   const handleBack = () => {
-    if (lot.building?.id) {
+    if (isLocataire) {
+      router.push('/locataire/dashboard')
+    } else if (lot.building?.id) {
       router.push(`/gestionnaire/biens/immeubles/${lot.building.id}`)
     } else {
       router.push('/gestionnaire/biens')
@@ -404,14 +409,17 @@ export default function LotDetailsClient({
   })
 
   // Tabs configuration for EntityTabs
-  const lotTabs: TabConfig[] = [
-    { value: "overview", label: "Vue d'ensemble" },
+  const allTabs: TabConfig[] = [
+    { value: "general", label: "Général" },
+    { value: "contacts", label: "Contacts" },
     { value: "contracts", label: "Contrats", count: contracts.length },
     { value: "interventions", label: "Interventions", count: interventionStats.total },
     { value: "documents", label: "Documents" },
     { value: "emails", label: "Emails" },
     { value: "activity", label: "Activité" }
   ]
+  const locataireTabs = ['general', 'contracts', 'interventions', 'documents']
+  const lotTabs = isLocataire ? allTabs.filter(t => locataireTabs.includes(t.value)) : allTabs
 
   // Prepare header data
   const headerBadges: DetailPageHeaderBadge[] = []
@@ -459,24 +467,9 @@ export default function LotDetailsClient({
 
   const addressText = getAddressText()
 
-  const headerMetadata: DetailPageHeaderMetadata[] = [
-    // Show building name only if lot belongs to a building
-    lot.building && {
-      icon: Building2,
-      text: lot.building.name
-    },
-    // Show address (lot's own or building's)
-    addressText && {
-      icon: MapPin,
-      text: addressText
-    },
-    lot.floor !== undefined && {
-      icon: Info,
-      text: `Étage ${lot.floor}`
-    }
-  ].filter(Boolean) as DetailPageHeaderMetadata[]
+  const headerMetadata: DetailPageHeaderMetadata[] = []
 
-  const primaryActions: DetailPageHeaderAction[] = [
+  const primaryActions: DetailPageHeaderAction[] = isLocataire ? [] : [
     {
       label: 'Modifier',
       icon: EditIcon,
@@ -491,7 +484,7 @@ export default function LotDetailsClient({
     }
   ]
 
-  const dropdownActions: DetailPageHeaderAction[] = [
+  const dropdownActions: DetailPageHeaderAction[] = isLocataire ? [] : [
     {
       label: 'Archiver',
       icon: Archive,
@@ -535,37 +528,88 @@ export default function LotDetailsClient({
             onTabChange={setActiveTab}
             tabs={lotTabs}
           >
-            {/* Overview Tab */}
-            <TabContentWrapper value="overview">
-            {/* Section 1: Description (if exists) */}
+            {/* Général Tab */}
+            <TabContentWrapper value="general">
+            {/* Description (if exists) */}
             {lot.description && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
-                <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-foreground whitespace-pre-wrap flex-1">{lot.description}</p>
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Info className="h-4 w-4" />
+                  Description
+                </h3>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap px-1">{lot.description}</p>
               </div>
             )}
 
-            {/* Section 1.6: Map Preview (if coordinates available) */}
-            {lotAddress && lotAddress.latitude && lotAddress.longitude && (
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3 px-1 flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Localisation
-                </h3>
+            {/* Localisation */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Localisation
+              </h3>
+              {/* Breadcrumb: Building › Lot • Address */}
+              <div className="flex items-center gap-1.5 text-sm flex-wrap">
+                {lot.building && (
+                  isLocataire ? (
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{lot.building.name}</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => router.push(`/gestionnaire/biens/immeubles/${lot.building!.id}`)}
+                      className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                    >
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium hover:underline">{lot.building.name}</span>
+                    </button>
+                  )
+                )}
+                {lot.building && (
+                  <span className="text-muted-foreground">›</span>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <Home className="h-4 w-4 text-muted-foreground" />
+                  <span>Lot {lot.reference}</span>
+                </div>
+                {addressText && (
+                  <>
+                    <span className="text-muted-foreground hidden sm:inline">•</span>
+                    <span className="text-muted-foreground">{addressText}</span>
+                  </>
+                )}
+                {(lot.floor !== undefined && lot.floor !== null || lot.apartment_number) && (
+                  <>
+                    <span className="text-muted-foreground hidden sm:inline">•</span>
+                    <span className="text-muted-foreground">
+                      {[
+                        lot.floor !== undefined && lot.floor !== null && `Étage ${lot.floor}`,
+                        lot.apartment_number && `Porte ${lot.apartment_number}`
+                      ].filter(Boolean).join(', ')}
+                    </span>
+                  </>
+                )}
+              </div>
+              {/* Map */}
+              {lotAddress?.latitude && lotAddress?.longitude &&
+               !(lotAddress.latitude === 0 && lotAddress.longitude === 0) && (
                 <GoogleMapsProvider>
                   <GoogleMapPreview
                     latitude={lotAddress.latitude}
                     longitude={lotAddress.longitude}
                     address={lotAddress.formatted_address || lot.building?.address || undefined}
-                    height={250}
-                    className="rounded-lg border border-border shadow-sm"
+                    height="clamp(200px, calc(100vh - 420px), 600px)"
                     showOpenButton={true}
+                    className="rounded-lg border border-border shadow-sm"
                   />
                 </GoogleMapsProvider>
-              </div>
-            )}
+              )}
+            </div>
+            </TabContentWrapper>
 
-            {/* Section 2: Contacts Preview - Grid Only (tenants hidden, they come from contracts) */}
+            {/* Contacts Tab */}
+            <TabContentWrapper value="contacts">
+            {/* Contacts du lot */}
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-3 px-1">Contacts du lot</h3>
               <LotContactsGridPreview
@@ -587,7 +631,7 @@ export default function LotDetailsClient({
               />
             </div>
 
-            {/* Section 3: Contract Contacts - Grouped by Contract */}
+            {/* Contacts liés aux contrats */}
             {hasContractContacts && (
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-3 px-1 flex items-center gap-2">
@@ -703,12 +747,14 @@ export default function LotDetailsClient({
                 <ScrollText className="h-12 w-12 text-muted-foreground/30 mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-1">Aucun contrat</h3>
                 <p className="text-sm text-muted-foreground max-w-md mb-4">
-                  Aucun contrat n'a été créé pour ce lot.
+                  {isLocataire ? "Aucun contrat n'est associé à ce lot." : "Aucun contrat n'a été créé pour ce lot."}
                 </p>
-                <Button onClick={() => router.push(`/gestionnaire/contrats/nouveau?lotId=${lot.id}`)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Créer un contrat
-                </Button>
+                {!isLocataire && (
+                  <Button onClick={() => router.push(`/gestionnaire/contrats/nouveau?lotId=${lot.id}`)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Créer un contrat
+                  </Button>
+                )}
               </div>
             ) : (
               <ContractsNavigator
@@ -723,12 +769,12 @@ export default function LotDetailsClient({
             <TabContentWrapper value="interventions">
               <InterventionsNavigator
             interventions={interventions as any}
-            userContext="gestionnaire"
+            userContext={role}
             loading={false}
             emptyStateConfig={{
               title: "Aucune intervention",
               description: "Aucune intervention n'a été créée pour ce lot.",
-              showCreateButton: true,
+              showCreateButton: !isLocataire,
               createButtonText: "Créer une intervention",
               createButtonAction: () => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)
             }}
@@ -796,18 +842,20 @@ export default function LotDetailsClient({
         </EntityPreviewLayout>
       </div>
 
-        {/* Delete Confirmation Modal */}
-        <DeleteConfirmModal
-          isOpen={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={confirmDelete}
-          title="Confirmer la suppression"
-          message="Êtes-vous sûr de vouloir supprimer ce lot ? Cette action supprimera également toutes les données associées (interventions, contacts, etc.)."
-          itemName={lot?.reference}
-          itemType="lot"
-          isLoading={isDeleting}
-          danger={true}
-        />
+        {/* Delete Confirmation Modal (gestionnaire only) */}
+        {!isLocataire && (
+          <DeleteConfirmModal
+            isOpen={showDeleteModal}
+            onClose={() => setShowDeleteModal(false)}
+            onConfirm={confirmDelete}
+            title="Confirmer la suppression"
+            message="Êtes-vous sûr de vouloir supprimer ce lot ? Cette action supprimera également toutes les données associées (interventions, contacts, etc.)."
+            itemName={lot?.reference}
+            itemType="lot"
+            isLoading={isDeleting}
+            danger={true}
+          />
+        )}
       </div>
     </>
   )

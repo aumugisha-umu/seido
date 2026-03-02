@@ -1,8 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Building2, Lock } from 'lucide-react'
+import { CreditCard, Building2, Lock, Plus } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/tooltip'
 import { useSidebar } from '@/components/ui/sidebar'
 import { useSubscription } from '@/hooks/use-subscription'
+import { UpgradeModal } from '@/components/billing/upgrade-modal'
 import { cn } from '@/lib/utils'
 import { FREE_TIER_LIMIT } from '@/lib/stripe'
 import type { SubscriptionStatus } from '@/lib/services/domain/subscription.service'
@@ -67,7 +69,9 @@ export function SubscriptionSidebarCard() {
     hasStripeSubscription,
     billingInterval,
     daysLeftTrial,
+    refresh,
   } = useSubscription()
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
 
   const planLabel = getPlanLabel(isFreeTier, hasStripeSubscription, status?.status, billingInterval)
   const actualLots = status?.actual_lots ?? 0
@@ -78,8 +82,8 @@ export function SubscriptionSidebarCard() {
   const isOverage = isTrialing && actualLots > FREE_TIER_LIMIT
   const lockedCount = isOverage ? actualLots - FREE_TIER_LIMIT : 0
 
-  // During trial, always show X/2 to communicate free tier limit
-  const maxLots = isTrialing ? FREE_TIER_LIMIT : isFreeTier ? FREE_TIER_LIMIT : subscribedLots || actualLots
+  // maxLots: trial (no overage) has no limit shown; overage shows X/2; others show subscribed or free tier
+  const maxLots = isFreeTier ? FREE_TIER_LIMIT : subscribedLots || actualLots
   const usagePercent = maxLots > 0 ? Math.min(100, Math.round((actualLots / maxLots) * 100)) : 0
 
   // Days text for overage warning
@@ -99,7 +103,9 @@ export function SubscriptionSidebarCard() {
 
     const tooltipText = isOverage
       ? `Essai — ${actualLots}/${FREE_TIER_LIMIT} lots — ${lockedCount} seront verrouillés`
-      : `Abonnement: ${planLabel} — ${actualLots}/${maxLots} lots`
+      : isTrialing
+        ? `Essai — ${actualLots} lot${actualLots !== 1 ? 's' : ''}`
+        : `Abonnement: ${planLabel} — ${actualLots}/${maxLots} lots`
 
     return (
       <div className="flex justify-center py-2">
@@ -176,38 +182,63 @@ export function SubscriptionSidebarCard() {
   }
 
   // ── Default variant: normal card ──────────────────────────────────────
+  const showAddLotsButton = hasStripeSubscription && !isTrialing && !isFreeTier
+
   return (
-    <Link
-      href="/gestionnaire/parametres"
-      className="group mx-2 block rounded-lg bg-sidebar-accent/50 p-3 transition-colors hover:bg-sidebar-accent"
-    >
-      {/* Row 1: Plan label + status dot */}
-      <div className="flex items-center gap-2">
-        <CreditCard className="size-4 text-sidebar-foreground/60 flex-shrink-0" />
-        <span className="text-sm font-medium text-sidebar-foreground truncate">
-          {planLabel}
-        </span>
-        <span
-          className={cn(
-            'ml-auto h-2 w-2 rounded-full flex-shrink-0',
-            getStatusDotColor(status?.status, false),
+    <>
+      <div className="group mx-2 rounded-lg bg-sidebar-accent/50 p-3 transition-colors hover:bg-sidebar-accent">
+        <Link href="/gestionnaire/parametres" className="block">
+          {/* Row 1: Plan label + status dot */}
+          <div className="flex items-center gap-2">
+            <CreditCard className="size-4 text-sidebar-foreground/60 flex-shrink-0" />
+            <span className="text-sm font-medium text-sidebar-foreground truncate">
+              {planLabel}
+            </span>
+            <span
+              className={cn(
+                'ml-auto h-2 w-2 rounded-full flex-shrink-0',
+                getStatusDotColor(status?.status, false),
+              )}
+            />
+          </div>
+
+          {/* Row 2: Lot count */}
+          <div className="mt-1.5 flex items-center gap-2">
+            <Building2 className="size-3.5 text-sidebar-foreground/50 flex-shrink-0" />
+            <span className="text-xs text-sidebar-foreground/70">
+              {isTrialing ? `${actualLots} lot${actualLots !== 1 ? 's' : ''}` : `${actualLots}/${maxLots} lots`}
+            </span>
+          </div>
+
+          {/* Row 3: Progress bar (hidden during trial — no limit) */}
+          {!isTrialing && (
+            <Progress
+              value={usagePercent}
+              className="mt-2 h-1.5 bg-sidebar-foreground/10"
+            />
           )}
-        />
+        </Link>
+
+        {/* Row 4: Add lots button (active paid subscriptions only) */}
+        {showAddLotsButton && (
+          <button
+            type="button"
+            onClick={() => setUpgradeModalOpen(true)}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md py-1 text-xs text-sidebar-foreground/60 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground transition-colors"
+          >
+            <Plus className="size-3.5" />
+            Ajouter des lots
+          </button>
+        )}
       </div>
 
-      {/* Row 2: Lot count */}
-      <div className="mt-1.5 flex items-center gap-2">
-        <Building2 className="size-3.5 text-sidebar-foreground/50 flex-shrink-0" />
-        <span className="text-xs text-sidebar-foreground/70">
-          {actualLots}/{maxLots} lots
-        </span>
-      </div>
-
-      {/* Row 3: Progress bar */}
-      <Progress
-        value={usagePercent}
-        className="mt-2 h-1.5 bg-sidebar-foreground/10"
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        currentLots={actualLots}
+        subscribedLots={subscribedLots}
+        onUpgradeComplete={refresh}
       />
-    </Link>
+    </>
   )
 }

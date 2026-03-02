@@ -54,51 +54,36 @@ export default async function EditContractPage({
     notFound()
   }
 
-  // Initialize services
-  const buildingService = await createServerBuildingService()
-  const lotService = await createServerLotService()
-  const contactService = await createServerContactService()
+  // ── Phase 0: Service instantiation (stateless factories, contractService already created) ──
+  const [buildingService, lotService, contactService] = await Promise.all([
+    createServerBuildingService(),
+    createServerLotService(),
+    createServerContactService(),
+  ])
 
-  // Load buildings with lots (for PropertySelector) - same as creation page
-  const buildingsResult = await buildingService.getBuildingsByTeam(team.id)
+  // ── Wave 1: All independent queries in parallel ───────────────────────
+  const [buildingsResult, occupiedResult, lotsResult, contactsResult] = await Promise.all([
+    buildingService.getBuildingsByTeam(team.id),
+    contractService.getOccupiedLotIdsByTeam(team.id).catch(() => ({ success: false as const, data: new Set<string>() })),
+    lotService.getLotsByTeam(team.id),
+    contactService.getContactsByTeam(team.id),
+  ])
+
+  // ── Sequential transforms (CPU only, no DB) ──────────────────────────
+  const occupiedLotIds = occupiedResult.success ? occupiedResult.data : new Set<string>()
+
   let buildings = buildingsResult.success ? (buildingsResult.data || []) : []
-
-  // ✅ 2025-12-26: Get occupied lot IDs from ACTIVE CONTRACTS (not lot_contacts)
-  let occupiedLotIds = new Set<string>()
-  try {
-    const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
-    if (occupiedResult.success) {
-      occupiedLotIds = occupiedResult.data
-      logger.info('✅ [EDIT-CONTRACT-PAGE] Occupied lots from contracts:', {
-        count: occupiedLotIds.size
-      })
-    }
-  } catch (error) {
-    logger.warn('⚠️ [EDIT-CONTRACT-PAGE] Could not get occupied lots from contracts')
-  }
-
-  // Transform buildings lots to add status field
   buildings = buildings.map((building: any) => ({
     ...building,
     lots: (building.lots || []).map((lot: any) => {
-      // ✅ 2025-12-26: Use contracts-based occupation instead of lot_contacts
       const isOccupied = occupiedLotIds.has(lot.id)
-      return {
-        ...lot,
-        is_occupied: isOccupied,
-        status: isOccupied ? "occupied" : "vacant"
-      }
+      return { ...lot, is_occupied: isOccupied, status: isOccupied ? "occupied" : "vacant" }
     })
   }))
 
   logger.info('✅ [EDIT-CONTRACT-PAGE] Buildings loaded', { count: buildings.length })
 
-  // Load individual lots (for PropertySelector)
-  const lotsResult = await lotService.getLotsByTeam(team.id)
   const rawLots = lotsResult.success ? (lotsResult.data || []) : []
-
-  // Transform lots to add status and building_name
-  // ✅ 2025-12-26: Use contracts-based occupation instead of lot.is_occupied
   const transformedLots = rawLots.map((lot: any) => {
     const isOccupied = occupiedLotIds.has(lot.id)
     return {
@@ -111,15 +96,11 @@ export default async function EditContractPage({
 
   logger.info('✅ [EDIT-CONTRACT-PAGE] Lots loaded', { count: transformedLots.length })
 
-  // Prepare buildings data for PropertySelector (same format as creation page)
   const buildingsData = {
     buildings,
     lots: transformedLots,
     teamId: team.id
   }
-
-  // Load team contacts server-side (for tenant/guarantor selection)
-  const contactsResult = await contactService.getContactsByTeam(team.id)
 
   const contacts = contactsResult.success && contactsResult.data
     ? contactsResult.data.map((contact: any) => ({

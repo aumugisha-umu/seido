@@ -38,71 +38,40 @@ export default async function NewContactPage({
       throw new Error('Team context is required')
     }
 
-    // ✅ Charger les sociétés existantes pour le CompanySelector
-    const companyRepository = await createServerCompanyRepository()
-    let companies: any[] = []
+    // ── Phase 0: Service + repository instantiation (all stateless) ────
+    const [companyRepository, buildingService, lotService, contractService] = await Promise.all([
+      createServerCompanyRepository(),
+      createServerBuildingService(),
+      createServerLotService(),
+      createServerContractService(),
+    ])
 
-    const companiesResult = await companyRepository.findActiveByTeam(team.id)
+    // ── Wave 1: All independent queries in parallel ─────────────────────
+    const [companiesResult, buildingsResult, occupiedResult, lotsResult, contractsResult] = await Promise.all([
+      companyRepository.findActiveByTeam(team.id),
+      buildingService.getBuildingsByTeam(team.id),
+      contractService.getOccupiedLotIdsByTeam(team.id).catch(() => ({ success: false as const, data: new Set<string>() })),
+      lotService.getLotsByTeam(team.id),
+      contractService.getByTeam(team.id).catch(() => ({ success: false as const, data: [] as any[] })),
+    ])
 
-    if (companiesResult.success && companiesResult.data) {
-      companies = companiesResult.data
-      logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${companies.length} companies`)
-    } else {
-      logger.warn('⚠️ [NEW-CONTACT-PAGE] No companies found or error loading')
-    }
+    // ── Sequential transforms (CPU only, no DB) ────────────────────────
+    const companies = (companiesResult.success && companiesResult.data) ? companiesResult.data : []
+    logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${companies.length} companies`)
 
-    // ✅ Charger les immeubles et lots pour EntityLinkSection
-    // Utiliser les services (comme intervention) pour avoir les lots inclus dans chaque building
-    const buildingService = await createServerBuildingService()
-    const lotService = await createServerLotService()
-    const contractService = await createServerContractService()
+    const occupiedLotIds = occupiedResult.success ? occupiedResult.data : new Set<string>()
 
-    let buildings: any[] = []
-    let lots: any[] = []
-
-    // ✅ Charger les buildings AVEC leurs lots (via le service)
-    const buildingsResult = await buildingService.getBuildingsByTeam(team.id)
-    if (buildingsResult.success && buildingsResult.data) {
-      buildings = buildingsResult.data
-      logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${buildings.length} buildings with lots`)
-    }
-
-    // ✅ Récupérer les lots occupés (via contrats actifs)
-    let occupiedLotIds = new Set<string>()
-    try {
-      const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
-      if (occupiedResult.success) {
-        occupiedLotIds = occupiedResult.data
-        logger.info(`✅ [NEW-CONTACT-PAGE] Occupied lots from contracts: ${occupiedLotIds.size}`)
-      } else {
-        logger.warn({
-          error: occupiedResult.error,
-          teamId: team.id
-        }, '⚠️ [NEW-CONTACT-PAGE] Contract service returned error for occupied lots')
-      }
-    } catch (error) {
-      logger.warn({
-        error: error instanceof Error ? error.message : String(error),
-        teamId: team.id
-      }, '⚠️ [NEW-CONTACT-PAGE] Exception getting occupied lots from contracts')
-      // Continue without occupied lot info - form will still work
-    }
-
-    // ✅ Transformer les buildings pour ajouter le statut des lots
+    let buildings: any[] = (buildingsResult.success && buildingsResult.data) ? buildingsResult.data : []
     buildings = buildings.map((building: any) => ({
       ...building,
       lots: (building.lots || []).map((lot: any) => {
         const isOccupied = occupiedLotIds.has(lot.id)
-        return {
-          ...lot,
-          is_occupied: isOccupied,
-          status: isOccupied ? "occupied" : "vacant"
-        }
+        return { ...lot, is_occupied: isOccupied, status: isOccupied ? "occupied" : "vacant" }
       })
     }))
+    logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${buildings.length} buildings with lots`)
 
-    // ✅ Charger tous les lots pour l'onglet "Lots" (indépendants + attachés)
-    const lotsResult = await lotService.getLotsByTeam(team.id)
+    let lots: any[] = []
     if (lotsResult.success && lotsResult.data) {
       lots = lotsResult.data.map((lot: any) => {
         const isOccupied = occupiedLotIds.has(lot.id)
@@ -116,21 +85,8 @@ export default async function NewContactPage({
       logger.info(`✅ [NEW-CONTACT-PAGE] Loaded and transformed ${lots.length} lots`)
     }
 
-    // ✅ Charger les contrats pour la section de confirmation
-    let contracts: any[] = []
-    try {
-      const contractsResult = await contractService.getByTeam(team.id)
-      if (contractsResult.success && contractsResult.data) {
-        contracts = contractsResult.data
-        logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${contracts.length} contracts`)
-      }
-    } catch (error) {
-      logger.warn({
-        error: error instanceof Error ? error.message : String(error),
-        teamId: team.id
-      }, '⚠️ [NEW-CONTACT-PAGE] Exception loading contracts')
-      // Continue without contracts - form will still work
-    }
+    const contracts: any[] = (contractsResult.success && contractsResult.data) ? contractsResult.data : []
+    logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${contracts.length} contracts`)
 
     logger.info(`📊 [NEW-CONTACT-PAGE] Server data ready - Companies: ${companies.length}, Buildings: ${buildings.length}, Lots: ${lots.length}, Contracts: ${contracts.length}`)
 

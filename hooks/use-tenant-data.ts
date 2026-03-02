@@ -10,6 +10,7 @@ import { transformTenantLotForClient } from '@/lib/utils/tenant-transform'
 
 export interface TenantData {
   id: string
+  contractContactId?: string
   reference: string
   floor?: number
   apartment_number?: string

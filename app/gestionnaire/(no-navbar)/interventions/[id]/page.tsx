@@ -211,60 +211,17 @@ export default async function InterventionDetailPage({ params }: PageProps) {
           }
         }
 
-        // Calculate unread_count for each thread
-        const unreadCounts = await Promise.all(
-          threads.map(async (thread) => {
-            try {
-              // Get participant's last read message
-              const { data: participant } = await supabase
-                .from('conversation_participants')
-                .select('last_read_message_id')
-                .eq('thread_id', thread.id)
-                .eq('user_id', profile.id)
-                .single()
-
-              if (!participant || !participant.last_read_message_id) {
-                // User hasn't read any messages, return total count
-                const { count } = await supabase
-                  .from('conversation_messages')
-                  .select('*', { count: 'exact', head: true })
-                  .eq('thread_id', thread.id)
-                  .is('deleted_at', null)
-
-                return { threadId: thread.id, count: count || 0 }
-              }
-
-              // Count messages after last read
-              const { data: lastRead } = await supabase
-                .from('conversation_messages')
-                .select('created_at')
-                .eq('id', participant.last_read_message_id)
-                .single()
-
-              if (!lastRead) {
-                return { threadId: thread.id, count: 0 }
-              }
-
-              const { count } = await supabase
-                .from('conversation_messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('thread_id', thread.id)
-                .is('deleted_at', null)
-                .gt('created_at', lastRead.created_at)
-
-              return { threadId: thread.id, count: count || 0 }
-            } catch (error) {
-              logger.error('Error getting thread unread count', { threadId: thread.id, error })
-              return { threadId: thread.id, count: 0 }
-            }
-          })
-        )
-
-        // Create a map for quick lookup
+        // Batch unread counts via RPC (replaces N+1 per-thread queries)
         const unreadCountByThread: Record<string, number> = {}
-        unreadCounts.forEach(({ threadId, count }) => {
-          unreadCountByThread[threadId] = count
+        const { data: unreadData } = await supabase.rpc('get_thread_unread_counts', {
+          p_thread_ids: threadIds,
+          p_user_id: profile.id
         })
+        if (unreadData) {
+          for (const row of unreadData) {
+            unreadCountByThread[row.thread_id] = row.unread_count
+          }
+        }
 
         // Enrich threads with last_message and unread_count
         return {

@@ -1,9 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useMemo } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   EntityPreviewLayout,
   EntityTabs,
@@ -11,10 +10,9 @@ import {
   EntityActivityLog
 } from '@/components/shared/entity-preview'
 import type { TabConfig } from '@/components/shared/entity-preview'
-import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Mail, Activity } from "lucide-react"
+import { Plus, Home, MapPin, Archive, Edit as EditIcon } from "lucide-react"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
-import { BuildingContactsNavigator } from "@/components/contacts/building-contacts-navigator"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
 import type { Building, Lot } from '@/lib/services'
@@ -79,6 +77,8 @@ interface LotContract {
   status: string
   start_date: string
   end_date: string
+  rent_amount?: number | null
+  charges_amount?: number | null
   contacts: ContractContact[]
 }
 
@@ -121,7 +121,7 @@ export default function BuildingDetailsClient({
   lotContactIdsMap,
   buildingAddress
 }: BuildingDetailsClientProps) {
-  const [activeTab, setActiveTab] = useState("overview")
+  const [activeTab, setActiveTab] = useState("general")
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -149,58 +149,7 @@ export default function BuildingDetailsClient({
     return locked.length > 0 ? new Set(locked) : null
   }, [accessibleLotIds, lotsWithContacts])
 
-  // Contacts count state
-  const [totalContacts, setTotalContacts] = useState<number>(0)
 
-  // Dynamic height for lots section
-  const [lotsSectionHeight, setLotsSectionHeight] = useState(400) // Default height
-  const lotsSectionContainerRef = useRef<HTMLDivElement>(null)
-  const lotsSectionHeaderRef = useRef<HTMLDivElement>(null)
-
-
-  // Calculate dynamic height for lots section based on available space
-  useEffect(() => {
-    // Only calculate when overview tab is active
-    if (activeTab !== 'overview') return
-
-    const calculateHeight = () => {
-      if (lotsSectionContainerRef.current && lotsSectionHeaderRef.current) {
-        const containerRect = lotsSectionContainerRef.current.getBoundingClientRect()
-        const headerRect = lotsSectionHeaderRef.current.getBoundingClientRect()
-        
-        // Check if we're on mobile/tablette (viewport width < 1024px)
-        const isMobileOrTablet = window.innerWidth < 1024
-        
-        if (isMobileOrTablet) {
-          // On mobile/tablette, use a fixed minimum height that ensures visibility
-          // Calculate based on viewport height with a reasonable minimum
-          const viewportHeight = window.innerHeight
-          const minHeight = Math.max(viewportHeight * 0.3, 300) // At least 30% of viewport or 300px
-          setLotsSectionHeight(minHeight)
-        } else {
-          // On desktop, use the dynamic calculation
-          const availableHeight = window.innerHeight - containerRect.top - 40
-          const headerHeight = headerRect.height
-          const newHeight = Math.max(availableHeight - headerHeight, 200)
-          setLotsSectionHeight(newHeight)
-        }
-      }
-    }
-
-    // Calculate on mount and window resize
-    calculateHeight()
-    window.addEventListener('resize', calculateHeight)
-
-    // Recalculate after a short delay (for layout shifts)
-    const timer = setTimeout(calculateHeight, 100)
-    const timer2 = setTimeout(calculateHeight, 500) // Additional delay for mobile
-
-    return () => {
-      window.removeEventListener('resize', calculateHeight)
-      clearTimeout(timer)
-      clearTimeout(timer2)
-    }
-  }, [activeTab]) // Recalculate when tab changes
 
   // Calculate statistics
   const getStats = () => {
@@ -312,21 +261,6 @@ export default function BuildingDetailsClient({
 
   const stats = getStats()
 
-  // Calculate total unique contacts (building + lots)
-  const allContactIds = new Set<string>()
-
-  // Add building contacts
-  buildingContacts.forEach(bc => allContactIds.add(bc.user.id))
-
-  // Add lot contacts (structure: { user: { id, name, email, ... }, is_primary })
-  lotsWithContacts.forEach(lot => {
-    lot.lot_contacts?.forEach((lc: any) => {
-      if (lc.user?.id) allContactIds.add(lc.user.id)
-    })
-  })
-
-  const totalUniqueContacts = allContactIds.size
-
   // Transform building contacts by role + Create buildingContactIds map
   const buildingManagers = buildingContacts
     .filter(bc => bc.user.role === 'gestionnaire' || bc.user.role === 'admin')
@@ -390,7 +324,8 @@ export default function BuildingDetailsClient({
 
   // Tabs configuration for EntityTabs
   const buildingTabs: TabConfig[] = [
-    { value: "overview", label: "Vue d'ensemble" },
+    { value: "general", label: "Général" },
+    { value: "contacts", label: "Contacts" },
     { value: "interventions", label: "Interventions", count: stats.totalInterventions },
     { value: "documents", label: "Documents" },
     { value: "emails", label: "Emails" },
@@ -428,12 +363,7 @@ export default function BuildingDetailsClient({
   }
   const addressText = getAddressText()
 
-  const headerMetadata: DetailPageHeaderMetadata[] = [
-    addressText && {
-      icon: MapPin,
-      text: addressText
-    }
-  ].filter(Boolean) as DetailPageHeaderMetadata[]
+  const headerMetadata: DetailPageHeaderMetadata[] = []
 
   const primaryActions: DetailPageHeaderAction[] = [
     {
@@ -494,39 +424,76 @@ export default function BuildingDetailsClient({
             onTabChange={setActiveTab}
             tabs={buildingTabs}
           >
-            {/* Overview Tab */}
-            <TabContentWrapper value="overview">
-              {/* Section 1: Description (if exists) */}
-              {(building as { description?: string }).description && (
-                <div className="bg-secondary/50 border border-secondary rounded-lg p-3 flex items-start gap-2 dark:bg-secondary/20">
-                  <Info className="h-4 w-4 text-secondary-foreground flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-foreground whitespace-pre-wrap flex-1">{(building as { description: string }).description}</p>
-                </div>
-              )}
+            {/* Général Tab — Localisation + Lots */}
+            <TabContentWrapper value="general">
+              <div className="space-y-4">
+                {/* Localisation Card */}
+                {(buildingAddress || (building as { description?: string }).description) && (
+                  <div className="bg-card rounded-lg border p-4 sm:p-5">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Localisation
+                    </h3>
+                    {addressText && (
+                      <p className="text-sm text-muted-foreground mt-1">{addressText}</p>
+                    )}
+                    {(building as { description?: string }).description && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-3 whitespace-pre-wrap">
+                        {(building as { description: string }).description}
+                      </p>
+                    )}
+                    {buildingAddress && (
+                      <div className="mt-3">
+                        <GoogleMapsProvider>
+                          <GoogleMapPreview
+                            latitude={buildingAddress.latitude}
+                            longitude={buildingAddress.longitude}
+                            address={buildingAddress.formatted_address || addressText || undefined}
+                            height={180}
+                            showOpenButton={true}
+                          />
+                        </GoogleMapsProvider>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Section 1.6: Map Preview (if coordinates available) */}
-              {buildingAddress && (
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground mb-3 px-1 flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Localisation
-                  </h3>
-                  <GoogleMapsProvider>
-                    <GoogleMapPreview
-                      latitude={buildingAddress.latitude}
-                      longitude={buildingAddress.longitude}
-                      address={buildingAddress.formatted_address || addressText || undefined}
-                      height={250}
-                      className="rounded-lg border border-border shadow-sm"
-                      showOpenButton={true}
+                {/* Lots Card */}
+                {lotsWithContacts.length > 0 && (
+                  <div className="bg-card rounded-lg border p-4 sm:p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        Lots ({lotsWithContacts.length})
+                      </h3>
+                      <span className="text-xs text-muted-foreground">
+                        {stats.occupiedLots}/{stats.totalLots} occupés ({stats.occupancyRate}%)
+                      </span>
+                    </div>
+                    <BuildingLotsGrid
+                      buildingId={building.id}
+                      lots={lotsWithContacts as any}
+                      lotContactIdsMap={lotContactIdsMap}
+                      teamId={teamId}
+                      buildingManagers={buildingManagers}
+                      buildingTenants={buildingTenants}
+                      buildingProviders={providers}
+                      buildingOwners={owners}
+                      buildingOthers={others}
+                      lockedLotIds={lockedLotIds}
+                      initialExpandAll={false}
+                      readOnly={true}
+                      className="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                     />
-                  </GoogleMapsProvider>
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
+            </TabContentWrapper>
 
-              {/* Section 2: Contacts Preview - Grid Only */}
+            {/* Contacts Tab — Building contacts + Lots with contacts (interactive) */}
+            <TabContentWrapper value="contacts">
+              {/* Building-level contacts (interactive) */}
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3 px-1">Contacts de l'immeuble</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3 px-1">Contacts de l&apos;immeuble</h3>
                 <ContactsGridPreview
                   buildingId={building.id}
                   buildingName={building.name}
@@ -539,10 +506,9 @@ export default function BuildingDetailsClient({
                 />
               </div>
 
-              {/* Section 3: Lots avec Contacts - Scrollable */}
-              <div className="flex flex-col min-h-[300px] flex-1" ref={lotsSectionContainerRef}>
-                {/* Header avec titre et bouton d'ajout */}
-                <div ref={lotsSectionHeaderRef} className="flex items-center justify-between mb-3 px-1 flex-shrink-0">
+              {/* Lots and their contacts (interactive, all expanded) */}
+              <div>
+                <div className="flex items-center justify-between mb-3 px-1">
                   <h3 className="text-sm font-semibold text-foreground">Lots et leurs contacts</h3>
                   <Button
                     variant="outline"
@@ -560,28 +526,21 @@ export default function BuildingDetailsClient({
                     Ajouter un lot
                   </Button>
                 </div>
-                {/* Scrollable container for lots */}
-                <div 
-                  className="overflow-y-auto flex-1 min-h-0"
-                  style={{
-                    maxHeight: `${lotsSectionHeight}px`,
-                    minHeight: '200px'
-                  }}
-                >
-                  <BuildingLotsGrid
-                    buildingId={building.id}
-                    lots={lotsWithContacts as any}
-                    lotContactIdsMap={lotContactIdsMap}
-                    teamId={teamId}
-                    buildingManagers={buildingManagers}
-                    buildingTenants={buildingTenants}
-                    buildingProviders={providers}
-                    buildingOwners={owners}
-                    buildingOthers={others}
-                    initialExpandedLotId={expandLotId}
-                    lockedLotIds={lockedLotIds}
-                  />
-                </div>
+                <BuildingLotsGrid
+                  buildingId={building.id}
+                  lots={lotsWithContacts as any}
+                  lotContactIdsMap={lotContactIdsMap}
+                  teamId={teamId}
+                  buildingManagers={buildingManagers}
+                  buildingTenants={buildingTenants}
+                  buildingProviders={providers}
+                  buildingOwners={owners}
+                  buildingOthers={others}
+                  initialExpandedLotId={expandLotId}
+                  lockedLotIds={lockedLotIds}
+                  initialExpandAll={false}
+                  readOnly={false}
+                />
               </div>
             </TabContentWrapper>
 

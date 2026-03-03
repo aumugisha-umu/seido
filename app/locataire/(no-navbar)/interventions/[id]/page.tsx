@@ -237,7 +237,8 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
         name: a.user.name,
         email: a.user.email,
         phone: a.user.phone,
-        role: a.user.role
+        role: a.user.role,
+        auth_user_id: a.user.auth_user_id
       } : undefined
     })) || []
   }

@@ -43,6 +43,21 @@ interface StatusTimelineProps {
   completedBy?: string | null
   cancelledBy?: string | null
   onStepClick?: (status: InterventionStatus) => void
+  variant?: 'vertical' | 'horizontal'
+}
+
+// Short labels for horizontal variant (compact display)
+const shortLabels: Partial<Record<InterventionStatus, string>> = {
+  'demande': 'Demande',
+  'approuvee': 'Approuvée',
+  'planification': 'Planification',
+  'planifiee': 'Planifiée',
+  'cloturee_par_prestataire': 'Terminée',
+  'cloturee_par_locataire': 'Validée',
+  'cloturee_par_gestionnaire': 'Clôturée',
+  'rejetee': 'Rejetée',
+  'annulee': 'Annulée',
+  'demande_de_devis': 'Devis',
 }
 
 // Status flow definition
@@ -145,7 +160,8 @@ export function StatusTimeline({
   scheduledBy,
   completedBy,
   cancelledBy,
-  onStepClick
+  onStepClick,
+  variant = 'vertical'
 }: StatusTimelineProps) {
   const currentIndex = getStatusIndex(currentStatus)
   const isMainPath = isInMainWorkflow(currentStatus)
@@ -231,6 +247,73 @@ export function StatusTimeline({
     }
   }
 
+  // ── Horizontal variant (compact stepper) ──────────────────────────
+  if (variant === 'horizontal') {
+    return (
+      <div className="overflow-x-auto">
+        <div className="flex items-start min-w-max">
+          {stepsToShow.map((stepStatus, index) => {
+            const step = statusFlow[stepStatus]
+            const state = getStepState(stepStatus)
+            const Icon = step.icon
+            const isLast = index === stepsToShow.length - 1
+
+            return (
+              <div key={step.status} className="flex items-start">
+                {/* Step circle + label */}
+                <div className="flex flex-col items-center w-16 sm:w-20">
+                  <div
+                    className={cn(
+                      "flex items-center justify-center w-9 h-9 rounded-full border-2 bg-white transition-colors",
+                      state === 'completed' && 'border-green-500 bg-green-50',
+                      state === 'current' && 'border-blue-500 bg-blue-50 ring-4 ring-blue-100',
+                      state === 'upcoming' && 'border-gray-300 bg-gray-50',
+                      state === 'rejected' && 'border-red-500 bg-red-50',
+                      state === 'cancelled' && 'border-orange-500 bg-orange-50'
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "w-4 h-4",
+                        state === 'completed' && 'text-green-500',
+                        state === 'current' && 'text-blue-500',
+                        state === 'upcoming' && 'text-gray-400',
+                        state === 'rejected' && 'text-red-500',
+                        state === 'cancelled' && 'text-orange-500'
+                      )}
+                    />
+                  </div>
+                  <span
+                    className={cn(
+                      "mt-1.5 text-[10px] sm:text-xs text-center leading-tight font-medium",
+                      state === 'completed' && 'text-green-700',
+                      state === 'current' && 'text-blue-700',
+                      state === 'upcoming' && 'text-gray-400',
+                      state === 'rejected' && 'text-red-700',
+                      state === 'cancelled' && 'text-orange-700'
+                    )}
+                  >
+                    {shortLabels[stepStatus] || step.label}
+                  </span>
+                </div>
+                {/* Connector line */}
+                {!isLast && (
+                  <div
+                    className={cn(
+                      "w-8 sm:w-10 h-0.5 mt-[18px] rounded-full",
+                      state === 'completed' ? 'bg-green-500' : 'bg-gray-200'
+                    )}
+                  />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Vertical variant (default, detailed) ─────────────────────────
   return (
     <div className="relative">
       <div className="space-y-8">

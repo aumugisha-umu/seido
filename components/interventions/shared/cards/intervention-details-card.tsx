@@ -218,9 +218,10 @@ interface PlanningStatusSectionProps {
   pendingSlotsForUser?: number
   requiresQuote?: boolean
   hasSubmittedQuote?: boolean
+  hideEstimation?: boolean
 }
 
-const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlanning, onOpenSlotResponseModal, onOpenQuoteModal, pendingSlotsForUser, requiresQuote, hasSubmittedQuote }: PlanningStatusSectionProps) => {
+const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlanning, onOpenSlotResponseModal, onOpenQuoteModal, pendingSlotsForUser, requiresQuote, hasSubmittedQuote, hideEstimation }: PlanningStatusSectionProps) => {
   const planningConfig = getPlanningStatusConfig(planning.status, interventionStatus, planning.proposedSlotsCount, planning.schedulingType)
   const quotesConfig = getQuotesStatusConfig(
     planning.quotesStatus,
@@ -237,7 +238,7 @@ const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlann
     <div className="space-y-3 p-4 rounded-lg border border-slate-200 bg-slate-50/50">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-slate-900">
-          Planning et Estimations
+          {hideEstimation ? 'Planning' : 'Planning et Estimations'}
         </h4>
         {isClickable && (
           <button
@@ -252,7 +253,7 @@ const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlann
       {/* Grid Planning + Devis - Cliquable */}
       <div
         className={cn(
-          'grid grid-cols-1 sm:grid-cols-2 gap-3',
+          hideEstimation ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-3',
           isClickable && 'cursor-pointer'
         )}
         onClick={isClickable ? onNavigateToPlanning : undefined}
@@ -389,7 +390,8 @@ const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlann
           )}
         </div>
 
-        {/* Estimation Status */}
+        {/* Estimation Status — hidden for roles that shouldn't see it (e.g. locataire) */}
+        {!hideEstimation && (
         <div className={cn(
           'flex flex-col gap-2 p-3 rounded-lg transition-shadow border',
           requiresQuote && !hasSubmittedQuote && !planning.selectedQuoteAmount
@@ -481,6 +483,7 @@ const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlann
             </Button>
           )}
         </div>
+        )}
       </div>
 
     </div>
@@ -511,6 +514,7 @@ export const InterventionDetailsCard = ({
   requiresQuote,
   hasSubmittedQuote,
   sections,
+  hideEstimation,
   className
 }: InterventionDetailsCardProps) => {
   const showSection = (name: 'participants' | 'description' | 'location' | 'instructions' | 'planning' | 'creator') =>
@@ -645,6 +649,7 @@ export const InterventionDetailsCard = ({
               pendingSlotsForUser={pendingSlotsForUser}
               requiresQuote={requiresQuote}
               hasSubmittedQuote={hasSubmittedQuote}
+              hideEstimation={hideEstimation}
             />
           </>
         )}

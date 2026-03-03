@@ -425,6 +425,8 @@ export interface InterventionDetailsCardProps {
   hasSubmittedQuote?: boolean
   /** Sections à afficher. Si non fourni, toutes les sections avec données sont affichées (rétrocompatible) */
   sections?: Array<'participants' | 'description' | 'location' | 'instructions' | 'planning' | 'creator'>
+  /** Masquer la sous-section Estimation dans le bloc Planning (ex: vue locataire) */
+  hideEstimation?: boolean
   className?: string
 }
 

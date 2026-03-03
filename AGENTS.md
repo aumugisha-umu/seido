@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-02
-**Total Learnings:** 114
+**Last Updated:** 2026-03-03
+**Total Learnings:** 116
 
 ---
 
@@ -829,6 +829,20 @@
 **Example:** `components/patrimoine/lot-card-unified/lot-card-unified.tsx` — locked lot overlay with "Deverrouiller" button
 **When to Use:** Any time you need to dim/grey-out a container while keeping interactive elements inside at full opacity
 **Added:** 2026-02-22 | **Source:** Trial overage lot restriction — locked card rendering
+
+#### Learning #115: InterventionDetailsCard `sections` prop vs sub-section visibility — use `hideEstimation` for granular control
+**Problem:** The `sections` prop on `InterventionDetailsCard` controls top-level sections (participants, description, location, instructions, planning, creator). Excluding `'planning'` removes the ENTIRE "Planning et Estimations" block — both the planning status card AND the estimation card. But the locataire should see planning info without estimation.
+**Solution:** Added `hideEstimation?: boolean` prop that propagates to `PlanningStatusSection`. When true: (a) title changes to "Planning" (not "Planning et Estimations"), (b) grid switches from `sm:grid-cols-2` to single column, (c) estimation column is conditionally rendered with `{!hideEstimation && ...}`. This preserves the planning status while hiding estimation details.
+**Example:** `intervention-detail-client.tsx:780` (locataire view passes `hideEstimation`), `intervention-details-card.tsx:254` (grid adapts), `intervention-details-card.tsx:393` (estimation conditionally hidden)
+**When to Use:** When a shared component has composite sections and you need role-based visibility of sub-sections, not just top-level sections. The `sections` array is too coarse; add targeted boolean props for finer control.
+**Added:** 2026-03-03 | **Source:** Locataire intervention detail — hide estimation card
+
+#### Learning #116: StatusTimeline horizontal variant — early return pattern for divergent render paths
+**Problem:** Needed a compact horizontal stepper for locataire intervention detail (bottom of page) while keeping the existing detailed vertical timeline for other views.
+**Solution:** Added `variant?: 'vertical' | 'horizontal'` prop with early return: `if (variant === 'horizontal') return (...)` before the vertical JSX. Horizontal uses `overflow-x-auto` + `min-w-max` for mobile scroll, `w-16 sm:w-20` columns, `mt-[18px]` connector (half of 36px circle height). Short labels map (`shortLabels`) provides compact names. No descriptions/dates/actors in horizontal — too compact.
+**Example:** `status-timeline.tsx:251-313` (horizontal branch), `intervention-progress-card.tsx:20` (variant prop passthrough)
+**When to Use:** When a component needs two structurally different layouts (not just styling differences). Early return keeps both paths clean vs tangled conditional JSX. The `mt-[18px]` = h/2 trick centers horizontal connectors with circles.
+**Added:** 2026-03-03 | **Source:** Locataire intervention detail — horizontal progression stepper
 
 ---
 

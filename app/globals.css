@@ -45,6 +45,28 @@ input[autocomplete="cc-number"],
   /* Ces selecteurs sont detectes par Contentsquare */
 }
 
+/* ========================================
+   DASHBOARD STATS RESPONSIVE VISIBILITY
+   Unlayered + !important = maximum cascade priority.
+   Prevents @layer components rules from being overridden
+   by Tailwind utilities or third-party CSS during hydration.
+   ======================================== */
+.dashboard__stats--mobile {
+  display: block !important;
+}
+.dashboard__stats--desktop {
+  display: none !important;
+}
+@media (min-width: 1024px) {
+  .dashboard__stats--mobile {
+    display: none !important;
+  }
+  .dashboard__stats--desktop {
+    display: block !important;
+    order: 1;
+  }
+}
+
 /* Mobile-optimized scrollbar styles */
 @layer utilities {
 

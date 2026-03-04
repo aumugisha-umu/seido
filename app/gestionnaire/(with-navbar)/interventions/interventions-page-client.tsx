@@ -303,6 +303,7 @@ export function InterventionsPageClient({
             }))}
             onConfirm={planningHook.handleProgrammingConfirm}
             isFormValid={planningHook.isProgrammingFormValid()}
+            isSubmitting={planningHook.isSubmitting}
             teamId={teamId || ''}
             // Managers and tenants - data not available from list view
             managers={[]}

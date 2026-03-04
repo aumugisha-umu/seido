@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
+import { unstable_cache } from 'next/cache'
 
 const ARTICLES_DIR = path.join(process.cwd(), 'blog', 'articles')
 
@@ -41,7 +42,8 @@ const parseArticleFile = (filename: string): Article | null => {
   }
 }
 
-export const getAllArticles = (): Article[] => {
+// ✅ PERF: Raw function for internal use (no cache)
+const getAllArticlesRaw = async (): Promise<Article[]> => {
   if (!fs.existsSync(ARTICLES_DIR)) {
     return []
   }
@@ -56,29 +58,38 @@ export const getAllArticles = (): Article[] => {
   return articles
 }
 
-export const getArticleBySlug = (slug: string): Article | null => {
-  const articles = getAllArticles()
+// ✅ PERF: Cached version — blog content only changes on deploy (1h TTL)
+export const getAllArticles = unstable_cache(
+  getAllArticlesRaw,
+  ['blog-articles'],
+  { revalidate: 3600, tags: ['blog-articles'] }
+)
+
+export const getArticleBySlug = async (slug: string): Promise<Article | null> => {
+  const articles = await getAllArticles()
   return articles.find((a) => a.slug === slug) || null
 }
 
-export const getLatestArticles = (n: number): ArticleMeta[] => {
-  return getAllArticles()
+export const getLatestArticles = async (n: number): Promise<ArticleMeta[]> => {
+  const articles = await getAllArticles()
+  return articles
     .slice(0, n)
     .map(({ content: _content, ...meta }) => meta)
 }
 
-export const getAllCategories = (): string[] => {
-  const articles = getAllArticles()
+export const getAllCategories = async (): Promise<string[]> => {
+  const articles = await getAllArticles()
   const categories = new Set(articles.map((a) => a.category))
   return Array.from(categories).sort()
 }
 
-export const getAllTags = (): string[] => {
-  const articles = getAllArticles()
+export const getAllTags = async (): Promise<string[]> => {
+  const articles = await getAllArticles()
   const tags = new Set(articles.flatMap((a) => a.tags))
   return Array.from(tags).sort()
 }
 
-export const getAllSlugs = (): string[] => {
-  return getAllArticles().map((a) => a.slug)
+export const getAllSlugs = async (): Promise<string[]> => {
+  const articles = await getAllArticles()
+  return articles.map((a) => a.slug)
 }

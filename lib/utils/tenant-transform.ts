@@ -19,6 +19,7 @@ import type { TenantData as ServiceTenantData, TenantContractStatus } from '@/li
  */
 interface TransformedTenantLot {
   id: string
+  contractContactId?: string
   reference: string
   floor?: number
   apartment_number?: string
@@ -121,6 +122,7 @@ export function transformTenantLotForClient(item: ServiceTenantData['lots'][0]):
 
   return {
     id: item.lot.id,
+    contractContactId: item.contractContactId,
     reference: item.lot.reference,
     floor: item.lot.floor,
     apartment_number: item.lot.apartment_number,

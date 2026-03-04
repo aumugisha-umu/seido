@@ -262,7 +262,7 @@ export const buildingsTableConfig: DataTableConfig<BuildingData> = {
         }
     },
 
-    defaultView: 'cards',
+    defaultView: 'list',
 
     // Row click navigation
     rowHref: (building) => `/gestionnaire/biens/immeubles/${building.id}`,
@@ -491,7 +491,7 @@ export const lotsTableConfig: DataTableConfig<LotData> = {
         }
     },
 
-    defaultView: 'cards',
+    defaultView: 'list',
 
     // Row click navigation
     rowHref: (lot) => `/gestionnaire/biens/lots/${lot.id}`,

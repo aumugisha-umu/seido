@@ -25,40 +25,20 @@ import type { Building } from './components/types'
 // ============================================================================
 
 async function getEmailCounts(supabase: any, teamId: string) {
-  const [inboxResult, processedResult, sentResult, archiveResult] = await Promise.all([
-    supabase
-      .from('emails')
-      .select('id', { count: 'exact', head: true })
-      .eq('team_id', teamId)
-      .eq('direction', 'received')
-      .eq('status', 'unread')
-      .is('deleted_at', null),
-    supabase
-      .from('emails')
-      .select('id', { count: 'exact', head: true })
-      .eq('team_id', teamId)
-      .eq('status', 'processed')
-      .is('deleted_at', null),
-    supabase
-      .from('emails')
-      .select('id', { count: 'exact', head: true })
-      .eq('team_id', teamId)
-      .eq('direction', 'sent')
-      .is('deleted_at', null),
-    supabase
-      .from('emails')
-      .select('id', { count: 'exact', head: true })
-      .eq('team_id', teamId)
-      .eq('status', 'archived')
-      .is('deleted_at', null)
-  ])
+  // ✅ PERF: Single RPC with COUNT FILTER replaces 4 separate count queries
+  const { data, error } = await supabase.rpc('get_email_counts', { p_team_id: teamId }).single()
+
+  if (error || !data) {
+    console.error('[MAIL-PAGE] get_email_counts RPC failed, falling back to 0:', error?.message)
+    return { inbox: 0, processed: 0, sent: 0, drafts: 0, archive: 0 }
+  }
 
   return {
-    inbox: inboxResult.count || 0,
-    processed: processedResult.count || 0,
-    sent: sentResult.count || 0,
+    inbox: Number(data.inbox) || 0,
+    processed: Number(data.processed) || 0,
+    sent: Number(data.sent) || 0,
     drafts: 0,
-    archive: archiveResult.count || 0
+    archive: Number(data.archive) || 0
   }
 }
 

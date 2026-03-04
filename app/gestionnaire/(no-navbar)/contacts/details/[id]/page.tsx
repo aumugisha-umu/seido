@@ -70,39 +70,31 @@ export default async function ContactDetailsPage({ params }: PageProps) {
   }
 
   // ============================================================================
-  // ÉTAPE 2.5 : Fetch Invitation Status (Same pattern as contacts list)
+  // ÉTAPE 2.5 + 3 : Invitation + Related Data in parallel (independent queries)
   // ============================================================================
-  let invitationStatus: string | null = null
+  const [invitationResult, interventionsResult, buildingsResult, lotsResult, contractContactsResult] = await Promise.all([
+    // Invitation status (depends on contact.email from gate query)
+    (async () => {
+      if (!contact.email || !contact.team_id) return null
+      const { data: invitation } = await supabase
+        .from('user_invitations')
+        .select('status, expires_at')
+        .eq('email', contact.email)
+        .eq('team_id', contact.team_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-  if (contact.email && contact.team_id) {
-    const { data: invitation } = await supabase
-      .from('user_invitations')
-      .select('status, expires_at')
-      .eq('email', contact.email)
-      .eq('team_id', contact.team_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()  // Use maybeSingle() to avoid error if not found
-
-    if (invitation) {
-      // Check if invitation has expired
-      if (invitation.status === 'pending' && invitation.expires_at) {
-        const now = new Date()
-        const expiresAt = new Date(invitation.expires_at)
-        invitationStatus = now > expiresAt ? 'expired' : invitation.status
-      } else {
-        invitationStatus = invitation.status
+      if (invitation) {
+        if (invitation.status === 'pending' && invitation.expires_at) {
+          const now = new Date()
+          const expiresAt = new Date(invitation.expires_at)
+          return now > expiresAt ? 'expired' : invitation.status
+        }
+        return invitation.status
       }
-    } else if (contact.auth_user_id) {
-      // Contact has an account (linked to auth.users)
-      invitationStatus = 'accepted'
-    }
-  }
-
-  // ============================================================================
-  // ÉTAPE 3 : Fetch Related Data (Parallel pour performance)
-  // ============================================================================
-  const [interventionsResult, buildingsResult, lotsResult, contractContactsResult] = await Promise.all([
+      return contact.auth_user_id ? 'accepted' : null
+    })(),
     supabase.from('interventions').select('*, lot(*, building(*))'),
     supabase.from('buildings').select('*'),
     supabase.from('lots').select('*, building(*), lot_contacts(*, user(*))'),
@@ -136,6 +128,7 @@ export default async function ContactDetailsPage({ params }: PageProps) {
     `).eq('user_id', resolvedParams.id)
   ])
 
+  const invitationStatus = invitationResult
   const allInterventions = interventionsResult.data || []
   const allBuildings = buildingsResult.data || []
   const allLots = lotsResult.data || []

@@ -6,10 +6,10 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 /**
  * 🎨 VIEW MODE TYPES
  *
- * Supported view modes for interventions display:
- * - cards: Grid of intervention cards (default)
- * - list: Table/list format with sortable columns
+ * Supported view modes:
+ * - list: Table/list format with sortable columns (default for all navigators)
  * - calendar: Monthly calendar with intervention markers
+ * - cards: Grid cards (only used by property-selector and intervention-contacts)
  */
 export type ViewMode = 'cards' | 'list' | 'calendar'
 
@@ -52,7 +52,6 @@ const STORAGE_KEY = 'interventions-view-mode'
  *   return (
  *     <div>
  *       <ViewModeSwitcher value={viewMode} onChange={setViewMode} />
- *       {viewMode === 'cards' && <InterventionsCardsView />}
  *       {viewMode === 'list' && <InterventionsListView />}
  *       {viewMode === 'calendar' && <InterventionsCalendarView />}
  *     </div>
@@ -66,7 +65,7 @@ export function useViewMode(options?: {
   storageKey?: string
 }) {
   const {
-    defaultMode = 'cards',
+    defaultMode = 'list',
     syncWithUrl = false,
     storageKey = STORAGE_KEY
   } = options || {}
@@ -137,9 +136,8 @@ export function useViewMode(options?: {
       console.warn('[useViewMode] Failed to read from localStorage:', error)
     }
 
-    // 3️⃣ Fallback to responsive default (list on desktop, cards on mobile)
-    const responsiveDefault: ViewMode = window.innerWidth < MOBILE_BREAKPOINT ? 'cards' : 'list'
-    setViewModeState(defaultMode !== 'cards' ? defaultMode : responsiveDefault)
+    // 3️⃣ Fallback to provided default
+    setViewModeState(defaultMode)
   }, [defaultMode, storageKey, syncWithUrl, searchParams])
 
   /**
@@ -172,11 +170,11 @@ export function useViewMode(options?: {
   /**
    * 🔄 TOGGLE VIEW MODE FUNCTION
    *
-   * Cycles through view modes in order: cards → list → calendar → cards
+   * Cycles through view modes in order: list → calendar → list
    * Useful for keyboard shortcuts or quick toggle buttons
    */
   const toggleViewMode = useCallback(() => {
-    const modes: ViewMode[] = ['cards', 'list', 'calendar']
+    const modes: ViewMode[] = ['list', 'calendar']
     const currentIndex = modes.indexOf(viewMode)
     const nextIndex = (currentIndex + 1) % modes.length
     setViewMode(modes[nextIndex])
@@ -215,12 +213,6 @@ export function useViewMode(options?: {
  * Used by view switcher components for consistent labeling
  */
 export const VIEW_MODE_CONFIG = {
-  cards: {
-    label: 'Cartes',
-    labelShort: 'Cartes',
-    icon: 'LayoutGrid',
-    description: 'Vue en grille avec cartes détaillées'
-  },
   list: {
     label: 'Liste',
     labelShort: 'Liste',

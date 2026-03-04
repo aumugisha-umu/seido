@@ -15,7 +15,6 @@ import {
   createServiceRoleSupabaseClient
 } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
-import { revalidatePath, revalidateTag } from 'next/cache'
 import { after } from 'next/server'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
@@ -165,30 +164,7 @@ async function checkInterventionLotLocked(interventionId: string, teamId: string
   }
 }
 
-/**
- * ⚡ CACHE INVALIDATION HELPER
- * Centralise l'invalidation du cache pour les interventions
- * Utilise à la fois revalidateTag (pour unstable_cache) et revalidatePath (pour Full Route Cache)
- */
-function revalidateInterventionCaches(
-  interventionId: string,
-  teamId?: string,
-  affectedRoles: ('gestionnaire' | 'locataire' | 'prestataire')[] = ['gestionnaire', 'locataire', 'prestataire']
-) {
-  // Tags pour unstable_cache
-  revalidateTag('interventions')
-  revalidateTag('stats')
-  if (teamId) {
-    revalidateTag(`team-${teamId}-interventions`)
-    revalidateTag(`team-${teamId}-stats`)
-  }
-
-  // Paths pour Full Route Cache — scoped to affected roles
-  for (const role of affectedRoles) {
-    revalidatePath(`/${role}/interventions`)
-    revalidatePath(`/${role}/interventions/${interventionId}`)
-  }
-}
+// Pages are force-dynamic — no cache invalidation needed
 
 // Validation schemas
 // NOTE: type uses z.string() to accept all intervention types from intervention_types table
@@ -399,9 +375,6 @@ export async function createInterventionAction(
       }
     }
 
-    // Invalidate caches
-    revalidateInterventionCaches(intervention.id, validatedData.data.team_id)
-
     // Create notification for managers (non-blocking, runs after response)
     after(async () => {
       try {
@@ -425,6 +398,142 @@ export async function createInterventionAction(
       throw error
     }
     logger.error({ error }, 'Unexpected error in createInterventionAction')
+    return { success: false, error: 'Erreur inattendue' }
+  }
+}
+
+/**
+ * Batch create rent payment reminders for a contract.
+ * Replaces N × createInterventionAction calls with:
+ * 1 auth check, 1 subscription check, 1 bulk insert + 1 bulk time_slot insert.
+ */
+export async function createBatchRentRemindersAction(
+  reminders: Array<{
+    title: string
+    scheduledDate: string // ISO date string YYYY-MM-DD
+  }>,
+  config: {
+    lot_id: string
+    team_id: string
+    contract_id: string
+    assignments?: Array<{ userId: string; role: string }>
+  }
+): Promise<ActionResult<{ successCount: number; totalCount: number }>> {
+  try {
+    // 1 auth check for ALL reminders
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // 1 subscription check for ALL reminders
+    const lotLocked = await checkLotLockedBySubscription(config.lot_id, config.team_id)
+    if (lotLocked) {
+      return { success: false, error: lotLocked }
+    }
+
+    // Use service role client (same as individual createInterventionAction with useServiceRole: true)
+    const supabase = createServiceRoleSupabaseClient()
+
+    // Bulk INSERT all interventions at once
+    const interventionRows = reminders.map(r => ({
+      title: r.title,
+      description: 'Rappel mensuel de paiement du loyer',
+      type: 'rappel_loyer' as InterventionType,
+      urgency: 'basse' as InterventionUrgency,
+      status: 'planifiee' as InterventionStatus,
+      lot_id: config.lot_id,
+      building_id: null as string | null,
+      team_id: config.team_id,
+      contract_id: config.contract_id,
+      created_by: user.id,
+      scheduled_date: r.scheduledDate + 'T09:00:00.000Z',
+      scheduling_method: 'direct'
+    }))
+
+    const { data: interventions, error: insertError } = await supabase
+      .from('interventions')
+      .insert(interventionRows)
+      .select('id, scheduled_date')
+
+    if (insertError || !interventions || interventions.length === 0) {
+      logger.error({ error: insertError }, 'Failed to bulk create rent reminders')
+      return { success: false, error: 'Échec de la création des rappels de loyer' }
+    }
+
+    // Bulk INSERT all time_slots at once
+    const timeSlotRows = interventions.map(i => ({
+      intervention_id: i.id,
+      slot_date: i.scheduled_date?.split('T')[0] || '',
+      start_time: '09:00',
+      end_time: '10:00',
+      is_selected: true,
+      status: 'selected' as Database['public']['Enums']['time_slot_status'],
+      proposed_by: user.id,
+      selected_by_manager: true
+    }))
+
+    const { data: timeSlots, error: slotError } = await supabase
+      .from('intervention_time_slots')
+      .insert(timeSlotRows)
+      .select('id, intervention_id')
+
+    if (!slotError && timeSlots && timeSlots.length > 0) {
+      // Parallel UPDATE each intervention with its selected_slot_id
+      await Promise.all(
+        timeSlots.map(slot =>
+          supabase
+            .from('interventions')
+            .update({ selected_slot_id: slot.id })
+            .eq('id', slot.intervention_id)
+        )
+      )
+    }
+
+    // Bulk INSERT all assignments at once
+    const VALID_ROLES = ['gestionnaire', 'prestataire', 'locataire'] as const
+    if (config.assignments && config.assignments.length > 0) {
+      const validAssignments = config.assignments.filter(a =>
+        (VALID_ROLES as readonly string[]).includes(a.role)
+      )
+
+      if (validAssignments.length > 0) {
+        const assignmentRows = interventions.flatMap(i =>
+          validAssignments.map(a => ({
+            intervention_id: i.id,
+            user_id: a.userId,
+            role: a.role,
+            assigned_by: user.id
+          }))
+        )
+
+        const { error: assignError } = await supabase
+          .from('intervention_assignments')
+          .insert(assignmentRows)
+
+        if (assignError) {
+          logger.warn({ error: assignError }, 'Some rent reminder assignments failed (non-blocking)')
+        }
+      }
+    }
+
+    // Notifications deferred to after() — non-blocking
+    after(async () => {
+      const results = await Promise.allSettled(
+        interventions.map(intervention => createInterventionNotification(intervention.id))
+      )
+      results.forEach((result, i) => {
+        if (result.status === 'rejected') {
+          logger.warn({ error: result.reason, interventionId: interventions[i].id }, 'Rent reminder notification failed (non-blocking)')
+        }
+      })
+    })
+
+    logger.info({ successCount: interventions.length, totalCount: reminders.length, contractId: config.contract_id }, 'Batch rent reminders created')
+    return { success: true, data: { successCount: interventions.length, totalCount: reminders.length } }
+  } catch (error) {
+    logger.error({ error }, 'Unexpected error in createBatchRentRemindersAction')
     return { success: false, error: 'Erreur inattendue' }
   }
 }
@@ -912,9 +1021,6 @@ export async function updateInterventionAction(
       }
     }
 
-    // Invalidate caches
-    revalidateInterventionCaches(interventionId, existingIntervention.team_id)
-
     logger.info({ interventionId }, 'Intervention updated successfully')
 
     return { success: true, data: updatedIntervention }
@@ -1000,10 +1106,6 @@ export async function assignUserAction(
     const result = await interventionService.assignUser(interventionId, userId, role, user.id)
 
     if (result.success) {
-      // Revalidate intervention pages
-      revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-      revalidatePath(`/prestataire/interventions/${interventionId}`)
-
       // Send system message to group thread
       try {
         await sendParticipantAddedSystemMessage(interventionId, userId, role, user)
@@ -1055,10 +1157,6 @@ export async function unassignUserAction(
     const result = await interventionService.unassignUser(interventionId, userId, role, user.id)
 
     if (result.success) {
-      // Revalidate intervention pages
-      revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-      revalidatePath(`/prestataire/interventions/${interventionId}`)
-
       return { success: true, data: undefined }
     }
 
@@ -1106,12 +1204,6 @@ export async function approveInterventionAction(
     const result = await interventionService.approveIntervention(id, user.id, comment)
 
     if (result.success && result.data) {
-      // Revalidate intervention pages
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-      revalidatePath('/locataire/interventions')
-      revalidatePath(`/locataire/interventions/${id}`)
-
       return { success: true, data: result.data }
     }
 
@@ -1159,12 +1251,6 @@ export async function rejectInterventionAction(
     const result = await interventionService.rejectIntervention(id, user.id, reason)
 
     if (result.success && result.data) {
-      // Revalidate intervention pages
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-      revalidatePath('/locataire/interventions')
-      revalidatePath(`/locataire/interventions/${id}`)
-
       return { success: true, data: result.data }
     }
 
@@ -1206,12 +1292,6 @@ export async function requestQuoteAction(
     const result = await interventionService.requestQuote(id, user.id, providerId)
 
     if (result.success && result.data) {
-      // Revalidate intervention pages
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-      revalidatePath('/prestataire/interventions')
-      revalidatePath(`/prestataire/interventions/${id}`)
-
       return { success: true, data: result.data }
     }
 
@@ -1281,12 +1361,6 @@ export async function cancelQuoteAction(
       return { success: false, error: updateError.message }
     }
 
-    // Revalidate intervention pages
-    revalidatePath('/gestionnaire/interventions')
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath('/prestataire/interventions')
-    revalidatePath(`/prestataire/interventions/${interventionId}`)
-
     return { success: true }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error cancelling quote:', error)
@@ -1324,10 +1398,6 @@ export async function startPlanningAction(id: string): Promise<ActionResult<Inte
     const result = await interventionService.startPlanning(id, user.id)
 
     if (result.success && result.data) {
-      // Revalidate intervention pages
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-
       return { success: true, data: result.data }
     }
 
@@ -1364,14 +1434,6 @@ export async function confirmScheduleAction(
     const result = await interventionService.confirmSchedule(id, user.id, slotId)
 
     if (result.success && result.data) {
-      // Revalidate all intervention pages
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-      revalidatePath('/locataire/interventions')
-      revalidatePath(`/locataire/interventions/${id}`)
-      revalidatePath('/prestataire/interventions')
-      revalidatePath(`/prestataire/interventions/${id}`)
-
       return { success: true, data: result.data }
     }
 
@@ -1426,14 +1488,6 @@ export async function completeByProviderAction(
     const result = await interventionService.completeByProvider(id, user.id, report)
 
     if (result.success && result.data) {
-      // Revalidate intervention pages
-      revalidatePath('/prestataire/interventions')
-      revalidatePath(`/prestataire/interventions/${id}`)
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-      revalidatePath('/locataire/interventions')
-      revalidatePath(`/locataire/interventions/${id}`)
-
       return { success: true, data: result.data }
     }
 
@@ -1480,12 +1534,6 @@ export async function validateByTenantAction(
     const result = await interventionService.validateByTenant(id, user.id, satisfaction)
 
     if (result.success && result.data) {
-      // Revalidate intervention pages
-      revalidatePath('/locataire/interventions')
-      revalidatePath(`/locataire/interventions/${id}`)
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-
       return { success: true, data: result.data }
     }
 
@@ -1538,14 +1586,6 @@ export async function finalizeByManagerAction(
     const result = await interventionService.finalizeByManager(id, user.id, finalCost)
 
     if (result.success && result.data) {
-      // Revalidate all intervention pages
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-      revalidatePath('/locataire/interventions')
-      revalidatePath(`/locataire/interventions/${id}`)
-      revalidatePath('/prestataire/interventions')
-      revalidatePath(`/prestataire/interventions/${id}`)
-
       return { success: true, data: result.data }
     }
 
@@ -1591,14 +1631,6 @@ export async function cancelInterventionAction(
     const result = await interventionService.cancelIntervention(id, user.id, reason)
 
     if (result.success && result.data) {
-      // Revalidate all intervention pages
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-      revalidatePath('/locataire/interventions')
-      revalidatePath(`/locataire/interventions/${id}`)
-      revalidatePath('/prestataire/interventions')
-      revalidatePath(`/prestataire/interventions/${id}`)
-
       return { success: true, data: result.data }
     }
 
@@ -1646,11 +1678,6 @@ export async function proposeTimeSlotsAction(
     )
 
     if (result.success) {
-      // Revalidate intervention pages
-      revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-      revalidatePath(`/locataire/interventions/${interventionId}`)
-      revalidatePath(`/prestataire/interventions/${interventionId}`)
-
       return { success: true, data: undefined }
     }
 
@@ -1717,11 +1744,6 @@ export async function selectTimeSlotAction(
     const result = await interventionService.selectTimeSlot(interventionId, slotId, user.id)
 
     if (result.success) {
-      // Revalidate intervention pages
-      revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-      revalidatePath(`/locataire/interventions/${interventionId}`)
-      revalidatePath(`/prestataire/interventions/${interventionId}`)
-
       return { success: true, data: undefined }
     }
 
@@ -1760,16 +1782,10 @@ export async function cancelTimeSlotAction(
 
     const supabase = await createServerActionSupabaseClient()
 
-    // Get the time slot with intervention info
+    // Get the time slot (RLS enforces access via intervention's team)
     const { data: slot, error: fetchError } = await supabase
       .from('intervention_time_slots')
-      .select(`
-        *,
-        intervention:interventions (
-          id,
-          team_id
-        )
-      `)
+      .select('*')
       .eq('id', slotId)
       .eq('intervention_id', interventionId)
       .single()
@@ -1779,24 +1795,12 @@ export async function cancelTimeSlotAction(
       return { success: false, error: 'Créneau introuvable' }
     }
 
-    // Check permissions
+    // Check permissions (RLS already verified access via the slot fetch above)
     const isProposer = slot.proposed_by === user.id
     const isAdmin = user.role === 'admin'
+    const isManager = user.role === 'gestionnaire'
 
-    // Check if user is a manager in the intervention's team
-    let isTeamManager = false
-    if (slot.intervention && 'team_id' in slot.intervention) {
-      const { data: teamMember } = await supabase
-        .from('team_members')
-        .select('role')
-        .eq('team_id', slot.intervention.team_id)
-        .eq('user_id', user.id)
-        .single()
-
-      isTeamManager = teamMember?.role === 'gestionnaire' || teamMember?.role === 'admin'
-    }
-
-    if (!isProposer && !isTeamManager && !isAdmin) {
+    if (!isProposer && !isManager && !isAdmin) {
       logger.warn('⚠️ Permission denied: User cannot cancel this time slot')
       return {
         success: false,
@@ -1845,11 +1849,6 @@ export async function cancelTimeSlotAction(
     })
 
     logger.success('✅ Time slot cancelled successfully')
-
-    // Revalidate intervention pages
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath(`/locataire/interventions/${interventionId}`)
-    revalidatePath(`/prestataire/interventions/${interventionId}`)
 
     return { success: true, data: undefined }
   } catch (error) {
@@ -2012,60 +2011,8 @@ export async function acceptTimeSlotAction(
 
     const supabase = await createServerActionSupabaseClient()
 
-    // 🔍 STEP 1: Get the intervention and check user assignment
-    const { data: intervention, error: interventionError } = await supabase
-      .from('interventions')
-      .select('id, team_id')
-      .eq('id', interventionId)
-      .single()
-
-    if (interventionError || !intervention) {
-      logger.error('❌ Intervention not found:', interventionError)
-      return { success: false, error: 'Intervention introuvable' }
-    }
-
-    // 🔍 STEP 2: Verify user has permission (via team_members OR intervention_assignments)
-    const [
-      { data: teamMembership },
-      { data: assignment }
-    ] = await Promise.all([
-      supabase
-        .from('team_members')
-        .select('id, role')
-        .eq('team_id', intervention.team_id)
-        .eq('user_id', user.id)
-        .is('left_at', null)
-        .maybeSingle(),
-      supabase
-        .from('intervention_assignments')
-        .select('id, role')
-        .eq('intervention_id', interventionId)
-        .eq('user_id', user.id)
-        .maybeSingle()
-    ])
-
-    const hasPermission = !!(teamMembership || assignment)
-
-    if (!hasPermission) {
-      logger.warn('⚠️ User not authorized to accept this time slot:', {
-        userId: user.id,
-        interventionId,
-        hasTeamMembership: !!teamMembership,
-        hasAssignment: !!assignment
-      })
-      return {
-        success: false,
-        error: 'Vous n\'êtes pas autorisé à accepter ce créneau. Vous devez être assigné à cette intervention.'
-      }
-    }
-
-    logger.info('✅ Permission verified:', {
-      hasTeamMembership: !!teamMembership,
-      hasAssignment: !!assignment,
-      assignmentRole: assignment?.role || teamMembership?.role
-    })
-
-    // 🔍 STEP 3: Get the time slot
+    // RLS already enforces access — if the user can fetch the slot, they have permission
+    // 🔍 Get the time slot
     const { data: slot, error: fetchError } = await supabase
       .from('intervention_time_slots')
       .select('*')
@@ -2296,11 +2243,6 @@ export async function acceptTimeSlotAction(
       }
     }
 
-    // Revalidate intervention pages
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath(`/locataire/interventions/${interventionId}`)
-    revalidatePath(`/prestataire/interventions/${interventionId}`)
-
     return { success: true, data: undefined }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error accepting time slot:', {
@@ -2417,11 +2359,6 @@ export async function rejectTimeSlotAction(
 
     logger.info('✅ [SERVER-ACTION] Time slot rejected successfully')
 
-    // Revalidate intervention pages
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath(`/locataire/interventions/${interventionId}`)
-    revalidatePath(`/prestataire/interventions/${interventionId}`)
-
     return { success: true, data: undefined }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error rejecting time slot:', error)
@@ -2504,11 +2441,6 @@ export async function withdrawResponseAction(
       })
 
     logger.info('✅ [SERVER-ACTION] Response withdrawn successfully')
-
-    // Revalidate intervention pages
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath(`/locataire/interventions/${interventionId}`)
-    revalidatePath(`/prestataire/interventions/${interventionId}`)
 
     return { success: true, data: undefined }
   } catch (error) {
@@ -2606,35 +2538,26 @@ export async function programInterventionAction(
     // Confirmation participants
     confirmationRequired?: string[]
     requiresConfirmation?: boolean
+    // Assignment sync (merged from updateInterventionAction to avoid 2nd roundtrip)
+    assignedManagerIds?: string[]
+    assignedProviderIds?: string[]
+    assignedTenantIds?: string[]
   }
 ): Promise<ActionResult<Intervention>> {
   try {
-    // Auth check
+    // ── Phase A: Auth + fetch intervention (sequential, needed by everything) ──
     const authContext = await getServerActionAuthContextOrNull()
     const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
 
-    // Only managers can program interventions
     if (!['gestionnaire', 'admin'].includes(user.role)) {
-      logger.warn('⚠️ [SERVER-ACTION] Non-manager tried to program intervention:', {
-        userId: user.id,
-        userRole: user.role
-      })
       return { success: false, error: 'Seuls les gestionnaires peuvent planifier les interventions' }
     }
 
-    logger.info('📅 [SERVER-ACTION] Programming intervention:', {
-      interventionId,
-      planningMode: planningData.option,
-      userId: user.id
-    })
-
-    // Get Supabase client
     const supabase = await createServerActionSupabaseClient()
 
-    // Get intervention details - SIMPLIFIED query to avoid RLS issues
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .select('*')
@@ -2642,12 +2565,8 @@ export async function programInterventionAction(
       .single()
 
     if (interventionError || !intervention) {
-      logger.error('❌ [SERVER-ACTION] Intervention not found:', {
-        error: interventionError,
-        interventionId,
-        errorCode: interventionError?.code,
-        errorMessage: interventionError?.message,
-        errorDetails: interventionError?.details
+      logger.error('❌ [programIntervention] Intervention not found:', {
+        error: interventionError, interventionId
       })
       return {
         success: false,
@@ -2655,15 +2574,6 @@ export async function programInterventionAction(
       }
     }
 
-    logger.info('✅ [SERVER-ACTION] Intervention found:', {
-      id: intervention.id,
-      status: intervention.status,
-      team_id: intervention.team_id
-    })
-
-    // Check if intervention can be scheduled
-    // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
-    // planifiee allowed for re-planning (modify planning from scheduled state)
     if (!['approuvee', 'planification', 'planifiee'].includes(intervention.status)) {
       return {
         success: false,
@@ -2671,104 +2581,167 @@ export async function programInterventionAction(
       }
     }
 
-    // Check if user belongs to intervention team
-    if (intervention.team_id && user.team_id !== intervention.team_id) {
-      return {
-        success: false,
-        error: 'Vous n\'êtes pas autorisé à modifier cette intervention'
-      }
-    }
-
-    // Note: We no longer check for active quotes to determine status
-    // Quote status is now tracked via intervention_quotes table and shown via QuoteStatusBadge
-
     const { option, directSchedule, proposedSlots } = planningData
     const requiresConfirmation = !!(planningData.requiresConfirmation || (planningData.confirmationRequired && planningData.confirmationRequired.length > 0))
 
-    // ── Step 1: Validate inputs ──────────────────────────────────
+    // ── Validate inputs ──
     if (option === 'direct') {
       if (!directSchedule || !directSchedule.date || !directSchedule.startTime) {
-        return {
-          success: false,
-          error: 'Date et heure sont requises pour fixer le rendez-vous'
-        }
+        return { success: false, error: 'Date et heure sont requises pour fixer le rendez-vous' }
       }
     } else if (option === 'propose') {
       if (!proposedSlots || proposedSlots.length === 0) {
-        return {
-          success: false,
-          error: 'Des créneaux proposés sont requis pour la planification avec choix'
+        return { success: false, error: 'Des créneaux proposés sont requis pour la planification avec choix' }
+      }
+    }
+
+    // ── Phase B: Sync assignments (must complete before confirmation flags) ──
+    const hasAssignmentChanges = planningData.assignedManagerIds !== undefined
+      || planningData.assignedProviderIds !== undefined
+      || planningData.assignedTenantIds !== undefined
+
+    if (hasAssignmentChanges) {
+      const { data: currentAssignments } = await supabase
+        .from('intervention_assignments')
+        .select('id, user_id, role')
+        .eq('intervention_id', interventionId)
+
+      // Sync manager + provider assignments
+      if (planningData.assignedManagerIds !== undefined || planningData.assignedProviderIds !== undefined) {
+        const allNewAssignments: Array<{ user_id: string; role: string }> = []
+        if (planningData.assignedManagerIds) {
+          planningData.assignedManagerIds.forEach(userId => {
+            allNewAssignments.push({ user_id: userId, role: 'gestionnaire' })
+          })
         }
+        if (planningData.assignedProviderIds) {
+          planningData.assignedProviderIds.forEach(userId => {
+            allNewAssignments.push({ user_id: userId, role: 'prestataire' })
+          })
+        }
+
+        const toDelete = (currentAssignments || []).filter(a =>
+          a.role !== 'locataire' &&
+          !allNewAssignments.some(n => n.user_id === a.user_id && n.role === a.role)
+        )
+        const toInsert = allNewAssignments.filter(n =>
+          !currentAssignments?.some(c => c.user_id === n.user_id && c.role === n.role)
+        )
+
+        const assignmentOps: Promise<unknown>[] = []
+        if (toDelete.length > 0) {
+          assignmentOps.push(
+            supabase.from('intervention_assignments').delete().in('id', toDelete.map(a => a.id))
+          )
+        }
+        if (toInsert.length > 0) {
+          assignmentOps.push(
+            supabase.from('intervention_assignments').insert(
+              toInsert.map(a => ({
+                intervention_id: interventionId,
+                user_id: a.user_id,
+                role: a.role,
+                assigned_by: user.id
+              }))
+            )
+          )
+        }
+        if (assignmentOps.length > 0) await Promise.all(assignmentOps)
       }
+
+      // Sync tenant assignments
+      if (planningData.assignedTenantIds !== undefined) {
+        const currentTenantAssignments = (currentAssignments || []).filter(a => a.role === 'locataire')
+        const currentTenantIds = new Set(currentTenantAssignments.map(a => a.user_id))
+        const newTenantIds = new Set(planningData.assignedTenantIds)
+
+        const tenantsToDelete = currentTenantAssignments.filter(a => !newTenantIds.has(a.user_id))
+        const tenantsToInsert = planningData.assignedTenantIds.filter(userId => !currentTenantIds.has(userId))
+
+        const tenantOps: Promise<unknown>[] = []
+        if (tenantsToDelete.length > 0) {
+          tenantOps.push(
+            supabase.from('intervention_assignments').delete().in('id', tenantsToDelete.map(a => a.id))
+          )
+        }
+        if (tenantsToInsert.length > 0) {
+          tenantOps.push(
+            supabase.from('intervention_assignments').insert(
+              tenantsToInsert.map((userId, index) => ({
+                intervention_id: interventionId,
+                user_id: userId,
+                role: 'locataire',
+                is_primary: index === 0,
+                assigned_by: user.id
+              }))
+            )
+          )
+        }
+        if (tenantOps.length > 0) await Promise.all(tenantOps)
+      }
+
+      // Ensure conversation threads exist (non-blocking, don't await)
+      ensureInterventionConversationThreads(interventionId).catch(err =>
+        logger.warn({ error: err }, '[programIntervention] Non-blocking thread creation failed')
+      )
     }
 
-    // ── Step 2: Create time slots via shared scheduling service ──
-    // Uses identical logic as creation flow (create-manager-intervention/route.ts)
+    // ── Phase C: Parallel independent operations ──
+    // Time slots, provider guidelines, and per-provider instructions are independent
+    const parallelOps: Promise<unknown>[] = []
+
+    // Time slots
     if (option === 'direct' && directSchedule) {
-      const { error: slotError } = await createFixedSlot(
-        supabase,
-        interventionId,
-        directSchedule.date,
-        directSchedule.startTime,
-        directSchedule.endTime || undefined,
-        user.id,
-        requiresConfirmation
+      parallelOps.push(
+        createFixedSlot(supabase, interventionId, directSchedule.date, directSchedule.startTime,
+          directSchedule.endTime || undefined, user.id, requiresConfirmation)
+          .then(result => {
+            if (result.error) throw new Error('Erreur lors de la création du rendez-vous')
+          })
       )
-      if (slotError) {
-        return { success: false, error: 'Erreur lors de la création du rendez-vous' }
-      }
-      logger.info('📅 [SERVER-ACTION] Fixed slot created via scheduling service')
     } else if (option === 'propose' && proposedSlots) {
-      const { error: slotsError } = await createProposedSlots(
-        supabase,
-        interventionId,
-        proposedSlots,
-        user.id
+      parallelOps.push(
+        createProposedSlots(supabase, interventionId, proposedSlots, user.id)
+          .then(result => {
+            if (result.error) throw new Error('Erreur lors de la création des créneaux')
+          })
       )
-      if (slotsError) {
-        return { success: false, error: 'Erreur lors de la création des créneaux' }
-      }
-      logger.info('📅 [SERVER-ACTION] Proposed slots created via scheduling service', { count: proposedSlots.length })
     } else if (option === 'organize') {
-      await clearTimeSlots(supabase, interventionId)
-      logger.info('📅 [SERVER-ACTION] Time slots cleared for flexible mode')
+      parallelOps.push(clearTimeSlots(supabase, interventionId))
     }
 
-    // ── Step 3: Determine intervention status (matches creation flow 3-case logic) ──
-    const newStatus = determineInterventionStatus(
-      option,
-      directSchedule,
-      requiresConfirmation,
-      planningData.requireQuote
-    )
+    // Per-provider instructions (writes to intervention_assignments)
+    if (planningData.providerInstructions) {
+      parallelOps.push(storePerProviderInstructions(supabase, interventionId, planningData.providerInstructions))
+    }
 
-    logger.info(`📅 [SERVER-ACTION] Status decision: ${intervention.status} → ${newStatus}`)
+    if (parallelOps.length > 0) await Promise.all(parallelOps)
 
-    // ── Step 4: Update intervention with scheduling data ──
+    // ── Phase D: Single merged UPDATE on interventions row ──
+    const newStatus = determineInterventionStatus(option, directSchedule, requiresConfirmation, planningData.requireQuote)
+
     const updateData: Record<string, unknown> = {
       status: newStatus,
       scheduling_type: mapOptionToSchedulingType(option),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     }
 
-    // Set scheduled_date for fixed mode (ISO format matching creation flow)
     if (option === 'direct' && directSchedule?.date && directSchedule?.startTime) {
       updateData.scheduled_date = computeScheduledDate(directSchedule.date, directSchedule.startTime)
     }
-
-    // Store assignment_mode on intervention
     if (planningData.assignmentMode) {
       updateData.assignment_mode = planningData.assignmentMode
     }
-
-    logger.info('📅 [SERVER-ACTION] Update data prepared:', {
-      option,
-      scheduling_type: updateData.scheduling_type,
-      status: updateData.status,
-      has_scheduled_date: !!updateData.scheduled_date,
-      assignment_mode: planningData.assignmentMode,
-      confirmation_count: planningData.confirmationRequired?.length || 0
-    })
+    // Merge provider_guidelines into the same UPDATE (was a separate query)
+    if (planningData.instructions?.trim()) {
+      updateData.provider_guidelines = planningData.instructions.trim()
+    }
+    // Merge requires_participant_confirmation into the same UPDATE
+    updateData.requires_participant_confirmation = requiresConfirmation
+    // Merge requires_quote flag into the same UPDATE
+    if (planningData.requireQuote !== undefined) {
+      updateData.requires_quote = planningData.requireQuote
+    }
 
     const { data: updatedIntervention, error: updateError } = await supabase
       .from('interventions')
@@ -2778,153 +2751,85 @@ export async function programInterventionAction(
       .single()
 
     if (updateError) {
-      logger.error('❌ [SERVER-ACTION] Error updating intervention:', updateError)
+      logger.error('❌ [programIntervention] Error updating intervention:', updateError)
       return { success: false, error: 'Erreur lors de la mise à jour de l\'intervention' }
     }
 
-    // ── Step 5: Update confirmation requirements via shared service ──
-    await updateConfirmationRequirements(
-      supabase,
-      interventionId,
-      planningData.confirmationRequired || [],
-      requiresConfirmation
+    // ── Phase E: Post-update parallel ops ──
+    const postUpdateOps: Promise<unknown>[] = []
+
+    // Confirmation requirements (needs assignments to exist from Phase B)
+    postUpdateOps.push(
+      updateConfirmationRequirements(supabase, interventionId, planningData.confirmationRequired || [], requiresConfirmation)
     )
 
-    // ── Step 6: Store instructions via shared service (correct column: provider_guidelines) ──
-    if (planningData.instructions) {
-      await storeProviderGuidelines(supabase, interventionId, planningData.instructions)
-    }
-
-    // ── Step 7: Store per-provider instructions via shared service ──
-    if (planningData.providerInstructions) {
-      await storePerProviderInstructions(supabase, interventionId, planningData.providerInstructions)
-    }
-
-    // ── Step 8: Create quote requests if needed ──
+    // Quote handling
     let quoteStats: { totalSelected: number; skipped: number; created: number } | null = null
 
     if (planningData.requireQuote && planningData.selectedProviders && planningData.selectedProviders.length > 0) {
-      logger.info('📋 [SERVER-ACTION] Creating quote requests for selected providers', {
-        interventionId,
-        providerCount: planningData.selectedProviders.length
-      })
+      postUpdateOps.push(
+        (async () => {
+          // Check existing quotes + eligible providers in parallel
+          const [existingResult, accountResult] = await Promise.all([
+            supabase.from('intervention_quotes').select('id, provider_id, status')
+              .eq('intervention_id', interventionId).in('status', ['pending', 'sent']),
+            supabase.from('users').select('id')
+              .in('id', planningData.selectedProviders!).not('auth_user_id', 'is', null)
+          ])
 
-      try {
-        // Check for existing active quotes to avoid duplicates
-        const { data: existingQuotes, error: quotesCheckError } = await supabase
-          .from('intervention_quotes')
-          .select('id, provider_id, status')
-          .eq('intervention_id', interventionId)
-          .in('status', ['pending', 'sent'])
+          const existingProviderIds = new Set((existingResult.data || []).map(q => q.provider_id))
+          const accountProviderIds = new Set((accountResult.data || []).map(p => p.id))
 
-        if (quotesCheckError) {
-          logger.error('❌ [SERVER-ACTION] Error checking existing quotes:', quotesCheckError)
-          throw quotesCheckError
-        }
+          const eligibleProviderIds = planningData.selectedProviders!.filter(
+            id => !existingProviderIds.has(id) && accountProviderIds.has(id)
+          )
 
-        const existingProviderIds = new Set(
-          (existingQuotes || []).map(q => q.provider_id)
-        )
+          quoteStats = {
+            totalSelected: planningData.selectedProviders!.length,
+            skipped: planningData.selectedProviders!.length - eligibleProviderIds.length,
+            created: eligibleProviderIds.length
+          }
 
-        const newProviderIds = planningData.selectedProviders.filter(
-          providerId => !existingProviderIds.has(providerId)
-        )
+          if (eligibleProviderIds.length > 0) {
+            await createQuoteRequestsForProviders({
+              interventionId,
+              teamId: intervention.team_id,
+              providerIds: eligibleProviderIds,
+              createdBy: user.id,
+              messageType: 'global',
+              globalMessage: planningData.instructions || undefined,
+              supabase
+            })
+          }
+        })().catch(err => logger.error('❌ [programIntervention] Quote creation error:', err))
+      )
+    } else if (planningData.requireQuote === false) {
+      postUpdateOps.push(
+        (async () => {
+          const { data: pendingQuotes, error: pendingError } = await supabase
+            .from('intervention_quotes')
+            .select('id, status, amount')
+            .eq('intervention_id', interventionId)
+            .in('status', ['pending', 'sent'])
+            .is('deleted_at', null)
 
-        // Filter to only providers with accounts (auth_user_id IS NOT NULL)
-        // Contacts without accounts can't log in to submit quotes
-        const { data: accountProviders } = await supabase
-          .from('users')
-          .select('id')
-          .in('id', newProviderIds)
-          .not('auth_user_id', 'is', null)
+          if (!pendingError && pendingQuotes && pendingQuotes.length > 0) {
+            const cancellableIds = pendingQuotes
+              .filter(q => !q.amount || q.amount <= 0)
+              .map(q => q.id)
 
-        const eligibleProviderIds = accountProviders?.map(p => p.id) || []
-
-        quoteStats = {
-          totalSelected: planningData.selectedProviders.length,
-          skipped: existingProviderIds.size + (newProviderIds.length - eligibleProviderIds.length),
-          created: eligibleProviderIds.length
-        }
-
-        if (eligibleProviderIds.length > 0) {
-          await createQuoteRequestsForProviders({
-            interventionId,
-            teamId: intervention.team_id,
-            providerIds: eligibleProviderIds,
-            createdBy: user.id,
-            messageType: 'global',
-            globalMessage: planningData.instructions || undefined,
-            supabase
-          })
-        }
-
-        // Set requires_quote flag
-        const { error: requiresQuoteError } = await supabase
-          .from('interventions')
-          .update({ requires_quote: true })
-          .eq('id', interventionId)
-
-        if (!requiresQuoteError && updatedIntervention) {
-          updatedIntervention.requires_quote = true
-        }
-      } catch (quoteError) {
-        logger.error('❌ [SERVER-ACTION] Error creating quote requests:', quoteError)
-      }
-    }
-
-    // ── Step 8b: Cancel pending quotes if requireQuote toggled OFF ──
-    if (planningData.requireQuote === false) {
-      try {
-        const { data: pendingQuotes, error: pendingError } = await supabase
-          .from('intervention_quotes')
-          .select('id, status, amount')
-          .eq('intervention_id', interventionId)
-          .in('status', ['pending', 'sent'])
-          .is('deleted_at', null)
-
-        if (!pendingError && pendingQuotes && pendingQuotes.length > 0) {
-          // Only cancel quotes without a submitted amount
-          const cancellableIds = pendingQuotes
-            .filter(q => !q.amount || q.amount <= 0)
-            .map(q => q.id)
-
-          if (cancellableIds.length > 0) {
-            const { error: cancelError } = await supabase
-              .from('intervention_quotes')
-              .update({ status: 'cancelled' })
-              .in('id', cancellableIds)
-
-            if (cancelError) {
-              logger.error('❌ [SERVER-ACTION] Error cancelling pending quotes:', cancelError)
-            } else {
-              logger.info(`📋 [SERVER-ACTION] Cancelled ${cancellableIds.length} pending quote(s)`)
+            if (cancellableIds.length > 0) {
+              await supabase.from('intervention_quotes')
+                .update({ status: 'cancelled' }).in('id', cancellableIds)
             }
           }
-
-          // Set requires_quote = false
-          await supabase
-            .from('interventions')
-            .update({ requires_quote: false })
-            .eq('id', interventionId)
-
-          if (updatedIntervention) {
-            updatedIntervention.requires_quote = false
-          }
-        }
-      } catch (cancelError) {
-        logger.error('❌ [SERVER-ACTION] Error in Step 8b (cancel pending quotes):', cancelError)
-      }
+        })().catch(err => logger.error('❌ [programIntervention] Quote cancellation error:', err))
+      )
     }
 
-    logger.info('✅ [SERVER-ACTION] Intervention programmed successfully', { status: newStatus })
+    await Promise.all(postUpdateOps)
 
-    // Revalidate intervention pages
-    revalidatePath('/gestionnaire/interventions')
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath('/locataire/interventions')
-    revalidatePath(`/locataire/interventions/${interventionId}`)
-    revalidatePath('/prestataire/interventions')
-    revalidatePath(`/prestataire/interventions/${interventionId}`)
+    logger.info('✅ [programIntervention] Intervention programmed successfully', { status: newStatus })
 
     return {
       success: true,
@@ -2934,7 +2839,7 @@ export async function programInterventionAction(
       }
     }
   } catch (error) {
-    logger.error('❌ [SERVER-ACTION] Error programming intervention:', error)
+    logger.error('❌ [programIntervention] Error:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -3134,12 +3039,7 @@ export async function chooseTimeSlotAsManagerAction(
 
     logger.info('✅ Time slot chosen successfully by manager')
 
-    // 11. Revalidate intervention pages
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath(`/locataire/interventions/${interventionId}`)
-    revalidatePath(`/prestataire/interventions/${interventionId}`)
-
-    return { 
+    return {
       success: true, 
       data: { hasActiveQuotes }
     }
@@ -3212,12 +3112,6 @@ export async function updateProviderGuidelinesAction(
       interventionId,
       hasGuidelines: !!updated.provider_guidelines
     })
-
-    // Revalidate all relevant paths
-    revalidatePath('/gestionnaire/interventions')
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath('/prestataire/interventions')
-    revalidatePath(`/prestataire/interventions/${interventionId}`)
 
     return { success: true, data: updated }
   } catch (error) {
@@ -3300,16 +3194,6 @@ export async function assignMultipleProvidersAction(
       }
     }
 
-    // Get team_id for cache invalidation
-    const { supabase } = await createServerActionSupabaseClient()
-    const { data: intervention } = await supabase
-      .from('interventions')
-      .select('team_id')
-      .eq('id', input.interventionId)
-      .single()
-
-    revalidateInterventionCaches(input.interventionId, intervention?.team_id)
-
     logger.info('✅ Multiple providers assigned successfully', {
       interventionId: input.interventionId,
       providerCount: input.providerIds.length,
@@ -3389,23 +3273,6 @@ export async function createChildInterventionsAction(
       }
     }
 
-    // Get team_id for cache invalidation
-    const { supabase } = await createServerActionSupabaseClient()
-    const { data: intervention } = await supabase
-      .from('interventions')
-      .select('team_id')
-      .eq('id', parentInterventionId)
-      .single()
-
-    revalidateInterventionCaches(parentInterventionId, intervention?.team_id)
-
-    // Also revalidate child intervention paths
-    if (result.data?.childInterventions) {
-      for (const child of result.data.childInterventions) {
-        revalidatePath(`/gestionnaire/interventions/${child.id}`)
-      }
-    }
-
     logger.info('✅ Child interventions created successfully', {
       parentId: parentInterventionId,
       childCount: result.data?.childCount
@@ -3464,9 +3331,6 @@ export async function updateProviderInstructionsAction(
         error: result.error?.message || 'Erreur lors de la mise à jour des instructions'
       }
     }
-
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath(`/prestataire/interventions/${interventionId}`)
 
     return { success: true, data: result.data }
   } catch (error) {

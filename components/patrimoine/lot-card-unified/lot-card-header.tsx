@@ -67,8 +67,12 @@ export function countContacts(lot: LotData): number {
  */
 export function calculateOccupancy(lot: LotData): { isOccupied: boolean; tenantName: string | null } {
   const tenants = lot.lot_contacts?.filter(lc => lc.user?.role === 'locataire') || []
-  const isOccupied = tenants.length > 0 || lot.has_active_tenants || lot.is_occupied || false
-  const tenantName = tenants[0]?.user?.name || lot.tenant?.name || null
+  // Also check contract contacts for locataires/colocataires
+  const contractTenants = lot.contracts?.flatMap(c =>
+    (c.contacts || []).filter(cc => cc.role === 'locataire' || cc.role === 'colocataire')
+  ) || []
+  const isOccupied = tenants.length > 0 || contractTenants.length > 0 || lot.has_active_tenants || lot.is_occupied || false
+  const tenantName = tenants[0]?.user?.name || contractTenants[0]?.user?.name || lot.tenant?.name || null
   return { isOccupied, tenantName }
 }
 

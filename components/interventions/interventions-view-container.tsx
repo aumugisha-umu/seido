@@ -16,9 +16,6 @@ import { InterventionsListViewV1 } from './interventions-list-view-v1'
 // Calendar View (unified month/week component)
 import { InterventionsCalendarView } from './interventions-calendar-view'
 
-// Card View (Existing)
-import { InterventionsList } from './interventions-list'
-
 // Empty State
 import { InterventionsEmptyState } from './interventions-empty-state'
 
@@ -86,8 +83,8 @@ export interface InterventionsViewContainerProps {
   className?: string
 
   /** External view mode control (lifted state) */
-  viewMode?: 'cards' | 'list' | 'calendar'
-  setViewMode?: (mode: 'cards' | 'list' | 'calendar') => void
+  viewMode?: 'list' | 'calendar'
+  setViewMode?: (mode: 'list' | 'calendar') => void
   hideViewSwitcher?: boolean
 }
 
@@ -108,7 +105,7 @@ export function InterventionsViewContainer({
 
   // View mode state management - use external if provided, otherwise internal
   const internalViewMode = useViewMode({
-    defaultMode: 'cards',
+    defaultMode: 'list',
     syncWithUrl: syncViewModeWithUrl
   })
 
@@ -125,13 +122,6 @@ export function InterventionsViewContainer({
     pageSize: pageSize
   })
 
-  // Pagination for cards view (fixed 12 items = 4 rows × 3 cols)
-  const cardsPagination = usePagination({
-    items: interventions,
-    pageSize: 12
-  })
-  const resetCardsToFirstPage = cardsPagination.resetToFirstPage
-
   // Aliases for list view (keep existing references)
   const {
     paginatedItems,
@@ -146,11 +136,10 @@ export function InterventionsViewContainer({
     resetToFirstPage
   } = listPagination
 
-  // Reset both paginations when interventions change (tab switch, search)
+  // Reset pagination when interventions change (tab switch, search)
   useEffect(() => {
     resetToFirstPage()
-    resetCardsToFirstPage()
-  }, [interventions, resetToFirstPage, resetCardsToFirstPage])
+  }, [interventions, resetToFirstPage])
 
   // Prevent hydration mismatch
   if (!mounted) {
@@ -233,40 +222,6 @@ export function InterventionsViewContainer({
   }
 
   /**
-   * 🃏 Render cards view (paginated grid)
-   */
-  const renderCardsView = () => {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="flex-1 min-h-0">
-          <InterventionsList
-            interventions={cardsPagination.paginatedItems}
-            loading={loading}
-            emptyStateConfig={emptyStateConfig}
-            showStatusActions={showStatusActions}
-            userContext={userContext}
-            userId={user?.id}
-          />
-        </div>
-        {cardsPagination.totalPages > 1 && (
-          <div className="flex-shrink-0 mt-2">
-            <InterventionPagination
-              currentPage={cardsPagination.currentPage}
-              totalPages={cardsPagination.totalPages}
-              totalItems={cardsPagination.totalItems}
-              startIndex={cardsPagination.startIndex}
-              endIndex={cardsPagination.endIndex}
-              onPageChange={cardsPagination.goToPage}
-              hasNextPage={cardsPagination.hasNextPage}
-              hasPreviousPage={cardsPagination.hasPreviousPage}
-            />
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  /**
    * 🎯 Render current view based on mode
    */
   const renderCurrentView = () => {
@@ -276,13 +231,11 @@ export function InterventionsViewContainer({
     }
 
     switch (viewMode) {
-      case 'list':
-        return renderListView()
       case 'calendar':
         return renderCalendarView()
-      case 'cards':
+      case 'list':
       default:
-        return renderCardsView()
+        return renderListView()
     }
   }
 

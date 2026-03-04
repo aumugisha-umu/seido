@@ -26,6 +26,7 @@ export type TenantContractStatus = 'none' | 'a_venir' | 'actif'
 export interface TenantData {
   user: User
   lots: Array<{
+    contractContactId: string  // Unique junction table ID (contract_contacts.id)
     lot: Lot
     is_primary: boolean
     start_date?: string
@@ -260,6 +261,7 @@ export class TenantService {
       const lotsWithDetails = activeContracts.map((item: any) => {
         const status = item.contract?.status?.toLowerCase() as TenantContractStatus
         return {
+          contractContactId: item.id,
           lot: item.contract.lot as Lot,
           is_primary: item.is_primary || false,
           start_date: item.contract.start_date || undefined,

@@ -210,7 +210,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                 </PageActions>
 
                 {/* Stats Section - Mobile Grid (2x2 + hero "Actions requises") */}
-                <div className="dashboard__stats lg:hidden">
+                <div className="dashboard__stats dashboard__stats--mobile">
                     <KPIMobileGrid
                         cards={statsToKPICards({
                             pendingCount,
@@ -230,7 +230,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                 </div>
 
                 {/* Stats Section - Desktop Grid (full, first on desktop) */}
-                <div className="dashboard__stats hidden lg:block lg:order-1">
+                <div className="dashboard__stats dashboard__stats--desktop">
                     <DashboardStatsCards
                         pendingCount={pendingCount}
                         activeCount={activeInterventionsCount}

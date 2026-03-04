@@ -1,0 +1,85 @@
+# Progress Log — Dashboard Interventions Perf & UX Optimization
+# Started: 2026-03-01
+# Stories: 4 total
+---
+
+## 2026-03-01 — US-001: Remove PeriodSelector from dashboard
+Files: components/dashboards/manager/manager-dashboard-v2.tsx
+- Removed PeriodSelector import, period state, filteredInterventions useMemo, progressData useMemo
+- Removed celebration toast + hasShownCelebration state + period reset useEffect
+- Removed toast import (no longer used)
+- InterventionsNavigator now receives unfiltered `interventions`
+- Header title simplified to "Interventions" (no period label)
+- Stats cards: removed progressData prop (optional, no breaking change)
+
+## 2026-03-01 — US-002: Add rejetee to Terminées tab
+Files: components/interventions/interventions-navigator.tsx
+- Added 'rejetee' to terminees filter array (1 line)
+
+## 2026-03-01 — US-003: Sort by scheduled_date
+Files: components/interventions/interventions-navigator.tsx
+- Added 'scheduled' to SortField union type
+- Added 'scheduled-asc' option to SORT_OPTIONS (first position, label: "Date planifiée")
+- Sort logic: NULL scheduled_date first (urgency DESC, created_at DESC), then by scheduled_date ASC
+- Default sort for dashboard preset changed from 'date-desc' to 'scheduled-asc'
+
+## 2026-03-01 — US-004: Client-side pagination on cards view
+Files: components/interventions/interventions-view-container.tsx
+- Added second usePagination instance (cardsPagination, pageSize: 12)
+- Cards view now renders cardsPagination.paginatedItems instead of full array
+- InterventionPagination component shown below cards when totalPages > 1
+- Page size selector hidden for cards (fixed at 12)
+- Destructured resetCardsToFirstPage to satisfy ESLint exhaustive-deps
+
+---
+ALL 4 STORIES COMPLETE — 2026-03-01
+Lint: 0 new warnings
+
+## 2026-03-01 — Tab rename: "En cours" → "À venir"
+Files: components/interventions/interventions-navigator.tsx
+- Changed dashboard tab label from "En cours" to "À venir" (tab ID unchanged)
+
+## 2026-03-01 — BUG FIX: Building-level intervention missing tenant conversations
+Files: app/api/create-manager-intervention/route.ts
+- Root cause: Thread creation used `selectedTenantIds` which is only populated client-side for lot-level interventions. For building-level, it was always `[]`.
+- Building tenants were resolved server-side via `contractService.getActiveTenantsByBuilding()` but AFTER thread creation — too late.
+- Fix: Added early resolution step before thread creation. `resolvedTenantIds` now covers both lot-level (from client) and building-level (from DB).
+- Unified assignment section: replaced 80+ lines of duplicated lot/building assignment code with a single path using `resolvedTenantIds`.
+- Learning: When a dependent step assumes client-sent IDs, verify ALL code paths populate those IDs. Server-resolved data may need injection earlier.
+- AGENTS.md: Added Learning #096
+
+## 2026-03-01 — Custom Interventions in Creation Wizards
+Files: lib/constants/property-interventions.ts, components/contract/intervention-schedule-row.tsx, components/property-interventions-step.tsx, components/contract/lease-interventions-step.tsx
+- Added `createEmptyCustomIntervention()` factory with `custom_` key prefix
+- `InterventionScheduleRow` now supports `isEditable` prop → Input fields instead of static text
+- Property step: custom section with "+ Ajouter" button, useEffect preserves `custom_*` entries
+- Lease step: same pattern, custom section above standard interventions
+- UI: All cards now unconditionally `bg-card border-border` (no grey when unchecked), "Auto" badge removed
+- Learning: Key prefix convention protects user entries from template-regeneration useEffect
+
+## 2026-03-01 — Lease Payment Reminders (Ralph: 3 stories)
+Files: supabase/migrations/20260228100000_add_rappel_loyer_type.sql, components/contract/lease-interventions-step.tsx, components/contract/contract-form-container.tsx
+- US-001: DB migration — new `rappel_loyer` intervention type (category: bail, icon: Banknote)
+- US-002: UI card — checkbox, day-of-month Select (1-28), description with reminder count, avatar chips
+- US-003: Parent state + submit — `RentReminderConfig` in contract-form-container, generates N monthly dates, Promise.allSettled creation
+- Decision: Separate state (`RentReminderConfig`) instead of encoding N entries in scheduledInterventions — 1-to-N meta-card pattern
+- Learning: 1-to-N meta-card + sentinel key routing for shared ContactSelector
+
+## 2026-03-01 — Contact Assignment on Rent Reminders
+Files: components/contract/lease-interventions-step.tsx, components/contract/contract-form-container.tsx
+- Gestionnaire pre-assigned on init, can add locataire via ContactSelector popover
+- Sentinel key `RENT_REMINDER_KEY` routes shared ContactSelector to rentReminderConfig.assignedUsers
+- Avatar chips with tooltips + role-colored borders (ROLE_COLORS map)
+
+## 2026-03-01 — BUG FIX: Duplicate React key in locataire nouvelle-demande
+Files: lib/services/domain/tenant.service.ts
+- Root cause: `getSimpleTenantLots()` traversed contract_contacts → contracts → lots without dedup. Multi-contract tenants (renewal, colocataire) produced same lot.id twice.
+- Fix: Set-based dedup by lot.id in getSimpleTenantLots (6 lines). Private getTenantLots stays un-deduped (per-contract data).
+- AGENTS.md: Added Learnings #097-#100
+
+## 2026-03-01 — BUG FIX: Non-invited contacts in confirmation + tenant missing from time slot responses
+Files: nouvelle-intervention-client.tsx, route.ts (create-manager-intervention), assignment-section-v2.tsx, programming-modal-FINAL.tsx, intervention-edit-client.tsx
+- Bug 1: `buildAllParticipantIds()` included contacts without Seido accounts in confirmation list. Fix: `has_account !== false` filter + server-side `auth_user_id IS NOT NULL` defense-in-depth.
+- Bug 2: Confirmation UPDATE ran before tenant INSERT → tenants never got `requires_confirmation=true`. Fix: moved confirmation block after ALL assignments.
+- New business rule: 1 slot in "Creneaux" mode = behave like "Date fixe" (optional confirmation, planifiee status, slot=selected). 2+ slots = mandatory confirmation (current behavior). Derived `isMultiSlot` variable shared across 6 files.
+- AGENTS.md: Added Learnings #101-#103

@@ -33,6 +33,21 @@ const getActiveTeamsCount = unstable_cache(
   { revalidate: 3600 } // 1 hour cache
 )
 
+// Cached subscription info per team (15min TTL, invalidated by Stripe webhook)
+const getCachedSubscriptionInfo = (teamId: string) =>
+  unstable_cache(
+    async () => {
+      const stripe = getStripe()
+      const serviceRoleClient = createServiceRoleSupabaseClient()
+      const subRepo = new SubscriptionRepository(serviceRoleClient)
+      const custRepo = new StripeCustomerRepository(serviceRoleClient)
+      const subService = new SubscriptionService(stripe, subRepo, custRepo)
+      return subService.getSubscriptionInfo(teamId, subRepo)
+    },
+    ['subscription-info', teamId],
+    { revalidate: 900, tags: ['subscription'] } // 15 min + webhook invalidation
+  )()
+
 /**
  * 🔐 GESTIONNAIRE LAYOUT - ROOT LAYOUT
  *
@@ -50,7 +65,7 @@ export default async function GestionnaireLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, profile, team, supabase, sameRoleTeams } = await getServerAuthContext('gestionnaire')
+  const { user, profile, team, sameRoleTeams } = await getServerAuthContext('gestionnaire')
 
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitial = userName.charAt(0).toUpperCase()
@@ -60,17 +75,12 @@ export default async function GestionnaireLayout({
   const sidebarCookie = cookieStore.get("sidebar_state")?.value
   const defaultOpen = sidebarCookie !== "false"
 
-  // Fetch subscription info + social proof count in parallel (fail-safe — layout must not crash)
+  // Fetch subscription info (cached 15min) + social proof count (cached 1h) in parallel
   let subscriptionInfo = null
   let activeTeamsCount = 0
   try {
-    const stripe = getStripe()
-    const subRepo = new SubscriptionRepository(supabase)
-    const custRepo = new StripeCustomerRepository(supabase)
-    const subService = new SubscriptionService(stripe, subRepo, custRepo)
-    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
     const [subInfo, teamsCount] = await Promise.all([
-      subService.getSubscriptionInfo(team.id, serviceRoleRepo),
+      getCachedSubscriptionInfo(team.id),
       getActiveTeamsCount(),
     ])
     subscriptionInfo = subInfo

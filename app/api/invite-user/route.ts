@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import type { Database } from '@/lib/database.types'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
@@ -535,64 +535,72 @@ export async function POST(request: Request) {
           logger.info({ invitationRecord: invitationRecord.id }, '✅ [STEP-3-INVITE-3] Invitation record created:')
         }
 
-        // SOUS-ÉTAPE 4: Envoyer l'email via Resend
+        // SOUS-ÉTAPE 4: Envoyer l'email via Resend (déféré avec after() — hors du chemin critique)
         // ✅ MULTI-ÉQUIPE (Jan 2026): Différencier email selon si nouvel utilisateur ou existant
         // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
-        logger.info({ isNewAuthUser }, '📨 [STEP-3-INVITE-4] Sending email via Resend (type depends on isNewAuthUser)...')
+        logger.info({ isNewAuthUser }, '📨 [STEP-3-INVITE-4] Scheduling email via after() (non-blocking)...')
 
-        // Récupérer le nom de l'équipe pour l'email
-        const { data: teamData } = await supabaseAdmin
-          .from('teams')
-          .select('name')
-          .eq('id', teamId)
-          .single()
-        const teamNameForEmail = teamData?.name || 'votre équipe'
+        // Capturer les variables nécessaires dans des constantes locales pour la closure
+        const capturedEmail = normalizedEmail!
+        const capturedFirstName = firstName
+        const capturedInviterName = `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`
+        const capturedRole = validUserRole
+        const capturedInvitationUrl = invitationUrl
+        const capturedIsNewAuthUser = isNewAuthUser
+        const capturedTeamId = teamId
 
-        let emailResult
-        if (isNewAuthUser) {
-          // ✅ CAS A: Nouvel utilisateur - Email d'invitation complet (créer compte)
-          logger.info({}, '📧 [STEP-3-INVITE-4A] Sending INVITATION email (new user)...')
-          emailResult = await emailService.sendInvitationEmail(normalizedEmail!, {
-            firstName,
-            inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
-            teamName: teamNameForEmail,
-            role: validUserRole,
-            invitationUrl, // ✅ Lien officiel Supabase (signup)
-            expiresIn: 7,
-          })
-        } else {
-          // ✅ CAS B: Utilisateur existant - Email avec magic link (connexion auto + acceptation)
-          logger.info({}, '📧 [STEP-3-INVITE-4B] Sending TEAM ADDITION email (existing user)...')
-          emailResult = await emailService.sendTeamAdditionEmail(normalizedEmail!, {
-            firstName,
-            inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
-            teamName: teamNameForEmail,
-            role: validUserRole,
-            magicLinkUrl: invitationUrl, // ✅ Magic link pour connexion auto + acceptation invitation
-          })
-        }
+        after(async () => {
+          try {
+            // Récupérer le nom de l'équipe pour l'email
+            const { data: teamData } = await supabaseAdmin
+              .from('teams')
+              .select('name')
+              .eq('id', capturedTeamId)
+              .single()
+            const teamNameForEmail = teamData?.name || 'votre équipe'
 
-        if (!emailResult.success) {
-          logger.warn({ emailResult: emailResult.error }, '⚠️ [STEP-3-INVITE-4] Failed to send email via Resend:')
-          invitationResult = {
-            success: false,
-            invitationSent: false,
-            magicLink: invitationUrl,
-            error: emailResult.error,
-            message: 'Auth et profil créés mais email non envoyé',
-            isNewAuthUser
+            let emailResult
+            if (capturedIsNewAuthUser) {
+              // ✅ CAS A: Nouvel utilisateur - Email d'invitation complet (créer compte)
+              logger.info({}, '📧 [STEP-3-INVITE-4A] Sending INVITATION email (new user)...')
+              emailResult = await emailService.sendInvitationEmail(capturedEmail, {
+                firstName: capturedFirstName,
+                inviterName: capturedInviterName,
+                teamName: teamNameForEmail,
+                role: capturedRole,
+                invitationUrl: capturedInvitationUrl,
+                expiresIn: 7,
+              })
+            } else {
+              // ✅ CAS B: Utilisateur existant - Email avec magic link (connexion auto + acceptation)
+              logger.info({}, '📧 [STEP-3-INVITE-4B] Sending TEAM ADDITION email (existing user)...')
+              emailResult = await emailService.sendTeamAdditionEmail(capturedEmail, {
+                firstName: capturedFirstName,
+                inviterName: capturedInviterName,
+                teamName: teamNameForEmail,
+                role: capturedRole,
+                magicLinkUrl: capturedInvitationUrl,
+              })
+            }
+
+            if (!emailResult.success) {
+              logger.warn({ emailResult: emailResult.error }, '⚠️ [STEP-3-INVITE-4] Failed to send email via Resend:')
+            } else {
+              logger.info({ emailResult: emailResult.emailId, isNewAuthUser: capturedIsNewAuthUser }, '✅ [STEP-3-INVITE-4] Email sent successfully via Resend:')
+            }
+          } catch (emailError) {
+            logger.error({ emailError }, '⚠️ [STEP-3-INVITE-4] Unexpected error sending email:')
           }
-        } else {
-          logger.info({ emailResult: emailResult.emailId, isNewAuthUser }, '✅ [STEP-3-INVITE-4] Email sent successfully via Resend:')
-          invitationResult = {
-            success: true,
-            invitationSent: true,
-            magicLink: invitationUrl,
-            message: isNewAuthUser
-              ? 'Invitation envoyée avec succès'
-              : 'Contact ajouté à votre équipe (notification envoyée)',
-            isNewAuthUser
-          }
+        })
+
+        invitationResult = {
+          success: true,
+          invitationSent: true,
+          magicLink: invitationUrl,
+          message: isNewAuthUser
+            ? 'Invitation envoyée avec succès'
+            : 'Contact ajouté à votre équipe (notification envoyée)',
+          isNewAuthUser
         }
 
       } catch (inviteError) {
@@ -612,8 +620,9 @@ export async function POST(request: Request) {
     }
 
     // ============================================================================
-    // ÉTAPE 4 (COMMUNE): Logging de l'activité (avec Service Role pour bypasser RLS)
+    // ÉTAPE 4 (COMMUNE): Logging de l'activité (déféré avec after() — hors du chemin critique)
     // ============================================================================
+    after(async () => {
       try {
         await supabaseAdmin.from('activity_logs').insert({
           team_id: teamId,
@@ -631,6 +640,7 @@ export async function POST(request: Request) {
         logger.error({ logError: logError }, '⚠️ [STEP-4] Failed to log activity:')
         // Non bloquant
       }
+    })
 
     // ============================================================================
     // ÉTAPE 5 (OPTIONNELLE): Liaison à une entité (immeuble, lot, contrat, intervention)

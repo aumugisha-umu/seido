@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 
 export function PWARegister() {
   useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval> | undefined
     if (
       typeof window !== 'undefined' &&
       'serviceWorker' in navigator &&
@@ -13,13 +14,16 @@ export function PWARegister() {
         .register('/sw.js', { scope: '/' })
         .then((registration) => {
           // Check for updates every hour
-          setInterval(() => {
+          intervalId = setInterval(() => {
             registration.update()
           }, 60 * 60 * 1000)
         })
         .catch((error) => {
           console.error('❌ [PWA] Service Worker registration failed:', error)
         })
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId)
     }
   }, [])
 

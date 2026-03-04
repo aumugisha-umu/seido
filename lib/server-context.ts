@@ -266,7 +266,7 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
     // During build phase, auth errors are expected (no session) - don't log as errors
     const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
     if (!isBuildPhase) {
-      logger.error('❌ [SERVER-CONTEXT] Error getting auth context:', error)
+      logger.warn('⚠️ [SERVER-CONTEXT] Auth context unavailable (expected during logout):', error)
     }
 
     // Si erreur d'authentification, rediriger vers login
@@ -426,7 +426,7 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
     // During build phase, auth errors are expected (no session) - don't log as errors
     const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
     if (!isBuildPhase) {
-      logger.error('❌ [SERVER-ACTION-CONTEXT] Error getting auth context:', error)
+      logger.warn('⚠️ [SERVER-ACTION-CONTEXT] Auth context unavailable (expected during logout):', error)
     }
 
     // Si erreur d'authentification, rediriger vers login

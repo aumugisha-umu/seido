@@ -17,7 +17,7 @@
 |  intervention, notification, user, building, subscription    |
 +-------------------------------------------------------------+
 |                    Supabase (PostgreSQL + RLS)               |
-|  44 tables | 84 fonctions | 209 indexes | 47 triggers       |
+|  44 tables | 80 fonctions | 210 indexes | 47 triggers       |
 +-------------------------------------------------------------+
 ```
 
@@ -206,6 +206,114 @@ checkCanAddProperty()           Server gate on lot edit
 
 ---
 
+### 32. Server Component Page Parallelization (NOUVEAU 2026-03-02)
+
+Pattern universel pour optimiser les pages Server Component avec 3+ queries :
+
+```
+Phase 0: Service Instantiation (parallel)
+┌────────────────────────────────────────────┐
+│ Promise.all([                              │
+│   InterventionService.create(supabase),     │
+│   BuildingService.create(supabase),         │
+│   LotService.create(supabase),              │
+│ ])                                          │
+└────────────────────────────────────────────┘
+                    ↓
+Wave 1: Independent Queries (parallel)
+┌────────────────────────────────────────────┐
+│ Promise.all([                              │
+│   service1.getBuildings(teamId),            │
+│   service2.getLots(teamId),                 │
+│   service3.getTeamMembers(teamId),          │
+│   (async () => {                            │ ← IIFE for inline transforms
+│     const raw = await fetch();              │
+│     return transform(raw);                  │
+│   })(),                                     │
+│ ])                                          │
+└────────────────────────────────────────────┘
+                    ↓
+Wave 2: Dependent Queries (sequential)
+┌────────────────────────────────────────────┐
+│ const signedUrls = await getUrls(docs)     │ ← depends on Wave 1 results
+└────────────────────────────────────────────┘
+```
+
+**Règle:** Tout `await` isolé dans une page.tsx est suspect — vérifier s'il peut rejoindre un Promise.all.
+
+**Fichiers de référence:**
+- `interventions/modifier/[id]/page.tsx` (12→3 phases)
+- `nouvelle-intervention/page.tsx`, `contrats/nouveau/page.tsx`, `lots/nouveau/page.tsx`
+
+---
+
+### 33. Deferred Work with next/server after() (NOUVEAU 2026-03-02)
+
+Pattern pour différer le travail non-critique après la réponse HTTP :
+
+```typescript
+import { after } from 'next/server'
+
+// Response returns immediately after DB operations
+const result = await createEntity(data)
+
+// Capture variables BEFORE the closure
+const entityId = result.id
+const userEmail = user.email
+
+after(async () => {
+  // Runs post-response — no user waiting
+  await sendNotificationEmail(entityId, userEmail)
+  await insertActivityLog(entityId, 'created')
+})
+
+return NextResponse.json(result)
+```
+
+**Quand utiliser:**
+- Emails (200-500ms par envoi)
+- Push notifications
+- Activity logs
+- Analytics events
+- Tout ce qui n'affecte pas la réponse
+
+**Piège:** Les variables doivent être capturées en `const` AVANT `after()` — la closure capture les références.
+
+**Fichiers de référence:**
+- `app/api/invite-user/route.ts` — emails + activity logs
+- `app/gestionnaire/(with-navbar)/contrats/page.tsx` — status transitions
+
+---
+
+### 34. RLS-as-Authorization in Server Actions (NOUVEAU 2026-03-02)
+
+Avec un client Supabase authentifié (session cookie), RLS est le SEUL contrôle d'accès nécessaire :
+
+```typescript
+// ❌ ANTI-PATTERN: Manual auth check before RLS-protected query
+const { data: member } = await supabase
+  .from('team_members')
+  .select('*')
+  .eq('user_id', user.id)
+  .eq('team_id', teamId)
+  .single()
+
+if (!member) throw new Error('Unauthorized')
+
+// Now do the actual query (RLS would have blocked it anyway)
+const { data } = await supabase.from('lots').select('*').eq('team_id', teamId)
+
+// ✅ CORRECT: Let RLS handle it
+const { data } = await supabase.from('lots').select('*').eq('team_id', teamId)
+// RLS policy is_team_manager(team_id) already blocks unauthorized access
+```
+
+**Exception:** Quand vous avez besoin des données team_members pour la logique métier (pas juste l'accès).
+
+**Impact mesuré:** ~50ms par query manuelle × 16 queries/action = ~800ms économisés.
+
+---
+
 ## Anti-Patterns (NE JAMAIS FAIRE)
 
 | Anti-Pattern | Alternative |
@@ -240,6 +348,14 @@ checkCanAddProperty()           Server gate on lot edit
 | **Subscription check fail-open au service layer** | **Fail-closed (return empty, block operation)** |
 | **Parent opacity pour locked cards** | **CSS overlay preservant button visibility** |
 | **Ignorer CRUD checklist** | **Verifier List, View, Create, Edit, Delete** |
+| **Sequential awaits dans page.tsx** | **Phase 0 → Wave 1 → Wave 2 (Promise.all)** |
+| **Manual team_members auth check + RLS query** | **Laisser RLS gérer l'authorization seul** |
+| **Await email/notification avant response** | **Utiliser `after()` de next/server** |
+| **revalidatePath sur page force-dynamic** | **No-op — supprimer (sauf après unstable_cache tags)** |
+| **select('*').then(data.length) pour compter** | **select('*', { count: 'exact', head: true })** |
+| **Loop de server actions pour batch insert** | **Supabase .insert([rows]) en un seul appel** |
+| **N×M queries cross-RLS pour batch** | **SECURITY DEFINER RPC avec unnest()** |
+| **router.push() + router.refresh() vers nouvelle route** | **router.push() seul (App Router fetch auto)** |
 
 ## Conventions de Nommage
 

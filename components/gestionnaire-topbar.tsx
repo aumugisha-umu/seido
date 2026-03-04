@@ -85,7 +85,6 @@ export default function GestionnaireTopbar({
     error: popoverNotificationsError,
     markAsRead,
     markAsUnread,
-    archive,
     refetch: refetchPopoverNotifications,
   } = useNotificationPopover({
     teamId,
@@ -170,10 +169,10 @@ export default function GestionnaireTopbar({
               error={popoverNotificationsError}
               onMarkAsRead={markAsRead}
               onMarkAsUnread={markAsUnread}
-              onArchive={archive}
               onMarkAllAsRead={handleMarkAllAsRead}
               role={role}
               onClose={() => setIsNotificationPopoverOpen(false)}
+              unreadCount={globalUnreadCount}
             />
           </PopoverContent>
         </Popover>

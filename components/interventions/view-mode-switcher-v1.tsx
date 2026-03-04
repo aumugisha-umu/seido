@@ -1,6 +1,6 @@
 "use client"
 
-import { LayoutGrid, List, Calendar } from 'lucide-react'
+import { List, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ViewMode } from '@/hooks/use-view-mode'
 
@@ -65,17 +65,6 @@ export function ViewModeSwitcherV1({
         aria-label="Vue en liste"
       >
         <List className="h-4 w-4" aria-hidden="true" />
-      </button>
-
-      {/* CARDS VIEW */}
-      <button
-        onClick={() => !disabled && onChange('cards')}
-        className={getButtonClass(value === 'cards')}
-        title="Vue cartes"
-        disabled={disabled}
-        aria-label="Vue en cartes"
-      >
-        <LayoutGrid className="h-4 w-4" aria-hidden="true" />
       </button>
 
       {/* CALENDAR VIEW */}

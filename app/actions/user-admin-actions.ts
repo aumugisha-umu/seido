@@ -9,7 +9,7 @@
 
 import { getSupabaseAdmin, isAdminConfigured } from '@/lib/services/core/supabase-admin'
 import { getServerAuthContext } from '@/lib/server-context'
-import { revalidatePath } from 'next/cache'
+// Pages are force-dynamic — no cache invalidation needed
 import { logger } from '@/lib/logger'
 import type { User, UserInsert, UserUpdate, UserWithStatus, UserComputedStatus } from '@/lib/services/core/service-types'
 
@@ -276,7 +276,6 @@ export async function createUserAction(userData: UserInsert): Promise<ActionResu
     }
 
     logger.info('[ADMIN-USERS] User created:', data.id)
-    revalidatePath('/admin/users')
     return { success: true, data: data as User }
   } catch (error) {
     logger.error('[ADMIN-USERS] Exception in createUserAction:', error)
@@ -329,7 +328,6 @@ export async function updateUserAction(
     }
 
     logger.info('[ADMIN-USERS] User updated:', id)
-    revalidatePath('/admin/users')
     return { success: true, data: data as User }
   } catch (error) {
     logger.error('[ADMIN-USERS] Exception in updateUserAction:', error)
@@ -384,7 +382,6 @@ export async function deleteUserAction(id: string): Promise<ActionResult> {
     }
 
     logger.info('[ADMIN-USERS] User deleted:', id)
-    revalidatePath('/admin/users')
     return { success: true }
   } catch (error) {
     logger.error('[ADMIN-USERS] Exception in deleteUserAction:', error)

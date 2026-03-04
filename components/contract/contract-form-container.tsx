@@ -35,6 +35,7 @@ import { format } from 'date-fns'
 import {
   createContract,
   addContractContact,
+  addContractContactsBatch,
   updateContract,
   updateContractContact,
   removeContractContact
@@ -672,14 +673,17 @@ export default function ContractFormContainer({
 
         const contractId = contractResult.data.id
 
-        // Add contacts
-        for (const contact of formData.contacts || []) {
-          await addContractContact({
-            contract_id: contractId,
-            user_id: contact.userId,
-            role: contact.role,
-            is_primary: contact.isPrimary
-          })
+        // Add contacts (batch: 1 auth check + 1 bulk insert)
+        const contactsToAdd = formData.contacts || []
+        if (contactsToAdd.length > 0) {
+          await addContractContactsBatch(
+            contactsToAdd.map(contact => ({
+              contract_id: contractId,
+              user_id: contact.userId,
+              role: contact.role,
+              is_primary: contact.isPrimary
+            }))
+          )
         }
 
         // Upload documents with their categories
@@ -722,14 +726,13 @@ export default function ContractFormContainer({
           }
         }
 
-        // Create rent payment reminders
+        // Create rent payment reminders (batch: 1 auth + 1 subscription check + 1 bulk insert)
         if (rentReminderConfig.enabled && formData.startDate && formData.durationMonths) {
           const leaseStart = parseLocalDate(formData.startDate)
           const leaseEnd = calculateContractEndDate(formData.startDate, formData.durationMonths)
           const today = new Date()
           today.setHours(0, 0, 0, 0)
 
-          const { createInterventionAction } = await import('@/app/actions/intervention-actions')
           const reminderDates: Date[] = []
           const current = new Date(leaseStart.getFullYear(), leaseStart.getMonth(), 1)
           const endMonth = new Date(leaseEnd.getFullYear(), leaseEnd.getMonth(), 1)
@@ -743,38 +746,37 @@ export default function ContractFormContainer({
           }
 
           if (reminderDates.length > 0) {
-            logger.info(`[CONTRACT-FORM] Creating ${reminderDates.length} rent payment reminders...`)
-            const reminderAssignments = rentReminderConfig.assignedUsers.length > 0
-              ? rentReminderConfig.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
-              : undefined
+            logger.info(`[CONTRACT-FORM] Creating ${reminderDates.length} rent payment reminders (batch)...`)
+            const { createBatchRentRemindersAction } = await import('@/app/actions/intervention-actions')
 
-            const reminderResults = await Promise.allSettled(
-              reminderDates.map(date => {
-                const monthLabel = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-                const capitalizedMonth = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
-                return createInterventionAction({
-                  title: `Rappel loyer — ${capitalizedMonth}`,
-                  description: 'Rappel mensuel de paiement du loyer',
-                  type: 'rappel_loyer',
-                  urgency: 'basse',
-                  lot_id: formData.lotId!,
-                  team_id: teamId,
-                  contract_id: contractId,
-                  requested_date: date
-                }, {
-                  useServiceRole: true,
-                  assignments: reminderAssignments
-                })
-              })
-            )
+            const reminders = reminderDates.map(date => {
+              const monthLabel = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+              const capitalizedMonth = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+              return {
+                title: `Rappel loyer — ${capitalizedMonth}`,
+                scheduledDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+              }
+            })
 
-            const reminderSuccess = reminderResults.filter(r => r.status === 'fulfilled' && r.value.success).length
-            logger.info({ reminderSuccess, total: reminderDates.length, contractId }, 'Rent payment reminders created')
+            const batchResult = await createBatchRentRemindersAction(reminders, {
+              lot_id: formData.lotId!,
+              team_id: teamId,
+              contract_id: contractId,
+              assignments: rentReminderConfig.assignedUsers.length > 0
+                ? rentReminderConfig.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                : undefined
+            })
+
+            if (batchResult.success && batchResult.data) {
+              logger.info({ ...batchResult.data, contractId }, 'Rent payment reminders created (batch)')
+            } else {
+              logger.warn({ error: batchResult.error, contractId }, 'Batch rent reminders failed')
+            }
           }
         }
 
-        // Send notification
-        await createContractNotification(contractId)
+        // Send notification (fire-and-forget — non-critical for user flow)
+        createContractNotification(contractId).catch(() => {})
 
         toast.success('Bail créé avec succès')
 

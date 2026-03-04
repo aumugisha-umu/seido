@@ -24,6 +24,7 @@ export interface SubscriptionInfo {
   is_read_only: boolean
   has_stripe_subscription: boolean
   days_left_trial: number | null
+  billing_interval: 'month' | 'year' | null
 }
 
 export interface UpgradePreview {
@@ -109,6 +110,13 @@ export class SubscriptionService {
       daysLeftTrial = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)))
     }
 
+    // Derive billing interval from price_id
+    let billingInterval: 'month' | 'year' | null = null
+    if (sub.price_id) {
+      if (sub.price_id === STRIPE_PRICES.monthly) billingInterval = 'month'
+      else if (sub.price_id === STRIPE_PRICES.annual) billingInterval = 'year'
+    }
+
     return {
       status,
       subscribed_lots: subscribedLots,
@@ -121,6 +129,7 @@ export class SubscriptionService {
       is_read_only: isReadOnly,
       has_stripe_subscription: !!sub.stripe_subscription_id,
       days_left_trial: daysLeftTrial,
+      billing_interval: billingInterval,
     }
   }
 

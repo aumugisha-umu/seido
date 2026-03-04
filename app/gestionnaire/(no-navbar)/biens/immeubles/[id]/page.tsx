@@ -236,6 +236,8 @@ export default async function BuildingDetailsPage({
           status: contract.status,
           start_date: contract.start_date,
           end_date: contract.end_date,
+          rent_amount: contract.rent_amount ?? null,
+          charges_amount: contract.charges_amount ?? null,
           contacts: contract.contacts || []
         })
         contractsByLotId.set(contract.lot_id, existing)
@@ -249,6 +251,7 @@ export default async function BuildingDetailsPage({
       category: lot.category,
       floor: lot.floor || 0,
       door_number: lot.door_number || lot.apartment_number || '',
+      is_occupied: occupiedLotIds.has(lot.id),
       lot_contacts: lot.lot_contacts || [],
       contracts: contractsByLotId.get(lot.id) || []
     }))

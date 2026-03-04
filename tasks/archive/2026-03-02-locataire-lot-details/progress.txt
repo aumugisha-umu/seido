@@ -1,0 +1,40 @@
+# Progress Log — Locataire Lot Details Page
+# Started: 2026-03-02
+# Stories: 3 total
+---
+
+## 2026-03-02 — US-001: Refactor LotDetailsClient with role prop
+Files: app/gestionnaire/(no-navbar)/biens/lots/[id]/lot-details-client.tsx
+- Added `role?: 'gestionnaire' | 'locataire'` prop (default: gestionnaire)
+- `isLocataire` derived boolean gates all conditional logic
+- `contacts` and `buildingContacts` made optional with `= []` defaults
+- Tab filtering: locataire sees only contracts/interventions/documents
+- Default tab: 'contracts' for locataire, 'overview' for gestionnaire
+- Header actions: empty arrays for locataire (no edit/delete/create)
+- Back button: locataire → /locataire/dashboard
+- InterventionsNavigator: `userContext={role}`, `showCreateButton: !isLocataire`
+- Contract empty state: locataire gets passive message, no create button
+- Delete modal wrapped in `{!isLocataire && ...}`
+
+## 2026-03-02 — US-002: Create locataire lot details server page
+Files: app/locataire/(no-navbar)/lots/[id]/page.tsx (NEW)
+- getServerAuthContext('locataire') for auth
+- contract_contacts access check: joins contracts.lot_id to verify tenant has active link
+- Redirects to /locataire/dashboard if no access (prevents URL guessing)
+- 5-phase data loading: services init → lot with relations → contracts + interventions parallel → intervention docs batch → address resolution
+- Passes role='locataire' to shared LotDetailsClient
+- contacts/buildingContacts omitted (default to [] in client)
+- isOccupied hardcoded true (locataire is by definition occupying)
+- SEO metadata with "Mon logement" title
+
+## 2026-03-02 — US-003: Add "Voir les détails" button on dashboard card
+Files: components/dashboards/locataire-dashboard-hybrid.tsx
+- Added ExternalLink to lucide imports
+- Outlined Link button under property details (pl-7 aligned)
+- Conditionally shown when selectedPropertyId !== 'all'
+- href: /locataire/lots/{currentProperty.id}
+- Styled: white text, border-white/40, hover:bg-white/15
+
+---
+ALL 3 STORIES COMPLETE — 2026-03-02
+Lint: 0 new warnings across all 3 files

@@ -187,6 +187,7 @@ export default function LotCreationForm({
 }: LotCreationFormProps) {
   const router = useRouter()
   const { data: managerData } = useManagerStats()
+  const hasBuildings = (managerData?.buildings?.length ?? 0) > 0
   const [currentStep, setCurrentStepState] = useState(1)
   const [maxStepReached, setMaxStepReached] = useState(1)
 
@@ -373,6 +374,13 @@ export default function LotCreationForm({
       logger.info("✅ [PRE-FILL] Building pre-selected, moved to step 2")
     }
   }, [prefillBuildingId, isPreFilled])
+
+  // Default to "new" when no buildings exist (hide useless "existing" option)
+  useEffect(() => {
+    if (managerData && (managerData.buildings?.length ?? 0) === 0) {
+      setLotData(prev => ({ ...prev, buildingAssociation: 'new' }))
+    }
+  }, [managerData])
 
   // Réinitialiser le nom quand on change le type d'association
   useEffect(() => {
@@ -1491,7 +1499,7 @@ export default function LotCreationForm({
 
         // Succès - Rediriger vers la page des biens (navigation immédiate)
         toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
-        router.push(`/gestionnaire/biens`)
+        router.push(`/gestionnaire/biens/lots/${successfulCreations[0].createdLot.id}`)
 
         return
       } catch (error) {
@@ -1628,7 +1636,7 @@ export default function LotCreationForm({
 
       // Succès - Rediriger vers la page des biens (navigation immédiate)
       toast.success("Lot créé avec succès", { description: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.` })
-      router.push("/gestionnaire/biens")
+      router.push(`/gestionnaire/biens/lots/${createdLot.id}`)
 
     } catch (error) {
       // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
@@ -1691,7 +1699,8 @@ export default function LotCreationForm({
         }
         className="space-y-4"
       >
-        <div 
+        {hasBuildings && (
+        <div
           className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm ${
             lotData.buildingAssociation === "existing"
               ? "border-blue-500 bg-blue-50 shadow-sm"
@@ -1717,8 +1726,9 @@ export default function LotCreationForm({
             <p className="text-sm text-muted-foreground mt-1">Associez ce lot à un immeuble que vous avez déjà créé</p>
           </div>
         </div>
+        )}
 
-        <div 
+        <div
           className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm ${
             lotData.buildingAssociation === "new"
               ? "border-blue-500 bg-blue-50 shadow-sm"

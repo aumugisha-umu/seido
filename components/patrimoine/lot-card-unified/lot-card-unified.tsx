@@ -33,6 +33,7 @@ export function LotCardUnified({
   lot,
   variant = "compact",
   mode = "view",
+  readOnly = false,
   isSelected = false,
   isExpanded: controlledExpanded,
   defaultExpanded = false,
@@ -173,7 +174,7 @@ export function LotCardUnified({
         )}
         onClick={handleHeaderClick}
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-2 min-w-0">
           {/* Left: Icon + Reference + Building */}
           <LotCardHeader
             lot={lot}
@@ -191,7 +192,6 @@ export function LotCardUnified({
               isExpanded={expanded}
               variant={variant}
               onSelect={onSelect}
-              onToggleExpand={handleToggleExpand}
               showDropdown={customActions.showDropdown}
             />
           )}
@@ -217,7 +217,7 @@ export function LotCardUnified({
             teamId={teamId}
             onAddContact={onAddContact}
             onRemoveContact={onRemoveContact}
-            readOnly={mode === "select"}
+            readOnly={mode === "select" || readOnly}
           />
         </CardContent>
       )}

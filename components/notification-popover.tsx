@@ -7,7 +7,6 @@ import {
   Bell,
   Mail,
   MailOpen,
-  Archive,
   Loader2,
   CheckCircle,
   ExternalLink
@@ -31,10 +30,10 @@ interface NotificationPopoverProps {
   error: string | null
   onMarkAsRead: (id: string) => Promise<void>
   onMarkAsUnread: (id: string) => Promise<void>
-  onArchive: (id: string) => Promise<void>
   onMarkAllAsRead: () => Promise<void>
   role: string
   onClose?: () => void
+  unreadCount?: number
 }
 
 export default function NotificationPopover({
@@ -43,10 +42,10 @@ export default function NotificationPopover({
   error,
   onMarkAsRead,
   onMarkAsUnread,
-  onArchive,
   onMarkAllAsRead,
   role,
-  onClose
+  onClose,
+  unreadCount
 }: NotificationPopoverProps) {
   const { isPending, navigate } = useNavigationPending()
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
@@ -106,23 +105,6 @@ export default function NotificationPopover({
     }
   }
 
-  const handleArchive = async (notificationId: string) => {
-    if (processingIds.has(notificationId)) return
-
-    setProcessingIds(prev => new Set(prev).add(notificationId))
-    try {
-      await onArchive(notificationId)
-    } catch (error) {
-      console.error('Error archiving notification:', error)
-    } finally {
-      setProcessingIds(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(notificationId)
-        return newSet
-      })
-    }
-  }
-
   const handleMarkAllAsRead = async () => {
     setMarkingAllAsRead(true)
     try {
@@ -135,53 +117,47 @@ export default function NotificationPopover({
   }
 
   const unreadNotifications = notifications.filter(n => !n.read)
-  const hasUnread = unreadNotifications.length > 0
+  const displayUnreadCount = unreadCount ?? unreadNotifications.length
+  const hasUnread = displayUnreadCount > 0
+  const displayedNotifications = unreadNotifications
 
   return (
-    <div className="w-full">
+    <div className="w-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-slate-700" />
-          <h3 className="font-semibold text-slate-900">Notifications</h3>
-          {hasUnread && (
-            <Badge variant="default" className="h-5 px-1.5 text-xs bg-blue-600">
-              {unreadNotifications.length}
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {hasUnread && !loading && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleMarkAllAsRead}
-              disabled={markingAllAsRead}
-              className="h-8 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-            >
-              {markingAllAsRead ? (
-                <>
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Marquage...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Tout marquer lu
-                </>
-              )}
-            </Button>
-          )}
-          <Link href={`/${role}/notifications`} onClick={onClose}>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-            >
-              <ExternalLink className="h-3 w-3 mr-1" />
-              Voir tout
-            </Button>
-          </Link>
+      <div className="px-3 pt-3 pb-2 border-b">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Bell className="h-5 w-5 text-slate-700 flex-shrink-0" />
+            <h3 className="font-semibold text-slate-900 truncate">Notifications</h3>
+            {hasUnread && (
+              <Badge variant="default" className="h-5 px-1.5 text-xs bg-blue-600">
+                {displayUnreadCount}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {hasUnread && !loading && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleMarkAllAsRead}
+                disabled={markingAllAsRead}
+                className="h-8 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              >
+                {markingAllAsRead ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Marquage...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-3 w-3" />
+                    Tout marquer lu
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -198,20 +174,22 @@ export default function NotificationPopover({
           </div>
           <p className="text-sm text-red-600 text-center">{error}</p>
         </div>
-      ) : notifications.length === 0 ? (
+      ) : displayedNotifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 px-4">
           <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
             <Bell className="h-6 w-6 text-slate-400" />
           </div>
-          <p className="text-sm font-medium text-slate-700 mb-1">Aucune notification</p>
+          <p className="text-sm font-medium text-slate-700 mb-1">
+            Aucune notification non lue
+          </p>
           <p className="text-xs text-slate-500 text-center">
-            Vous n'avez pas de nouvelles notifications pour le moment
+            Vous êtes à jour !
           </p>
         </div>
       ) : (
         <ScrollArea className="h-[400px]">
           <div className="divide-y">
-            {notifications.map((notification) => {
+            {displayedNotifications.map((notification) => {
               const { icon: Icon, className: iconClassName } = getNotificationIcon(
                 notification.type
               )
@@ -276,17 +254,6 @@ export default function NotificationPopover({
                           ) : (
                             <Mail className="h-3 w-3" />
                           )}
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleArchive(notification.id)}
-                          disabled={isProcessing}
-                          className="h-7 px-2 text-xs hover:bg-slate-100"
-                          title="Archiver"
-                        >
-                          <Archive className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>

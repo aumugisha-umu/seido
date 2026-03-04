@@ -15,13 +15,17 @@ import {
   MoreVertical,
   Wrench,
   Archive,
-  ChevronUp,
   ChevronDown
 } from "lucide-react"
 import type { LotCardActionsProps } from "./types"
 
 /**
- * Actions section: dropdown menu with all actions + chevron (for expand)
+ * Actions section for lot cards.
+ *
+ * View mode layout: [chevron indicator] [Eye link] [⋮ menu]
+ * - Chevron is a passive state indicator (header click handles expand)
+ * - Eye navigates to lot detail page
+ * - ⋮ overflow menu at trailing edge (MD3 convention)
  */
 export function LotCardActions({
   lot,
@@ -30,11 +34,10 @@ export function LotCardActions({
   isExpanded = false,
   variant = 'compact',
   onSelect,
-  onToggleExpand,
   showDropdown = true
 }: LotCardActionsProps) {
 
-  // Selection mode - show select button
+  // Selection mode - show select button + passive chevron
   if (mode === "select") {
     return (
       <div className="flex items-center gap-1 flex-shrink-0">
@@ -52,64 +55,37 @@ export function LotCardActions({
           {isSelected ? "✓ Sélectionné" : "Sélectionner"}
         </Button>
 
-        {/* Chevron for expandable variant */}
+        {/* Passive chevron indicator for expandable variant */}
         {variant === 'expandable' && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleExpand?.()
-            }}
-          >
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4 text-gray-500" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-gray-500" />
-            )}
-          </Button>
+          <ChevronDown
+            className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+          />
         )}
       </div>
     )
   }
 
-  // View mode - show chevron + quick action button + dropdown menu
-  // Order: Chevron (expand) → Eye (view details) → Menu (other actions)
+  // View mode: [passive chevron] → [Eye link] → [⋮ menu]
   return (
     <div className="flex items-center gap-1 flex-shrink-0">
-      {/* 1. Chevron for expand/collapse (always visible in view mode) */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-8 w-8 p-0"
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggleExpand?.()
-        }}
-        title={isExpanded ? "Réduire" : "Développer"}
-      >
-        {isExpanded ? (
-          <ChevronUp className="h-4 w-4 text-gray-500" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-gray-500" />
-        )}
-      </Button>
+      {/* 1. Passive expand indicator (header click handles toggle) */}
+      {variant === 'expandable' && (
+        <ChevronDown
+          className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+        />
+      )}
 
-      {/* 2. Quick access: View details button - ⚡ Link for prefetch */}
-      <Button
-        variant="ghost"
-        size="sm"
-        asChild
-        className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-        title="Voir détails"
+      {/* 2. View lot details (always visible) */}
+      <Link
+        href={`/gestionnaire/biens/lots/${lot.id}`}
+        onClick={(e) => e.stopPropagation()}
+        className="inline-flex items-center justify-center h-8 w-8 rounded-md text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+        title="Voir détails du lot"
       >
-        <Link href={`/gestionnaire/biens/lots/${lot.id}`} onClick={(e) => e.stopPropagation()}>
-          <Eye className="h-4 w-4" />
-        </Link>
-      </Button>
+        <Eye className="h-4 w-4" />
+      </Link>
 
-      {/* 3. Dropdown menu with other actions */}
+      {/* 3. Overflow menu at trailing edge (MD3 convention) */}
       {showDropdown && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

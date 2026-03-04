@@ -1,71 +1,53 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Document preview/download unification complete + Auth migration + Guide utilisateur + Email enhancements + RLS fix
+**Objectif:** Performance Optimization TIER 1+2 complete + Post-creation redirect UX + Compound learnings
 **Branch:** `preview`
-**Sprint:** Post-Stripe polish, auth consistency, UX unification (Feb 2026)
-**Derniere analyse:** Unify Document Preview & Download (4 stories via Ralph) complete, 95 learnings in AGENTS.md — 2026-02-26
+**Sprint:** Performance optimization + UX polish (Mar 2026)
+**Derniere analyse:** 13 stories performance optimization + 7 new AGENTS.md learnings (#104-#110) — 2026-03-02
 
 ---
 
-## ✅ COMPLETE: Unify Document Preview & Download (2026-02-26)
+## ✅ COMPLETE: Performance Optimization TIER 1+2 (2026-03-02)
 
-Created shared `useDocumentActions` hook replacing ~160 lines of duplicate logic across 3 role views.
-All roles now use in-app `DocumentPreviewModal` (locataire/prestataire had `window.open` before).
-Downloads use server-side `Content-Disposition: attachment` via API route.
-Learnings #093-#095 in AGENTS.md.
+13 stories from 6-agent audit (96 findings consolidated):
+- **US-001**: Composite index on conversation_participants (thread_id, user_id)
+- **US-002**: Removed redundant auth checks in 4 server action files (~80 lines, ~16 queries/action)
+- **US-003/004/006**: Parallelized 11 Server Component pages (Phase 0 → Wave 1 → Wave 2 pattern)
+- **US-005**: Parallelized create-manager-intervention API
+- **US-007/008**: Batch operations (contract rent reminders 72→18 queries, contact insertion N→1)
+- **US-009**: Deferred invitation emails via `after()` from next/server
+- **US-010**: Removed ~85 dead revalidation calls (~120 lines)
+- **US-011**: Cached Stripe subscription info (unstable_cache, 15min TTL, webhook invalidation)
+- **US-012**: RPC for thread unread counts (15 queries → 1 RPC call)
+- **US-013**: Stats head:true optimization + contrats page after()
 
----
-
-## ✅ COMPLETE: Storage Bucket Fix + RLS Auth UID (2026-02-26)
-
-Fixed 404 "Bucket not found" by migrating remaining code paths from `intervention-documents` to `documents` bucket.
-Fixed RLS `auth.uid()` vs `users.id` mismatch in storage policies via `get_my_profile_ids()`.
-Reverted service role bypasses in 3 upload routes back to authenticated client.
-
----
-
-## ✅ COMPLETE: requireRole → getServerAuthContext Migration (2026-02-26)
-
-Migrated ALL remaining `requireRole()` calls in app pages/layouts/actions to modern helpers:
-
-| File | Pattern |
-|------|---------|
-| `app/admin/layout.tsx` | `getServerAuthContext('admin')` |
-| `app/admin/(with-navbar)/layout.tsx` | `getServerAuthContext('admin')` |
-| `app/proprietaire/layout.tsx` | `getServerAuthContext('proprietaire')` |
-| `app/proprietaire/dashboard/page.tsx` | `getServerAuthContext('proprietaire')` |
-| `app/proprietaire/interventions/page.tsx` | `getServerAuthContext('proprietaire')` |
-| `app/proprietaire/biens/page.tsx` | `getServerAuthContext('proprietaire')` |
-| `app/gestionnaire/(with-navbar)/dashboard/actions.ts` | `getServerActionAuthContextOrNull('gestionnaire')` |
-
-**Result:** Zero `requireRole` usage left in `app/` (except comments and lib files).
-**New learning:** AGENTS.md #087
+New AGENTS.md learnings: #105-#110
+Retrospective: `docs/learnings/2026-03-02-performance-optimization-tier1-tier2-retrospective.md`
 
 ---
 
-## ✅ COMPLETE: Guide Utilisateur In-App (2026-02-25)
+## ✅ COMPLETE: Post-Creation Redirect UX (2026-03-02)
 
-`/gestionnaire/aide` — 9 sections, 20 FAQ, search with fuzzy matching.
-
----
-
-## ✅ COMPLETE: RLS Fix — team_members source of truth (2026-02-25)
-
-`get_accessible_*_ids()` functions now use `team_members` instead of stale `users.team_id`.
-Learnings #084-#086 in AGENTS.md.
+4 one-line edits: immeuble, lot (single+multi), contact standalone now redirect to detail page after creation.
+Removed redundant `router.refresh()` after `router.push()`.
+AGENTS.md learning #104.
 
 ---
 
-## ✅ COMPLETE: Email Enhancements (2026-02-25)
+## ✅ COMPLETE: Slot-Count Business Logic + Confirmation Fix (2026-03-01)
 
-Attachment preview modal, blacklist API, thread batch-linking, storage RLS tightening.
+`isMultiSlot` derivation: 1 slot = optional confirmation (Date fixe behavior), 2+ = mandatory.
+Non-invited contacts: confirmation logic fix.
+AGENTS.md learnings #101-#103.
 
 ---
 
-## ✅ COMPLETE: Stripe Subscription Integration (2026-02-22)
+## ✅ COMPLETE: Subscription Billing + Onboarding Polish (2026-03-01)
 
-48 stories + 13 debugging fixes + 6 audit fixes. Full billing system with trial management.
+- Enhanced billing interval handling (monthly/yearly display)
+- Onboarding checklist: swapped steps 2↔3, hid useless building option
+- Removed beta access gate from signup page
 
 ---
 
@@ -99,34 +81,37 @@ draft -> pending -> sent -> accepted (terminal positif)
 ### A faire immediatement
 - [ ] Commit + push preview branch (git*)
 - [ ] Merge preview to main (PR creation)
-- [ ] Plan: Google Maps Integration Phase 2-3
-- [ ] Plan: More blog articles (content marketing pipeline)
+- [ ] Deploy + verify performance improvements in production
 
 ### Fonctionnalites a Venir
 - [ ] Google Maps Integration Phase 2-3
+- [ ] AI Phone Assistant (design doc in docs/AI/)
+- [ ] Locataire lot details page (plan in docs/plans/)
+- [ ] Landing page AI redesign (plan in docs/plans/)
 - [ ] More blog articles (content marketing pipeline)
 - [ ] PPR activation quand Next.js canary disponible
 - [ ] Dashboard analytics avance
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-02-26)
+## Metriques Systeme (Mise a jour 2026-03-02)
 
 | Composant | Valeur |
 |-----------|--------|
 | **Tables DB** | **44** |
-| **Migrations** | **176** (+2: RLS team_members fix, storage auth fix) |
+| **Migrations** | **178** (+2: conversation_participants index, unread counts RPC) |
 | **API Routes** | **120** |
-| **Pages** | **90** (+1: guide utilisateur) |
+| **Pages** | **90** |
 | **Composants** | **381** |
-| **Hooks** | **71** (+1: useDocumentActions) |
+| **Hooks** | **71** |
 | **Services domain** | **34** |
 | **Repositories** | **21** |
+| **DB Functions** | **80** (+1: get_thread_unread_counts) |
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **95** (+8: #088-#092 billing, #093-#095 document preview) |
-| **systemPatterns.md Patterns** | **29** |
+| **AGENTS.md Learnings** | **110** (+15: #096-#103 slot/billing, #104 redirect, #105-#110 perf) |
+| **systemPatterns.md Patterns** | **32** (+3: parallelization, after(), RLS-as-auth) |
 | **E2E Test Files** | **8** |
 | **Blog articles** | **2** |
 
@@ -136,20 +121,17 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
+| `82869f1` | feat(subscription): enhance billing interval handling and update UI components |
+| `6d3077f` | fix(onboarding+lots): swap checklist steps 2↔3 and hide useless building option |
+| `27ffa30` | fix(auth): remove beta access gate from signup page |
+| `89cea06` | fix(interventions): confirmation logic for non-invited contacts + slot-count business rules |
 | `e16cbe7` | fix(billing+mail+auth+storage): subscription limit fix, mail cleanup, auth migration, bucket unification |
-| `557e447` | fix(pwa): restrict notification modal to authenticated app routes only |
-| `8e03601` | docs: compound learnings — RLS team_members source of truth (#084-#086) |
-| `107b327` | feat(aide+rls): in-app user guide, email enhancements, fix RLS team access |
-| `7a4af58` | feat(mail+docs): email module enhancements + architecture docs overhaul |
 
 ---
 
-*Derniere mise a jour: 2026-02-26 (document preview unification complete)*
-*Focus: Unification complete, ready to commit + merge preview to main*
+*Derniere mise a jour: 2026-03-02 (performance optimization TIER 1+2 complete)*
+*Focus: 13 stories perf optimization + post-creation redirect UX + 110 learnings in AGENTS.md*
 
 ## Files Recently Modified
-### 2026-03-01 19:25:19 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-03-01-confirmation-slot-logic-fix-retrospective.md`
-- `C:/Users/arthu/.claude/projects/C--Users-arthu-Desktop-Coding-Seido-app/memory/MEMORY.md`
+### 2026-03-04 15:38:40 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/next.config.js`

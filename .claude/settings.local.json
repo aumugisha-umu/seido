@@ -72,7 +72,14 @@
       "WebFetch(domain:community.asterisk.org)",
       "WebFetch(domain:community.freepbx.org)",
       "WebFetch(domain:deepwiki.com)",
-      "WebFetch(domain:support.exotel.com)"
+      "WebFetch(domain:support.exotel.com)",
+      "WebFetch(domain:status.elevenlabs.io)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:business.whatsapp.com)",
+      "WebFetch(domain:stripe.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:bengrab.au)",
+      "WebFetch(domain:uxpatterns.dev)"
     ],
     "deny": [],
     "ask": []

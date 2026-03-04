@@ -1,85 +1,154 @@
-# Progress Log — Dashboard Interventions Perf & UX Optimization
-# Started: 2026-03-01
-# Stories: 4 total
+# Progress Log — Performance Optimization TIER 1+2
+# Started: 2026-03-02
+# Stories: 13 total
+# Source: 6-agent audit (96 findings consolidated) + 4 verification agents
 ---
 
-## 2026-03-01 — US-001: Remove PeriodSelector from dashboard
-Files: components/dashboards/manager/manager-dashboard-v2.tsx
-- Removed PeriodSelector import, period state, filteredInterventions useMemo, progressData useMemo
-- Removed celebration toast + hasShownCelebration state + period reset useEffect
-- Removed toast import (no longer used)
-- InterventionsNavigator now receives unfiltered `interventions`
-- Header title simplified to "Interventions" (no period label)
-- Stats cards: removed progressData prop (optional, no breaking change)
+## 2026-03-02 — US-001: Add missing conversation_participants index
+Files: supabase/migrations/20260302100000_add_conversation_participants_composite_index.sql (NEW)
+- Single composite index: idx_participants_thread_user ON (thread_id, user_id)
+- All 7 originally proposed indexes already existed — verification caught this
+- Learning: Always verify existing indexes before creating new ones
 
-## 2026-03-01 — US-002: Add rejetee to Terminées tab
-Files: components/interventions/interventions-navigator.tsx
-- Added 'rejetee' to terminees filter array (1 line)
+## 2026-03-02 — US-002: Remove redundant auth checks in server actions
+Files: contract-actions.ts, building-actions.ts, lot-actions.ts, intervention-actions.ts
+- Target 1: building-actions.ts — removed manual team_members query (RLS: is_team_manager(team_id))
+- Target 2: lot-actions.ts — removed manual team_members query (RLS: is_team_manager(get_lot_team_id(id)))
+- Target 3: contract-actions.ts — deleted verifyTeamAccess() function + 16 callsites (RLS: user_belongs_to_team_v2, can_manage_contract)
+- Target 4: intervention-actions.ts cancelTimeSlotAction — replaced team_members DB query with user.role check
+- Target 5: intervention-actions.ts acceptTimeSlotAction — removed 3-query pre-flight (intervention + team_members + assignments)
+- Total: ~80 lines removed, ~16 DB queries eliminated per action flow
+- Learning: When Supabase client is authenticated (session cookie), RLS is the real access control. Manual team_members checks duplicate what RLS already does, adding ~50ms per query for zero security benefit
 
-## 2026-03-01 — US-003: Sort by scheduled_date
-Files: components/interventions/interventions-navigator.tsx
-- Added 'scheduled' to SortField union type
-- Added 'scheduled-asc' option to SORT_OPTIONS (first position, label: "Date planifiée")
-- Sort logic: NULL scheduled_date first (urgency DESC, created_at DESC), then by scheduled_date ASC
-- Default sort for dashboard preset changed from 'date-desc' to 'scheduled-asc'
+## 2026-03-02 — US-003: Parallelize intervention edit page queries
+Files: app/gestionnaire/(no-navbar)/interventions/modifier/[id]/page.tsx
+- Phase 0: 5 service instantiations parallelized (was sequential)
+- Wave 1: 8 independent queries in Promise.all (buildings, lots, teamMembers, assignments, timeSlots, quotes, documents, tenants)
+- Wave 2: signedUrls generation (depends on documents from wave 1)
+- Tenant loading wrapped in async IIFE inside Promise.all
+- ~12 sequential awaits → 3 sequential phases (services → 8 parallel → signedUrls)
 
-## 2026-03-01 — US-004: Client-side pagination on cards view
-Files: components/interventions/interventions-view-container.tsx
-- Added second usePagination instance (cardsPagination, pageSize: 12)
-- Cards view now renders cardsPagination.paginatedItems instead of full array
-- InterventionPagination component shown below cards when totalPages > 1
-- Page size selector hidden for cards (fixed at 12)
-- Destructured resetCardsToFirstPage to satisfy ESLint exhaustive-deps
+## 2026-03-02 — US-004: Parallelize new entity page queries
+Files: 6 pages updated (contrats/nouveau, contrats/modifier/[id], contacts/nouveau, nouvelle-intervention, immeubles/nouveau, lots/nouveau)
+- contrats/[id] already parallelized — skipped
+- Pattern: Phase 0 (service init Promise.all) → Wave 1 (all queries Promise.all) → Sequential CPU transforms
+- occupiedLotIds try/catch replaced with inline .catch() for Promise.all compatibility
+- Service instantiations moved from sequential to Promise.all in all pages
+- Unused logger imports removed from immeubles/nouveau + lots/nouveau
 
----
-ALL 4 STORIES COMPLETE — 2026-03-01
-Lint: 0 new warnings
-
-## 2026-03-01 — Tab rename: "En cours" → "À venir"
-Files: components/interventions/interventions-navigator.tsx
-- Changed dashboard tab label from "En cours" to "À venir" (tab ID unchanged)
-
-## 2026-03-01 — BUG FIX: Building-level intervention missing tenant conversations
+## 2026-03-02 — US-005: Parallelize create-manager-intervention API
 Files: app/api/create-manager-intervention/route.ts
-- Root cause: Thread creation used `selectedTenantIds` which is only populated client-side for lot-level interventions. For building-level, it was always `[]`.
-- Building tenants were resolved server-side via `contractService.getActiveTenantsByBuilding()` but AFTER thread creation — too late.
-- Fix: Added early resolution step before thread creation. `resolvedTenantIds` now covers both lot-level (from client) and building-level (from DB).
-- Unified assignment section: replaced 80+ lines of duplicated lot/building assignment code with a single path using `resolvedTenantIds`.
-- Learning: When a dependent step assumes client-sent IDs, verify ALL code paths populate those IDs. Server-resolved data may need injection earlier.
-- AGENTS.md: Added Learning #096
+- 4 service instantiations → Promise.all
+- Tenant + Provider user fetches → Promise.all (2 parallel queries)
+- 5 thread creation chains → outer Promise.all with inner Promise.all for individual threads
+- Removed redundant user ID validation query (FK constraint handles this)
+- Thread-before-assignment ordering preserved (await Promise.all before assignments)
 
-## 2026-03-01 — Custom Interventions in Creation Wizards
-Files: lib/constants/property-interventions.ts, components/contract/intervention-schedule-row.tsx, components/property-interventions-step.tsx, components/contract/lease-interventions-step.tsx
-- Added `createEmptyCustomIntervention()` factory with `custom_` key prefix
-- `InterventionScheduleRow` now supports `isEditable` prop → Input fields instead of static text
-- Property step: custom section with "+ Ajouter" button, useEffect preserves `custom_*` entries
-- Lease step: same pattern, custom section above standard interventions
-- UI: All cards now unconditionally `bg-card border-border` (no grey when unchecked), "Auto" badge removed
-- Learning: Key prefix convention protects user entries from template-regeneration useEffect
+## 2026-03-02 — US-006: Parallelize dashboard queries
+Files: 5 pages updated
+- Prestataire dashboard: interventions + unread threads in 2 parallel chains
+- Locataire dashboard: tenant data + unread threads in 2 parallel chains
+- Admin dashboard: 4 service instantiations → Promise.all (stats still sequential due to user dependency)
+- Contact details: invitation check joined with existing 4-way Promise.all (5 parallel queries)
+- Company details: company + contacts fetch in parallel (both use route param)
 
-## 2026-03-01 — Lease Payment Reminders (Ralph: 3 stories)
-Files: supabase/migrations/20260228100000_add_rappel_loyer_type.sql, components/contract/lease-interventions-step.tsx, components/contract/contract-form-container.tsx
-- US-001: DB migration — new `rappel_loyer` intervention type (category: bail, icon: Banknote)
-- US-002: UI card — checkbox, day-of-month Select (1-28), description with reminder count, avatar chips
-- US-003: Parent state + submit — `RentReminderConfig` in contract-form-container, generates N monthly dates, Promise.allSettled creation
-- Decision: Separate state (`RentReminderConfig`) instead of encoding N entries in scheduledInterventions — 1-to-N meta-card pattern
-- Learning: 1-to-N meta-card + sentinel key routing for shared ContactSelector
+## 2026-03-02 — US-007: Batch contract rent reminder creation
+Files: intervention-actions.ts (NEW action), contract-form-container.tsx
+- NEW: createBatchRentRemindersAction — 1 auth + 1 subscription check + 1 bulk intervention INSERT + 1 bulk time_slot INSERT + parallel slot UPDATE + 1 bulk assignment INSERT
+- Client updated: replaced Promise.allSettled(12× createInterventionAction) with single batch call
+- createContractNotification changed from await to fire-and-forget (.catch(() => {}))
+- Notifications deferred to after() inside batch action
+- Before: 12 × (auth + sub + insert + slot + update + assignments) ≈ 72+ queries → After: ~18 queries
+- Learning: Supabase .insert() accepts arrays for bulk insert. For updates with different values per row, Promise.all individual updates is the only option.
 
-## 2026-03-01 — Contact Assignment on Rent Reminders
-Files: components/contract/lease-interventions-step.tsx, components/contract/contract-form-container.tsx
-- Gestionnaire pre-assigned on init, can add locataire via ContactSelector popover
-- Sentinel key `RENT_REMINDER_KEY` routes shared ContactSelector to rentReminderConfig.assignedUsers
-- Avatar chips with tooltips + role-colored borders (ROLE_COLORS map)
+## 2026-03-02 — US-008: Bulk contract contact insertion
+Files: contract-actions.ts (NEW action), contract-form-container.tsx
+- NEW: addContractContactsBatch — 1 auth check + 1 bulk INSERT
+- Client updated: replaced for loop of addContractContact with single batch call
+- Existing addContractContact kept for edit mode (backward compat)
+- UNIQUE(contract_id, user_id, role) constraint protects against duplicates
+- Before: N × (auth + service init + contract lookup + insert) → After: 1 × (auth + bulk insert)
 
-## 2026-03-01 — BUG FIX: Duplicate React key in locataire nouvelle-demande
-Files: lib/services/domain/tenant.service.ts
-- Root cause: `getSimpleTenantLots()` traversed contract_contacts → contracts → lots without dedup. Multi-contract tenants (renewal, colocataire) produced same lot.id twice.
-- Fix: Set-based dedup by lot.id in getSimpleTenantLots (6 lines). Private getTenantLots stays un-deduped (per-contract data).
-- AGENTS.md: Added Learnings #097-#100
+## 2026-03-02 — US-009: Defer contact invitation email to after()
+Files: app/api/invite-user/route.ts
+- sendInvitationEmail + sendTeamAdditionEmail moved to after() callback
+- activity_logs INSERT moved to after() callback
+- generateLink() stays synchronous (required for hashed_token in user_invitations)
+- Variables captured as const before after() closure
+- Response now returns immediately after DB operations; email dispatched post-response
 
-## 2026-03-01 — BUG FIX: Non-invited contacts in confirmation + tenant missing from time slot responses
-Files: nouvelle-intervention-client.tsx, route.ts (create-manager-intervention), assignment-section-v2.tsx, programming-modal-FINAL.tsx, intervention-edit-client.tsx
-- Bug 1: `buildAllParticipantIds()` included contacts without Seido accounts in confirmation list. Fix: `has_account !== false` filter + server-side `auth_user_id IS NOT NULL` defense-in-depth.
-- Bug 2: Confirmation UPDATE ran before tenant INSERT → tenants never got `requires_confirmation=true`. Fix: moved confirmation block after ALL assignments.
-- New business rule: 1 slot in "Creneaux" mode = behave like "Date fixe" (optional confirmation, planifiee status, slot=selected). 2+ slots = mandatory confirmation (current behavior). Derived `isMultiSlot` variable shared across 6 files.
-- AGENTS.md: Added Learnings #101-#103
+## 2026-03-02 — US-010: Remove dead cache invalidation code
+Files: 7 server action files in app/actions/ (contract, conversation, lot, email-conversation, intervention-comment, user-admin, beta)
+- Removed ~85 revalidatePath/revalidateTag calls, ~120 total lines removed
+- Also removed 3 dead query blocks that existed ONLY to fetch IDs for revalidation paths
+- auth-actions.ts: kept 2 revalidatePath('/', 'layout') calls (login/signup = layout reset)
+- Import lines replaced with comments: `// Pages are force-dynamic — no cache invalidation needed`
+- Learning: When all pages are force-dynamic and no unstable_cache is used, all revalidation is dead code. Each call costs ~1-2ms of synchronous no-op work.
+
+## 2026-03-02 — US-011: Cache Stripe subscription info
+Files: app/gestionnaire/layout.tsx, app/api/stripe/webhook/route.ts
+- getCachedSubscriptionInfo: unstable_cache wrapping SubscriptionService.getSubscriptionInfo
+- Cache key: ['subscription-info', teamId], revalidate: 900 (15 min), tags: ['subscription']
+- Uses service role client inside cached function (same data for all team members)
+- Stripe webhook: added revalidateTag('subscription') for all subscription-related events
+- Removed unused supabase destructuring from getServerAuthContext
+- Learning: unstable_cache is a DATA cache, works even on force-dynamic pages. Tags allow on-demand invalidation from webhooks.
+
+## 2026-03-02 — US-012: RPC for thread unread counts
+Files: supabase/migrations/20260302110000 (NEW), gestionnaire/interventions/[id]/page.tsx, locataire/interventions/[id]/page.tsx, prestataire/interventions/[id]/page.tsx
+- NEW SQL function: get_thread_unread_counts(p_thread_ids uuid[], p_user_id uuid)
+- SECURITY DEFINER to bypass RLS on conversation tables
+- Handles: NULL last_read = count all, deleted last_read = 0, non-participant = count all
+- Uses unnest + LEFT JOINs for batch processing
+- All 3 role pages: replaced N×3 per-thread queries with single .rpc() call
+- Before: 5 threads × up to 3 queries = 15 sequential queries → After: 1 RPC call
+- Learning: SQL SECURITY DEFINER + GRANT to authenticated is the pattern for batch operations crossing multiple RLS-protected tables
+
+## 2026-03-02 — US-013: Stats optimizations + contrats page after()
+Files: lib/services/repositories/stats.repository.ts, app/gestionnaire/(with-navbar)/contrats/page.tsx
+- Stats: ALL count-only queries now use { count: 'exact', head: true } (7 queries in getSystemStats, 3 in getUserStats)
+- Stats: Merged 2 sequential Promise.all waves into 1 (7 parallel queries instead of 3+3)
+- Stats: Completed interventions count now via head:true filter instead of fetching all rows and filtering JS-side
+- Contrats page: transitionContractStatuses + checkExpiringContracts wrapped in after()
+- getInterventionStats has no callers — dead code, skipped teamId filter addition
+- Learning: { head: true } returns only HTTP headers with count, preventing row data transfer. For admin dashboards with large tables, this prevents megabytes of wasted transfer.
+
+## 2026-03-02 — UX: Post-creation redirect to detail page
+Files: building-creation-form.tsx, lot-creation-form.tsx, contact-creation-client.tsx
+- Changed 4 redirects from list pages to detail pages (immeuble, lot single, lot multi-independent, contact standalone)
+- Removed redundant router.refresh() after router.push() to new route
+- Contrat + intervention already redirected to detail — now all 6 entity types are consistent
+- Learning: router.push() to a new route already fetches fresh data; router.refresh() only needed for same-route re-fetch
+
+## 2026-03-02 — TIER 3: Performance Optimization (16 stories)
+Files: 13 source files + 2 new files + 1 migration
+- US-014: Promise.allSettled for rent reminder notifications (intervention-actions.ts)
+- US-015: Cache-Control immutable headers + Contentsquare lazyOnload (next.config.js, layout.tsx)
+- US-016: Middleware Supabase client factory extraction (middleware.ts)
+- US-017: PWA register clearInterval cleanup (pwa-register.tsx)
+- US-018: Contact search DB-side ilike filtering (contact.repository.ts, contact.service.ts)
+- US-019: Cron reminders batch INSERT + parallel emails/push (intervention-reminders/route.ts)
+- US-020: Global notifications stable event listener deps (use-global-notifications.ts)
+- US-021: Realtime chat: removed optimisticMessages from deps (use-realtime-chat-v2.ts)
+- US-022: useBuildings: removed infinite loop risk (use-buildings.ts)
+- US-023: useManagerStats: verified correct pattern — no change needed
+- US-024: Blog unstable_cache with 1h TTL (lib/blog.ts, blog pages)
+- US-025: Quote expiry batch UPDATE (quote-repository.ts)
+- US-026: Dashboard React cache() wrappers (async-dashboard-content.tsx)
+- US-027: Lot category counts head:true queries (lot.repository.ts)
+- US-028: Email settings SSR pre-fetch hybrid (emails/page.tsx + email-settings-client.tsx)
+- US-029: Mail counts COUNT FILTER RPC (migration + mail/page.tsx)
+- Learnings: useRef for stable deps (#111), SSR pre-fetch hybrid (#112), COUNT FILTER (#113), React cache() (#114)
+- Decision: Used SECURITY DEFINER for RPC functions (auth validated at page level, RPC just aggregates)
+
+## 2026-03-03 — Locataire Intervention Detail: Layout Restructure
+- Implemented: Horizontal progression stepper (StatusTimeline variant), Documents moved to full-width, estimation card hidden for locataire
+- Files: status-timeline.tsx, intervention-progress-card.tsx, intervention-detail-client.tsx, intervention-details-card.tsx, intervention-preview.types.ts
+- Learnings: `sections` prop is too coarse for sub-section visibility — use targeted boolean props (#115). Early return pattern for divergent render variants (#116).
+- Decision: `hideEstimation` prop over splitting `sections` further — avoids combinatorial explosion of section names
+
+## 2026-03-04 — Remove Card Views from Gestionnaire (5 stories)
+- Implemented: Removed card view toggle and card rendering from 4 gestionnaire list pages (interventions, patrimoine, contacts, contrats). Changed all defaults from 'cards' to 'list'. Updated ViewMode hook defaults and table config defaults.
+- Files: view-mode-switcher-v1.tsx, interventions-view-container.tsx, interventions-navigator.tsx, patrimoine-navigator.tsx, contacts-navigator.tsx, contracts-navigator.tsx, use-view-mode.ts, use-data-navigator.ts, patrimoine.config.tsx, contacts.config.tsx
+- Learnings: Before narrowing a shared type union, grep ALL consumers — property-selector.tsx and intervention-contacts-navigator.tsx still use 'cards' legitimately (#117). Navigator cleanup follows a 7-step checklist.
+- Decision: Kept 'cards' in ViewMode type (used by selection UIs), changed all defaults to 'list', removed VIEW_MODE_CONFIG.cards dead config. Net result: -829 lines deleted, +123 added.

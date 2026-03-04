@@ -782,8 +782,9 @@ export function LocataireInterventionDetailClient({
                         schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
                         status: scheduledDate ? 'scheduled' : 'pending',
                         quotesCount: 0,
-                        quotesStatus: intervention.requires_quote ? 'pending' : 'none'
+                        quotesStatus: 'none'
                       }}
+                      hideEstimation
                     />
                   </div>
 
@@ -794,14 +795,18 @@ export function LocataireInterventionDetailClient({
                     </div>
                   )}
 
-                  {/* Documents & Progression — side by side on desktop, stacked on mobile */}
-                  <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Documents — full width, right after reports/details */}
+                  <div className="mt-6">
                     <DocumentsCard
                       documents={transformedDocuments}
                       userRole="tenant"
                       onView={handleViewDocument}
                       onDownload={handleDownloadDocument}
                     />
+                  </div>
+
+                  {/* Progression — full width at bottom, horizontal stepper */}
+                  <div className="mt-6">
                     <InterventionProgressCard
                       intervention={intervention}
                       activityLogs={activityLogs.map(log => ({
@@ -813,6 +818,7 @@ export function LocataireInterventionDetailClient({
                           avatar_url: (log as any).user_avatar_url || null
                         } : undefined
                       }))}
+                      variant="horizontal"
                     />
                   </div>
                 </ContentWrapper>

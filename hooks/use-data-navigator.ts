@@ -65,14 +65,14 @@ function getNestedValue(obj: any, path: string): any {
  * } = useDataNavigator({
  *   data: buildings,
  *   searchableFields: ['name', 'address', 'city'],
- *   defaultView: 'cards'
+ *   defaultView: 'list'
  * })
  * ```
  */
 export function useDataNavigator<T>({
     data,
     searchableFields,
-    defaultView = 'cards'
+    defaultView = 'list'
 }: UseDataNavigatorOptions<T>): UseDataNavigatorReturn<T> {
     const router = useRouter()
 

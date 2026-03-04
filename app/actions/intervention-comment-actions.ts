@@ -10,7 +10,7 @@
 
 import { createServerActionInterventionCommentRepository } from '@/lib/services/repositories/intervention-comment.repository'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
-import { revalidatePath } from 'next/cache'
+// Pages are force-dynamic — no cache invalidation needed
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 
@@ -62,10 +62,6 @@ export async function addInterventionComment(
       return { success: false, error: result.error.message }
     }
 
-    // Revalidate intervention page
-    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
-    revalidatePath('/gestionnaire/interventions')
-
     logger.info('Comment added', {
       commentId: result.data.id,
       interventionId,
@@ -115,9 +111,6 @@ export async function deleteInterventionComment(
     if (!result.success) {
       return { success: false, error: result.error.message }
     }
-
-    // Revalidate all intervention pages
-    revalidatePath('/gestionnaire/interventions')
 
     logger.info('Comment deleted', { commentId, userId })
 

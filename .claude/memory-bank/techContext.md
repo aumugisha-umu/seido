@@ -64,7 +64,7 @@ npm run supabase:migrate # Creer nouvelle migration (avec timestamp correct)
 
 ```
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
-  - 89 pages total (reparties en 5+ route groups)
+  - 90 pages total (reparties en 5+ route groups)
 app/blog/            # Blog pages (index + [slug] article pages)
 blog/articles/       # Markdown articles with YAML frontmatter
 components/          # 381 composants reutilisables (22 directories)
@@ -85,7 +85,7 @@ tests/               # E2E test infrastructure (Puppeteer + Vitest)
   fixtures/          # Test accounts, test-document.pdf
 docs/                # 226+ fichiers markdown
 docs/stripe/         # Stripe docs (admin-guide, coupon-strategy, production-checklist)
-supabase/migrations/ # 174 migrations SQL (mis a jour 2026-02-22)
+supabase/migrations/ # 178 migrations SQL (mis a jour 2026-03-02)
 ```
 
 ### Module email-notification (Refactore 2026-01)
@@ -207,12 +207,13 @@ CREATE TABLE stripe_webhook_events (
 );
 ```
 
-**DB Functions (5 nouvelles):**
+**DB Functions (6 nouvelles):**
 - `get_billable_properties_count(team_id)` — Compte propriétés actives
 - `get_subscription_status(team_id)` — Statut subscription avec fallback
 - `check_subscription_can_add_property(team_id)` — Vérifie quota (boolean)
 - `get_accessible_lot_ids(team_id)` — Retourne IDs lots accessibles (quota)
 - `update_subscription_updated_at()` — Trigger sur subscriptions table
+- `get_thread_unread_counts(p_thread_ids uuid[], p_user_id uuid)` — **SECURITY DEFINER** batch unread counts (2026-03-02)
 
 **Computed Column:**
 - `subscriptions.billable_properties` (INTEGER GENERATED) — Auto-calculé via `get_billable_properties_count(team_id)`

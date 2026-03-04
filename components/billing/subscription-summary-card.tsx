@@ -117,6 +117,19 @@ export function SubscriptionSummaryCard() {
   const hasSubscription = info?.has_stripe_subscription ?? false
   const statusConfig = info ? getStatusConfig(info.status) : null
 
+  // Derive plan label from billing interval
+  const planLabel = isFreeTier
+    ? 'Gratuit'
+    : isTrialing
+      ? 'Essai'
+      : !hasSubscription
+        ? 'Gratuit'
+        : info?.billing_interval === 'month'
+          ? 'Mensuel'
+          : info?.billing_interval === 'year'
+            ? 'Annuel'
+            : 'Payant'
+
   return (
     <>
       <Card className="relative overflow-hidden">
@@ -196,7 +209,7 @@ export function SubscriptionSummaryCard() {
                     Plan
                   </p>
                   <p className="text-lg font-semibold">
-                    {isFreeTier ? 'Gratuit' : hasSubscription ? 'Pro' : isTrialing ? 'Essai' : '\u2014'}
+                    {planLabel}
                   </p>
                 </div>
 
@@ -262,7 +275,7 @@ export function SubscriptionSummaryCard() {
                     }}
                   >
                     <TrendingUp className="h-4 w-4 mr-2" />
-                    {hasSubscription ? 'Ajouter des lots' : 'Passer au Pro'}
+                    {hasSubscription ? 'Ajouter des lots' : 'Choisir un plan'}
                   </Button>
                 )}
 

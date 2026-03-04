@@ -16,7 +16,7 @@ import {
   ConversationRepository
 } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
-import { revalidatePath } from 'next/cache'
+// Pages are force-dynamic — no cache invalidation needed
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
@@ -215,11 +215,6 @@ export async function createThreadAction(
     )
 
     if (result.success && result.data) {
-      // Revalidate intervention chat pages
-      revalidatePath(`/gestionnaire/interventions/${interventionId}/chat`)
-      revalidatePath(`/locataire/interventions/${interventionId}/chat`)
-      revalidatePath(`/prestataire/interventions/${interventionId}/chat`)
-
       return { success: true, data: result.data }
     }
 
@@ -469,11 +464,6 @@ export async function sendMessageAction(
         .single()
 
       if (thread?.intervention_id) {
-        // Revalidate intervention chat pages
-        revalidatePath(`/gestionnaire/interventions/${thread.intervention_id}/chat`)
-        revalidatePath(`/locataire/interventions/${thread.intervention_id}/chat`)
-        revalidatePath(`/prestataire/interventions/${thread.intervention_id}/chat`)
-
         // Send push and email notifications (async, non-blocking)
         sendConversationNotifications({
           messageId: result.data.id,
@@ -532,29 +522,6 @@ export async function deleteMessageAction(messageId: string): Promise<ActionResu
     const result = await conversationService.deleteMessage(messageId, user.id)
 
     if (result.success) {
-      // Get message thread to find intervention ID for revalidation
-      const supabase = await createServerActionSupabaseClient()
-      const { data: message } = await supabase
-        .from('conversation_messages')
-        .select('thread_id')
-        .eq('id', messageId)
-        .single()
-
-      if (message?.thread_id) {
-        const { data: thread } = await supabase
-          .from('conversation_threads')
-          .select('intervention_id')
-          .eq('id', message.thread_id)
-          .single()
-
-        if (thread?.intervention_id) {
-          // Revalidate intervention chat pages
-          revalidatePath(`/gestionnaire/interventions/${thread.intervention_id}/chat`)
-          revalidatePath(`/locataire/interventions/${thread.intervention_id}/chat`)
-          revalidatePath(`/prestataire/interventions/${thread.intervention_id}/chat`)
-        }
-      }
-
       return { success: true, data: undefined }
     }
 
@@ -745,13 +712,6 @@ export async function addParticipantAction(
           logger.info('✅ [SERVER-ACTION] User already has individual thread', { threadId: existingIndividualThread.id })
         }
       }
-    }
-
-    // Revalidate intervention chat pages
-    if (thread.intervention_id) {
-      revalidatePath(`/gestionnaire/interventions/${thread.intervention_id}/chat`)
-      revalidatePath(`/locataire/interventions/${thread.intervention_id}/chat`)
-      revalidatePath(`/prestataire/interventions/${thread.intervention_id}/chat`)
     }
 
     return { success: true, data: undefined }
@@ -1026,21 +986,6 @@ export async function removeParticipantAction(
     const result = await conversationService.removeParticipant(threadId, userId, user.id)
 
     if (result.success) {
-      // Get thread to find intervention ID for revalidation
-      const supabase = await createServerActionSupabaseClient()
-      const { data: thread } = await supabase
-        .from('conversation_threads')
-        .select('intervention_id')
-        .eq('id', threadId)
-        .single()
-
-      if (thread?.intervention_id) {
-        // Revalidate intervention chat pages
-        revalidatePath(`/gestionnaire/interventions/${thread.intervention_id}/chat`)
-        revalidatePath(`/locataire/interventions/${thread.intervention_id}/chat`)
-        revalidatePath(`/prestataire/interventions/${thread.intervention_id}/chat`)
-      }
-
       return { success: true, data: undefined }
     }
 
@@ -1082,21 +1027,6 @@ export async function markThreadAsReadAction(threadId: string): Promise<ActionRe
     const result = await conversationService.markThreadAsRead(threadId, user.id)
 
     if (result.success) {
-      // Get thread to find intervention ID for revalidation
-      const supabase = await createServerActionSupabaseClient()
-      const { data: thread } = await supabase
-        .from('conversation_threads')
-        .select('intervention_id')
-        .eq('id', threadId)
-        .single()
-
-      if (thread?.intervention_id) {
-        // Revalidate intervention chat pages
-        revalidatePath(`/gestionnaire/interventions/${thread.intervention_id}/chat`)
-        revalidatePath(`/locataire/interventions/${thread.intervention_id}/chat`)
-        revalidatePath(`/prestataire/interventions/${thread.intervention_id}/chat`)
-      }
-
       return { success: true, data: undefined }
     }
 
@@ -1184,11 +1114,6 @@ export async function markAllThreadsAsReadAction(): Promise<ActionResult<void>> 
       )
 
     await Promise.all(updates)
-
-    // Revalidate all dashboard paths
-    revalidatePath('/gestionnaire/dashboard')
-    revalidatePath('/locataire/dashboard')
-    revalidatePath('/prestataire/dashboard')
 
     return { success: true, data: undefined }
   } catch (error) {
@@ -1299,11 +1224,6 @@ export async function addProviderToGroupThreadAction(
     }
 
     logger.info('✅ [SERVER-ACTION] Provider added to group thread')
-
-    // Revalidate chat pages
-    revalidatePath(`/gestionnaire/interventions/${interventionId}/chat`)
-    revalidatePath(`/locataire/interventions/${interventionId}/chat`)
-    revalidatePath(`/prestataire/interventions/${interventionId}/chat`)
 
     return { success: true, data: undefined }
   } catch (error) {

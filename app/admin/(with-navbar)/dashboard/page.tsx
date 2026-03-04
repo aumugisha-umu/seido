@@ -25,11 +25,13 @@ export default async function AdminDashboard() {
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
   const { user, profile } = await getServerAuthContext('admin')
 
-  // Initialize services
-  const userService = await createServerUserService()
-  const interventionService = await createServerInterventionService()
-  const buildingService = await createServerBuildingService()
-  const statsService = await createServerStatsService()
+  // Initialize services (all stateless factories — parallelize)
+  const [userService, interventionService, buildingService, statsService] = await Promise.all([
+    createServerUserService(),
+    createServerInterventionService(),
+    createServerBuildingService(),
+    createServerStatsService(),
+  ])
 
   // ✅ LAYER 2: Data Layer Security - Récupération données système
   let systemStats = {

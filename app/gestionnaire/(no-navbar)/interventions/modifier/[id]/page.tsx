@@ -22,96 +22,74 @@ export default async function ModifierInterventionPage({ params }: PageProps) {
     redirect('/auth/login')
   }
 
-  // Load intervention with all relations
-  const interventionService = await createServerInterventionService()
+  // ── Phase 0: Service instantiation + gate query ──────────────────────
+  // All service factories are stateless — parallelize them
+  const [interventionService, buildingService, lotService, teamService, contractService] = await Promise.all([
+    createServerInterventionService(),
+    createServerBuildingService(),
+    createServerLotService(),
+    createServerTeamService(),
+    createServerContractService(),
+  ])
+
+  // Gate query: needed for team_id check + lot_id/building_id for tenants
   const { data: intervention, error: interventionError } = await interventionService.getById(id)
 
   if (interventionError || !intervention) {
     redirect('/gestionnaire/interventions')
   }
 
-  // Verify the intervention belongs to user's team
   if (intervention.team_id !== team.id) {
     redirect('/gestionnaire/interventions')
   }
 
-  // Load additional data for the form
-  const buildingService = await createServerBuildingService()
-  const lotService = await createServerLotService()
-  const teamService = await createServerTeamService()
+  // ── Wave 1: All independent queries in parallel ─────────────────────
+  const [
+    { data: buildings },
+    { data: lots },
+    { data: teamMembers },
+    { data: assignments },
+    { data: timeSlots },
+    { data: quotes },
+    { data: documents },
+    tenantResult,
+  ] = await Promise.all([
+    buildingService.getBuildingsByTeam(team.id),
+    lotService.getLotsByTeam(team.id),
+    teamService.getTeamMembers(team.id),
+    supabase.from('intervention_assignments').select('*, user:users!user_id(*)').eq('intervention_id', id),
+    supabase.from('intervention_time_slots').select('*').eq('intervention_id', id).order('slot_date', { ascending: true }),
+    supabase.from('intervention_quotes').select('*, provider:users(*)').eq('intervention_id', id).is('deleted_at', null),
+    supabase.from('intervention_documents').select('*').eq('intervention_id', id).is('deleted_at', null).order('uploaded_at', { ascending: false }),
+    // Tenant data depends on intervention gate (lot_id / building_id)
+    (async () => {
+      if (intervention.lot_id) {
+        const r = await contractService.getActiveTenantsByLot(intervention.lot_id)
+        return { tenants: r.success ? r.data : null, buildingTenants: null }
+      } else if (intervention.building_id) {
+        const r = await contractService.getActiveTenantsByBuilding(intervention.building_id)
+        return { tenants: null, buildingTenants: r.success ? r.data : null }
+      }
+      return { tenants: null, buildingTenants: null }
+    })(),
+  ])
 
-  // Get buildings and lots for the team
-  const { data: buildings } = await buildingService.getBuildingsByTeam(team.id)
-  const { data: lots } = await lotService.getLotsByTeam(team.id)
+  const tenantsData = tenantResult.tenants
+  const buildingTenantsData = tenantResult.buildingTenants
 
-  // Get team members (gestionnaires and prestataires)
-  const { data: teamMembers } = await teamService.getTeamMembers(team.id)
-
-  // Get intervention assignments
-  const { data: assignments } = await supabase
-    .from('intervention_assignments')
-    .select('*, user:users!user_id(*)')
-    .eq('intervention_id', id)
-
-  // Get time slots if any
-  const { data: timeSlots } = await supabase
-    .from('intervention_time_slots')
-    .select('*')
-    .eq('intervention_id', id)
-    .order('slot_date', { ascending: true })
-
-  // Get quotes if any
-  const { data: quotes } = await supabase
-    .from('intervention_quotes')
-    .select('*, provider:users(*)')
-    .eq('intervention_id', id)
-    .is('deleted_at', null)
-
-  // Get existing documents
-  const { data: documents } = await supabase
-    .from('intervention_documents')
-    .select('*')
-    .eq('intervention_id', id)
-    .is('deleted_at', null)
-    .order('uploaded_at', { ascending: false })
-
-  // Generate signed URLs for documents (for preview/download)
+  // ── Wave 2: Signed URLs (depends on documents from wave 1) ──────────
   const documentsWithUrls = await Promise.all(
     (documents || []).map(async (doc) => {
       try {
         const { data: signedUrlData } = await supabase.storage
           .from(doc.storage_bucket || 'documents')
-          .createSignedUrl(doc.storage_path, 3600) // 1 hour expiry
-
-        return {
-          ...doc,
-          signedUrl: signedUrlData?.signedUrl || undefined
-        }
+          .createSignedUrl(doc.storage_path, 3600)
+        return { ...doc, signedUrl: signedUrlData?.signedUrl || undefined }
       } catch {
         return { ...doc, signedUrl: undefined }
       }
     })
   )
-
-  // Load active tenants for the intervention's property
-  let tenantsData = null
-  let buildingTenantsData = null
-
-  const contractService = await createServerContractService()
-
-  if (intervention.lot_id) {
-    // Lot intervention: get tenants from active contracts
-    const tenantsResult = await contractService.getActiveTenantsByLot(intervention.lot_id)
-    if (tenantsResult.success) {
-      tenantsData = tenantsResult.data
-    }
-  } else if (intervention.building_id) {
-    // Building intervention: get tenants grouped by lot
-    const buildingTenantsResult = await contractService.getActiveTenantsByBuilding(intervention.building_id)
-    if (buildingTenantsResult.success) {
-      buildingTenantsData = buildingTenantsResult.data
-    }
-  }
 
   // Prepare initial data for the form
   const initialData = {

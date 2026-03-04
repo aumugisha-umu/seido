@@ -27,31 +27,20 @@ export default async function CompanyDetailsPage({ params }: PageProps) {
   const { profile: currentUser, supabase, team } = await getServerAuthContext('gestionnaire')
 
   // ============================================================================
-  // ÉTAPE 2 : Fetch Company Data
+  // ÉTAPE 2+3 : Fetch Company + Contacts in parallel (both use route param id)
   // ============================================================================
-  const { data: company, error: companyError } = await supabase
-    .from('companies')
-    .select('*')
-    .eq('id', resolvedParams.id)
-    .eq('team_id', team.id)
-    .is('deleted_at', null)
-    .single()
+  const [companyResult, contactsResult] = await Promise.all([
+    supabase.from('companies').select('*').eq('id', resolvedParams.id).eq('team_id', team.id).is('deleted_at', null).single(),
+    supabase.from('users').select('id, name, email, phone, role').eq('company_id', resolvedParams.id).eq('team_id', team.id).is('deleted_at', null).order('name', { ascending: true }),
+  ])
 
-  if (companyError || !company) {
-    console.error('❌ Error fetching company:', companyError)
+  if (companyResult.error || !companyResult.data) {
+    console.error('❌ Error fetching company:', companyResult.error)
     notFound()
   }
 
-  // ============================================================================
-  // ÉTAPE 3 : Fetch Associated Contacts
-  // ============================================================================
-  const { data: associatedContacts } = await supabase
-    .from('users')
-    .select('id, name, email, phone, role')
-    .eq('company_id', company.id)
-    .eq('team_id', team.id)
-    .is('deleted_at', null)
-    .order('name', { ascending: true })
+  const company = companyResult.data
+  const associatedContacts = contactsResult.data
 
   // ============================================================================
   // ÉTAPE 4 : Render Client Component

@@ -201,7 +201,7 @@ export function KPICarousel({ cards, className }: KPICarouselProps) {
 }
 
 // ============================================================================
-// MOBILE GRID COMPONENT (2x2 layout)
+// MOBILE STAT STRIP COMPONENT (single-line compact layout)
 // ============================================================================
 
 interface KPIMobileGridProps {
@@ -211,116 +211,94 @@ interface KPIMobileGridProps {
     hideHeroCard?: boolean
 }
 
+/** Short labels for the stat strip — maps card.id to a compact label */
+const stripLabels: Record<string, string> = {
+    patrimoine: 'Lots',
+    occupation: 'Occupation',
+    contrats: 'Contrats',
+    interventions: 'Interv.',
+}
+
 /**
- * KPIMobileGrid - Grille compacte 2x2 pour mobile
+ * KPIMobileGrid - Stat strip compact pour mobile
  *
- * - Optional 1ère card (Actions requises) en pleine largeur
- * - Les 4 suivantes en grille 2x2 compacte
- * - Sur sm+ : grille 3 colonnes
+ * - Compact action banner (44px) for "Actions requises" (hidden when 0)
+ * - Single-line stat strip (56px): 4 cells with value + label, divided
+ * - Total: 108px with banner, 56px without (vs ~430px old layout = -75%)
+ *
+ * Design ref: docs/plans/2026-03-03-gestionnaire-dashboard-mobile-redesign.md
  */
 export function KPIMobileGrid({ cards, className, hideHeroCard = false }: KPIMobileGridProps) {
     if (cards.length === 0) return null
 
     const [heroCard, ...restCards] = cards
-    const gridCards = hideHeroCard ? restCards : cards.slice(1)
+    const stripCards = hideHeroCard ? restCards : cards.slice(1)
+    const showBanner = !hideHeroCard && heroCard && Number(heroCard.value) > 0
 
     return (
-        <div className={cn("space-y-3", className)}>
-            {/* Hero card - full width (Actions requises) - hidden when redundant */}
-            {!hideHeroCard && heroCard && (() => {
-                const styles = variantStyles[heroCard.variant || 'default']
+        <div className={cn("space-y-2", className)}>
+            {/* Action banner — compact 44px (replaces hero card) */}
+            {showBanner && (() => {
                 const Icon = heroCard.icon
                 return (
-                    <Card
-                        className={cn(
-                            "shadow-sm rounded-2xl overflow-hidden group",
-                            "dark:backdrop-blur-sm dark:shadow-none",
-                            styles.card,
-                            heroCard.onClick && "cursor-pointer"
-                        )}
+                    <button
+                        type="button"
+                        className="w-full flex items-center justify-between px-4 py-2.5
+                            bg-amber-50 border border-amber-200 rounded-xl
+                            min-h-[44px] text-left active:bg-amber-100 transition-colors
+                            dark:bg-amber-950/30 dark:border-amber-900/30"
                         onClick={heroCard.onClick}
+                        aria-label={`${heroCard.value} actions requises, voir les interventions`}
                     >
-                        <CardContent className="p-4 relative">
-                            {heroCard.badge && (
-                                <span className={cn(
-                                    "absolute top-3 right-3 text-xs font-medium px-2 py-0.5 rounded-full",
-                                    badgeStyles[heroCard.badge.variant]
-                                )}>
-                                    {heroCard.badge.text}
-                                </span>
-                            )}
-                            <div className="absolute right-0 top-0 p-3 opacity-10">
-                                <Icon className={cn("h-16 w-16", heroCard.iconColor || "text-primary")} />
-                            </div>
-                            <div className="relative z-10">
-                                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                                    {heroCard.label}
-                                </p>
-                                <div className="flex items-baseline gap-2 mt-1">
-                                    <span className={cn("text-2xl font-bold", styles.value)}>
-                                        {heroCard.value}
-                                    </span>
-                                    {heroCard.sublabel && (
-                                        <div className={cn("text-sm font-medium flex flex-col", styles.sublabel)}>
-                                            {heroCard.sublabel}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                        <div className="flex items-center gap-2.5">
+                            <Icon className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                            <span className="text-sm font-semibold text-amber-900 dark:text-amber-100">
+                                {heroCard.value} action{Number(heroCard.value) > 1 ? 's' : ''} requise{Number(heroCard.value) > 1 ? 's' : ''}
+                            </span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-amber-400 shrink-0" />
+                    </button>
                 )
             })()}
 
-            {/* Grid 2x2 for remaining cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {gridCards.map((card) => {
-                    const styles = variantStyles[card.variant || 'default']
-                    return (
-                        <Card
-                            key={card.id}
-                            className={cn(
-                                "shadow-sm rounded-xl overflow-hidden",
-                                "dark:backdrop-blur-sm dark:shadow-none",
-                                styles.card,
-                                card.onClick && "cursor-pointer"
-                            )}
-                            onClick={card.onClick}
-                        >
-                            <CardContent className="p-3">
-                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                    {card.label}
-                                </p>
-                                <p className={cn("text-xl font-bold mt-0.5", styles.value)}>
-                                    {card.value}
-                                </p>
-                                {card.sublabel && (
-                                    <div className="text-[11px] font-medium mt-0.5 text-foreground/60 leading-tight">
-                                        {card.sublabel}
-                                    </div>
-                                )}
-                                {card.badge && (
-                                    <span className={cn(
-                                        "inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-1",
-                                        badgeStyles[card.badge.variant]
-                                    )}>
-                                        {card.badge.text}
-                                    </span>
-                                )}
-                                {card.progressBar && (
-                                    <div className="mt-1.5">
-                                        <ProgressMini
-                                            completed={card.progressBar.completed}
-                                            total={card.progressBar.total}
-                                            percentage={card.progressBar.percentage}
-                                            periodLabel={card.progressBar.periodLabel}
-                                        />
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    )
-                })}
+            {/* Stat strip — single horizontal row, 56px height */}
+            <div
+                className="flex items-stretch overflow-x-auto
+                    bg-card dark:bg-white/5
+                    rounded-xl border border-border/50
+                    divide-x divide-border/30
+                    h-14"
+            >
+                {stripCards.map((card) => (
+                    <div
+                        key={card.id}
+                        role={card.onClick ? "button" : undefined}
+                        tabIndex={card.onClick ? 0 : undefined}
+                        className={cn(
+                            "flex-1 min-w-[68px]",
+                            "flex flex-col items-center justify-center",
+                            "px-1.5 py-1 text-center",
+                            card.onClick && "active:bg-muted/50 cursor-pointer"
+                        )}
+                        onClick={card.onClick}
+                        onKeyDown={card.onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') card.onClick?.() } : undefined}
+                    >
+                        <span className="text-base font-bold text-foreground leading-none">
+                            {card.value}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate max-w-full">
+                            {stripLabels[card.id] || card.label}
+                        </span>
+                        {card.badge && (
+                            <span className={cn(
+                                "text-[10px] font-medium px-1 rounded-full leading-tight mt-0.5",
+                                badgeStyles[card.badge.variant]
+                            )}>
+                                {card.badge.text}
+                            </span>
+                        )}
+                    </div>
+                ))}
             </div>
         </div>
     )
@@ -335,7 +313,8 @@ import {
     Building2,
     Users,
     FileText,
-    Wrench
+    Wrench,
+    ChevronRight
 } from "lucide-react"
 import type { ContractStats } from "@/lib/types/contract.types"
 
@@ -391,22 +370,18 @@ export function statsToKPICards({
         onClick: onActionsClick
     })
 
-    // Patrimoine (manager only) - Clear labels for buildings + lots breakdown
+    // Patrimoine (manager only) - Shows lots/units count
     if (buildingsCount !== undefined) {
         const totalLots = lotsCount || 0
-        const hasBoth = buildingLotsCount !== undefined
-            && independentLotsCount !== undefined
-            && buildingLotsCount > 0
-            && independentLotsCount > 0
 
         cards.push({
             id: 'patrimoine',
             label: 'Patrimoine',
-            value: buildingsCount,
+            value: totalLots,
             sublabel: (
                 <>
-                    <span>{buildingsCount > 1 ? 'immeubles' : 'immeuble'}</span>
-                    <span>{totalLots} lots</span>
+                    <span>{totalLots > 1 ? 'lots' : 'lot'}</span>
+                    <span>{buildingsCount} {buildingsCount > 1 ? 'immeubles' : 'immeuble'}</span>
                 </>
             ),
             icon: Building2,

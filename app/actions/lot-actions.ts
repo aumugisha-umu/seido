@@ -10,7 +10,7 @@
 
 import { createServerActionLotService } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
-import { revalidatePath, revalidateTag } from 'next/cache'
+// Pages are force-dynamic — no cache invalidation needed
 import type { Lot } from '@/lib/services/core/service-types'
 import { logger } from '@/lib/logger'
 
@@ -83,31 +83,7 @@ export async function updateCompleteLot(data: {
       }
     }
 
-    // Vérifier si l'utilisateur est membre de l'équipe du lot
-    const { data: teamMembersCheck, error: teamCheckError } = await debugSupabase
-      .from('team_members')
-      .select('id, team_id, role, left_at')
-      .eq('user_id', userData.id)
-      .eq('team_id', lotData.team_id)
-      .is('left_at', null)
-      .maybeSingle()
-
-    logger.info('🔍 [DEBUG] Team Membership Check:', {
-      authUserId: authUser.id,
-      databaseUserId: userData.id,
-      teamId: lotData.team_id,
-      hasTeamMembership: !!teamMembersCheck,
-      membershipRole: teamMembersCheck?.role,
-      teamCheckError: teamCheckError?.message
-    })
-
-    if (!teamMembersCheck) {
-      logger.error('❌ [AUTH-ERROR] User is not a member of this team!')
-      return {
-        success: false,
-        error: `User ${authUser.email} is not a member of team ${lotData.team_id}`
-      }
-    }
+    // RLS enforces team access via is_team_manager(get_lot_team_id(id)) on lots_update policy
 
     // ✅ Create server action lot service with authenticated Supabase client
     const lotService = await createServerActionLotService()
@@ -167,24 +143,6 @@ export async function updateCompleteLot(data: {
 
       logger.info('✅ [LOT-UPDATE] New contacts inserted:', data.contacts.length)
     }
-
-    // Step 3: Revalidate Next.js cache (tags + paths)
-    logger.info('🗑️ [LOT-UPDATE] Revalidating Next.js cache...')
-
-    // Invalidate tags (Next.js 15 Data Cache)
-    revalidateTag('lots')
-    revalidateTag(`lot-${data.lotId}`)
-    if (lotData.team_id) {
-      revalidateTag(`lots-team-${lotData.team_id}`)
-    }
-
-    // Invalidate paths (Next.js 15 Router Cache)
-    revalidatePath('/gestionnaire/biens')
-    revalidatePath('/gestionnaire/biens/lots')
-    revalidatePath(`/gestionnaire/biens/lots/${data.lotId}`)
-    revalidatePath(`/gestionnaire/biens/lots/modifier/${data.lotId}`)
-
-    logger.info('✅ [LOT-UPDATE] Next.js cache revalidated')
 
     logger.info('✅ [SERVER-ACTION] Lot updated successfully:', {
       lotId: data.lotId,

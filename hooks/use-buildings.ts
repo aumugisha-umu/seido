@@ -201,7 +201,7 @@ export function useBuildings() {
       }
       loadingRef.current = false
     }
-  }, [data.buildings.length])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps — data used via setData functional updater, not read
 
   // Effect pour charger les buildings quand l'utilisateur change
   useEffect(() => {

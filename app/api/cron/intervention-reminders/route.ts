@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 
   // 1. Auth: verify CRON_SECRET
   const authHeader = request.headers.get('authorization')
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return new NextResponse('Unauthorized', { status: 401 })
   }
 
@@ -211,30 +211,32 @@ export async function GET(request: Request) {
         let emailCount = 0
 
         // ═══════════════════════════════════════════════════════
-        // GROUP 1: All team gestionnaires → in-app only
+        // GROUP 1: All team gestionnaires → in-app only (batch INSERT)
         // ═══════════════════════════════════════════════════════
-        for (const manager of teamManagers || []) {
-          const { error: notifError } = await supabase
-            .from('notifications')
-            .insert({
-              user_id: manager.user_id,
-              team_id: intervention.team_id,
-              type: 'reminder' as const,
-              title: `🔔 Rappel : intervention dans ${window.type === '24h' ? '24h' : '1h'}`,
-              message: `L'intervention "${intervention.title || intervention.reference}" est planifiée le ${scheduledDate.toLocaleDateString('fr-FR')} ${timeLabel}`,
-              is_personal: false,
-              metadata: {
-                reminderType: window.type,
-                scheduled_date: intervention.scheduled_date,
-                provider_name: providerName,
-                tenant_name: tenantName,
-              },
-              related_entity_type: 'intervention',
-              related_entity_id: intervention.id,
-              read: false,
-            })
+        if (teamManagers && teamManagers.length > 0) {
+          const managerNotifications = teamManagers.map(manager => ({
+            user_id: manager.user_id,
+            team_id: intervention.team_id,
+            type: 'reminder' as const,
+            title: `🔔 Rappel : intervention dans ${window.type === '24h' ? '24h' : '1h'}`,
+            message: `L'intervention "${intervention.title || intervention.reference}" est planifiée le ${scheduledDate.toLocaleDateString('fr-FR')} ${timeLabel}`,
+            is_personal: false,
+            metadata: {
+              reminderType: window.type,
+              scheduled_date: intervention.scheduled_date,
+              provider_name: providerName,
+              tenant_name: tenantName,
+            },
+            related_entity_type: 'intervention',
+            related_entity_id: intervention.id,
+            read: false,
+          }))
 
-          if (!notifError) inAppCount++
+          const { count, error: batchError } = await supabase
+            .from('notifications')
+            .insert(managerNotifications, { count: 'exact' })
+
+          if (!batchError) inAppCount += count ?? managerNotifications.length
         }
 
         // ═══════════════════════════════════════════════════════
@@ -260,40 +262,41 @@ export async function GET(request: Request) {
             logger.warn({ err }, '⚠️ [CRON-REMINDERS] Push failed for gestionnaires')
           }
 
-          // Email
+          // Email (parallelized)
           try {
             if (emailConfigured) {
-              for (const assignment of assignedManagersToNotify) {
-                const user = assignment.users as any
-                if (!user?.email) continue
-
-                const firstName = user.first_name || user.name || 'Gestionnaire'
-                const interventionUrl = `${baseUrl}/gestionnaire/interventions/${intervention.id}`
-
-                const result = await emailService.send({
-                  to: user.email,
-                  subject: `🔔 Rappel ${window.type} - ${intervention.reference || intervention.title}`,
-                  react: InterventionReminderEmail({
-                    firstName,
-                    interventionRef: intervention.reference || 'N/A',
-                    interventionType,
-                    description: intervention.title || '',
-                    propertyAddress,
-                    lotReference,
-                    interventionUrl,
-                    providerName,
-                    scheduledDate,
-                    startTime: slotStartTime,
-                    endTime: slotEndTime,
-                    recipientRole: 'gestionnaire',
-                    reminderType: window.type,
-                    tenantName,
-                  }),
-                  tags: [{ name: 'type', value: `intervention_reminder_${window.type}` }],
+              const emailPromises = assignedManagersToNotify
+                .map(assignment => {
+                  const user = assignment.users as any
+                  if (!user?.email) return null
+                  const firstName = user.first_name || user.name || 'Gestionnaire'
+                  const interventionUrl = `${baseUrl}/gestionnaire/interventions/${intervention.id}`
+                  return emailService.send({
+                    to: user.email,
+                    subject: `🔔 Rappel ${window.type} - ${intervention.reference || intervention.title}`,
+                    react: InterventionReminderEmail({
+                      firstName,
+                      interventionRef: intervention.reference || 'N/A',
+                      interventionType,
+                      description: intervention.title || '',
+                      propertyAddress,
+                      lotReference,
+                      interventionUrl,
+                      providerName,
+                      scheduledDate,
+                      startTime: slotStartTime,
+                      endTime: slotEndTime,
+                      recipientRole: 'gestionnaire',
+                      reminderType: window.type,
+                      tenantName,
+                    }),
+                    tags: [{ name: 'type', value: `intervention_reminder_${window.type}` }],
+                  })
                 })
+                .filter(Boolean)
 
-                if (result.success) emailCount++
-              }
+              const emailResults = await Promise.allSettled(emailPromises)
+              emailCount += emailResults.filter(r => r.status === 'fulfilled' && (r.value as any)?.success).length
             }
           } catch (err) {
             logger.warn({ err }, '⚠️ [CRON-REMINDERS] Email failed for gestionnaires')
@@ -307,18 +310,12 @@ export async function GET(request: Request) {
           a => a.role === 'locataire' || a.role === 'prestataire'
         )
 
-        for (const assignment of externalAssignments) {
-          const user = assignment.users as any
-          if (!user) continue
-
-          const role = assignment.role as 'locataire' | 'prestataire'
-          const rolePrefix = role === 'locataire' ? 'locataire' : 'prestataire'
-          const firstName = user.first_name || user.name || (role === 'locataire' ? 'Locataire' : 'Prestataire')
-
-          // In-app
-          const { error: notifError } = await supabase
-            .from('notifications')
-            .insert({
+        // Batch in-app notifications for external assignments
+        const validExternals = externalAssignments.filter(a => (a.users as any) != null)
+        if (validExternals.length > 0) {
+          const externalNotifications = validExternals.map(assignment => {
+            const role = assignment.role as 'locataire' | 'prestataire'
+            return {
               user_id: assignment.user_id,
               team_id: intervention.team_id,
               type: 'reminder' as const,
@@ -335,31 +332,41 @@ export async function GET(request: Request) {
               related_entity_type: 'intervention',
               related_entity_id: intervention.id,
               read: false,
-            })
+            }
+          })
 
-          if (!notifError) inAppCount++
+          const { count: extCount, error: extError } = await supabase
+            .from('notifications')
+            .insert(externalNotifications, { count: 'exact' })
 
-          // Push
-          try {
-            const pushResult = await sendPushNotificationToUsers([assignment.user_id], {
-              title: `🔔 Rappel dans ${window.type === '24h' ? '24h' : '1h'}`,
-              message: role === 'locataire'
-                ? `RDV avec ${providerName}${slotStartTime ? ` à ${slotStartTime}` : ''}`
-                : `Intervention ${slotStartTime && slotEndTime ? `${slotStartTime}-${slotEndTime}` : propertyAddress.substring(0, 40)}`,
-              url: `/${rolePrefix}/interventions/${intervention.id}`,
-              type: 'reminder',
-            })
-            pushCount += pushResult.success
-          } catch (err) {
-            logger.warn({ err, role }, '⚠️ [CRON-REMINDERS] Push failed')
-          }
+          if (!extError) inAppCount += extCount ?? externalNotifications.length
 
-          // Email
-          if (user.email) {
+          // Parallelize push + email for all external assignments
+          const pushAndEmailPromises = validExternals.map(async (assignment) => {
+            const user = assignment.users as any
+            const role = assignment.role as 'locataire' | 'prestataire'
+            const rolePrefix = role === 'locataire' ? 'locataire' : 'prestataire'
+            const firstName = user.first_name || user.name || (role === 'locataire' ? 'Locataire' : 'Prestataire')
+
+            // Push
             try {
-              if (emailConfigured) {
-                const interventionUrl = `${baseUrl}/${rolePrefix}/interventions/${intervention.id}`
+              const pushResult = await sendPushNotificationToUsers([assignment.user_id], {
+                title: `🔔 Rappel dans ${window.type === '24h' ? '24h' : '1h'}`,
+                message: role === 'locataire'
+                  ? `RDV avec ${providerName}${slotStartTime ? ` à ${slotStartTime}` : ''}`
+                  : `Intervention ${slotStartTime && slotEndTime ? `${slotStartTime}-${slotEndTime}` : propertyAddress.substring(0, 40)}`,
+                url: `/${rolePrefix}/interventions/${intervention.id}`,
+                type: 'reminder',
+              })
+              pushCount += pushResult.success
+            } catch (err) {
+              logger.warn({ err, role }, '⚠️ [CRON-REMINDERS] Push failed')
+            }
 
+            // Email
+            if (user.email && emailConfigured) {
+              try {
+                const interventionUrl = `${baseUrl}/${rolePrefix}/interventions/${intervention.id}`
                 const result = await emailService.send({
                   to: user.email,
                   subject: `🔔 Rappel ${window.type} - ${intervention.reference || intervention.title}`,
@@ -381,13 +388,14 @@ export async function GET(request: Request) {
                   }),
                   tags: [{ name: 'type', value: `intervention_reminder_${window.type}` }],
                 })
-
                 if (result.success) emailCount++
+              } catch (err) {
+                logger.warn({ err, role }, '⚠️ [CRON-REMINDERS] Email failed')
               }
-            } catch (err) {
-              logger.warn({ err, role }, '⚠️ [CRON-REMINDERS] Email failed')
             }
-          }
+          })
+
+          await Promise.allSettled(pushAndEmailPromises)
         }
 
         results.push({

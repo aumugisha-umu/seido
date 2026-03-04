@@ -9,6 +9,7 @@ import ContactSelector, { ContactSelectorRef } from "@/components/contact-select
 import { removeContactFromLotAction } from "@/app/gestionnaire/(no-navbar)/biens/immeubles/[id]/actions"
 import { assignContactToLotAction } from "@/app/gestionnaire/(no-navbar)/biens/lots/nouveau/actions"
 import type { Contact } from "@/lib/services"
+import { cn } from "@/lib/utils"
 import type {
   LotData,
   BuildingContext,
@@ -18,6 +19,8 @@ import type {
 } from "./types"
 
 interface BuildingLotsGridProps {
+  /** Extra className merged onto the grid container */
+  className?: string
   buildingId: string
   lots: LotData[]
   lotContactIdsMap: LotContactIdsMap
@@ -32,6 +35,10 @@ interface BuildingLotsGridProps {
   initialExpandedLotId?: string | null
   /** IDs of lots locked by subscription restriction. null = all accessible. */
   lockedLotIds?: Set<string> | null
+  /** Start with all lots expanded (for read-only overview) */
+  initialExpandAll?: boolean
+  /** Hide all edit actions, keep expand/collapse */
+  readOnly?: boolean
 }
 
 /**
@@ -43,6 +50,7 @@ interface BuildingLotsGridProps {
  * - Building context for inherited contacts
  */
 export function BuildingLotsGrid({
+  className,
   buildingId,
   lots,
   lotContactIdsMap,
@@ -53,13 +61,16 @@ export function BuildingLotsGrid({
   buildingOwners = [],
   buildingOthers = [],
   initialExpandedLotId = null,
-  lockedLotIds = null
+  lockedLotIds = null,
+  initialExpandAll = false,
+  readOnly = false
 }: BuildingLotsGridProps) {
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
   const [currentLotId, setCurrentLotId] = useState<string | undefined>(undefined)
 
-  // Track expanded lot IDs (initialized with initialExpandedLotId if provided)
+  // Track expanded lot IDs (initialized with all lots if initialExpandAll, or single lot if initialExpandedLotId)
   const [expandedLotIds, setExpandedLotIds] = useState<Set<string>>(() => {
+    if (initialExpandAll) return new Set(lots.map(l => l.id))
     return initialExpandedLotId ? new Set([initialExpandedLotId]) : new Set()
   })
 
@@ -249,13 +260,14 @@ export function BuildingLotsGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3", className)}>
         {lots.map((lot) => (
           <LotCardUnified
             key={lot.id}
             lot={lot}
             variant="expandable"
             mode="view"
+            readOnly={readOnly}
             showBuilding={false}
             showInterventionsCount={false}
             isLocked={lockedLotIds?.has(lot.id) ?? false}
@@ -283,8 +295,8 @@ export function BuildingLotsGrid({
         ))}
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {deleteModal.contact && (
+      {/* Delete Confirmation Modal (hidden in readOnly) */}
+      {!readOnly && deleteModal.contact && (
         <ContactDeleteConfirmModal
           isOpen={deleteModal.isOpen}
           onClose={() => setDeleteModal({ isOpen: false, contact: null, lotId: '', lotReference: '', contactType: '' })}
@@ -298,19 +310,21 @@ export function BuildingLotsGrid({
         />
       )}
 
-      {/* Contact Selector Modal */}
-      <ContactSelector
-        ref={contactSelectorRef}
-        teamId={teamId}
-        displayMode="compact"
-        selectionMode="multi"
-        hideUI={true}
-        lotContactAssignments={formatLotContactAssignments()}
-        lotId={currentLotId}
-        onContactSelected={handleContactSelected}
-        onContactCreated={handleContactSelected}
-        onContactRemoved={handleContactRemoved}
-      />
+      {/* Contact Selector Modal (hidden in readOnly) */}
+      {!readOnly && (
+        <ContactSelector
+          ref={contactSelectorRef}
+          teamId={teamId}
+          displayMode="compact"
+          selectionMode="multi"
+          hideUI={true}
+          lotContactAssignments={formatLotContactAssignments()}
+          lotId={currentLotId}
+          onContactSelected={handleContactSelected}
+          onContactCreated={handleContactSelected}
+          onContactRemoved={handleContactRemoved}
+        />
+      )}
     </>
   )
 }

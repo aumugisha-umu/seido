@@ -10,7 +10,7 @@ interface GoogleMapPreviewProps {
   latitude: number
   longitude: number
   address?: string
-  height?: number
+  height?: number | string
   className?: string
   showOpenButton?: boolean
 }
@@ -91,8 +91,9 @@ export function GoogleMapPreview({
   // Fallback: Static map image when Map ID is not configured or invalid
   const renderStaticMapFallback = () => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    const staticHeight = typeof height === 'number' ? height : 300
     const staticMapUrl = apiKey
-      ? `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=16&size=600x${height}&scale=2&markers=color:0x6366f1|${latitude},${longitude}&key=${apiKey}`
+      ? `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=16&size=600x${staticHeight}&scale=2&markers=color:0x6366f1|${latitude},${longitude}&key=${apiKey}`
       : null
 
     return (

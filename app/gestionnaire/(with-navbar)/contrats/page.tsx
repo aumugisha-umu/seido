@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger'
 import { getServerAuthContext } from '@/lib/server-context'
 import { checkExpiringContracts } from '@/app/actions/notification-actions'
 import { transitionContractStatuses } from '@/app/actions/contract-actions'
+import { after } from 'next/server'
 import type { ContractWithRelations } from '@/lib/types/contract.types'
 
 // Force dynamic rendering - cette page dépend toujours de la session
@@ -36,11 +37,12 @@ export default async function ContratsPage() {
 
       logger.info(`✅ [CONTRATS-PAGE] Consolidated: ${contracts.length} contracts from ${activeTeamIds.length} teams`)
 
-      // Transition statuses for all teams (async, non-blocking)
-      activeTeamIds.forEach(teamId => {
-        transitionContractStatuses(teamId).catch((err) => {
-          logger.warn(`⚠️ [CONTRATS-PAGE] Failed to transition contract statuses for team ${teamId}:`, err)
-        })
+      // Transition statuses for all teams (runs after response — doesn't block page render)
+      after(async () => {
+        for (const teamId of activeTeamIds) {
+          try { await transitionContractStatuses(teamId) }
+          catch (err) { logger.warn(`⚠️ [CONTRATS-PAGE] Failed to transition contract statuses for team ${teamId}:`, err) }
+        }
       })
     } else {
       // ✅ Vue standard: une seule équipe
@@ -53,16 +55,17 @@ export default async function ContratsPage() {
         logger.error(`❌ [CONTRATS-PAGE] Failed to load contracts: ${result.error?.message || 'Unknown error'}`)
       }
 
-      // Transition automatique des statuts (a_venir → actif, actif → expire)
-      // Exécuté au chargement pour synchroniser les statuts avec les dates
-      transitionContractStatuses(team.id).catch((err) => {
-        logger.warn('⚠️ [CONTRATS-PAGE] Failed to transition contract statuses:', err)
+      // Transition statuses (runs after response — doesn't block page render)
+      after(async () => {
+        try { await transitionContractStatuses(team.id) }
+        catch (err) { logger.warn('⚠️ [CONTRATS-PAGE] Failed to transition contract statuses:', err) }
       })
     }
 
-    // Check for expiring contracts and send notifications (async, non-blocking)
-    checkExpiringContracts().catch((err) => {
-      logger.warn('⚠️ [CONTRATS-PAGE] Failed to check expiring contracts:', err)
+    // Check for expiring contracts and send notifications (runs after response)
+    after(async () => {
+      try { await checkExpiringContracts() }
+      catch (err) { logger.warn('⚠️ [CONTRATS-PAGE] Failed to check expiring contracts:', err) }
     })
 
     logger.info(`📊 [CONTRATS-PAGE] Server data ready - Contracts: ${contracts.length}`)

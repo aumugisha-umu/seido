@@ -16,9 +16,29 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 })
 
 const nextConfig = {
+  // Vanity URL redirects → canonical auth routes
+  async redirects() {
+    return [
+      { source: '/login', destination: '/auth/login', permanent: true },
+      { source: '/signup', destination: '/auth/signup', permanent: true },
+      { source: '/signin', destination: '/auth/login', permanent: true },
+      { source: '/register', destination: '/auth/signup', permanent: true },
+    ]
+  },
+
   // Security and cache headers for all routes
   async headers() {
     return [
+      {
+        // Immutable cache for hashed static assets (JS, CSS, fonts)
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable'
+          }
+        ]
+      },
       {
         source: '/:path*',
         headers: [

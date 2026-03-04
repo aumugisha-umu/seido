@@ -17,9 +17,10 @@ type ActivityLog = Database['public']['Tables']['activity_logs']['Row'] & {
 interface InterventionProgressCardProps {
   intervention: Intervention
   activityLogs?: ActivityLog[]
+  variant?: 'vertical' | 'horizontal'
 }
 
-export function InterventionProgressCard({ intervention, activityLogs = [] }: InterventionProgressCardProps) {
+export function InterventionProgressCard({ intervention, activityLogs = [], variant }: InterventionProgressCardProps) {
   // Extract actors from activity logs for each status
   const getActorForStatus = (targetStatus: string | null, actionType?: string): string | null => {
     if (!targetStatus && !actionType) return null
@@ -65,6 +66,7 @@ export function InterventionProgressCard({ intervention, activityLogs = [] }: In
         scheduledBy={actors.scheduledBy}
         completedBy={actors.completedBy}
         cancelledBy={actors.cancelledBy}
+        variant={variant}
       />
     </div>
   )

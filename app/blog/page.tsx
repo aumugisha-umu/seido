@@ -20,10 +20,12 @@ export const metadata: Metadata = {
   },
 }
 
-export default function BlogIndexPage() {
-  const articles = getAllArticles()
-  const categories = getAllCategories()
-  const tags = getAllTags()
+export default async function BlogIndexPage() {
+  const [articles, categories, tags] = await Promise.all([
+    getAllArticles(),
+    getAllCategories(),
+    getAllTags(),
+  ])
 
   // Strip content from articles for the list (only need metadata)
   const articleMetas = articles.map(({ content: _content, ...meta }) => meta)

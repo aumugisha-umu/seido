@@ -55,6 +55,8 @@ export interface LotContract {
   status: string
   start_date: string
   end_date: string
+  rent_amount?: number | null
+  charges_amount?: number | null
   contacts: ContractContact[]
 }
 
@@ -180,6 +182,7 @@ export interface LotCardUnifiedProps {
   // Display configuration
   variant?: LotCardVariant              // default: 'compact'
   mode?: LotCardMode                    // default: 'view'
+  readOnly?: boolean                    // Hide all edit actions, keep expand/collapse
 
   // State
   isSelected?: boolean                  // For selection mode
@@ -248,7 +251,6 @@ export interface LotCardActionsProps {
   isExpanded?: boolean
   variant?: LotCardVariant
   onSelect?: (lotId: string | null, buildingId?: string) => void
-  onToggleExpand?: () => void
   showDropdown?: boolean
 }
 

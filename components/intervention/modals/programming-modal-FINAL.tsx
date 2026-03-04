@@ -16,7 +16,8 @@ import {
   Info,
   X,
   ArrowRight,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -93,6 +94,7 @@ interface ProgrammingModalFinalProps {
   providers: Provider[]
   onConfirm: () => void
   isFormValid: boolean
+  isSubmitting?: boolean
   teamId: string
   requireQuote?: boolean
   onRequireQuoteChange?: (required: boolean) => void
@@ -390,6 +392,7 @@ export const ProgrammingModalFinal = ({
   providers,
   onConfirm,
   isFormValid,
+  isSubmitting = false,
   teamId,
   requireQuote = false,
   onRequireQuoteChange,
@@ -492,8 +495,13 @@ export const ProgrammingModalFinal = ({
     .map(t => ({ ...t, type: 'locataire' as const }))
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[1100px] max-w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden" showCloseButton={false}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isSubmitting) onClose() }}>
+      <DialogContent
+        className="w-[1100px] max-w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden"
+        showCloseButton={false}
+        onPointerDownOutside={isSubmitting ? (e) => e.preventDefault() : undefined}
+        onEscapeKeyDown={isSubmitting ? (e) => e.preventDefault() : undefined}
+      >
         {/* STICKY HEADER - Informations intervention */}
         <div className="flex-shrink-0 sticky top-0 z-10 bg-white border-b border-slate-200">
           <DialogHeader className="p-6 pb-4 relative">
@@ -504,7 +512,8 @@ export const ProgrammingModalFinal = ({
             {/* Close button */}
             <button
               onClick={onClose}
-              className="absolute top-6 right-6 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+              disabled={isSubmitting}
+              className="absolute top-6 right-6 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-30"
             >
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>
@@ -1216,17 +1225,22 @@ export const ProgrammingModalFinal = ({
             <Button
               variant="outline"
               onClick={onClose}
+              disabled={isSubmitting}
               className="min-w-[100px]"
             >
               Annuler
             </Button>
             <Button
               onClick={onConfirm}
-              disabled={!isFormValid || !programmingOption}
-              className="min-w-[140px]"
+              disabled={!isFormValid || !programmingOption || isSubmitting}
+              className="min-w-[160px]"
             >
-              <Check className="h-4 w-4 mr-2" />
-              Confirmer la planification
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4 mr-2" />
+              )}
+              {isSubmitting ? 'Planification en cours...' : 'Confirmer la planification'}
             </Button>
           </div>
         </div>

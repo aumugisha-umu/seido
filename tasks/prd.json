@@ -1,494 +1,91 @@
 {
   "project": "SEIDO",
-  "featureName": "Performance Optimization — TIER 1+2+3",
+  "featureName": "Remove Card Views from Gestionnaire",
   "branchName": "preview",
-  "description": "Comprehensive performance optimization: TIER 1+2 (13 stories, COMPLETE) — auth dedup, parallelization, batch operations, dead code removal, caching, RPC. TIER 3 (16 stories, IN PROGRESS) — hook stability fixes, memory leak fixes, notification deferral, cron batching, DB aggregation, blog/dashboard caching, SSR pre-fetch. Total: 29 stories from 6-agent audit (96+83 findings consolidated, verified by 3 agents to 16 actionable items).",
-  "createdAt": "2026-03-02",
-  "prdSource": "audit-consolidation (6+6 agents, 179 raw findings) + verification (4+3 agents)",
-  "status": "complete",
+  "description": "Remove card view toggle and card rendering from all gestionnaire list pages. Keep list + calendar for interventions, list-only for biens/contacts/contrats. B2B SaaS best practice: tables for data-dense scanning, no card toggle.",
+  "createdAt": "2026-03-04",
+  "prdSource": "docs/plans/2026-03-04-remove-card-views-gestionnaire.md",
+  "status": "completed",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Add missing conversation_participants index",
-      "description": "REVISED after verification: All 7 originally proposed indexes ALREADY EXIST. The only missing index is conversation_participants(thread_id, user_id) — needed for the US-012 RPC unread count function. This composite index supports the most frequent participant lookup pattern (find user's participation in a specific thread).",
+      "title": "Remove card view from Interventions",
+      "description": "Remove cards button from ViewModeSwitcherV1, remove renderCardsView from InterventionsViewContainer, change default to 'list'. Keep list + calendar.",
       "acceptanceCriteria": [
-        "Migration file created with single index: idx_conversation_participants_thread_user ON conversation_participants(thread_id, user_id)",
-        "No duplicate indexes created (verified against existing migration 20260130230000)",
-        "Lint passes"
+        "ViewModeSwitcherV1 shows only List + Calendar buttons",
+        "InterventionsViewContainer has no cards rendering branch",
+        "Default view mode is 'list' in interventions-navigator.tsx",
+        "Lint passes on all modified files"
       ],
       "priority": 1,
       "dependsOn": [],
-      "sizing": "XS",
+      "sizing": "S",
       "passes": true,
-      "notes": "VERIFICATION: All 7 originally proposed indexes already exist in migrations 20251009000001, 20251023100322, 20260130230000. Only conversation_participants(thread_id, user_id) composite is missing."
+      "notes": "Removed cards button from ViewModeSwitcherV1, removed renderCardsView + cardsPagination from InterventionsViewContainer, changed defaults to 'list'."
     },
     {
       "id": "US-002",
-      "title": "Remove redundant auth checks in server actions",
-      "description": "VERIFIED SAFE: All 5 targets use createServerActionSupabaseClient() (authenticated, RLS-enforced). Zero service role usage in target operations. RLS policies: buildings_update uses is_team_manager(team_id), lots_update uses is_team_manager(get_lot_team_id(id)), contracts use user_belongs_to_team_v2/can_manage_contract, time_slot_responses has INSERT/UPDATE policies. Targets: (1) building-actions.ts ~lines 201-230: remove team_members query, (2) lot-actions.ts ~lines 86-110: remove team_members query, (3) contract-actions.ts: delete verifyTeamAccess() function + all calls, (4) intervention-actions.ts acceptTimeSlotAction: remove 3-query pre-flight, (5) cancelTimeSlotAction: remove team_members role check. Trade-off: lose specific error messages, replaced by generic PostgREST errors.",
+      "title": "Remove card view from Patrimoine (Biens)",
+      "description": "Remove view toggle entirely from PatrimoineNavigator, remove BuildingCardExpandable and LotCardUnified card grid rendering, always show DataTable.",
       "acceptanceCriteria": [
-        "verifyTeamAccess function deleted from contract-actions.ts",
-        "Manual team_members queries removed from building-actions, lot-actions",
-        "Pre-flight permission checks removed from acceptTimeSlotAction, cancelTimeSlotAction",
-        "All actions still return proper errors via RLS (not found = no access)",
-        "Lint passes"
+        "No view toggle buttons in PatrimoineNavigator",
+        "Buildings and lots always render as DataTable",
+        "Card component imports removed",
+        "Lint passes on all modified files"
       ],
       "priority": 2,
       "dependsOn": [],
-      "sizing": "M",
+      "sizing": "S",
       "passes": true,
-      "notes": "VERIFIED: All 5 use authenticated client. RLS covers all cases. No service role in target ops."
+      "notes": "Removed BuildingCardExpandable, LotCardUnified, LayoutGrid, List imports. Removed expandedBuildings state. Changed defaultView to 'list'. Removed view toggle UI and BEM classes."
     },
     {
       "id": "US-003",
-      "title": "Parallelize intervention edit page queries (2 waves)",
-      "description": "VERIFIED PARTIAL: File app/gestionnaire/(no-navbar)/interventions/modifier/[id]/page.tsx. Wave 1 (parallel): buildings, lots, teamMembers, assignments, timeSlots, quotes, documents — all use only team.id or URL param id. Wave 2 (parallel after wave 1): signedUrls (needs documents from wave 1) + tenants (needs intervention.lot_id/building_id from wave 1 gate query). Service instantiations also parallelizable (stateless factories).",
+      "title": "Remove card view from Contacts",
+      "description": "Remove view toggle from ContactsNavigator, remove DataCards rendering, always show DataTable.",
       "acceptanceCriteria": [
-        "Wave 1: 7+ queries wrapped in Promise.all",
-        "Wave 2: signedUrls + tenants in Promise.all (after wave 1)",
-        "Service instantiations parallelized in their own Promise.all",
-        "Page still renders correctly with all data",
-        "Lint passes"
+        "No view toggle buttons in ContactsNavigator",
+        "All tabs always render as DataTable",
+        "DataCards import removed",
+        "Lint passes on all modified files"
       ],
-      "priority": 3,
+      "priority": 2,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "VERIFIED: J(signedUrls) depends on I(documents), K(tenants) depends on B(intervention). All others independent."
+      "notes": "Removed DataCards import, LayoutGrid/List icons. Removed viewMode/setViewMode from useDataNavigator. Changed defaultView to 'list'. Removed view toggle UI and BEM classes. renderContent always returns DataTable."
     },
     {
       "id": "US-004",
-      "title": "Parallelize new entity page queries (recurring occupiedLotIds pattern)",
-      "description": "VERIFIED PARTIAL: All 5 pages share the same pattern: raw DB queries are independent (buildings, occupiedLotIds, lots, contacts/types all use only team.id), but TRANSFORMS are sequential (transform buildings needs B+C, transform lots needs C+D+E). Correct approach: Wave 1 = all raw queries in Promise.all, Wave 2 = sequential JS transforms (no DB, just CPU). Pages: (1) contrats/nouveau, (2) contrats/modifier/[id], (3) contacts/nouveau, (4) nouvelle-intervention, (5) immeubles/nouveau + lots/nouveau, (6) contrats/[id] service init.",
+      "title": "Remove card view from Contrats",
+      "description": "Remove view toggle from ContractsNavigator, remove ContractCard grid rendering, always show ContractsListView.",
       "acceptanceCriteria": [
-        "All 7 page files updated with Promise.all for raw DB queries (Wave 1)",
-        "Transforms remain sequential after Promise.all (Wave 2, JS only)",
-        "Service instantiations parallelized where sequential",
-        "No functional regression (pages render same data)",
-        "Lint passes"
+        "No view toggle buttons in ContractsNavigator",
+        "Contracts always render as list view",
+        "ContractCard import removed",
+        "Lint passes on all modified files"
       ],
-      "priority": 3,
+      "priority": 2,
       "dependsOn": [],
-      "sizing": "M",
+      "sizing": "S",
       "passes": true,
-      "notes": "VERIFIED: occupiedLotIds transforms depend on multiple raw queries. Raw queries are safe to parallelize, transforms must stay sequential."
+      "notes": "Removed ContractCard import, LayoutGrid/List icons, useViewMode hook. Removed view toggle UI, gridClass, mounted skeleton. Always renders ContractsListView. Removed BEM classes."
     },
     {
       "id": "US-005",
-      "title": "Parallelize create-manager-intervention API (services + threads)",
-      "description": "VERIFIED SAFE: (1) 4 service instantiations are stateless factories — safe to Promise.all. (2) Thread creation: 5 independent chains (group, tenants_group, individual tenants, providers_group, individual providers). No unique constraint conflicts since each has different (intervention_id, thread_type, participant_id) tuple. CRITICAL: all threads MUST complete BEFORE assignment insertion (trigger add_assignment_to_conversation_participants needs threads to exist). (3) Remove redundant user ID validation query.",
+      "title": "Update ViewMode type + cleanup defaults",
+      "description": "Remove 'cards' from ViewMode type union, update all defaultMode from 'cards' to 'list', remove unused LayoutGrid imports across navigators.",
       "acceptanceCriteria": [
-        "Service instantiations use Promise.all (4 parallel)",
-        "Thread creation chains parallelized (5 independent chains)",
-        "Thread creation completes BEFORE assignment insertion (ordering preserved)",
-        "Redundant user validation query removed",
-        "Lint passes"
+        "ViewMode type is 'list' | 'calendar' (no 'cards')",
+        "All defaultMode values changed to 'list'",
+        "No unused imports remain",
+        "Full lint passes on all modified files"
       ],
       "priority": 3,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "VERIFIED: No unique constraint conflicts. Thread-before-assignment ordering is critical."
-    },
-    {
-      "id": "US-006",
-      "title": "Parallelize dashboard queries (prestataire, locataire, admin)",
-      "description": "VERIFIED SAFE: (1) Prestataire: interventions + unread threads are independent (different inputs: team.id vs profile.id). (2) Locataire: tenant data + unread threads independent (both use profile.id but different tables). (3) Admin: service inits parallelizable, but stats query depends on user query result (partial). (4) Contact details: invitation check can join Promise.all. (5) Company details: company + contacts parallel (contacts uses URL param, not company result).",
-      "acceptanceCriteria": [
-        "Prestataire dashboard: interventions + unread in Promise.all",
-        "Locataire dashboard: tenant data + unread in Promise.all",
-        "Admin dashboard: service inits in Promise.all",
-        "Contact details: invitation in Promise.all",
-        "Company details: company + contacts in Promise.all",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "VERIFIED: All targets confirmed independent. Admin stats depends on user query (keep sequential)."
-    },
-    {
-      "id": "US-007",
-      "title": "Batch contract rent reminder creation (replace N sequential actions)",
-      "description": "REVISED: Cannot defer to after() because redirect target page (/gestionnaire/contrats/[id]) SSR-fetches interventions via interventionService.getByContract(id) and displays them immediately. Instead: create a createBatchRentReminders() server action that does 1 auth check, 1 subscription check, and 1 bulk insert for all 12 reminders instead of 12 × (auth + sub check + insert + revalidation). Also defer createContractNotification() to after() since it runs AFTER all reminders are created.",
-      "acceptanceCriteria": [
-        "New createBatchRentReminders server action in contract-actions.ts or intervention-actions.ts",
-        "Single auth check and subscription check for all reminders",
-        "Bulk DB insert for all reminder interventions",
-        "createContractNotification moved to after() (runs after reminders exist)",
-        "Contract creation with 12 reminders completes in <1s instead of 5s+",
-        "Lint passes"
-      ],
-      "priority": 4,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "DONE: createBatchRentRemindersAction + client updated. createContractNotification made fire-and-forget."
-    },
-    {
-      "id": "US-008",
-      "title": "Bulk contract contact insertion (replace for loop)",
-      "description": "VERIFIED SAFE: addContractContact does only auth + team check + DB insert + cache invalidation. No notifications, no activity logs per contact. UNIQUE(contract_id, user_id, role) protects duplicates. Order doesn't matter. Create addContractContactsBatch() with 1 auth check, 1 bulk insert, 1 cache invalidation.",
-      "acceptanceCriteria": [
-        "New addContractContactsBatch server action in contract-actions.ts",
-        "Single auth check, single bulk DB insert, single cache invalidation",
-        "Client calls batch action instead of loop",
-        "Existing addContractContact kept for backward compat",
-        "Lint passes"
-      ],
-      "priority": 4,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "DONE: addContractContactsBatch + client updated. Existing addContractContact kept for edit mode."
-    },
-    {
-      "id": "US-009",
-      "title": "Defer contact invitation email to after()",
-      "description": "VERIFIED with CAUTION: In /api/invite-user/route.ts, generateLink() CANNOT be deferred (produces hashed_token for user_invitations record). But sendInvitationEmail() and activity_logs insert CAN be deferred. All DB records created before email. Caveat: response will always return invitationSent: true optimistically. after() is confirmed available (Next.js 15.2.6, already used in 17+ files).",
-      "acceptanceCriteria": [
-        "sendInvitationEmail moved to after() callback",
-        "activity_logs insert moved to after() callback",
-        "generateLink() stays synchronous (required for invitation token)",
-        "API response returns after DB operations complete",
-        "Lint passes"
-      ],
-      "priority": 4,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "DONE: sendInvitationEmail + activity_logs moved to after(). generateLink stays sync."
-    },
-    {
-      "id": "US-010",
-      "title": "Remove ALL dead cache invalidation code",
-      "description": "VERIFIED: ALL revalidatePath AND revalidateTag calls across ALL server actions are DEAD CODE. Reason: every page is force-dynamic (explicit export or implicit via cookies() call in getServerAuthContext), and no service/repository uses next:{tags} or unstable_cache. Remove all revalidatePath and revalidateTag calls from ALL server action files. This eliminates synchronous no-op work on every mutation.",
-      "acceptanceCriteria": [
-        "All revalidatePath calls removed from server actions in app/actions/",
-        "All revalidateTag calls removed from server actions in app/actions/",
-        "Helper functions like revalidateInterventionCaches removed or emptied",
-        "Pages still load fresh data (they are force-dynamic, no cache involved)",
-        "Lint passes"
-      ],
-      "priority": 5,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "DONE: ~85 dead revalidatePath/revalidateTag calls removed from 7 files. ~120 total lines removed. auth-actions.ts kept (login/signup layout revalidation)."
-    },
-    {
-      "id": "US-011",
-      "title": "Cache Stripe subscription info in gestionnaire layout",
-      "description": "VERIFIED SAFE: getSubscriptionInfo returns SubscriptionInfo (plain object with primitives — fully JSON-serializable, no Stripe objects). Wrap with unstable_cache(15min TTL, team-scoped key). MUST also add revalidateTag('subscription') in Stripe webhook handler for immediate invalidation on subscription changes.",
-      "acceptanceCriteria": [
-        "getSubscriptionInfo wrapped with unstable_cache (15min, tag: 'subscription')",
-        "Cache key includes team.id to prevent cross-team pollution",
-        "revalidateTag('subscription') added in Stripe webhook handler",
-        "Layout uses cached version",
-        "Billing page still shows fresh data after subscription change",
-        "Lint passes"
-      ],
-      "priority": 5,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "DONE: getCachedSubscriptionInfo with unstable_cache(15min, tags:subscription). Webhook revalidateTag added."
-    },
-    {
-      "id": "US-012",
-      "title": "Create RPC for thread unread counts (replace N+1)",
-      "description": "As a user, I want faster intervention detail page load. Create get_thread_unread_counts(p_thread_ids uuid[], p_user_id uuid) SQL function. Must handle edge cases: (1) NULL last_read_message_id = count ALL messages, (2) deleted last_read message = return 0 (match current behavior), (3) non-participant = count all messages (match current behavior). Function must be SECURITY DEFINER to bypass RLS on conversation tables. Apply to all 3 role pages.",
-      "acceptanceCriteria": [
-        "SQL function get_thread_unread_counts created via migration",
-        "Handles NULL last_read_message_id (counts all messages)",
-        "Handles deleted last_read message (returns 0)",
-        "Handles non-participant (counts all messages)",
-        "Gestionnaire intervention detail page uses RPC",
-        "Locataire intervention detail page uses RPC",
-        "Prestataire intervention detail page uses RPC",
-        "Lint passes"
-      ],
-      "priority": 6,
-      "dependsOn": ["US-001"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "DONE: SQL RPC get_thread_unread_counts + all 3 role pages updated. SECURITY DEFINER."
-    },
-    {
-      "id": "US-013",
-      "title": "Stats optimizations + contrats page background jobs",
-      "description": "VERIFIED SAFE: (1) head:true on count-only queries in stats.repository.ts — currently fetches all rows just for count, (2) transitionContractStatuses + checkExpiringContracts already fire-and-forget — moving to after() is semantically cleaner with identical behavior, (3) getInterventionStats needs teamId filter (currently no filter = full table scan through RLS).",
-      "acceptanceCriteria": [
-        "All count-only queries use { count: 'exact', head: true }",
-        "Contract background jobs wrapped in after() in contrats page",
-        "getInterventionStats accepts and uses teamId parameter",
-        "Lint passes"
-      ],
-      "priority": 6,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "DONE: head:true on all count-only queries. after() for contract status transitions + expiry checks. getInterventionStats has no callers (dead code)."
-    },
-    {
-      "id": "US-014",
-      "title": "Parallelize rent reminder notifications with Promise.allSettled",
-      "description": "In intervention-actions.ts ~line 522, the after() callback loops sequentially over interventions with await createInterventionNotification(). Replace for...of+await with Promise.allSettled() to parallelize all notification sends.",
-      "acceptanceCriteria": [
-        "after() callback uses Promise.allSettled instead of sequential for loop",
-        "Each notification failure is still logged individually",
-        "Lint passes"
-      ],
-      "priority": 1,
-      "dependsOn": [],
+      "dependsOn": ["US-001", "US-002", "US-003", "US-004"],
       "sizing": "XS",
       "passes": true,
-      "notes": "TIER 3A. Verified: intervention-actions.ts:522-530 — sequential await in for loop inside after()."
-    },
-    {
-      "id": "US-015",
-      "title": "Add Cache-Control headers for static assets + Contentsquare lazyOnload",
-      "description": "Two config-level quick wins: (1) In next.config.ts, add Cache-Control: public, max-age=31536000, immutable header for /_next/static/* paths. (2) In app/layout.tsx ~line 83, change Contentsquare Script strategy from afterInteractive to lazyOnload (non-critical analytics).",
-      "acceptanceCriteria": [
-        "next.config.ts has Cache-Control immutable header for /_next/static/* routes",
-        "Contentsquare Script strategy changed to lazyOnload",
-        "Lint passes"
-      ],
-      "priority": 1,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "TIER 3A. Two one-line changes. Cache-Control saves redundant re-downloads of static JS/CSS."
-    },
-    {
-      "id": "US-016",
-      "title": "Middleware: extract shared Supabase client factory",
-      "description": "In middleware.ts, the Supabase client is created twice with identical config (lines 86-106 for auth pages, lines 183-202 for protected routes). Extract a createMiddlewareSupabaseClient(request, response) helper and call it once at the top.",
-      "acceptanceCriteria": [
-        "Single createMiddlewareSupabaseClient helper function",
-        "Supabase client created once per middleware invocation",
-        "Both auth redirect and protected route logic use same client",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "TIER 3A. Verified: middleware.ts has 2 identical createServerClient blocks."
-    },
-    {
-      "id": "US-017",
-      "title": "PWA register: clearInterval on unmount",
-      "description": "In components/pwa-register.tsx ~line 15, setInterval() for service worker update check (every hour) is created without storing the interval ID. Store intervalId, return cleanup function from useEffect.",
-      "acceptanceCriteria": [
-        "setInterval return value stored in variable",
-        "useEffect cleanup function calls clearInterval",
-        "Lint passes"
-      ],
-      "priority": 1,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "TIER 3A. Verified: pwa-register.tsx:15 — setInterval without cleanup."
-    },
-    {
-      "id": "US-018",
-      "title": "Contact searchContacts: DB-side filtering instead of in-memory",
-      "description": "In contact.service.ts ~line 340, searchContacts() calls findAll() (loads ALL contacts into memory) then filters client-side by name/email/role. Replace with a parameterized DB query using ilike for text search and eq for role/team filters.",
-      "acceptanceCriteria": [
-        "searchContacts uses parameterized DB query with ilike (not findAll)",
-        "Role and team filters applied at DB level",
-        "Results limited to reasonable page size (e.g. 50)",
-        "Existing call sites still work",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "TIER 3B. Verified: contact.service.ts:340-367 — loads ALL contacts then filters in memory."
-    },
-    {
-      "id": "US-019",
-      "title": "Cron intervention-reminders: batch notifications + parallelize",
-      "description": "In app/api/cron/intervention-reminders/route.ts lines 162-301, notification INSERTs and email sends are sequential (for loop with await inside). Batch notification INSERTs into single bulk insert, and parallelize email sends with Promise.allSettled.",
-      "acceptanceCriteria": [
-        "Notification INSERTs batched per group (not individual per manager)",
-        "Email sends parallelized with Promise.allSettled",
-        "Push notifications parallelized with Promise.allSettled",
-        "team_managers query reused across groups (not re-fetched)",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "TIER 3B. Verified: 3 groups with sequential loops for notifications, emails, push."
-    },
-    {
-      "id": "US-020",
-      "title": "Fix useGlobalNotifications event listener memory leak",
-      "description": "In hooks/use-global-notifications.ts lines 166-176, the useEffect registering 'notificationUpdated' event listener has fetchUnreadCount in its dependency array. Since fetchUnreadCount has multiple deps that change frequently, the listener is re-registered on every render cycle. Fix: use useRef for fetchUnreadCount or remove it from deps.",
-      "acceptanceCriteria": [
-        "Event listener useEffect has stable dependency array",
-        "fetchUnreadCount accessed via ref (not direct dep)",
-        "Listener not re-registered on every render",
-        "Notification updates still trigger fetchUnreadCount",
-        "Lint passes"
-      ],
-      "priority": 1,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "TIER 3B. Verified: use-global-notifications.ts:166-176 — fetchUnreadCount in deps."
-    },
-    {
-      "id": "US-021",
-      "title": "Fix useRealtimeChat channel thrashing from optimisticMessages dep",
-      "description": "In hooks/use-realtime-chat-v2.ts ~line 255, the Realtime subscription useEffect has optimisticMessages in its dependency array. Every new optimistic message causes channel unsubscribe/resubscribe. Remove optimisticMessages from the dependency array — the subscription callback doesn't need it.",
-      "acceptanceCriteria": [
-        "optimisticMessages removed from useEffect dependency array",
-        "Realtime channel stays stable during message sends",
-        "New messages still appear in real-time",
-        "Lint passes"
-      ],
-      "priority": 1,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "TIER 3B. Verified: use-realtime-chat-v2.ts:255 — optimisticMessages causes channel reconnection."
-    },
-    {
-      "id": "US-022",
-      "title": "Fix useBuildings infinite loop risk from data.buildings.length dep",
-      "description": "In hooks/use-buildings.ts ~line 204, fetchBuildings useCallback has data.buildings.length in its dependency array. When setData updates buildings, the array length changes, recreating fetchBuildings, which triggers the useEffect (line 227) that calls fetchBuildings again — potential infinite loop. Fix: remove data.buildings.length from deps (use empty array or a ref).",
-      "acceptanceCriteria": [
-        "fetchBuildings useCallback has stable dependencies (no data.buildings.length)",
-        "useEffect does not re-trigger on data change",
-        "Buildings still load correctly on mount and manual refresh",
-        "Lint passes"
-      ],
-      "priority": 1,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "TIER 3B. Verified: use-buildings.ts:204 — HIGH RISK infinite loop pattern."
-    },
-    {
-      "id": "US-023",
-      "title": "Fix useManagerStats dependency cleanup",
-      "description": "In hooks/use-manager-stats.ts ~line 134, fetchStats is in useEffect deps but already has empty deps ([]) in useCallback. While the pattern is mitigated by cache logic, clean it up: remove fetchStats from useEffect deps since it's stable, or use an explicit ref pattern.",
-      "acceptanceCriteria": [
-        "useEffect dependency array cleaned (no unnecessary fetchStats if stable)",
-        "Stats still load on mount",
-        "No rapid refetch cycles on user change",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "TIER 3B. Partially mitigated by cache. Still worth cleaning up."
-    },
-    {
-      "id": "US-024",
-      "title": "Blog articles: add unstable_cache for fs reads",
-      "description": "In lib/blog.ts line 44, getAllArticles() calls fs.readFileSync on every request. Wrap with unstable_cache (1h TTL, tag: 'blog-articles'). Blog content changes only on deploy, so caching is safe.",
-      "acceptanceCriteria": [
-        "getAllArticles wrapped in unstable_cache",
-        "Cache TTL: 3600s (1 hour)",
-        "Cache tag: blog-articles (for manual revalidation)",
-        "Blog page still renders articles correctly",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "DONE: unstable_cache wrapper with 1h TTL, tag blog-articles. All callers made async."
-    },
-    {
-      "id": "US-025",
-      "title": "Quote processExpiredQuotes: batch UPDATE instead of loop",
-      "description": "In quote-repository.ts ~line 516-548, processExpiredQuotes() fetches expired quote IDs then loops with individual markExpired() UPDATE per quote. Replace with a single bulk UPDATE using .in('id', expiredIds).",
-      "acceptanceCriteria": [
-        "processExpiredQuotes uses single UPDATE with .in() filter",
-        "All expired quotes updated in one DB operation",
-        "Return value still indicates success/failure per quote (or total count)",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "DONE: Single batch UPDATE with .in('id', expiredIds) instead of N individual markExpired() calls."
-    },
-    {
-      "id": "US-026",
-      "title": "Dashboard service creation: React cache() wrapper",
-      "description": "In components/dashboards/async-dashboard-content.tsx lines 44-49, 5 service factories are called on every Suspense stream without React cache() deduplication. Wrap each service creation in cache() so concurrent renders reuse the same instance.",
-      "acceptanceCriteria": [
-        "Service factory calls wrapped in React cache()",
-        "Duplicate service creation eliminated within same request",
-        "Dashboard still renders all data correctly",
-        "Lint passes"
-      ],
-      "priority": 4,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "DONE: 6 service factories wrapped in React cache() for request-level deduplication."
-    },
-    {
-      "id": "US-027",
-      "title": "Lot category count: SQL aggregate instead of JS reduce",
-      "description": "In lot.repository.ts ~line 671-698, getCountByCategory() fetches ALL lots for a team then counts categories with .reduce() in JavaScript. Replace with a DB-level COUNT(*) GROUP BY category query.",
-      "acceptanceCriteria": [
-        "getCountByCategory uses DB-level GROUP BY (not JS reduce)",
-        "Query returns {category: string, count: number}[] directly",
-        "No full lot dataset transferred to server",
-        "Existing call sites receive same data shape",
-        "Lint passes"
-      ],
-      "priority": 4,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "DONE: 6 parallel head:true count queries per category instead of fetch-all+JS reduce."
-    },
-    {
-      "id": "US-028",
-      "title": "Email settings: SSR pre-fetch hybrid",
-      "description": "In app/gestionnaire/(with-navbar)/parametres/emails/page.tsx, the page is fully client-side ('use client') with all data fetched in useEffect after mount. Convert to SSR pre-fetch: create a Server Component wrapper that fetches email connections + blacklist, passes as props to a client component.",
-      "acceptanceCriteria": [
-        "Server Component wrapper fetches email connections and blacklist",
-        "Data passed as props to client component (no useEffect initial fetch)",
-        "Client component still handles mutations and refreshes",
-        "Page loads with data visible immediately (no loading spinner on first paint)",
-        "Lint passes"
-      ],
-      "priority": 5,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "DONE: SSR hybrid — Server Component fetches connections+blacklist, passes to client. No loading spinner on first paint."
-    },
-    {
-      "id": "US-029",
-      "title": "Mail page: consolidate 4 count queries into single RPC",
-      "description": "In mail/page.tsx lines 27-63, getEmailCounts() runs 4 separate count queries (inbox, processed, sent, archive) in Promise.all. Already parallelized but 4 DB round trips. Consider a single SQL RPC with conditional COUNT or a single query with CASE WHEN. Lower priority since already parallel.",
-      "acceptanceCriteria": [
-        "Email counts fetched in single DB operation (RPC or CASE WHEN)",
-        "Migration with new SQL function if RPC approach chosen",
-        "All 4 counts still correct (inbox, processed, sent, archive)",
-        "Lint passes"
-      ],
-      "priority": 5,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "DONE: Single RPC get_email_counts with COUNT FILTER replaces 4 separate queries."
+      "notes": "ViewMode type kept with 'cards' (still used by property-selector + intervention-contacts). Default changed from 'cards' to 'list' in use-view-mode.ts, use-data-navigator.ts, patrimoine.config.tsx (x2), contacts.config.tsx (x2). Removed VIEW_MODE_CONFIG.cards dead config. Updated toggle cycle to list↔calendar. Simplified responsive default logic."
     }
   ]
 }

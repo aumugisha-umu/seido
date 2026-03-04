@@ -202,9 +202,9 @@ export function InterventionsNavigator({
   // Active filters count (for badge on filter button)
   const activeFiltersCount = selectedStatuses.length + selectedUrgencies.length
 
-  // View mode state (cards, list, calendar)
+  // View mode state (list, calendar)
   const { viewMode, setViewMode, mounted } = useViewMode({
-    defaultMode: 'cards',
+    defaultMode: 'list',
     syncWithUrl: false
   })
 

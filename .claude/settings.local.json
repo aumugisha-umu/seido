@@ -78,7 +78,8 @@
       "WebFetch(domain:business.whatsapp.com)",
       "WebFetch(domain:stripe.com)",
       "WebFetch(domain:medium.com)",
-      "WebFetch(domain:bengrab.au)"
+      "WebFetch(domain:bengrab.au)",
+      "WebFetch(domain:uxpatterns.dev)"
     ],
     "deny": [],
     "ask": []

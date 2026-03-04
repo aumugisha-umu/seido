@@ -146,9 +146,3 @@ Files: 13 source files + 2 new files + 1 migration
 - Files: status-timeline.tsx, intervention-progress-card.tsx, intervention-detail-client.tsx, intervention-details-card.tsx, intervention-preview.types.ts
 - Learnings: `sections` prop is too coarse for sub-section visibility — use targeted boolean props (#115). Early return pattern for divergent render variants (#116).
 - Decision: `hideEstimation` prop over splitting `sections` further — avoids combinatorial explosion of section names
-
-## 2026-03-04 — Remove Card Views from Gestionnaire (5 stories)
-- Implemented: Removed card view toggle and card rendering from 4 gestionnaire list pages (interventions, patrimoine, contacts, contrats). Changed all defaults from 'cards' to 'list'. Updated ViewMode hook defaults and table config defaults.
-- Files: view-mode-switcher-v1.tsx, interventions-view-container.tsx, interventions-navigator.tsx, patrimoine-navigator.tsx, contacts-navigator.tsx, contracts-navigator.tsx, use-view-mode.ts, use-data-navigator.ts, patrimoine.config.tsx, contacts.config.tsx
-- Learnings: Before narrowing a shared type union, grep ALL consumers — property-selector.tsx and intervention-contacts-navigator.tsx still use 'cards' legitimately (#117). Navigator cleanup follows a 7-step checklist.
-- Decision: Kept 'cards' in ViewMode type (used by selection UIs), changed all defaults to 'list', removed VIEW_MODE_CONFIG.cards dead config. Net result: -829 lines deleted, +123 added.

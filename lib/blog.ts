@@ -43,7 +43,7 @@ const parseArticleFile = (filename: string): Article | null => {
 }
 
 // ✅ PERF: Raw function for internal use (no cache)
-const getAllArticlesRaw = (): Article[] => {
+const getAllArticlesRaw = async (): Promise<Article[]> => {
   if (!fs.existsSync(ARTICLES_DIR)) {
     return []
   }

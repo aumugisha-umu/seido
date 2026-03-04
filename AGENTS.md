@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-03
-**Total Learnings:** 116
+**Last Updated:** 2026-03-04
+**Total Learnings:** 117
 
 ---
 
@@ -843,6 +843,13 @@
 **Example:** `status-timeline.tsx:251-313` (horizontal branch), `intervention-progress-card.tsx:20` (variant prop passthrough)
 **When to Use:** When a component needs two structurally different layouts (not just styling differences). Early return keeps both paths clean vs tangled conditional JSX. The `mt-[18px]` = h/2 trick centers horizontal connectors with circles.
 **Added:** 2026-03-03 | **Source:** Locataire intervention detail — horizontal progression stepper
+
+#### Learning #117: Cards vs Tables — B2B SaaS navigators must use tables, cards reserved for selection UIs
+**Problem:** All 4 gestionnaire list pages (interventions, biens, contacts, contrats) offered a cards/list toggle. B2B users scanning 50-300+ items need tables — cards waste vertical space and prevent comparison. But removing `'cards'` from ViewMode type broke `property-selector.tsx` and `intervention-contacts-navigator.tsx` which legitimately use cards.
+**Solution:** (1) Remove card toggle from ALL data navigator list pages — always DataTable/ListView. (2) Keep `'cards'` in ViewMode type for selection/detail UIs. (3) Change all `defaultView`/`defaultMode` to `'list'` in hooks AND table config objects. (4) Navigator cleanup checklist: imports → hook state → render branches → toggle UI → BEM classes → config defaults → type definitions.
+**Example:** `patrimoine-navigator.tsx` (removed BuildingCardExpandable + LotCardUnified), `contracts-navigator.tsx` (removed ContractCard + useViewMode entirely), `contacts-navigator.tsx` (removed DataCards), `use-view-mode.ts` (default changed to 'list')
+**When to Use:** Any time a gestionnaire list page is created — default to DataTable, never add card toggle. Cards are valid ONLY for: property selection modals, inline contact displays, kanban boards.
+**Added:** 2026-03-04 | **Source:** Remove Card Views from Gestionnaire feature (5 stories)
 
 ---
 

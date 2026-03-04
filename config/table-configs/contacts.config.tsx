@@ -326,7 +326,7 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
         }
     },
 
-    defaultView: 'cards',
+    defaultView: 'list',
 
     // Row click navigation
     rowHref: (contact) => `/gestionnaire/contacts/details/${contact.id}`,
@@ -603,7 +603,7 @@ export const companiesTableConfig: DataTableConfig<CompanyData> = {
         }
     },
 
-    defaultView: 'cards',
+    defaultView: 'list',
 
     // Row click navigation
     rowHref: (company) => `/gestionnaire/contacts/societes/${company.id}`,

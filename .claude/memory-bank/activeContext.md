@@ -133,7 +133,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: 13 stories perf optimization + post-creation redirect UX + 110 learnings in AGENTS.md*
 
 ## Files Recently Modified
-### 2026-03-03 13:12:56 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-03-03-locataire-detail-layout-restructure-retrospective.md`
+### 2026-03-04 00:05:57 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/dashboards/shared/kpi-carousel.tsx`

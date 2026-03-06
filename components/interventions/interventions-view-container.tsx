@@ -13,6 +13,9 @@ import { ViewModeSwitcherV1 } from './view-mode-switcher-v1'
 // List View
 import { InterventionsListViewV1 } from './interventions-list-view-v1'
 
+// Mobile Card (responsive dual render)
+import { InterventionCardMobile } from './intervention-card-mobile'
+
 // Calendar View (unified month/week component)
 import { InterventionsCalendarView } from './interventions-calendar-view'
 
@@ -172,14 +175,26 @@ export function InterventionsViewContainer({
   }
 
   /**
-   * 📊 Render list view (table dense with pagination)
-   * Layout: scrollable table + fixed pagination at bottom
+   * 📊 Render list view
+   * Dual render: mobile cards (<md) + desktop table (>=md)
    */
   const renderListView = () => {
     return (
       <div className="flex flex-col h-full">
-        {/* Table - scrollable area */}
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Mobile: compact cards (hidden on md+) */}
+        <div className="block md:hidden flex-1 min-h-0 overflow-y-auto space-y-2 px-1">
+          {paginatedItems.map((intervention) => (
+            <InterventionCardMobile
+              key={intervention.id}
+              intervention={intervention}
+              userContext={userContext}
+              userId={user?.id}
+            />
+          ))}
+        </div>
+
+        {/* Desktop: table (hidden below md) */}
+        <div className="hidden md:block flex-1 min-h-0 overflow-y-auto">
           <InterventionsListViewV1
             interventions={paginatedItems}
             userContext={userContext}
@@ -187,7 +202,8 @@ export function InterventionsViewContainer({
             userId={user?.id}
           />
         </div>
-        {/* Pagination - fixed at bottom */}
+
+        {/* Pagination - shared, fixed at bottom */}
         <div className="flex-shrink-0 mt-2">
           <InterventionPagination
             currentPage={currentPage}

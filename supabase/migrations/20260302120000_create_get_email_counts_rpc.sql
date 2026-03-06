@@ -20,7 +20,7 @@ SET search_path = public
 AS $$
   SELECT
     COUNT(*) FILTER (WHERE direction = 'received' AND status = 'unread' AND deleted_at IS NULL) AS inbox,
-    COUNT(*) FILTER (WHERE status = 'processed' AND deleted_at IS NULL) AS processed,
+    COUNT(*) FILTER (WHERE direction = 'received' AND status = 'read' AND deleted_at IS NULL) AS processed,
     COUNT(*) FILTER (WHERE direction = 'sent' AND deleted_at IS NULL) AS sent,
     COUNT(*) FILTER (WHERE status = 'archived' AND deleted_at IS NULL) AS archive
   FROM emails

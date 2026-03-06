@@ -30,11 +30,6 @@ export function ConversationGroupComponent({
     }
   }, [isParentSelected, isChildSelected])
 
-  const handleToggle = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setIsExpanded(!isExpanded)
-  }
-
   const handleParentClick = () => {
     // Expand when clicking on conversation
     if (!isExpanded) {
@@ -70,7 +65,7 @@ export function ConversationGroupComponent({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              handleToggle()
+              setIsExpanded(!isExpanded)
             }}
             className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
             aria-label={isExpanded ? 'Collapse conversation' : 'Expand conversation'}

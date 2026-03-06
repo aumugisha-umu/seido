@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { buildingsTableConfig, lotsTableConfig, type BuildingData, type LotData } from '@/config/table-configs/patrimoine.config'
 import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
+import { BuildingCardMobile } from './building-card-mobile'
+import { LotCardMobile } from './lot-card-mobile'
 import { Building2, Home, Search, Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -77,14 +79,28 @@ export function PatrimoineNavigator({
         }
 
         return (
-            <DataTable<BuildingData>
-                data={data}
-                columns={buildingsTableConfig.columns}
-                actions={buildingsTableConfig.actions}
-                loading={loading}
-                emptyMessage={emptyConfig.description}
-                onRowClick={createRowClickHandler(buildingsTableConfig.rowHref)}
-            />
+            <>
+                {/* Mobile: compact cards */}
+                <div className="block md:hidden space-y-2">
+                    {data.map((building) => (
+                        <BuildingCardMobile key={building.id} building={building} />
+                    ))}
+                    {!loading && data.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-8">{emptyConfig.description}</p>
+                    )}
+                </div>
+                {/* Desktop: table */}
+                <div className="hidden md:block">
+                    <DataTable<BuildingData>
+                        data={data}
+                        columns={buildingsTableConfig.columns}
+                        actions={buildingsTableConfig.actions}
+                        loading={loading}
+                        emptyMessage={emptyConfig.description}
+                        onRowClick={createRowClickHandler(buildingsTableConfig.rowHref)}
+                    />
+                </div>
+            </>
         )
     }
 
@@ -116,17 +132,35 @@ export function PatrimoineNavigator({
         }
 
         return (
-            <DataTable<LotData>
-                data={data}
-                columns={lotsTableConfig.columns}
-                actions={lotsTableConfig.actions}
-                loading={loading}
-                emptyMessage={emptyConfig.description}
-                onRowClick={lockedLotIds
-                    ? createLockedAwareRowClickHandler(lotsTableConfig.rowHref)
-                    : createRowClickHandler(lotsTableConfig.rowHref)
-                }
-            />
+            <>
+                {/* Mobile: compact cards */}
+                <div className="block md:hidden space-y-2">
+                    {data.map((lot) => (
+                        <LotCardMobile
+                            key={lot.id}
+                            lot={lot}
+                            locked={lockedLotIds?.has(lot.id) ?? false}
+                        />
+                    ))}
+                    {!loading && data.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-8">{emptyConfig.description}</p>
+                    )}
+                </div>
+                {/* Desktop: table */}
+                <div className="hidden md:block">
+                    <DataTable<LotData>
+                        data={data}
+                        columns={lotsTableConfig.columns}
+                        actions={lotsTableConfig.actions}
+                        loading={loading}
+                        emptyMessage={emptyConfig.description}
+                        onRowClick={lockedLotIds
+                            ? createLockedAwareRowClickHandler(lotsTableConfig.rowHref)
+                            : createRowClickHandler(lotsTableConfig.rowHref)
+                        }
+                    />
+                </div>
+            </>
         )
     }
 

@@ -26,19 +26,33 @@ import type { Building } from './components/types'
 
 async function getEmailCounts(supabase: any, teamId: string) {
   // ✅ PERF: Single RPC with COUNT FILTER replaces 4 separate count queries
+  // v2: also returns source_counts (per-connection unread counts for sidebar badges)
   const { data, error } = await supabase.rpc('get_email_counts', { p_team_id: teamId }).single()
 
   if (error || !data) {
     console.error('[MAIL-PAGE] get_email_counts RPC failed, falling back to 0:', error?.message)
-    return { inbox: 0, processed: 0, sent: 0, drafts: 0, archive: 0 }
+    return {
+      counts: { inbox: 0, processed: 0, sent: 0, drafts: 0, archive: 0 },
+      sourceCounts: {} as Record<string, number>
+    }
+  }
+
+  // Parse source_counts JSONB: { email_connection_id → unread_count }
+  const rawSourceCounts = (data.source_counts || {}) as Record<string, number>
+  const sourceCounts: Record<string, number> = {}
+  for (const [connectionId, count] of Object.entries(rawSourceCounts)) {
+    sourceCounts[connectionId] = Number(count) || 0
   }
 
   return {
-    inbox: Number(data.inbox) || 0,
-    processed: Number(data.processed) || 0,
-    sent: Number(data.sent) || 0,
-    drafts: 0,
-    archive: Number(data.archive) || 0
+    counts: {
+      inbox: Number(data.inbox) || 0,
+      processed: Number(data.processed) || 0,
+      sent: Number(data.sent) || 0,
+      drafts: 0,
+      archive: Number(data.archive) || 0
+    },
+    sourceCounts
   }
 }
 
@@ -260,7 +274,8 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
   emails: Email[]
   total: number
 }> {
-  // Fetch received emails (inbox) + sent replies in parallel
+  // Fetch received emails (inbox = unread only) + sent replies in parallel
+  // ⚠️ Must match API inbox logic: direction=received + status=unread
   const [receivedResult, sentRepliesResult] = await Promise.all([
     supabase
       .from('emails')
@@ -270,6 +285,7 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
       `, { count: 'estimated' })
       .eq('team_id', teamId)
       .eq('direction', 'received')
+      .eq('status', 'unread')
       .is('deleted_at', null)
       .order('received_at', { ascending: false })
       .limit(50),
@@ -323,7 +339,7 @@ export default async function MailPage() {
   // supabaseAdmin: email-heavy queries (counts, emails, linked entities, notification groups)
   // supabase: simpler tables with lightweight RLS (buildings, connections)
   const [
-    counts,
+    emailCountsResult,
     buildings,
     emailConnections,
     linkedEntities,
@@ -339,7 +355,8 @@ export default async function MailPage() {
   return (
     <MailClient
       teamId={team.id}
-      initialCounts={counts}
+      initialCounts={emailCountsResult.counts}
+      initialSourceCounts={emailCountsResult.sourceCounts}
       initialBuildings={buildings}
       initialEmailConnections={emailConnections}
       initialLinkedEntities={linkedEntities}

@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-04
-**Total Learnings:** 117
+**Last Updated:** 2026-03-06
+**Total Learnings:** 126
 
 ---
 
@@ -850,6 +850,69 @@
 **Example:** `patrimoine-navigator.tsx` (removed BuildingCardExpandable + LotCardUnified), `contracts-navigator.tsx` (removed ContractCard + useViewMode entirely), `contacts-navigator.tsx` (removed DataCards), `use-view-mode.ts` (default changed to 'list')
 **When to Use:** Any time a gestionnaire list page is created — default to DataTable, never add card toggle. Cards are valid ONLY for: property selection modals, inline contact displays, kanban boards.
 **Added:** 2026-03-04 | **Source:** Remove Card Views from Gestionnaire feature (5 stories)
+
+#### Learning #118: CSS @layer cascade in Tailwind v4 — unlayered styles beat @layer components
+**Problem:** Dashboard mobile stats toggle used Tailwind responsive classes (`hidden lg:block`), then BEM classes inside `@layer components`. Both failed: during Next.js hydration, `@layer utilities` (Tailwind) and unlayered styles override `@layer components` rules. The correct mobile layout appeared during SSR then vanished on hydrate.
+**Solution:** Place responsive visibility rules OUTSIDE any `@layer` block (unlayered = highest cascade priority) with `!important`. CSS layer priority: unlayered > `@layer utilities` > `@layer components` > `@layer base`.
+**Example:** `app/globals.css:48-68` — `.dashboard__stats--mobile` / `.dashboard__stats--desktop` with `@media (min-width: 1024px)`
+**When to Use:** Any time you need deterministic show/hide between mobile/desktop in a Tailwind v4 + Next.js project. NEVER use Tailwind responsive classes (`hidden lg:block`) for critical layout toggles.
+**Added:** 2026-03-05 | **Source:** Dashboard mobile stat cards hydration bug
+
+#### Learning #119: PostgreSQL NULLS NOT DISTINCT — partial unique index for nullable columns
+**Problem:** `UNIQUE NULLS NOT DISTINCT (email, team_id)` treats NULL as equal to NULL, meaning only ONE row with `email = NULL` allowed per team. Creating a second contact without email fails with duplicate key violation.
+**Solution:** Replace with a partial unique index: `CREATE UNIQUE INDEX ON users (email, team_id) WHERE email IS NOT NULL AND email != ''`. Combine with Zod preprocess (`z.preprocess(val => val?.trim() === '' ? null : val, schema)`) and API-layer normalization (`email?.trim() || null`) for defense-in-depth.
+**Example:** `supabase/migrations/20260304100000_fix_users_email_team_unique_allow_null.sql`, `lib/validation/schemas.ts` (createContactSchema.email), `app/api/create-contact/route.ts:57`
+**When to Use:** Any unique constraint on a nullable column where multiple NULL rows must be allowed. Also applies to `phone`, `company`, etc.
+**Added:** 2026-03-05 | **Source:** Contact creation empty email duplicate key bug
+
+#### Learning #120: Virtual DB concepts vs actual enum values in RPC functions
+**Problem:** Migration `20260302120000` (get_email_counts RPC) used `status = 'processed'` in SQL. But `'processed'` is a virtual folder concept in the app layer (`email.repository.ts`), not a valid `email_status` enum value. The actual enum has: `unread`, `read`, `archived`, `deleted`. Migration failed on push with `invalid input value for enum email_status`.
+**Solution:** Always verify DB enum values before using them in SQL functions. Use `\dT+ enum_name` or check migration that created the enum. Map virtual concepts to actual column filters: `processed → direction = 'received' AND status = 'read'`.
+**Example:** `supabase/migrations/20260302120000_create_get_email_counts_rpc.sql:25`
+**When to Use:** When writing RPC functions that use enum columns. Always cross-reference the enum definition, never trust app-layer naming.
+**Added:** 2026-03-05 | **Source:** Migration sync — staging/production push failure
+
+#### Learning #121: Expandable table rows — reuse card view expand state + stopPropagation on action column
+**Problem:** Building list view needed collapsible rows showing lot sub-rows, but the expand/collapse state already existed (`expandedBuildings` + `toggleBuildingExpansion`) for the card view. Creating separate state would mean switching view modes resets expand state.
+**Solution:** Reuse the same `expandedBuildings` state across both card and list views. Make the entire building row clickable (`onClick` on row div) but add `e.stopPropagation()` on the action column div to prevent button clicks from toggling expand. Use a vertical bar (`w-1 bg-slate-300`) + `pl-5` indent for visual hierarchy on sub-rows.
+**Example:** `components/property-selector.tsx:769-942` — list view with expandable lot sub-rows
+**When to Use:** Any table with a card/list toggle where both views have expand/collapse — share the state. Always stopPropagation on interactive cells in clickable rows.
+**Added:** 2026-03-05 | **Source:** Contract creation wizard — expandable building list view
+
+#### Learning #122: auth.uid() is NULL for service_role — don't guard SECURITY DEFINER RPCs with auth-dependent helpers
+**Problem:** `get_email_counts` RPC had `EXISTS (SELECT 1 FROM team_members WHERE user_id IN (SELECT get_my_profile_ids()))` guard. When called via `createServiceRoleSupabaseClient()` in SSR, `auth.uid()` returns NULL → `get_my_profile_ids()` returns empty → EXISTS always false → COUNT(*) FILTER returns all zeros. No error thrown — silent data loss.
+**Solution:** SECURITY DEFINER RPCs called via service_role don't need auth guards — the caller (page.tsx) validates auth upstream via `getServerAuthContext()`. Remove `get_my_profile_ids()` / `auth.uid()` guards from RPCs used in SSR. The `p_team_id` parameter + SECURITY DEFINER is sufficient authorization.
+**Example:** `supabase/migrations/20260305100000_fix_get_email_counts_v2.sql` — removed EXISTS guard
+**When to Use:** Any time you create a SECURITY DEFINER RPC that will be called from Server Components with service_role client
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — US-001
+
+#### Learning #123: Handler-driven fetches over useEffect for user navigation
+**Problem:** `useEffect([currentFolder])` triggers fetch on folder change — but fails when returning from an entity filter to the same folder (currentFolder didn't change → effect doesn't fire → old data remains). Skip conditions (`offset === 50`) also match on subsequent navigations, not just initial render.
+**Solution:** Remove the folder-change useEffect. Make every navigation handler call `fetchEmails()` explicitly. Add `folderOverride` parameter to bypass stale closures from batched `setCurrentFolder()`. Pattern: `fetchEmails(false, 'all', folder)` where `folder` is the handler's argument, not the stale state.
+**Example:** `mail-client.tsx:handleFolderChange` — calls `fetchEmails(false, 'all', folder)` directly
+**When to Use:** Any "fetch on state change" pattern where every state change has a corresponding user action handler. Prefer imperative over reactive when closures carry stale values.
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — sidebar navigation bug
+
+#### Learning #124: optimisticRemovals Set — prevent stale-while-revalidate from resurrecting deleted items
+**Problem:** Stale-while-revalidate cache pattern shows cached data instantly, then background-refreshes. But if user archived/deleted an email between cache write and refresh, the removed email reappears in the refreshed list for a split second.
+**Solution:** Track optimistically removed IDs in a `useRef<Set<string>>`. On archive/delete/softDelete: add ID to set. On background refresh: filter `data.emails.filter(e => !optimisticRemovals.current.has(e.id))`. On rollback: remove from set. On hard sync: clear set.
+**Example:** `mail-client.tsx:optimisticRemovals` ref — used in handleArchive, handleDelete, handleSoftDelete, fetchEmails
+**When to Use:** Any list with optimistic removal + background refresh. Prevents the "zombie item" flash.
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — US-008
+
+#### Learning #125: SSR/API query parity — initial load must match client refresh exactly
+**Problem:** SSR fetched ALL received emails for inbox, but the API endpoint filtered `status='unread'`. On first client-side refresh, 471 emails became a different set → emails "disappeared" and reappeared as the list replaced.
+**Solution:** SSR initial data query MUST use identical filters as the API endpoint for the same view. For inbox: both must use `.eq('direction', 'received').eq('status', 'unread').is('deleted_at', null)`. Test by comparing SSR count vs API count on page load.
+**Example:** `mail/page.tsx:getInitialEmails` — added `.eq('status', 'unread')` to match API
+**When to Use:** Any page with SSR initial data + client-side refresh/polling. Mismatched queries cause "flash of different content" on first revalidation.
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — US-002
+
+#### Learning #126: Dead code chain tracing — callback → prop → child handler → UI invocation
+**Problem:** `handleLinkBuilding` in mail-client.tsx was passed as `onLinkBuilding` prop to EmailDetail. EmailDetail defined a local `handleLinkBuilding` wrapper. But no UI element in EmailDetail ever called the wrapper — the entire prop→handler→UI chain was dead. Simple grep for the function name misses this because the function IS referenced (as prop), just never invoked.
+**Solution:** When removing "dead" handlers, trace the full chain: (1) callback defined, (2) passed as prop, (3) destructured in child, (4) wrapper defined, (5) wrapper called from UI element. If step 5 is missing, the entire chain is dead. Search for the child's wrapper function name in onClick/onChange/etc handlers, not just the prop name.
+**Example:** `mail-client.tsx:handleLinkBuilding` → `email-detail.tsx:onLinkBuilding` → `handleLinkBuilding` wrapper → never called
+**When to Use:** Any dead code cleanup involving parent→child prop chains
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — US-012
 
 ---
 

@@ -62,6 +62,7 @@ interface MailboxSidebarProps {
     drafts: number
     archive: number
   }
+  sourceCounts?: Record<string, number>
   linkedEntities: LinkedEntities
   onEntityClick: (type: string, entityId: string) => void
   selectedEntity?: { type: string; id: string } | null
@@ -150,6 +151,7 @@ export function MailboxSidebar({
   currentFolder,
   onFolderChange,
   unreadCounts,
+  sourceCounts = {},
   linkedEntities,
   onEntityClick,
   selectedEntity,
@@ -163,7 +165,8 @@ export function MailboxSidebar({
     onSourceChange?.(source)
   }
 
-  const totalUnread = emailConnections.reduce((sum, conn) => sum + conn.unread_count, 0)
+  // Use sourceCounts from RPC (per-connection unread) instead of hardcoded conn.unread_count
+  const totalUnread = Object.values(sourceCounts).reduce((sum, count) => sum + count, 0)
 
   return (
     <aside className="w-[250px] border-r flex flex-col h-full overflow-hidden flex-shrink-0">
@@ -210,25 +213,28 @@ export function MailboxSidebar({
                 </Button>
 
                 {/* Individual email connections */}
-                {emailConnections.map(conn => (
-                  <Button
-                    key={conn.id}
-                    variant={selectedSource === conn.id ? "secondary" : "ghost"}
-                    size="sm"
-                    className={cn(
-                      "w-full justify-between pl-4 pr-2 h-8 text-sm font-normal",
-                      selectedSource === conn.id && "bg-primary/10 text-primary font-medium"
-                    )}
-                    onClick={() => handleSourceClick(conn.id)}
-                  >
-                    <span className="truncate text-left">{conn.email_address}</span>
-                    {conn.unread_count > 0 && (
-                      <Badge variant="default" className="ml-2 h-5 px-1.5 text-xs flex-shrink-0">
-                        {conn.unread_count}
-                      </Badge>
-                    )}
-                  </Button>
-                ))}
+                {emailConnections.map(conn => {
+                  const connUnread = sourceCounts[conn.id] || 0
+                  return (
+                    <Button
+                      key={conn.id}
+                      variant={selectedSource === conn.id ? "secondary" : "ghost"}
+                      size="sm"
+                      className={cn(
+                        "w-full justify-between pl-4 pr-2 h-8 text-sm font-normal",
+                        selectedSource === conn.id && "bg-primary/10 text-primary font-medium"
+                      )}
+                      onClick={() => handleSourceClick(conn.id)}
+                    >
+                      <span className="truncate text-left">{conn.email_address}</span>
+                      {connUnread > 0 && (
+                        <Badge variant="default" className="ml-2 h-5 px-1.5 text-xs flex-shrink-0">
+                          {connUnread}
+                        </Badge>
+                      )}
+                    </Button>
+                  )
+                })}
 
               </CollapsibleContent>
             </Collapsible>

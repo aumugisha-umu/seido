@@ -33,41 +33,10 @@ export async function GET(request: Request) {
     // Security: User already validated as team manager above
     const supabaseAdmin = getServiceRoleClient()
 
-    // Fetch counts + latest emails in parallel (lightweight queries)
-    const [inboxUnread, processedCount, sentCount, archiveCount, latestEmails, lastSync] = await Promise.all([
-      // Inbox: Unread received emails
-      supabaseAdmin
-        .from('emails')
-        .select('id', { count: 'exact', head: true })
-        .eq('team_id', teamId)
-        .eq('direction', 'received')
-        .eq('status', 'unread')
-        .is('deleted_at', null),
-
-      // Processed: Read received emails
-      supabaseAdmin
-        .from('emails')
-        .select('id', { count: 'exact', head: true })
-        .eq('team_id', teamId)
-        .eq('direction', 'received')
-        .eq('status', 'read')
-        .is('deleted_at', null),
-
-      // Sent
-      supabaseAdmin
-        .from('emails')
-        .select('id', { count: 'exact', head: true })
-        .eq('team_id', teamId)
-        .eq('direction', 'sent')
-        .is('deleted_at', null),
-
-      // Archive
-      supabaseAdmin
-        .from('emails')
-        .select('id', { count: 'exact', head: true })
-        .eq('team_id', teamId)
-        .eq('status', 'archived')
-        .is('deleted_at', null),
+    // Fetch counts (via RPC) + latest emails in parallel
+    const [countsResult, latestEmails, lastSync] = await Promise.all([
+      // Single RPC: all folder counts + per-source unread counts
+      supabaseAdmin.rpc('get_email_counts', { p_team_id: teamId }).single(),
 
       // Latest 10 emails (ID only for comparison)
       supabaseAdmin
@@ -89,15 +58,17 @@ export async function GET(request: Request) {
         .limit(1)
     ])
 
+    const rpcData = countsResult.data
     return NextResponse.json({
       success: true,
       counts: {
-        inbox: inboxUnread.count || 0,
-        processed: processedCount.count || 0,
-        sent: sentCount.count || 0,
-        archive: archiveCount.count || 0,
+        inbox: Number(rpcData?.inbox) || 0,
+        processed: Number(rpcData?.processed) || 0,
+        sent: Number(rpcData?.sent) || 0,
+        archive: Number(rpcData?.archive) || 0,
         drafts: 0
       },
+      sourceCounts: rpcData?.source_counts || {},
       latestEmails: latestEmails.data || [],
       lastSyncAt: lastSync.data?.[0]?.last_sync_at || null,
       timestamp: new Date().toISOString()

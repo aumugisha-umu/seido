@@ -15,6 +15,7 @@ import {
 } from '@/config/table-configs/contacts.config'
 import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
+import { ContactCardMobile, InvitationCardMobile, CompanyCardMobile } from './contact-card-mobile'
 import { Users, Send, Building2, Search, Filter, Archive, Mail, RefreshCw, XCircle, UserX } from 'lucide-react'
 import {
     Popover,
@@ -177,7 +178,22 @@ export function ContactsNavigator({
         defaultView: 'list'
     })
 
-    // Render content based on view mode
+    // Render mobile cards based on active tab
+    const renderMobileCards = (data: any[]) => {
+        if (data.length === 0 && !loading) {
+            return <p className="text-sm text-muted-foreground text-center py-8">Aucun élément à afficher</p>
+        }
+        switch (activeTab) {
+            case 'contacts':
+                return (data as ContactData[]).map(c => <ContactCardMobile key={c.id} contact={c} />)
+            case 'invitations':
+                return (data as InvitationData[]).map(i => <InvitationCardMobile key={i.id} invitation={i} />)
+            case 'companies':
+                return (data as CompanyData[]).map(c => <CompanyCardMobile key={c.id} company={c} />)
+        }
+    }
+
+    // Render content with dual render (mobile cards + desktop table)
     const renderContent = (data: any[], config: any) => {
         if (!mounted) {
             return (
@@ -195,14 +211,23 @@ export function ContactsNavigator({
         }
 
         return (
-            <DataTable
-                data={data}
-                columns={config.columns}
-                actions={config.actions}
-                loading={loading}
-                emptyMessage={emptyConfig.description}
-                onRowClick={createRowClickHandler(config.rowHref)}
-            />
+            <>
+                {/* Mobile: compact cards */}
+                <div className="block md:hidden space-y-2">
+                    {renderMobileCards(data)}
+                </div>
+                {/* Desktop: table */}
+                <div className="hidden md:block">
+                    <DataTable
+                        data={data}
+                        columns={config.columns}
+                        actions={config.actions}
+                        loading={loading}
+                        emptyMessage={emptyConfig.description}
+                        onRowClick={createRowClickHandler(config.rowHref)}
+                    />
+                </div>
+            </>
         )
     }
 

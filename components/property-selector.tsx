@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit, Wrench, UserCircle, Check, X, MoreVertical, Archive, LayoutGrid, List } from "lucide-react"
+import { Building2, Home, Users, MapPin, Eye, ChevronDown, ChevronRight, AlertCircle, Zap, Edit, Wrench, UserCircle, Check, X, MoreVertical, Archive, LayoutGrid, List } from "lucide-react"
 import { useViewMode } from "@/hooks/use-view-mode"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import {
@@ -724,7 +724,7 @@ function PropertySelectorView({
     </div>
   )
 
-  // List view for buildings (table layout)
+  // List view for buildings (table layout with expandable lot sub-rows)
   const buildingsListView = (
     <div className="flex-1 min-h-0 overflow-y-auto pb-6">
       {loading ? (
@@ -766,74 +766,187 @@ function PropertySelectorView({
             {filteredBuildings.map((building) => {
               const buildingIdStr = building.id.toString()
               const isSelected = selectedBuildingId === buildingIdStr
+              const isExpanded = expandedBuildings.includes(buildingIdStr)
               const occupiedLots = (building.lots || []).filter((lot: Lot) => lot.status === "occupied").length
               const totalLots = (building.lots || []).length
+              const hasLots = totalLots > 0
 
               return (
-                <div
-                  key={building.id}
-                  className={`grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 px-4 py-3 hover:bg-slate-50 transition-colors ${
-                    isSelected ? 'bg-sky-50 ring-1 ring-inset ring-sky-500' : ''
-                  }`}
-                >
-                  {/* Building name */}
-                  <div className="sm:col-span-4 flex items-center gap-2">
-                    <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Building2 className="h-4 w-4 text-sky-600" />
-                    </div>
-                    <span className="font-medium text-slate-900 truncate">{building.name}</span>
-                  </div>
-                  {/* Address */}
-                  <div className="sm:col-span-3 flex items-center text-sm text-slate-600">
-                    {getAddressText(building.address_record) ? (
-                      <div className="flex items-center gap-1 truncate">
-                        <MapPin className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{getAddressText(building.address_record)}</span>
+                <div key={building.id}>
+                  {/* Building row */}
+                  <div
+                    className={`grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 px-4 py-3 transition-colors ${
+                      hasLots ? 'cursor-pointer hover:bg-slate-50' : ''
+                    } ${isSelected ? 'bg-sky-50 ring-1 ring-inset ring-sky-500' : ''} ${
+                      isExpanded ? 'bg-slate-50' : ''
+                    }`}
+                    onClick={() => hasLots && toggleBuildingExpansion(buildingIdStr)}
+                  >
+                    {/* Building name with chevron */}
+                    <div className="sm:col-span-4 flex items-center gap-2">
+                      {hasLots ? (
+                        <div className="w-5 h-5 flex items-center justify-center flex-shrink-0 text-slate-400">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-5 h-5 flex-shrink-0" />
+                      )}
+                      <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Building2 className="h-4 w-4 text-sky-600" />
                       </div>
-                    ) : (
-                      <span className="text-slate-400">-</span>
-                    )}
+                      <span className="font-medium text-slate-900 truncate">{building.name}</span>
+                    </div>
+                    {/* Address */}
+                    <div className="sm:col-span-3 flex items-center text-sm text-slate-600">
+                      {getAddressText(building.address_record) ? (
+                        <div className="flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate">{getAddressText(building.address_record)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </div>
+                    {/* Total lots */}
+                    <div className="sm:col-span-2 flex items-center">
+                      <Badge variant="secondary" className="text-xs">
+                        {totalLots} lot{totalLots > 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                    {/* Occupied */}
+                    <div className="sm:col-span-1 flex items-center">
+                      <span className={`text-sm ${occupiedLots > 0 ? 'text-green-700 font-medium' : 'text-slate-400'}`}>
+                        {occupiedLots}
+                      </span>
+                    </div>
+                    {/* Action */}
+                    <div className="sm:col-span-2 flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                      {mode === "select" && !hideBuildingSelect ? (
+                        <Button
+                          variant={isSelected ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 px-3 text-xs"
+                          onClick={() => {
+                            if (isSelected) {
+                              onBuildingSelect?.(null)
+                            } else {
+                              onBuildingSelect?.(buildingIdStr)
+                            }
+                          }}
+                        >
+                          {isSelected ? "Sélectionné" : "Sélectionner"}
+                        </Button>
+                      ) : mode === "select" && hideBuildingSelect ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-3 text-xs text-slate-500"
+                          onClick={() => toggleBuildingExpansion(buildingIdStr)}
+                        >
+                          {isExpanded ? 'Replier' : `${totalLots} lot${totalLots > 1 ? 's' : ''}`}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  {/* Total lots */}
-                  <div className="sm:col-span-2 flex items-center">
-                    <Badge variant="secondary" className="text-xs">
-                      {totalLots} lot{totalLots > 1 ? 's' : ''}
-                    </Badge>
-                  </div>
-                  {/* Occupied */}
-                  <div className="sm:col-span-1 flex items-center">
-                    <span className={`text-sm ${occupiedLots > 0 ? 'text-green-700 font-medium' : 'text-slate-400'}`}>
-                      {occupiedLots}
-                    </span>
-                  </div>
-                  {/* Action */}
-                  <div className="sm:col-span-2 flex items-center justify-end gap-2">
-                    {mode === "select" && !hideBuildingSelect ? (
-                      <Button
-                        variant={isSelected ? "default" : "outline"}
-                        size="sm"
-                        className="h-8 px-3 text-xs"
-                        onClick={() => {
-                          if (isSelected) {
-                            onBuildingSelect?.(null)
-                          } else {
-                            onBuildingSelect?.(buildingIdStr)
-                          }
-                        }}
-                      >
-                        {isSelected ? "Sélectionné" : "Sélectionner"}
-                      </Button>
-                    ) : mode === "select" && hideBuildingSelect ? null : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+
+                  {/* Expanded lot sub-rows */}
+                  {isExpanded && hasLots && (
+                    <div className="border-t border-slate-100 bg-slate-50/50">
+                      {(building.lots || []).map((lot: Lot) => {
+                        const isLotSelected = selectedLotId === lot.id.toString()
+                        return (
+                          <div
+                            key={lot.id}
+                            className={`grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 px-4 py-2.5 border-b border-slate-100 last:border-b-0 transition-colors hover:bg-white ${
+                              isLotSelected ? 'bg-sky-50 ring-1 ring-inset ring-sky-500' : ''
+                            }`}
+                          >
+                            {/* Lot reference (indented) */}
+                            <div className="sm:col-span-4 flex items-center gap-2 pl-5">
+                              <div className="w-1 h-6 bg-slate-300 rounded-full flex-shrink-0" />
+                              <div className="w-7 h-7 bg-amber-50 rounded-md flex items-center justify-center flex-shrink-0">
+                                <Home className="h-3.5 w-3.5 text-amber-600" />
+                              </div>
+                              <span className="font-medium text-sm text-slate-800 truncate">{lot.reference}</span>
+                            </div>
+                            {/* Category */}
+                            <div className="sm:col-span-3 flex items-center text-sm text-slate-600">
+                              <span>{getLotCategoryLabel(lot.category)}</span>
+                              {lot.floor !== null && lot.floor !== undefined && (
+                                <span className="ml-2 text-slate-400">· Ét. {lot.floor}</span>
+                              )}
+                            </div>
+                            {/* Contacts badge */}
+                            <div className="sm:col-span-2 flex items-center">
+                              {lot.lot_contacts && lot.lot_contacts.length > 0 ? (
+                                <ContactsBadge lotContacts={lot.lot_contacts} />
+                              ) : (
+                                <span className="text-xs text-slate-400">-</span>
+                              )}
+                            </div>
+                            {/* Occupancy status */}
+                            <div className="sm:col-span-1 flex items-center">
+                              <Badge
+                                variant="outline"
+                                className={`text-xs px-1.5 py-0.5 ${
+                                  lot.status === "occupied"
+                                    ? "bg-green-50 border-green-300 text-green-700"
+                                    : "bg-red-50 border-red-300 text-red-700"
+                                }`}
+                              >
+                                {lot.status === "occupied" ? (
+                                  <><Check className="h-3 w-3 mr-0.5" />Occ.</>
+                                ) : (
+                                  <><X className="h-3 w-3 mr-0.5" />Libre</>
+                                )}
+                              </Badge>
+                            </div>
+                            {/* Action */}
+                            <div className="sm:col-span-2 flex items-center justify-end gap-1">
+                              {mode === "view" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                              {mode === "select" && !hideLotsSelect && (
+                                <Button
+                                  variant={isLotSelected ? "default" : "outline"}
+                                  size="sm"
+                                  className="h-7 px-3 text-xs"
+                                  data-testid={`lot-select-btn-${lot.id}`}
+                                  onClick={() => {
+                                    if (!isLotSelected) {
+                                      onLotSelect?.(lot.id.toString(), building.id.toString())
+                                    }
+                                  }}
+                                >
+                                  {isLotSelected ? "OK" : "Sélectionner"}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )
             })}

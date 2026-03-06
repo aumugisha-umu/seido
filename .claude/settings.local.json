@@ -79,7 +79,9 @@
       "WebFetch(domain:stripe.com)",
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:bengrab.au)",
-      "WebFetch(domain:uxpatterns.dev)"
+      "WebFetch(domain:uxpatterns.dev)",
+      "WebFetch(domain:www.plivo.com)",
+      "WebFetch(domain:doc.didww.com)"
     ],
     "deny": [],
     "ask": []

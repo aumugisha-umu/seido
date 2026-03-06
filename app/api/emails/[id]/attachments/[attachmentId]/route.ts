@@ -18,15 +18,27 @@ export async function GET(
     }
 
     const { userProfile } = authResult.data
-    const teamId = userProfile?.team_id
-    if (!teamId) {
-      return NextResponse.json({ error: 'No team found' }, { status: 403 })
+    const userId = userProfile?.id
+    if (!userId) {
+      return NextResponse.json({ error: 'No user found' }, { status: 403 })
     }
 
     const { id: emailId, attachmentId } = await params
 
     // Use service role to bypass RLS for cross-table validation
     const supabaseAdmin = createServiceRoleSupabaseClient()
+
+    // Get user's active team IDs via team_members (source of truth, not users.team_id)
+    const { data: memberships } = await supabaseAdmin
+      .from('team_members')
+      .select('team_id')
+      .eq('user_id', userId)
+      .is('left_at', null)
+
+    const teamIds = (memberships || []).map(m => m.team_id)
+    if (teamIds.length === 0) {
+      return NextResponse.json({ error: 'No team found' }, { status: 403 })
+    }
 
     // Validate: attachment exists AND belongs to an email in user's team
     const { data: attachment, error } = await supabaseAdmin
@@ -41,12 +53,12 @@ export async function GET(
       return NextResponse.json({ error: 'Attachment not found' }, { status: 404 })
     }
 
-    // Verify the email belongs to the user's team
+    // Verify the email belongs to one of the user's teams
     const { data: email, error: emailError } = await supabaseAdmin
       .from('emails')
       .select('id')
       .eq('id', emailId)
-      .eq('team_id', teamId)
+      .in('team_id', teamIds)
       .limit(1)
       .single()
 

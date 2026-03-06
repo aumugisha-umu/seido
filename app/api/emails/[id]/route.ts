@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { EmailRepository } from '@/lib/services/repositories/email.repository';
+import { z } from 'zod';
+
+// Allowed fields for email PATCH updates
+const emailPatchSchema = z.object({
+    status: z.enum(['unread', 'read', 'archived']).optional(),
+    building_id: z.string().uuid().nullable().optional(),
+    lot_id: z.string().uuid().nullable().optional(),
+    deleted: z.literal(true).optional(),
+    restored: z.literal(true).optional(),
+}).strict();
 
 /**
  * GET /api/emails/[id]
@@ -56,12 +66,21 @@ export async function PATCH(
 
         const { supabase } = authResult.data;
         const { id: emailId } = await params;
-        const updates = await request.json();
+        const rawBody = await request.json();
+
+        // Validate input — reject unknown fields
+        const parseResult = emailPatchSchema.safeParse(rawBody);
+        if (!parseResult.success) {
+            return NextResponse.json(
+                { error: 'Invalid fields', details: parseResult.error.flatten().fieldErrors },
+                { status: 400 }
+            );
+        }
+        const updates = parseResult.data;
 
         const emailRepo = new EmailRepository(supabase);
 
         // Handle specific actions if passed, or just raw updates
-        // If 'deleted' is true, we might want to set deleted_at
         if (updates.deleted === true) {
             await emailRepo.softDeleteEmail(emailId);
             return NextResponse.json({ success: true });

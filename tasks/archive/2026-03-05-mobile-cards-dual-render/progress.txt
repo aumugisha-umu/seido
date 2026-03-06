@@ -1,0 +1,31 @@
+# Progress Log — Mobile Cards Dual Render
+# Started: 2026-03-04
+# Stories: 4 total
+# Source: Brainstorming + UX research (NN/G, MD3, Apple HIG, AppFolio, MS Dynamics)
+---
+
+## 2026-03-05 14:00 — Dashboard Mobile Stats: CSS @layer Fix
+- Implemented: Moved `.dashboard__stats--mobile/--desktop` visibility rules from `@layer components` to unlayered CSS with `!important` in globals.css
+- Files: `app/globals.css`, `components/dashboards/manager/manager-dashboard-v2.tsx`
+- Learnings: Tailwind v4 `@layer components` has lower priority than `@layer utilities` and unlayered styles. During Next.js hydration, layered responsive rules get overridden. Use unlayered + `!important` for critical layout toggles.
+- Decision: BEM modifiers (`.dashboard__stats--mobile/--desktop`) instead of Tailwind responsive classes for deterministic behavior.
+
+## 2026-03-05 14:30 — Auth URL Redirects
+- Implemented: Added `async redirects()` to `next.config.js` — /login, /signup, /signin, /register → /auth/* equivalents (HTTP 308 permanent)
+- Files: `next.config.js`
+- Learnings: Next.js built-in redirects are simpler and more maintainable than middleware for static URL redirects.
+
+## 2026-03-05 15:00 — Migration Sync: Staging + Production
+- Implemented: Fixed `get_email_counts` RPC migration (virtual 'processed' → actual `direction='received' AND status='read'`). Pushed 4 migrations to staging, 3 to production.
+- Files: `supabase/migrations/20260302120000_create_get_email_counts_rpc.sql`
+- Learnings: App-layer virtual folder concepts (processed, inbox) don't match DB enum values. Always verify enum definitions before writing SQL. `migration repair --status reverted` to reset failed migrations.
+
+## 2026-03-05 15:30 — Contact Creation: Empty Email Duplicate Key Fix
+- Implemented: Replaced `UNIQUE NULLS NOT DISTINCT (email, team_id)` with partial unique index `WHERE email IS NOT NULL AND email != ''`. Added Zod preprocess (empty→null) + API normalization.
+- Files: `supabase/migrations/20260304100000_fix_users_email_team_unique_allow_null.sql`, `lib/validation/schemas.ts`, `app/api/create-contact/route.ts`
+- Learnings: `NULLS NOT DISTINCT` treats NULL as equal. Partial unique index is the correct approach for "unique if present, allow multiple NULLs" semantics.
+
+## 2026-03-05 16:00 — Contract Creation: Expandable Building List View
+- Implemented: Enhanced `buildingsListView` in `property-selector.tsx` with collapsible building rows showing lot sub-rows. Chevron icons, indented sub-rows with vertical bar, shared expand state with card view.
+- Files: `components/property-selector.tsx`
+- Learnings: Reuse existing expand state across view modes for UX continuity. `stopPropagation` on action column prevents button clicks from toggling expand on clickable rows.

@@ -1,91 +1,219 @@
 {
   "project": "SEIDO",
-  "featureName": "Remove Card Views from Gestionnaire",
+  "featureName": "Email Section Refonte — Phase 1",
   "branchName": "preview",
-  "description": "Remove card view toggle and card rendering from all gestionnaire list pages. Keep list + calendar for interventions, list-only for biens/contacts/contrats. B2B SaaS best practice: tables for data-dense scanning, no card toggle.",
-  "createdAt": "2026-03-04",
-  "prdSource": "docs/plans/2026-03-04-remove-card-views-gestionnaire.md",
-  "status": "completed",
+  "description": "Fix 20 critical+high bugs in the email section: counts system, SSR/API parity, conversation crashes, entity pagination, action error handling, dead code cleanup.",
+  "createdAt": "2026-03-05",
+  "prdSource": "docs/plans/2026-03-05-email-section-refonte-phase1.md",
+  "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Remove card view from Interventions",
-      "description": "Remove cards button from ViewModeSwitcherV1, remove renderCardsView from InterventionsViewContainer, change default to 'list'. Keep list + calendar.",
+      "title": "Fix RPC get_email_counts + add per-source unread counts",
+      "description": "As a gestionnaire, I want to see correct email counts immediately on page load so that I know how many emails need my attention.",
       "acceptanceCriteria": [
-        "ViewModeSwitcherV1 shows only List + Calendar buttons",
-        "InterventionsViewContainer has no cards rendering branch",
-        "Default view mode is 'list' in interventions-navigator.tsx",
-        "Lint passes on all modified files"
+        "RPC get_email_counts_v2 removes get_my_profile_ids() guard (SECURITY DEFINER + p_team_id is sufficient)",
+        "RPC returns folder counts (inbox, processed, sent, archive) + source_counts JSONB (email_connection_id → unread_count)",
+        "SSR page.tsx calls new RPC with service role client and gets non-zero counts",
+        "Migration applies cleanly via supabase db push",
+        "Lint passes on modified files"
       ],
       "priority": 1,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "Removed cards button from ViewModeSwitcherV1, removed renderCardsView + cardsPagination from InterventionsViewContainer, changed defaults to 'list'."
+      "notes": "Migration 20260305100000. Removed get_my_profile_ids() EXISTS guard. Added source_counts JSONB via correlated subquery with jsonb_object_agg. page.tsx returns {counts, sourceCounts}. Sidebar wired to use sourceCounts for badges."
     },
     {
       "id": "US-002",
-      "title": "Remove card view from Patrimoine (Biens)",
-      "description": "Remove view toggle entirely from PatrimoineNavigator, remove BuildingCardExpandable and LotCardUnified card grid rendering, always show DataTable.",
+      "title": "Wire source counts to sidebar + SSR initial fetch parity",
+      "description": "As a gestionnaire, I want to see per-mailbox unread badges and have the initial inbox show only unread emails (matching API behavior).",
       "acceptanceCriteria": [
-        "No view toggle buttons in PatrimoineNavigator",
-        "Buildings and lots always render as DataTable",
-        "Card component imports removed",
-        "Lint passes on all modified files"
+        "page.tsx passes sourceCounts to MailClient; MailClient passes to sidebar",
+        "Sidebar shows per-connection unread count badges (hide when 0)",
+        "Toutes les boites badge shows sum of source unread counts",
+        "SSR getInitialEmails adds .eq('status', 'unread') to match API inbox query",
+        "Emails no longer disappear on first folder switch",
+        "Lint passes on modified files"
       ],
-      "priority": 2,
-      "dependsOn": [],
+      "priority": 1,
+      "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "notes": "Removed BuildingCardExpandable, LotCardUnified, LayoutGrid, List imports. Removed expandedBuildings state. Changed defaultView to 'list'. Removed view toggle UI and BEM classes."
+      "notes": "sourceCounts wired through full chain: RPC→page.tsx→MailClient→sidebar. SSR now filters status=unread matching API inbox logic. Partially done in US-001 (wiring), completed here (SSR parity fix)."
     },
     {
       "id": "US-003",
-      "title": "Remove card view from Contacts",
-      "description": "Remove view toggle from ContactsNavigator, remove DataCards rendering, always show DataTable.",
+      "title": "Centralize count adjustments with adjustCounts helper",
+      "description": "As a developer, I want a single adjustCounts function so that archive/delete/mark actions always adjust the correct folder count.",
       "acceptanceCriteria": [
-        "No view toggle buttons in ContactsNavigator",
-        "All tabs always render as DataTable",
-        "DataCards import removed",
-        "Lint passes on all modified files"
+        "adjustCounts(action, currentFolder) function created in mail-client.tsx",
+        "handleArchive uses adjustCounts — decrements current folder, increments archive",
+        "handleDelete/handleSoftDelete use adjustCounts — decrement current folder only",
+        "handleMarkAsProcessed uses adjustCounts — inbox-1, processed+1",
+        "handleMarkAsUnprocessed uses adjustCounts — inbox+1, processed-1",
+        "handleBlacklist uses adjustCounts with correct folder awareness",
+        "handleReplySent uses adjustCounts — sent+1",
+        "No more hardcoded counts.inbox -= 1 anywhere",
+        "Lint passes on modified files"
       ],
       "priority": 2,
-      "dependsOn": [],
-      "sizing": "S",
+      "dependsOn": ["US-001"],
+      "sizing": "M",
       "passes": true,
-      "notes": "Removed DataCards import, LayoutGrid/List icons. Removed viewMode/setViewMode from useDataNavigator. Changed defaultView to 'list'. Removed view toggle UI and BEM classes. renderContent always returns DataTable."
+      "notes": "7 handlers migrated. adjustCounts is pure function (prev, action, folder) → next. Blacklist bulk path kept server-side archivedCount. Also fixed handleArchive invalidateCache to use currentFolder instead of hardcoded 'inbox'. Added currentFolder to 4 dep arrays."
     },
     {
       "id": "US-004",
-      "title": "Remove card view from Contrats",
-      "description": "Remove view toggle from ContractsNavigator, remove ContractCard grid rendering, always show ContractsListView.",
+      "title": "Fix realtime INSERT + source count overwrite guard",
+      "description": "As a gestionnaire, I want new email arrivals to always update the inbox badge even when I'm viewing another folder.",
       "acceptanceCriteria": [
-        "No view toggle buttons in ContractsNavigator",
-        "Contracts always render as list view",
-        "ContractCard import removed",
-        "Lint passes on all modified files"
+        "handleRealtimeNewEmail always increments counts.inbox for received emails regardless of currentFolder",
+        "fetchEmails success path: only overwrite counts[folderKey] when selectedSource === 'all'",
+        "Lint passes on modified files"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-003"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Split realtime handler: count increment (always) vs list prepend (folder-matching only). Added source === 'all' guard on fetchEmails count overwrite."
+    },
+    {
+      "id": "US-005",
+      "title": "Fix mark processed/unprocessed — remove from list + rollback",
+      "description": "As a gestionnaire, I want emails to disappear from inbox when I mark them as processed, and I want failed actions to rollback properly.",
+      "acceptanceCriteria": [
+        "handleMarkAsProcessed: if currentFolder=inbox, filter email out of realEmails + select next email",
+        "handleMarkAsUnprocessed: if currentFolder=processed, filter email out of realEmails + select next email",
+        "Both handlers save previousEmails/previousCounts before optimistic update",
+        "Both handlers rollback in catch block (same pattern as handleArchive)",
+        "Lint passes on modified files"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Optimistic removal when folder matches (inbox→processed removes from inbox list, processed→inbox removes from processed list). Next email selected by adjacent index. Full rollback on failure (emails, counts, selectedId)."
+    },
+    {
+      "id": "US-006",
+      "title": "Fix conversation chevron crash + drafts folder",
+      "description": "As a gestionnaire, I want to expand/collapse conversation groups without crashes, and the drafts folder should not show all emails.",
+      "acceptanceCriteria": [
+        "conversation-group.tsx: handleToggle removed, chevron button onClick inlined with stopPropagation + setIsExpanded",
+        "Clicking chevron expands/collapses conversation without TypeError",
+        "email.repository.ts: drafts folder returns empty array instead of unfiltered query",
+        "Lint passes on modified files"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Root cause: handleToggle(e) called without event arg from onClick → e.stopPropagation() TypeError. Drafts was missing from folder switch → fell through with no filters → returned ALL emails."
+    },
+    {
+      "id": "US-007",
+      "title": "Fix entity email pagination",
+      "description": "As a gestionnaire, I want to see all emails linked to a building/lot/contact, not just the first 20.",
+      "acceptanceCriteria": [
+        "mail-client.tsx: entityPaginationOffset state added (reset on entity click)",
+        "handleEntityClick uses data.pagination.total for totalEmails (not data.emails.length)",
+        "handleLoadMore: if entityFilter active, calls entity API with entityPaginationOffset",
+        "Load-more correctly appends entity emails and increments offset",
+        "Clearing entity filter resets entityPaginationOffset",
+        "Lint passes on modified files"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "entityPaginationOffset tracks entity-specific page position. handleLoadMore now has dual path: entity API vs folder fetchEmails. Reset on folder change, source change, entity click, and clear filter."
+    },
+    {
+      "id": "US-008",
+      "title": "Fix load-more guard + stale-while-revalidate race",
+      "description": "As a gestionnaire, I want pagination to work even with sent reply enrichment, and archived emails should not reappear after background refresh.",
+      "acceptanceCriteria": [
+        "handleLoadMore guard uses offset < totalEmails instead of realEmails.length < totalEmails",
+        "optimisticRemovals ref (Set<string>) added to mail-client.tsx",
+        "Archive/delete/softDelete adds emailId to optimisticRemovals",
+        "Stale-while-revalidate background refresh filters out IDs in optimisticRemovals",
+        "Hard refresh (cache miss/sync) clears optimisticRemovals",
+        "Lint passes on modified files"
       ],
       "priority": 2,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "Removed ContractCard import, LayoutGrid/List icons, useViewMode hook. Removed view toggle UI, gridClass, mounted skeleton. Always renders ContractsListView. Removed BEM classes."
+      "notes": "optimisticRemovals Set tracks IDs removed via archive/delete/softDelete. Background refresh filters them out. Rollback removes from set. Sync clears entirely."
     },
     {
-      "id": "US-005",
-      "title": "Update ViewMode type + cleanup defaults",
-      "description": "Remove 'cards' from ViewMode type union, update all defaultMode from 'cards' to 'list', remove unused LayoutGrid imports across navigators.",
+      "id": "US-009",
+      "title": "PATCH validation + attachment team verification",
+      "description": "As a developer, I want the email PATCH endpoint to validate input and the attachment route to use team_members for authorization.",
       "acceptanceCriteria": [
-        "ViewMode type is 'list' | 'calendar' (no 'cards')",
-        "All defaultMode values changed to 'list'",
-        "No unused imports remain",
-        "Full lint passes on all modified files"
+        "app/api/emails/[id]/route.ts: Zod schema validates allowed fields (status, building_id, lot_id, deleted, restored)",
+        "Unknown fields are rejected with 400 error",
+        "app/api/emails/[id]/attachments/[attachmentId]/route.ts: uses team_members lookup instead of userProfile.team_id",
+        "Lint passes on modified files"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Zod .strict() schema rejects unknown fields. Attachment route now queries team_members for active team IDs instead of stale users.team_id."
+    },
+    {
+      "id": "US-010",
+      "title": "Loading state for email body + sent replies body_html",
+      "description": "As a gestionnaire, I want to see a loading indicator when an email body is being fetched, and sent replies in threads should show full content.",
+      "acceptanceCriteria": [
+        "mail-client.tsx: loadingEmailBodyId state added, set during fetchFullEmail, passed to EmailDetail",
+        "EmailDetail shows skeleton/spinner when loadingEmailBodyId matches current email",
+        "email.repository.ts getSentRepliesForThreads: body_html added to select columns",
+        "Conversation thread view shows full HTML for sent replies (not 'Aucun contenu')",
+        "Lint passes on modified files"
       ],
       "priority": 3,
-      "dependsOn": ["US-001", "US-002", "US-003", "US-004"],
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "loadingEmailBodyId state set during entity email body fetch. Skeleton animation with 4 lines. body_html re-added to getSentRepliesForThreads select."
+    },
+    {
+      "id": "US-011",
+      "title": "Minor fixes: mark-irrelevant, forward body, empty state, i18n",
+      "description": "As a gestionnaire, I want mark-irrelevant to work correctly, forward to include email body, and the UI to be consistently in French.",
+      "acceptanceCriteria": [
+        "mark-irrelevant-dialog.tsx: soft_delete path removes onArchive call, toast says 'Email masque'",
+        "email-detail.tsx buildForwardBody: uses extractTextFromHtml(body_html) as fallback when body_text is empty",
+        "mail-client.tsx empty state: text translated to French",
+        "Lint passes on modified files"
+      ],
+      "priority": 3,
+      "dependsOn": [],
       "sizing": "XS",
       "passes": true,
-      "notes": "ViewMode type kept with 'cards' (still used by property-selector + intervention-contacts). Default changed from 'cards' to 'list' in use-view-mode.ts, use-data-navigator.ts, patrimoine.config.tsx (x2), contacts.config.tsx (x2). Removed VIEW_MODE_CONFIG.cards dead config. Updated toggle cycle to list↔calendar. Simplified responsive default logic."
+      "notes": "Removed onArchive prop from dialog (was causing double count decrement). Forward fallback uses extractTextFromHtml. Empty state translated to FR."
+    },
+    {
+      "id": "US-012",
+      "title": "Dead code cleanup + missing deps fix",
+      "description": "As a developer, I want unused code removed and useCallback dependencies correct.",
+      "acceptanceCriteria": [
+        "Remove fetchCounts callback (dead code)",
+        "Remove handleMarkAsRead callback (never called)",
+        "Remove handleLinkBuilding callback + linkToBuilding from client service (dead code)",
+        "Remove dead setOffset(0) calls in handlers",
+        "Fix missing deps in useCallback arrays (handleBlacklist, etc.)",
+        "Activate fetchEmailConnections to refresh source counts on polling",
+        "Lint passes on modified files"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Removed: fetchCounts, fetchEmailConnections, handleMarkAsRead, handleLinkBuilding (+ onLinkBuilding prop from EmailDetail + linkToBuilding from EmailClientService). Removed dead setOffset(0) in folder change useEffect and handleSourceChange. Fixed handleSync missing invalidateCache dep. Replaced 4 count queries in refresh API with single get_email_counts RPC (returns sourceCounts). Wired onRefresh to update sourceCounts from polling."
     }
   ]
 }

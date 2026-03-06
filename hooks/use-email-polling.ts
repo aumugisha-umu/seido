@@ -11,6 +11,7 @@ interface EmailRefreshData {
     archive: number
     drafts: number
   }
+  sourceCounts?: Record<string, number>
   latestEmails: Array<{
     id: string
     created_at: string

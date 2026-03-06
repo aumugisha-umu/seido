@@ -304,7 +304,13 @@ export const createContactSchema = z.object({
   name: z.string().min(1).max(200).trim(),
   first_name: z.string().max(100).trim().optional().nullable(),
   last_name: z.string().max(100).trim().optional().nullable(),
-  email: emailSchema,
+  email: z.preprocess(
+    (val) => {
+      if (typeof val === 'string' && val.trim() === '') return null
+      return val
+    },
+    z.union([emailSchema, z.null()]).nullable()
+  ),
   phone: z.string().max(50).trim().optional().nullable(),
   address: z.string().max(500).trim().optional().nullable(),
   notes: z.string().max(2000).trim().optional().nullable(),

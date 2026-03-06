@@ -1,0 +1,78 @@
+{
+  "project": "SEIDO",
+  "featureName": "Mobile Cards — Dual Render Pattern",
+  "branchName": "preview",
+  "description": "Add responsive mobile cards to all gestionnaire navigators. Desktop shows table (>=768px), mobile shows compact cards (<768px). Automatic CSS breakpoint switching, no manual toggle. Same dual-render pattern for all roles.",
+  "createdAt": "2026-03-04",
+  "prdSource": "docs/plans/2026-03-04-mobile-cards-dual-render.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "InterventionCardMobile + dual render in InterventionsViewContainer",
+      "description": "Create compact mobile card component for interventions. Add dual render in InterventionsViewContainer.renderListView() — table hidden on mobile, cards hidden on desktop.",
+      "acceptanceCriteria": [
+        "InterventionCardMobile shows: priority indicator, title, location, status badge, relative date",
+        "Tap on card navigates to intervention detail (role-aware URL)",
+        "InterventionsViewContainer.renderListView() uses dual render: block md:hidden for cards, hidden md:block for table",
+        "Cards receive same paginatedItems as table (pagination shared)",
+        "Works for all 3 roles (gestionnaire, prestataire, locataire)",
+        "Lint passes on all modified files"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Created intervention-card-mobile.tsx (compact 3-line card). Dual render in InterventionsViewContainer.renderListView() — block md:hidden for cards, hidden md:block for table. Shared paginatedItems. Works for all 3 roles."
+    },
+    {
+      "id": "US-002",
+      "title": "Building/Lot mobile cards + dual render in PatrimoineNavigator",
+      "description": "Create compact mobile cards for buildings and lots. Add dual render in PatrimoineNavigator for both tabs.",
+      "acceptanceCriteria": [
+        "BuildingCardMobile shows: name, address, lots count, occupancy rate",
+        "LotCardMobile shows: reference, building name, surface, tenant status",
+        "Tap navigates to building/lot detail page",
+        "PatrimoineNavigator renders cards on mobile, DataTable on desktop for both tabs",
+        "Lint passes on all modified files"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Created building-card-mobile.tsx (name + address + lots count + occupancy%) and lot-card-mobile.tsx (reference + building + surface + tenant + occupied badge). Dual render in both renderBuildingsContent() and renderLotsContent(). Lot cards respect lockedLotIds."
+    },
+    {
+      "id": "US-003",
+      "title": "ContactCardMobile + dual render in ContactsNavigator",
+      "description": "Create compact mobile card for contacts. Add dual render in ContactsNavigator.renderContent().",
+      "acceptanceCriteria": [
+        "ContactCardMobile shows: avatar/initials, name, role, contact info, invitation status badge",
+        "Tap navigates to contact detail page",
+        "Dual render works for all 3 tabs (contacts, invitations, companies)",
+        "Lint passes on all modified files"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Created contact-card-mobile.tsx with 3 exports: ContactCardMobile (initials avatar + name + role + invitation status), InvitationCardMobile (mail icon + name/email + status), CompanyCardMobile (building icon + name + VAT + location). Dual render in renderContent() using renderMobileCards() switch on activeTab."
+    },
+    {
+      "id": "US-004",
+      "title": "ContractCardMobile + dual render in ContractsNavigator",
+      "description": "Create compact mobile card for contracts. Add dual render in ContractsNavigator content area.",
+      "acceptanceCriteria": [
+        "ContractCardMobile shows: title, lot reference, date range, status badge",
+        "Tap navigates to contract detail page",
+        "Dual render works for all contract tabs (tous, actifs, a_venir, etc.)",
+        "Lint passes on all modified files"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Created contract-card-mobile.tsx (FileText icon + title + lot/building + date range + status badge). Dual render wrapping ContractsListView in hidden md:block, cards in block md:hidden."
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ContractsListView } from './contracts-list-view'
+import { ContractCardMobile } from './contract-card-mobile'
 import { deleteContract } from '@/app/actions/contract-actions'
 import { toast } from 'sonner'
 import { Search, FileText, AlertTriangle, Archive, CheckCircle, Clock } from 'lucide-react'
@@ -327,12 +328,23 @@ export function ContractsNavigator({
                 )}
               </div>
             ) : (
-              <ContractsListView
-                contracts={filteredContracts}
-                onView={handleView}
-                onEdit={handleEdit}
-                onDelete={handleDeleteClick}
-              />
+              <>
+                {/* Mobile: compact cards */}
+                <div className="block md:hidden space-y-2">
+                  {filteredContracts.map((contract) => (
+                    <ContractCardMobile key={contract.id} contract={contract} />
+                  ))}
+                </div>
+                {/* Desktop: list view */}
+                <div className="hidden md:block">
+                  <ContractsListView
+                    contracts={filteredContracts}
+                    onView={handleView}
+                    onEdit={handleEdit}
+                    onDelete={handleDeleteClick}
+                  />
+                </div>
+              </>
             )}
           </div>
         </div>

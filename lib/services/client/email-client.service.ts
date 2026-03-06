@@ -154,7 +154,4 @@ export class EmailClientService {
         await this.updateEmail(emailId, { status: 'unread' });
     }
 
-    static async linkToBuilding(emailId: string, buildingId: string, lotId?: string): Promise<void> {
-        await this.updateEmail(emailId, { building_id: buildingId, lot_id: lotId || null });
-    }
 }

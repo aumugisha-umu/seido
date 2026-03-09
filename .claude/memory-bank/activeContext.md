@@ -133,8 +133,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: 13 stories perf optimization + post-creation redirect UX + 110 learnings in AGENTS.md*
 
 ## Files Recently Modified
-### 2026-03-06 13:00:17 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-03-06-email-refonte-phase1-retrospective.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/prd.json`
+### 2026-03-09 12:17:37 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/design/SEIDO-User-Stories-Reference.md`

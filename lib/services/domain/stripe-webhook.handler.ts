@@ -3,8 +3,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import { SubscriptionRepository } from '../repositories/subscription.repository'
 import { StripeCustomerRepository } from '../repositories/stripe-customer.repository'
-import { FREE_TIER_LIMIT } from '@/lib/stripe'
+import { FREE_TIER_LIMIT, STRIPE_AI_PRICES, type AiTier } from '@/lib/stripe'
 import { SubscriptionService, type SubscriptionStatus } from './subscription.service'
+import { logger } from '@/lib/logger'
 
 // =============================================================================
 // Types
@@ -109,6 +110,11 @@ export class StripeWebhookHandler {
       return { status: 200, message: 'Checkout payment not yet completed' }
     }
 
+    // Route AI add-on checkouts to dedicated handler
+    if (session.metadata?.addon_type === 'ai_voice') {
+      return this.handleAiCheckoutCompleted(session, teamId)
+    }
+
     // Subscription will be synced via subscription.created/updated webhooks
     // Just ensure the customer mapping exists
     if (session.customer && typeof session.customer === 'string') {
@@ -174,6 +180,11 @@ export class StripeWebhookHandler {
       return { status: 400, message: 'Missing team_id in subscription metadata' }
     }
 
+    // Route AI add-on subscriptions to dedicated handler
+    if (subscription.metadata?.addon_type === 'ai_voice') {
+      return this.handleAiSubscriptionCreatedOrUpdated(subscription, teamId)
+    }
+
     const item = subscription.items?.data?.[0]
     const quantity = item?.quantity ?? 0
 
@@ -200,6 +211,15 @@ export class StripeWebhookHandler {
 
   private async handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<WebhookResult> {
     const teamId = subscription.metadata?.team_id
+
+    // Route AI add-on subscriptions to dedicated handler
+    if (subscription.metadata?.addon_type === 'ai_voice') {
+      const resolvedTeamId = teamId ?? await this.resolveAiTeamId(subscription.id)
+      if (!resolvedTeamId) {
+        return { status: 400, message: 'Cannot determine team_id for AI subscription update' }
+      }
+      return this.handleAiSubscriptionCreatedOrUpdated(subscription, resolvedTeamId)
+    }
 
     // Try to find by Stripe subscription ID first (out-of-order handling)
     let targetTeamId = teamId
@@ -245,6 +265,16 @@ export class StripeWebhookHandler {
 
   private async handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<WebhookResult> {
     const teamId = subscription.metadata?.team_id
+
+    // Route AI add-on deletions to dedicated handler
+    if (subscription.metadata?.addon_type === 'ai_voice') {
+      const resolvedTeamId = teamId ?? await this.resolveAiTeamId(subscription.id)
+      if (!resolvedTeamId) {
+        return { status: 200, message: 'AI subscription deleted but team not found — no-op' }
+      }
+      return this.handleAiSubscriptionDeleted(resolvedTeamId)
+    }
+
     let targetTeamId = teamId
 
     if (!targetTeamId) {
@@ -369,6 +399,136 @@ export class StripeWebhookHandler {
     // Billing UI queries stripe_invoices + Stripe API for refund details.
 
     return { status: 200, message: `Charge refunded (${isFullRefund ? 'full' : 'partial'}) processed` }
+  }
+
+  // ── AI Add-on Handlers ───────────────────────────────────────────────
+
+  /**
+   * Resolves team_id from an AI subscription's stripe_ai_subscription_id
+   * (fallback when metadata is missing on updated/deleted events)
+   */
+  private async resolveAiTeamId(stripeSubscriptionId: string): Promise<string | null> {
+    const { data } = await this.supabase
+      .from('ai_phone_numbers')
+      .select('team_id')
+      .eq('stripe_ai_subscription_id', stripeSubscriptionId)
+      .limit(1)
+      .maybeSingle()
+    return data?.team_id ?? null
+  }
+
+  /**
+   * Detects AI tier from Stripe price ID
+   */
+  private detectAiTier(priceId: string): AiTier {
+    if (priceId === STRIPE_AI_PRICES.equipe) return 'equipe'
+    if (priceId === STRIPE_AI_PRICES.agence) return 'agence'
+    return 'solo'
+  }
+
+  private async handleAiCheckoutCompleted(
+    session: Stripe.Checkout.Session,
+    teamId: string,
+  ): Promise<WebhookResult> {
+    logger.info({ teamId }, '🤖 [STRIPE-AI] AI checkout completed')
+
+    // Ensure customer mapping exists
+    if (session.customer && typeof session.customer === 'string') {
+      const { data: existing } = await this.custRepo.findByTeamId(teamId)
+      if (!existing) {
+        await this.custRepo.create({
+          team_id: teamId,
+          stripe_customer_id: session.customer,
+          email: session.customer_email ?? null,
+        })
+      }
+    }
+
+    // Subscription sync happens via subscription.created webhook
+    // The handleAiSubscriptionCreatedOrUpdated will trigger provisioning
+    return { status: 200, message: 'AI checkout completed — awaiting subscription.created' }
+  }
+
+  private async handleAiSubscriptionCreatedOrUpdated(
+    subscription: Stripe.Subscription,
+    teamId: string,
+  ): Promise<WebhookResult> {
+    const item = subscription.items?.data?.[0]
+    const priceId = item?.price?.id ?? ''
+    const tier = this.detectAiTier(priceId)
+    const isActive = subscription.status === 'active'
+
+    logger.info(
+      { teamId, tier, status: subscription.status, subscriptionId: subscription.id },
+      '🤖 [STRIPE-AI] AI subscription created/updated'
+    )
+
+    // Update ai_phone_numbers with Stripe subscription info
+    const { data: existingConfig } = await this.supabase
+      .from('ai_phone_numbers')
+      .select('id')
+      .eq('team_id', teamId)
+      .limit(1)
+      .maybeSingle()
+
+    if (existingConfig) {
+      // Update existing config
+      await this.supabase
+        .from('ai_phone_numbers')
+        .update({
+          stripe_ai_subscription_id: subscription.id,
+          stripe_ai_price_id: priceId,
+          ai_tier: tier,
+          is_active: isActive,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('team_id', teamId)
+    } else if (isActive) {
+      // New subscription — trigger provisioning
+      // Get team name for agent creation
+      const { data: teamData } = await this.supabase
+        .from('teams')
+        .select('name')
+        .eq('id', teamId)
+        .single()
+
+      try {
+        const { provision } = await import('./ai-phone/phone-provisioning.service')
+        await provision(teamId, teamData?.name ?? 'Equipe')
+
+        // Update with Stripe info after provisioning
+        await this.supabase
+          .from('ai_phone_numbers')
+          .update({
+            stripe_ai_subscription_id: subscription.id,
+            stripe_ai_price_id: priceId,
+            ai_tier: tier,
+          })
+          .eq('team_id', teamId)
+
+        logger.info({ teamId, tier }, '✅ [STRIPE-AI] Provisioning triggered')
+      } catch (provisionError) {
+        logger.error({ provisionError, teamId }, '❌ [STRIPE-AI] Provisioning failed')
+        // Don't fail the webhook — Stripe will retry
+        return { status: 500, message: 'AI provisioning failed' }
+      }
+    }
+
+    return { status: 200, message: `AI subscription ${subscription.status} processed (tier: ${tier})` }
+  }
+
+  private async handleAiSubscriptionDeleted(teamId: string): Promise<WebhookResult> {
+    logger.info({ teamId }, '🤖 [STRIPE-AI] AI subscription deleted — deprovisioning')
+
+    try {
+      const { deprovision } = await import('./ai-phone/phone-provisioning.service')
+      await deprovision(teamId)
+      logger.info({ teamId }, '✅ [STRIPE-AI] Deprovisioning complete')
+    } catch (deprovisionError) {
+      logger.error({ deprovisionError, teamId }, '⚠️ [STRIPE-AI] Deprovisioning failed (non-blocking)')
+    }
+
+    return { status: 200, message: 'AI subscription deleted — deprovisioned' }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────

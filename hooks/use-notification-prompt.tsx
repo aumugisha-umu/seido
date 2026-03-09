@@ -119,7 +119,8 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
       setIsDismissed(recentlyDismissed)
 
       // Vérifier subscription en DB
-      const { hasSubscription } = await checkUserPushSubscription()
+      const subResult = await checkUserPushSubscription()
+      const hasSubscription = subResult?.hasSubscription ?? false
       setHasDBSubscription(hasSubscription)
 
       // 🎯 FIX: Mark initialization complete AFTER all async checks

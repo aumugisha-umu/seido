@@ -1,0 +1,43 @@
+# Progress Log — Email Section Refonte Phase 1
+# Started: 2026-03-05
+# Stories: 12 total
+# Design: docs/plans/2026-03-05-email-section-refonte-phase1.md
+# Diagnostic: 43 bugs identified, Phase 1 covers bugs 1-20 (critical+high)
+---
+
+## US-001: Fix RPC get_email_counts + per-source unread counts ✅
+- **Files**: supabase/migrations/20260305100000_fix_get_email_counts_v2.sql, page.tsx, mail-client.tsx, mailbox-sidebar.tsx
+- **Root cause**: get_my_profile_ids() returns empty for service_role (auth.uid()=NULL) → EXISTS always false → counts=0
+- **Fix**: DROP + CREATE without auth guard; added source_counts JSONB via jsonb_object_agg subquery
+- **Wiring**: page.tsx returns {counts, sourceCounts}; MailClient accepts initialSourceCounts; sidebar uses sourceCounts[conn.id] for badges
+- **Learning**: SECURITY DEFINER RPCs called via service_role don't need auth guards — the caller validation is upstream
+
+## US-002: Wire source counts to sidebar + SSR parity ✅
+- **Files**: page.tsx (SSR filter), mailbox-sidebar.tsx (sourceCounts prop), mail-client.tsx (initialSourceCounts)
+- **Root cause**: SSR fetched ALL received emails; API inbox only fetches status='unread' → mismatch on first switch
+- **Fix**: Added `.eq('status', 'unread')` to SSR getInitialEmails to match API inbox query
+- **Learning**: SSR initial load MUST mirror the exact API query for the default folder to prevent "disappearing emails" hydration bugs
+
+## US-003: Centralize count adjustments with adjustCounts helper ✅
+- **Files**: mail-client.tsx (adjustCounts function + 7 handler refactors)
+- **Root cause**: handleArchive/Delete/SoftDelete always decremented `counts.inbox` regardless of currentFolder
+- **Fix**: Pure function `adjustCounts(prev, action, currentFolder)` maps action to correct folder deltas
+- **Learning**: Count adjustment must be folder-aware. Centralizing in one function prevents N handlers × M folders combinatorial bugs
+
+## US-012: Dead code cleanup + missing deps fix ✅
+- **Files**: mail-client.tsx, email-detail.tsx, email-client.service.ts, app/api/emails/refresh/route.ts, hooks/use-email-polling.ts
+- **Removed**: fetchCounts, fetchEmailConnections, handleMarkAsRead (dead callback), handleLinkBuilding + onLinkBuilding prop + linkToBuilding service method (dead chain), 2× dead setOffset(0)
+- **Fixed**: handleSync missing `invalidateCache` dep in useCallback
+- **Added**: Replaced 4 individual count queries in refresh API with single get_email_counts RPC (4→1 DB roundtrip). Added sourceCounts to refresh response + polling hook type. Wired onRefresh callback in mail-client to update sourceCounts from polling.
+- **Learning**: When removing dead handlers, trace the full chain: callback → prop → child handler → UI invocation. A handler can be "declared and passed" but never actually invoked from UI elements — the whole chain is dead.
+
+## Post-US-012: Migration push + sidebar navigation fix ✅
+- **Migration**: Applied `20260305100000_fix_get_email_counts_v2.sql` via `supabase db push --linked` — was the root cause of missing inbox count badge (old RPC auth guard blocks service_role)
+- **Navigation bug**: Entity → same folder click didn't refresh emails. Root cause: `useEffect([currentFolder])` didn't fire because currentFolder was unchanged. Fix: removed useEffect, added `folderOverride` param to fetchEmails, handleFolderChange now calls `fetchEmails(false, 'all', folder)` directly. Also fixed latent bug where inbox→processed→inbox would skip fetch due to loose skip condition.
+- **Learning**: Handler-driven fetches > useEffect when every state change has a user action handler. Avoids stale closures, skip-condition fragility, and double-fetch risks.
+
+## Phase D: Final Quality Gate ✅
+- All 12 stories passes:true
+- Lint: 0 new errors/warnings
+- AGENTS.md: +5 learnings (#122-#126)
+- Status: All local, ready for commit

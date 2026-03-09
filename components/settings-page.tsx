@@ -4,7 +4,7 @@ import React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
-import { Bell, Mail, AlertTriangle } from "lucide-react"
+import { Bell, Mail, AlertTriangle, Phone } from "lucide-react"
 import { PushNotificationToggle } from "@/components/push-notification-toggle"
 import { InstallPWAButton } from "@/components/install-pwa-button"
 import { SubscriptionSummaryCard } from "@/components/billing/subscription-summary-card"
@@ -94,6 +94,21 @@ export default function SettingsPage({ role }: SettingsPageProps) {
                 </CardTitle>
                 <CardDescription>
                   Connectez vos comptes email pour synchroniser et envoyer des messages.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+
+          {/* AI Phone Assistant (Gestionnaire only) */}
+          {role === 'gestionnaire' && (
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => router.push('/gestionnaire/parametres/assistant-ia')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="h-5 w-5" />
+                  Assistant IA Téléphonique
+                </CardTitle>
+                <CardDescription>
+                  Activez un assistant vocal IA pour recevoir les demandes d&apos;intervention par téléphone.
                 </CardDescription>
               </CardHeader>
             </Card>

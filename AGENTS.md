@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-06
-**Total Learnings:** 126
+**Last Updated:** 2026-03-09
+**Total Learnings:** 129
 
 ---
 
@@ -913,6 +913,27 @@
 **Example:** `mail-client.tsx:handleLinkBuilding` → `email-detail.tsx:onLinkBuilding` → `handleLinkBuilding` wrapper → never called
 **When to Use:** Any dead code cleanup involving parent→child prop chains
 **Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — US-012
+
+#### Learning #127: Webhook AI extraction must have fallback — never let enrichment abort the pipeline
+**Problem:** ElevenLabs webhook called `extractInterventionSummary()` (Anthropic API) without try/catch. When API credits ran out (HTTP 400, not 402), the entire pipeline aborted — no intervention created, no call log, no notifications. ElevenLabs has ZERO retry, so the call data was lost forever.
+**Solution:** Wrap AI extraction in try/catch with a fallback summary built from raw transcript data. The fallback provides: raw transcript as `problem_description`, caller name from phone lookup (or "Appelant inconnu"), urgency "normale", category "autre". The rest of the pipeline (intervention creation, assignments, threads, PDF, notifications, emails) proceeds normally.
+**Example:** `app/api/webhooks/elevenlabs/route.ts:318-335` — try/catch with fallback InterventionSummary
+**When to Use:** Any webhook or background job that uses external AI APIs for data enrichment. Always design enrichment as optional — the core operation must succeed without it.
+**Added:** 2026-03-09 | **Source:** AI Phone Assistant — Anthropic credit balance error in production
+
+#### Learning #128: CHECK constraints designed for web flows break webhook/AI flows — audit XOR constraints
+**Problem:** `valid_intervention_location CHECK (building_id XOR lot_id)` required exactly one location. Web intervention creation always has property context. AI phone calls may not — caller gives unrecognizable address, or AI extraction fails → both `building_id` and `lot_id` are NULL → INSERT fails with "Value does not meet constraints" (PostgREST doesn't name the constraint in the error).
+**Solution:** Relax XOR to "at most one": `CHECK (NOT (building_id IS NOT NULL AND lot_id IS NOT NULL))`. Both NULL = unassigned location (gestionnaire assigns later). When adding a new creation channel (API, webhook, import, AI), audit ALL CHECK constraints on the target table — they were written for the original channel's assumptions.
+**Example:** `supabase/migrations/20260309120000_relax_intervention_location_constraint.sql`
+**When to Use:** Adding any new entity creation pathway (webhook, import, AI, API) to a table that was originally web-only
+**Added:** 2026-03-09 | **Source:** AI Phone Assistant — intervention INSERT failure after fallback
+
+#### Learning #129: PostgREST constraint errors don't name the constraint — parse "Failing row contains"
+**Problem:** When a CHECK constraint fails, PostgREST returns `"message": "Value does not meet constraints"` with no constraint name. The only clue is `"details": "Failing row contains (...)"` with all column values. You must mentally match the failing values against known CHECK constraints to identify which one failed.
+**Solution:** When debugging "Value does not meet constraints", (1) read the "Failing row contains" details to identify which columns have unexpected values, (2) search migrations for `CHECK` constraints on that table, (3) match NULL/value patterns against each constraint's condition. For SEIDO: `valid_intervention_location` (building_id XOR lot_id), `valid_assignment_role` (role enum), `valid_quote_type`, `valid_time_range`.
+**Example:** Failing row had `building_id=null, lot_id=null` → violated `valid_intervention_location` XOR constraint
+**When to Use:** Any "Value does not meet constraints" error from Supabase/PostgREST
+**Added:** 2026-03-09 | **Source:** AI Phone Assistant — debugging constraint violation after fallback
 
 ---
 

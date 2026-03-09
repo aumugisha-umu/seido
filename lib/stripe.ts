@@ -36,6 +36,22 @@ export const STRIPE_PRICES = {
 // Free tier: 1-2 lots = free forever
 export const FREE_TIER_LIMIT = 2
 
+// AI Add-on Price IDs (flat-rate monthly)
+export const STRIPE_AI_PRICES = {
+  solo: process.env.STRIPE_PRICE_AI_SOLO ?? '',
+  equipe: process.env.STRIPE_PRICE_AI_EQUIPE ?? '',
+  agence: process.env.STRIPE_PRICE_AI_AGENCE ?? '',
+} as const
+
+// AI tier included minutes & top-up pricing
+export const AI_TIER_CONFIG = {
+  solo: { minutes: 60, price: 4900, topupPrice: 5000, topupMinutes: 100 },
+  equipe: { minutes: 180, price: 9900, topupPrice: 4000, topupMinutes: 100 },
+  agence: { minutes: 500, price: 14900, topupPrice: 3000, topupMinutes: 100 },
+} as const
+
+export type AiTier = keyof typeof AI_TIER_CONFIG
+
 // Trial period: 30 days, app-managed (no Stripe subscription during trial)
 export const TRIAL_DAYS = 30
 

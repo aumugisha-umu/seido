@@ -13,6 +13,9 @@ import { ViewModeSwitcherV1 } from './view-mode-switcher-v1'
 // List View
 import { InterventionsListViewV1 } from './interventions-list-view-v1'
 
+// Cards View
+import { InterventionsList } from './interventions-list'
+
 // Mobile Card (responsive dual render)
 import { InterventionCardMobile } from './intervention-card-mobile'
 
@@ -86,8 +89,8 @@ export interface InterventionsViewContainerProps {
   className?: string
 
   /** External view mode control (lifted state) */
-  viewMode?: 'list' | 'calendar'
-  setViewMode?: (mode: 'list' | 'calendar') => void
+  viewMode?: 'list' | 'cards' | 'calendar'
+  setViewMode?: (mode: 'list' | 'cards' | 'calendar') => void
   hideViewSwitcher?: boolean
 }
 
@@ -108,7 +111,7 @@ export function InterventionsViewContainer({
 
   // View mode state management - use external if provided, otherwise internal
   const internalViewMode = useViewMode({
-    defaultMode: 'list',
+    defaultMode: 'cards',
     syncWithUrl: syncViewModeWithUrl
   })
 
@@ -123,6 +126,12 @@ export function InterventionsViewContainer({
   const listPagination = usePagination({
     items: interventions,
     pageSize: pageSize
+  })
+
+  // Pagination for cards view (fixed page size 12)
+  const cardsPagination = usePagination({
+    items: interventions,
+    pageSize: 12
   })
 
   // Aliases for list view (keep existing references)
@@ -142,7 +151,8 @@ export function InterventionsViewContainer({
   // Reset pagination when interventions change (tab switch, search)
   useEffect(() => {
     resetToFirstPage()
-  }, [interventions, resetToFirstPage])
+    cardsPagination.resetToFirstPage()
+  }, [interventions, resetToFirstPage, cardsPagination.resetToFirstPage])
 
   // Prevent hydration mismatch
   if (!mounted) {
@@ -224,6 +234,40 @@ export function InterventionsViewContainer({
   }
 
   /**
+   * 🃏 Render cards view (grid cards with pagination)
+   */
+  const renderCardsView = () => {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <InterventionsList
+            interventions={cardsPagination.paginatedItems}
+            loading={loading}
+            userContext={userContext}
+            showStatusActions={showStatusActions}
+          />
+        </div>
+
+        {/* Pagination for cards */}
+        <div className="flex-shrink-0 mt-2">
+          <InterventionPagination
+            currentPage={cardsPagination.currentPage}
+            totalPages={cardsPagination.totalPages}
+            totalItems={cardsPagination.totalItems}
+            startIndex={cardsPagination.startIndex}
+            endIndex={cardsPagination.endIndex}
+            onPageChange={cardsPagination.goToPage}
+            hasNextPage={cardsPagination.hasNextPage}
+            hasPreviousPage={cardsPagination.hasPreviousPage}
+            pageSize={12}
+            pageSizeOptions={[12]}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  /**
    * 📅 Render calendar view (month/week with side panel)
    */
   const renderCalendarView = () => {
@@ -247,6 +291,8 @@ export function InterventionsViewContainer({
     }
 
     switch (viewMode) {
+      case 'cards':
+        return renderCardsView()
       case 'calendar':
         return renderCalendarView()
       case 'list':

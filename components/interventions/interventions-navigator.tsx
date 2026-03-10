@@ -204,7 +204,7 @@ export function InterventionsNavigator({
 
   // View mode state (list, calendar)
   const { viewMode, setViewMode, mounted } = useViewMode({
-    defaultMode: 'list',
+    defaultMode: 'cards',
     syncWithUrl: false
   })
 

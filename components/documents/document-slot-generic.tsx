@@ -45,6 +45,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DatePicker } from '@/components/ui/date-picker'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { VALIDITY_DURATION_OPTIONS, computeExpiryDate } from '@/lib/constants/property-document-slots'
 import type { GenericFileWithPreview } from './types'
 
 // Map of icon names to components (extensible for all entity types)
@@ -95,10 +97,20 @@ interface DocumentSlotGenericProps {
   compact?: boolean
   /** Whether this slot has an expiry date */
   hasExpiry?: boolean
-  /** Current expiry date (ISO string) */
-  expiryDate?: string
-  /** Callback when expiry date changes */
-  onExpiryDateChange?: (date: string | undefined) => void
+  /** Default validity in years from slot config */
+  defaultValidityYears?: number
+  /** Current document date (ISO string) */
+  documentDate?: string
+  /** Current validity duration in months */
+  validityDuration?: number
+  /** Custom expiry date (ISO string) — only when validityDuration === -1 */
+  validityCustomExpiry?: string
+  /** Callback when document date changes */
+  onDocumentDateChange?: (date: string | undefined) => void
+  /** Callback when validity duration changes */
+  onValidityDurationChange?: (duration: number | undefined) => void
+  /** Callback when custom expiry changes */
+  onCustomExpiryChange?: (date: string | undefined) => void
   /** Additional CSS class */
   className?: string
 }
@@ -156,8 +168,13 @@ export function DocumentSlotGeneric({
   disabled = false,
   compact = false,
   hasExpiry = false,
-  expiryDate,
-  onExpiryDateChange,
+  defaultValidityYears,
+  documentDate,
+  validityDuration,
+  validityCustomExpiry,
+  onDocumentDateChange,
+  onValidityDurationChange,
+  onCustomExpiryChange,
   className
 }: DocumentSlotGenericProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -167,7 +184,11 @@ export function DocumentSlotGeneric({
   const hasFiles = files.length > 0
   const canAddMore = allowMultiple || !hasFiles
 
-  const expiryStatus = useMemo(() => getExpiryStatus(expiryDate), [expiryDate])
+  const computedExpiry = useMemo(
+    () => computeExpiryDate(documentDate, validityDuration, validityCustomExpiry),
+    [documentDate, validityDuration, validityCustomExpiry]
+  )
+  const expiryStatus = useMemo(() => getExpiryStatus(computedExpiry), [computedExpiry])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -276,16 +297,59 @@ export function DocumentSlotGeneric({
             <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
           )}
           {hasExpiry && hasFiles && (
-            <div className={cn("w-full", compact ? "mt-1" : "mt-2")}>
-              {!compact && (
-                <label className="text-[13px] font-medium text-muted-foreground mb-1 block">Échéance</label>
+            <div className={cn("w-full", compact ? "mt-1 space-y-1" : "mt-2 space-y-2")}>
+              {/* Document date + Validity duration */}
+              <div className="flex gap-2 flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={cn(
+                    "font-medium text-muted-foreground mb-1 block",
+                    compact ? "text-[11px]" : "text-[13px]"
+                  )}>Date document</label>
+                  <DatePicker
+                    value={documentDate || ''}
+                    onChange={(val) => onDocumentDateChange?.(val || undefined)}
+                    placeholder="jj/mm/aaaa"
+                    className={cn(compact ? "w-full h-7 [&_input]:h-7 [&_input]:py-0 [&_input]:text-xs [&_input]:px-1.5 [&_input]:pr-7 [&_button]:h-7 [&_button]:px-1.5 [&_.h-4.w-4]:h-3 [&_.h-4.w-4]:w-3" : "w-full [&_input]:h-9 [&_input]:text-sm")}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={cn(
+                    "font-medium text-muted-foreground mb-1 block",
+                    compact ? "text-[11px]" : "text-[13px]"
+                  )}>Validit&eacute;</label>
+                  <Select
+                    value={validityDuration !== undefined ? String(validityDuration) : (defaultValidityYears ? String(defaultValidityYears * 12) : undefined)}
+                    onValueChange={(val) => onValidityDurationChange?.(Number(val))}
+                  >
+                    <SelectTrigger className={cn(compact ? "w-full h-7 text-xs px-1.5" : "h-9 text-sm")}>
+                      <SelectValue placeholder={compact ? "Validit\u00e9" : "Dur\u00e9e de validit\u00e9"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VALIDITY_DURATION_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={String(opt.value)} className={compact ? "text-xs" : ""}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Custom expiry date picker — only when "Personnalisé" selected */}
+              {validityDuration === -1 && (
+                <div>
+                  <label className={cn(
+                    "font-medium text-muted-foreground mb-1 block",
+                    compact ? "text-[11px]" : "text-[13px]"
+                  )}>Date d&apos;&eacute;ch&eacute;ance</label>
+                  <DatePicker
+                    value={validityCustomExpiry || ''}
+                    onChange={(val) => onCustomExpiryChange?.(val || undefined)}
+                    placeholder="jj/mm/aaaa"
+                    className={cn(compact ? "w-full [&_input]:h-7 [&_input]:text-xs [&_input]:px-1.5 [&_input]:pr-7 [&_button]:h-7 [&_button]:px-1.5 [&_.h-4.w-4]:h-3 [&_.h-4.w-4]:w-3" : "w-full [&_input]:h-9 [&_input]:text-sm")}
+                  />
+                </div>
               )}
-              <DatePicker
-                value={expiryDate || ''}
-                onChange={(val) => onExpiryDateChange?.(val || undefined)}
-                placeholder={compact ? "Échéance" : "jj/mm/aaaa"}
-                className={cn(compact ? "w-full [&_input]:h-7 [&_input]:text-xs [&_input]:px-1.5 [&_input]:pr-7 [&_button]:h-7 [&_button]:px-1.5 [&_.h-4.w-4]:h-3 [&_.h-4.w-4]:w-3" : "w-full [&_input]:h-9 [&_input]:text-sm")}
-              />
             </div>
           )}
         </div>

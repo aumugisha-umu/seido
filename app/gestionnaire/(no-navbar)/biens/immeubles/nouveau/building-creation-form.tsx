@@ -59,7 +59,7 @@ import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lo
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import { logger, logError } from '@/lib/logger'
 import { usePropertyDocumentUpload } from '@/hooks/use-property-document-upload'
-import { BUILDING_DOCUMENT_SLOTS, LOT_IN_BUILDING_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
+import { BUILDING_DOCUMENT_SLOTS, LOT_IN_BUILDING_DOCUMENT_SLOTS, computeExpiryDate } from '@/lib/constants/property-document-slots'
 import { useMultiLotDocumentUpload } from '@/hooks/use-multi-lot-document-upload'
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
 import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
@@ -1180,8 +1180,9 @@ export default function NewImmeubleePage({
                   documentExpiryDates={
                     Object.fromEntries(
                       buildingDocUpload.slots
-                        .filter(s => s.files.length > 0 && s.files[0]?.expiryDate)
-                        .map(s => [s.type, s.files[0].expiryDate!])
+                        .filter(s => s.files.length > 0)
+                        .map(s => [s.type, computeExpiryDate(s.files[0].documentDate, s.files[0].validityDuration, s.files[0].validityCustomExpiry)])
+                        .filter(([, expiry]) => expiry != null) as [string, string][]
                     )
                   }
                   teamId={userTeam?.id || ''}
@@ -1210,7 +1211,7 @@ export default function NewImmeubleePage({
                   if (!lotUpload) return null
 
                   const lotNumber = lots.length - index
-                  const isExpanded = expandedInterventionLots[lot.id] || false
+                  const isExpanded = expandedInterventionLots[lot.id] !== false
                   const categoryConfig = getLotCategoryConfig(lot.category)
 
                   // Count enabled interventions for this lot
@@ -1255,8 +1256,9 @@ export default function NewImmeubleePage({
                             documentExpiryDates={
                               Object.fromEntries(
                                 lotUpload.slots
-                                  .filter(s => s.files.length > 0 && s.files[0]?.expiryDate)
-                                  .map(s => [s.type, s.files[0].expiryDate!])
+                                  .filter(s => s.files.length > 0)
+                                  .map(s => [s.type, computeExpiryDate(s.files[0].documentDate, s.files[0].validityDuration, s.files[0].validityCustomExpiry)])
+                                  .filter(([, expiry]) => expiry != null) as [string, string][]
                               )
                             }
                             teamId={userTeam?.id || ''}

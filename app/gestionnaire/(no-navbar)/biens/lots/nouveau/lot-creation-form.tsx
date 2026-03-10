@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2, Paperclip, ChevronDown, ChevronUp } from "lucide-react"
+import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2, Paperclip } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
@@ -39,11 +39,10 @@ import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lo
 import { GoogleMapsProvider } from "@/components/google-maps"
 import { logger, logError } from '@/lib/logger'
 import { usePropertyDocumentUpload } from '@/hooks/use-property-document-upload'
-import { LOT_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
+import { LOT_DOCUMENT_SLOTS, computeExpiryDate } from '@/lib/constants/property-document-slots'
 import { useMultiLotDocumentUpload } from '@/hooks/use-multi-lot-document-upload'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { DocumentChecklistGeneric } from '@/components/documents/document-checklist-generic'
-import type { UsePropertyDocumentUploadReturn } from '@/hooks/use-property-document-upload'
+import { PerLotDocumentAccordion } from '@/components/documents/per-lot-document-accordion'
 import { useSubscription } from "@/hooks/use-subscription"
 import { UpgradeModal } from "@/components/billing/upgrade-modal"
 import { FREE_TIER_LIMIT } from "@/lib/stripe"
@@ -102,70 +101,6 @@ interface LotData {
   
   // Step 3: Gestionnaires spécifiques du lot
   assignedLotManagers?: { id: string; name: string; email: string; role: string }[]
-}
-
-/** Documents tab for independent lots — accordion per lot with document checklist */
-function IndependentLotsDocumentsTab({
-  lots,
-  lotDocUploads
-}: {
-  lots: { id: string; reference: string; category: string }[]
-  lotDocUploads: { [lotId: string]: UsePropertyDocumentUploadReturn }
-}) {
-  const [expandedLots, setExpandedLots] = useState<{ [key: string]: boolean }>({})
-  const toggleExpansion = (lotId: string) => {
-    setExpandedLots(prev => ({ ...prev, [lotId]: !prev[lotId] }))
-  }
-
-  return (
-    <div className="space-y-3">
-      {lots.map((lot, index) => {
-        const lotNumber = lots.length - index
-        const upload = lotDocUploads[lot.id]
-        if (!upload) return null
-        const isExpanded = expandedLots[lot.id] || false
-        const catConfig = getLotCategoryConfig(lot.category as LotCategory)
-
-        return (
-          <div key={lot.id} className="border rounded-lg bg-white overflow-hidden">
-            <button
-              type="button"
-              onClick={() => toggleExpansion(lot.id)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold bg-blue-100 text-blue-700">
-                #{lotNumber}
-              </div>
-              <div className="flex-1 text-left">
-                <span className="font-medium text-sm">{lot.reference}</span>
-                <Badge variant="outline" className="ml-2 text-xs">{catConfig.label}</Badge>
-              </div>
-              {upload.hasFiles && (
-                <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                  {upload.progress.percentage}%
-                </Badge>
-              )}
-              {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-            </button>
-            {isExpanded && (
-              <div className="px-4 pb-4 border-t">
-                <DocumentChecklistGeneric
-                  title={`Documents — ${lot.reference}`}
-                  slots={upload.slots}
-                  onAddFilesToSlot={upload.addFilesToSlot}
-                  onRemoveFileFromSlot={upload.removeFileFromSlot}
-                  progress={upload.progress}
-                  missingRecommendedTypes={upload.missingRecommendedTypes}
-                  isUploading={upload.isUploading}
-                  onSetSlotExpiryDate={upload.setSlotExpiryDate}
-                />
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 interface LotCreationFormProps {
@@ -505,7 +440,15 @@ export default function LotCreationForm({
       setExpandedLots(allExpanded)
       logger.info("📂 [MULTI-LOT] All lots expanded for contact assignment")
     }
-  }, [currentStep, lotData.buildingAssociation, lots])
+    if (currentStep === 3 && lotData.buildingAssociation === "independent" && independentLots.length > 0) {
+      const allExpanded: {[key: string]: boolean} = {}
+      independentLots.forEach(lot => {
+        allExpanded[lot.id] = true
+      })
+      setExpandedIndependentLots(allExpanded)
+      logger.info("📂 [INDEPENDENT-LOT] All lots expanded for contact assignment")
+    }
+  }, [currentStep, lotData.buildingAssociation, lots, independentLots])
 
   // ✅ Assigner automatiquement le gestionnaire au premier lot indépendant initial
   // NOTE: This hook MUST be called before any early returns to respect React's Rules of Hooks
@@ -1030,15 +973,23 @@ export default function LotCreationForm({
   // Handle geocode result for independent lots (Google Maps integration)
   // STALE CLOSURE FIX: Use functional update (prevLots =>) to ensure we have the latest state
   // This is called AFTER onUpdate calls for address fields, so we must not overwrite those updates
-  const handleIndependentLotGeocodeResult = (lotId: string, result: { latitude: number; longitude: number; placeId: string; formattedAddress: string } | null) => {
+  const handleIndependentLotGeocodeResult = (lotId: string, result: { latitude: number; longitude: number; placeId: string; formattedAddress: string; fields?: { street: string; postalCode: string; city: string; country: string } } | null) => {
     logger.info(`📍 [INDEPENDENT-LOT] Geocode result for lot ${lotId}:`, result ? 'found' : 'not found')
 
     setIndependentLots(prevLots => prevLots.map(lot => {
       if (lot.id === lotId) {
         if (result) {
-          // IMPORTANT: Spread lot FIRST to preserve address fields updated by onUpdate calls
+          // ATOMIC UPDATE: address fields + geocode data in ONE state update
+          // Previously, address fields were set via separate onUpdate calls that raced
+          // with this geocode callback, causing postal code and city to be lost
           return {
             ...lot,
+            ...(result.fields ? {
+              street: result.fields.street,
+              postalCode: result.fields.postalCode,
+              city: result.fields.city,
+              country: result.fields.country,
+            } : {}),
             latitude: result.latitude,
             longitude: result.longitude,
             placeId: result.placeId,
@@ -2252,7 +2203,7 @@ export default function LotCreationForm({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {independentLots.map((lot, index) => {
                   const isExpanded = expandedIndependentLots[lot.id] || false
-                  const lotNumber = independentLots.length - index
+                  const lotNumber = index + 1
                   const lotManagers = assignedManagersByLot[lot.id] || []
                   const providers = lotContactAssignments[lot.id]?.provider || []
                   const owners = lotContactAssignments[lot.id]?.owner || []
@@ -2297,7 +2248,7 @@ export default function LotCreationForm({
           </TabsContent>
 
           <TabsContent value="documents" className="mt-4">
-            <IndependentLotsDocumentsTab
+            <PerLotDocumentAccordion
               lots={independentLots}
               lotDocUploads={lotDocUploads}
             />
@@ -2312,21 +2263,25 @@ export default function LotCreationForm({
     // Determine entity type and document data based on association mode
     const entityType = lotData.buildingAssociation === 'existing' ? 'lot_in_building' as const : 'lot' as const
 
-    // Collect document expiry dates from all lot doc uploads
+    // Collect document expiry dates from all lot doc uploads (computed from documentDate + validityDuration)
     const documentExpiryDates: Record<string, string> = {}
     // For multi-lot modes, merge expiry dates from all lot uploads
     const allUploads = Object.values(lotDocUploads)
     for (const upload of allUploads) {
       for (const slot of upload.slots) {
-        if (slot.files.length > 0 && slot.files[0]?.expiryDate && !documentExpiryDates[slot.type]) {
-          documentExpiryDates[slot.type] = slot.files[0].expiryDate
+        if (slot.files.length > 0 && !documentExpiryDates[slot.type]) {
+          const file = slot.files[0]
+          const expiry = computeExpiryDate(file.documentDate, file.validityDuration, file.validityCustomExpiry)
+          if (expiry) documentExpiryDates[slot.type] = expiry
         }
       }
     }
     // Also check single-lot upload
     for (const slot of lotDocUpload.slots) {
-      if (slot.files.length > 0 && slot.files[0]?.expiryDate && !documentExpiryDates[slot.type]) {
-        documentExpiryDates[slot.type] = slot.files[0].expiryDate
+      if (slot.files.length > 0 && !documentExpiryDates[slot.type]) {
+        const file = slot.files[0]
+        const expiry = computeExpiryDate(file.documentDate, file.validityDuration, file.validityCustomExpiry)
+        if (expiry) documentExpiryDates[slot.type] = expiry
       }
     }
 
@@ -2433,7 +2388,7 @@ export default function LotCreationForm({
             {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {independentLots.map((lot, index) => {
-                const lotNumber = independentLots.length - index
+                const lotNumber = index + 1
                 const lotManagers = assignedManagersByLot[lot.id] || []
                 const providers = lotContactAssignments[lot.id]?.provider || []
                 const owners = lotContactAssignments[lot.id]?.owner || []

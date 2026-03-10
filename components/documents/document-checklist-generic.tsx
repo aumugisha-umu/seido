@@ -35,8 +35,12 @@ interface DocumentChecklistGenericProps {
   missingRecommendedTypes: string[]
   /** Upload in progress */
   isUploading?: boolean
-  /** Callback to set expiry date for all files in a slot */
-  onSetSlotExpiryDate?: (slotType: string, date: string | undefined) => void
+  /** Callback to set document date for all files in a slot */
+  onSetSlotDocumentDate?: (slotType: string, date: string | undefined) => void
+  /** Callback to set validity duration for all files in a slot */
+  onSetSlotValidityDuration?: (slotType: string, duration: number | undefined) => void
+  /** Callback to set custom expiry for all files in a slot */
+  onSetSlotCustomExpiry?: (slotType: string, date: string | undefined) => void
   /** Additional CSS class */
   className?: string
 }
@@ -49,7 +53,9 @@ export function DocumentChecklistGeneric({
   progress,
   missingRecommendedTypes,
   isUploading = false,
-  onSetSlotExpiryDate,
+  onSetSlotDocumentDate,
+  onSetSlotValidityDuration,
+  onSetSlotCustomExpiry,
   className
 }: DocumentChecklistGenericProps) {
   const { recommendedSlots, autreSlot } = useMemo(() => {
@@ -135,8 +141,13 @@ export function DocumentChecklistGeneric({
                     disabled={isUploading}
                     compact
                     hasExpiry={slot.hasExpiry}
-                    expiryDate={slot.files[0]?.expiryDate}
-                    onExpiryDateChange={onSetSlotExpiryDate ? (date) => onSetSlotExpiryDate(slot.type, date) : undefined}
+                    defaultValidityYears={slot.defaultValidityYears}
+                    documentDate={slot.files[0]?.documentDate}
+                    validityDuration={slot.files[0]?.validityDuration}
+                    validityCustomExpiry={slot.files[0]?.validityCustomExpiry}
+                    onDocumentDateChange={onSetSlotDocumentDate ? (date) => onSetSlotDocumentDate(slot.type, date) : undefined}
+                    onValidityDurationChange={onSetSlotValidityDuration ? (dur) => onSetSlotValidityDuration(slot.type, dur) : undefined}
+                    onCustomExpiryChange={onSetSlotCustomExpiry ? (date) => onSetSlotCustomExpiry(slot.type, date) : undefined}
                   />
                 ))}
               </div>
@@ -162,8 +173,13 @@ export function DocumentChecklistGeneric({
                 onRemoveFile={(fileId) => onRemoveFileFromSlot(autreSlot.type, fileId)}
                 disabled={isUploading}
                 hasExpiry={autreSlot.hasExpiry}
-                expiryDate={autreSlot.files[0]?.expiryDate}
-                onExpiryDateChange={onSetSlotExpiryDate ? (date) => onSetSlotExpiryDate(autreSlot.type, date) : undefined}
+                defaultValidityYears={autreSlot.defaultValidityYears}
+                documentDate={autreSlot.files[0]?.documentDate}
+                validityDuration={autreSlot.files[0]?.validityDuration}
+                validityCustomExpiry={autreSlot.files[0]?.validityCustomExpiry}
+                onDocumentDateChange={onSetSlotDocumentDate ? (date) => onSetSlotDocumentDate(autreSlot.type, date) : undefined}
+                onValidityDurationChange={onSetSlotValidityDuration ? (dur) => onSetSlotValidityDuration(autreSlot.type, dur) : undefined}
+                onCustomExpiryChange={onSetSlotCustomExpiry ? (date) => onSetSlotCustomExpiry(autreSlot.type, date) : undefined}
               />
             </div>
           )}
@@ -194,8 +210,13 @@ export function DocumentChecklistGeneric({
                   disabled={isUploading}
                   compact
                   hasExpiry={slot.hasExpiry}
-                  expiryDate={slot.files[0]?.expiryDate}
-                  onExpiryDateChange={onSetSlotExpiryDate ? (date) => onSetSlotExpiryDate(slot.type, date) : undefined}
+                  defaultValidityYears={slot.defaultValidityYears}
+                  documentDate={slot.files[0]?.documentDate}
+                  validityDuration={slot.files[0]?.validityDuration}
+                  validityCustomExpiry={slot.files[0]?.validityCustomExpiry}
+                  onDocumentDateChange={onSetSlotDocumentDate ? (date) => onSetSlotDocumentDate(slot.type, date) : undefined}
+                  onValidityDurationChange={onSetSlotValidityDuration ? (dur) => onSetSlotValidityDuration(slot.type, dur) : undefined}
+                  onCustomExpiryChange={onSetSlotCustomExpiry ? (date) => onSetSlotCustomExpiry(slot.type, date) : undefined}
                 />
               ))}
             </div>

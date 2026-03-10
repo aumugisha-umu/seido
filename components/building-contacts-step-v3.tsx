@@ -1,17 +1,16 @@
 "use client"
 
-import React, { useState } from "react"
+import React from "react"
 import { BuildingContactCardV3 } from "@/components/ui/building-contact-card-v3"
 import { LotContactCardV4 } from "@/components/ui/lot-contact-card-v4"
 import { ContactSelectorRef } from "@/components/contact-selector"
 import type { User as UserType, Team } from "@/lib/services/core/service-types"
-import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
+import { LotCategory } from "@/lib/lot-types"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Users, Paperclip, ChevronDown, ChevronUp } from "lucide-react"
-import { DocumentChecklistGeneric } from "@/components/documents/document-checklist-generic"
+import { Users, Paperclip } from "lucide-react"
+import { PerLotDocumentAccordion } from "@/components/documents/per-lot-document-accordion"
 import type { UsePropertyDocumentUploadReturn } from "@/hooks/use-property-document-upload"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
 
 // Simplified Contact interface matching ContactSelector and child components
 interface Contact {
@@ -110,13 +109,6 @@ export function BuildingContactsStepV3({
   const owners = buildingContacts['owner'] || []
   const others = buildingContacts['other'] || []
 
-  // Track expanded lots in documents tab separately
-  const [expandedDocLots, setExpandedDocLots] = useState<{ [key: string]: boolean }>({})
-
-  const toggleDocLotExpansion = (lotId: string) => {
-    setExpandedDocLots(prev => ({ ...prev, [lotId]: !prev[lotId] }))
-  }
-
   // Contacts content (extracted to reuse with/without tabs)
   const contactsContent = (
     <div className="space-y-3 @container">
@@ -191,101 +183,14 @@ export function BuildingContactsStepV3({
     </div>
   )
 
-  // Documents content (building + per-lot)
+  // Documents content (building + per-lot via shared accordion)
   const documentsContent = buildingDocUpload ? (
-    <div className="space-y-6">
-      {/* Building-level documents */}
-      <DocumentChecklistGeneric
-        title={`Documents de l'immeuble — ${buildingInfo.name || 'Immeuble'}`}
-        slots={buildingDocUpload.slots}
-        onAddFilesToSlot={buildingDocUpload.addFilesToSlot}
-        onRemoveFileFromSlot={buildingDocUpload.removeFileFromSlot}
-        progress={buildingDocUpload.progress}
-        missingRecommendedTypes={buildingDocUpload.missingRecommendedTypes}
-        isUploading={buildingDocUpload.isUploading}
-        onSetSlotExpiryDate={buildingDocUpload.setSlotExpiryDate}
-      />
-
-      {/* Per-lot documents */}
-      {lots.length > 0 && lotDocUploads && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 px-1">
-            <h3 className="text-sm font-semibold text-gray-700">
-              Documents spécifiques aux lots
-            </h3>
-            <span className="text-xs text-muted-foreground">
-              ({lots.length} lot{lots.length > 1 ? 's' : ''})
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {lots.map((lot, index) => {
-              const lotNumber = lots.length - index
-              const lotUpload = lotDocUploads[lot.id]
-              if (!lotUpload) return null
-
-              const isExpanded = expandedDocLots[lot.id] || false
-              const categoryConfig = getLotCategoryConfig(lot.category)
-              const hasFiles = lotUpload.hasFiles
-              const progressPct = lotUpload.progress.percentage
-
-              return (
-                <div
-                  key={lot.id}
-                  className="border rounded-lg bg-white overflow-hidden"
-                >
-                  {/* Lot header — clickable accordion */}
-                  <button
-                    type="button"
-                    onClick={() => toggleDocLotExpansion(lot.id)}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className={cn(
-                      "flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold",
-                      "bg-blue-100 text-blue-700"
-                    )}>
-                      #{lotNumber}
-                    </div>
-                    <div className="flex-1 text-left">
-                      <span className="font-medium text-sm">{lot.reference}</span>
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        {categoryConfig.label}
-                      </Badge>
-                    </div>
-                    {hasFiles && (
-                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                        {progressPct}%
-                      </Badge>
-                    )}
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    )}
-                  </button>
-
-                  {/* Expanded: document checklist */}
-                  {isExpanded && (
-                    <div className="px-4 pb-4 border-t">
-                      <DocumentChecklistGeneric
-                        title={`Documents — ${lot.reference}`}
-                        slots={lotUpload.slots}
-                        onAddFilesToSlot={lotUpload.addFilesToSlot}
-                        onRemoveFileFromSlot={lotUpload.removeFileFromSlot}
-                        progress={lotUpload.progress}
-                        missingRecommendedTypes={lotUpload.missingRecommendedTypes}
-                        isUploading={lotUpload.isUploading}
-                        onSetSlotExpiryDate={lotUpload.setSlotExpiryDate}
-                      />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-    </div>
+    <PerLotDocumentAccordion
+      lots={lots}
+      lotDocUploads={lotDocUploads || {}}
+      buildingDocUpload={buildingDocUpload}
+      buildingName={buildingInfo.name || 'Immeuble'}
+    />
   ) : null
 
   // If no document upload provided, render contacts only (backwards compat)

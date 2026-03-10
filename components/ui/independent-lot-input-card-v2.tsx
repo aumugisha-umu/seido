@@ -62,6 +62,7 @@ export interface GeocodeResultData {
   longitude: number
   placeId: string
   formattedAddress: string
+  fields?: { street: string; postalCode: string; city: string; country: string }
 }
 
 interface IndependentLotInputCardV2Props {
@@ -122,28 +123,29 @@ export function IndependentLotInputCardV2({
   }, [lot.id, onUpdate])
 
   // Handle geocode result from AddressFieldsWithMap (autocomplete selection)
-  // STALE CLOSURE FIX: Always update all fields without comparison
+  // FIX: Pass address fields UP to parent via onGeocodeResult for atomic state update
+  // Previously, calling onUpdate 4 times + onGeocodeResult separately caused a race condition
+  // where the geocode callback's setIndependentLots spread a stale lot without address fields
   const handleGeocodeResult = useCallback((result: GeocodeResult | null) => {
     if (result) {
-      // If result includes fields (from autocomplete), update the lot data
-      if (result.fields) {
-        // ATOMIC UPDATE: Update all address fields at once without comparisons
-        // This avoids stale closure issues where captured lot.* values are outdated
-        onUpdate('street', result.fields.street)
-        onUpdate('postalCode', result.fields.postalCode)
-        onUpdate('city', result.fields.city)
-        onUpdate('country', result.fields.country)
-      } else {
+      if (!result.fields) {
         console.warn('⚠️ [LOT-CARD] result.fields is missing!', { result })
       }
-      // Also pass to parent if callback provided (for geocode data: lat, lng, placeId)
       if (onGeocodeResult) {
+        // Pass EVERYTHING to parent: geocode data + address fields in ONE call
         onGeocodeResult({
           latitude: result.latitude,
           longitude: result.longitude,
           placeId: result.placeId,
-          formattedAddress: result.formattedAddress
+          formattedAddress: result.formattedAddress,
+          fields: result.fields
         })
+      } else if (result.fields) {
+        // Fallback for edit mode (no onGeocodeResult): update fields individually
+        onUpdate('street', result.fields.street)
+        onUpdate('postalCode', result.fields.postalCode)
+        onUpdate('city', result.fields.city)
+        onUpdate('country', result.fields.country)
       }
     } else {
       console.warn('⚠️ [LOT-CARD] result is null')

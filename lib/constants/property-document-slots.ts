@@ -100,6 +100,35 @@ export const BUILDING_DOCUMENT_SLOTS: GenericDocumentSlotConfig[] = [
   }
 ]
 
+// ─── Validity duration presets ─────────────────────────────────
+
+export const VALIDITY_DURATION_OPTIONS = [
+  { value: 12,  label: '1 an' },
+  { value: 24,  label: '2 ans' },
+  { value: 36,  label: '3 ans' },
+  { value: 60,  label: '5 ans' },
+  { value: 120, label: '10 ans' },
+  { value: -1,  label: 'Personnalisé' },
+] as const
+
+/**
+ * Compute expiry date from document date + validity duration.
+ * Returns ISO date string (YYYY-MM-DD) or undefined.
+ */
+export const computeExpiryDate = (
+  documentDate?: string,
+  validityDuration?: number,
+  customExpiry?: string
+): string | undefined => {
+  // Custom expiry takes precedence
+  if (validityDuration === -1 && customExpiry) return customExpiry
+  if (!documentDate || !validityDuration || validityDuration <= 0) return undefined
+
+  const date = new Date(documentDate)
+  date.setMonth(date.getMonth() + validityDuration)
+  return date.toISOString().split('T')[0]
+}
+
 // ─── Helpers ──────────────────────────────────────────────────
 
 export const LOT_RECOMMENDED_TYPES = LOT_DOCUMENT_SLOTS

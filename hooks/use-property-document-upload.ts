@@ -9,6 +9,7 @@
 import { useState, useMemo, useCallback } from 'react'
 import { logger } from '@/lib/logger'
 import type { GenericFileWithPreview, GenericDocumentSlotConfig, GenericDocumentSlotState, DocumentProgress } from '@/components/documents/types'
+import { computeExpiryDate } from '@/lib/constants/property-document-slots'
 
 // Allowed MIME types (matching server-side validation)
 const ALLOWED_MIME_TYPES = [
@@ -91,13 +92,22 @@ export const usePropertyDocumentUpload = ({
         preview = URL.createObjectURL(file)
       }
 
+      // Auto-fill documentDate + validityDuration for slots with expiry
+      const slotConfig = slotConfigs.find(s => s.type === slotType)
+      const hasSlotExpiry = slotConfig?.hasExpiry
+      const defaultDuration = slotConfig?.defaultValidityYears ? slotConfig.defaultValidityYears * 12 : undefined
+
       validatedFiles.push({
         id: `${file.name}-${file.lastModified}-${Math.random()}`,
         file,
         preview,
         progress: 0,
         status: 'pending',
-        documentType: slotType
+        documentType: slotType,
+        ...(hasSlotExpiry && {
+          documentDate: new Date().toISOString().split('T')[0],
+          validityDuration: defaultDuration
+        })
       })
     })
 
@@ -108,7 +118,7 @@ export const usePropertyDocumentUpload = ({
     if (errors.length > 0 && onUploadError) {
       onUploadError(errors.join('\n'))
     }
-  }, [files, validateFile, onUploadError])
+  }, [files, validateFile, onUploadError, slotConfigs])
 
   // Remove a file
   const removeFileFromSlot = useCallback((_slotType: string, fileId: string) => {
@@ -121,17 +131,24 @@ export const usePropertyDocumentUpload = ({
     })
   }, [])
 
-  // Set expiry date for a file
-  const setFileExpiryDate = useCallback((fileId: string, expiryDate: string | undefined) => {
+  // Set document date for all files in a slot
+  const setSlotDocumentDate = useCallback((slotType: string, date: string | undefined) => {
     setFiles(prev => prev.map(f =>
-      f.id === fileId ? { ...f, expiryDate } : f
+      f.documentType === slotType ? { ...f, documentDate: date } : f
     ))
   }, [])
 
-  // Set expiry date for all files in a slot (called by DocumentChecklistGeneric)
-  const setSlotExpiryDate = useCallback((slotType: string, date: string | undefined) => {
+  // Set validity duration for all files in a slot
+  const setSlotValidityDuration = useCallback((slotType: string, duration: number | undefined) => {
     setFiles(prev => prev.map(f =>
-      f.documentType === slotType ? { ...f, expiryDate: date } : f
+      f.documentType === slotType ? { ...f, validityDuration: duration } : f
+    ))
+  }, [])
+
+  // Set custom expiry date for all files in a slot (when "Personnalisé" is selected)
+  const setSlotCustomExpiry = useCallback((slotType: string, date: string | undefined) => {
+    setFiles(prev => prev.map(f =>
+      f.documentType === slotType ? { ...f, validityCustomExpiry: date } : f
     ))
   }, [])
 
@@ -221,8 +238,16 @@ export const usePropertyDocumentUpload = ({
             formData.append('lot_id', targetEntityId)
           }
 
-          if (fileWithPreview.expiryDate) {
-            formData.append('expiry_date', fileWithPreview.expiryDate)
+          const computedExpiry = computeExpiryDate(
+            fileWithPreview.documentDate,
+            fileWithPreview.validityDuration,
+            fileWithPreview.validityCustomExpiry
+          )
+          if (computedExpiry) {
+            formData.append('expiry_date', computedExpiry)
+          }
+          if (fileWithPreview.documentDate) {
+            formData.append('document_date', fileWithPreview.documentDate)
           }
 
           formData.append('title', `${fileWithPreview.documentType} - ${fileWithPreview.file.name}`)
@@ -297,8 +322,9 @@ export const usePropertyDocumentUpload = ({
     filesByType,
     addFilesToSlot,
     removeFileFromSlot,
-    setFileExpiryDate,
-    setSlotExpiryDate,
+    setSlotDocumentDate,
+    setSlotValidityDuration,
+    setSlotCustomExpiry,
     uploadFiles,
     clearFiles,
     progress,

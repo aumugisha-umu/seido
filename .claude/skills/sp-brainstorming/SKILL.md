@@ -36,12 +36,18 @@ Start by understanding the current project context, then ask questions one at a 
 
 **Documentation:**
 - Write the validated design to `docs/plans/YYYY-MM-DD-<topic>-design.md`
-- Commit the design document to git
 
-**Implementation (if continuing):**
-- Ask: "Ready to set up for implementation?"
-- Use sp-using-git-worktrees to create isolated workspace
-- Use sp-writing-plans to create detailed implementation plan
+**Implementation — Auto-invoke Ralph:**
+- After saving the design doc, assess complexity:
+  - **Simple** (1-2 files, single concern, < 30 min): Implement directly without Ralph
+  - **Non-trivial** (3+ files, multiple concerns, cross-cutting): **Automatically invoke `sp-ralph`** with the design doc as input
+- When invoking Ralph, pass: `"Implement the validated design from docs/plans/YYYY-MM-DD-<topic>-design.md"` + a summary of the design
+- Do NOT ask "Ready to implement?" — just proceed with Ralph unless the user explicitly says to stop after design
+
+**Post-implementation — Auto-invoke Compound:**
+- After Ralph completes (all stories passed), **automatically invoke `sp-compound`** to capture learnings
+- This ensures patterns, pitfalls, and architectural decisions are recorded in AGENTS.md and progress.txt
+- Do NOT ask "Want to compound?" — just do it as part of the chain: Brainstorming → Ralph → Compound
 
 ## Key Principles
 

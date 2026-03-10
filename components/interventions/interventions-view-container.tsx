@@ -92,6 +92,8 @@ export interface InterventionsViewContainerProps {
   viewMode?: 'list' | 'cards' | 'calendar'
   setViewMode?: (mode: 'list' | 'cards' | 'calendar') => void
   hideViewSwitcher?: boolean
+  /** Optional slot for Load More button (rendered in pagination center) */
+  loadMoreSlot?: React.ReactNode
 }
 
 export function InterventionsViewContainer({
@@ -105,7 +107,8 @@ export function InterventionsViewContainer({
   className,
   viewMode: externalViewMode,
   setViewMode: externalSetViewMode,
-  hideViewSwitcher = false
+  hideViewSwitcher = false,
+  loadMoreSlot
 }: InterventionsViewContainerProps) {
   const { user } = useAuth()
 
@@ -261,6 +264,7 @@ export function InterventionsViewContainer({
             hasPreviousPage={cardsPagination.hasPreviousPage}
             pageSize={12}
             pageSizeOptions={[12]}
+            centerSlot={loadMoreSlot}
           />
         </div>
       </div>

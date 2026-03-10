@@ -40,6 +40,8 @@ interface InterventionPaginationProps {
   onPageSizeChange?: (size: number) => void
   /** Available page size options */
   pageSizeOptions?: number[]
+  /** Optional center slot (e.g., Load More button) rendered between count and nav */
+  centerSlot?: React.ReactNode
 }
 
 // ============================================================================
@@ -116,7 +118,8 @@ export function InterventionPagination({
   className,
   pageSize,
   onPageSizeChange,
-  pageSizeOptions = [10, 25, 50]
+  pageSizeOptions = [10, 25, 50],
+  centerSlot
 }: InterventionPaginationProps) {
   // Don't render if only one page or no items (but show if page size selector is enabled and there are items)
   if (totalPages <= 1 && !onPageSizeChange) {
@@ -131,7 +134,7 @@ export function InterventionPagination({
       className
     )}>
       {/* Left section: Item count + Page size selector */}
-      <div className="flex items-center gap-4 order-2 sm:order-1">
+      <div className="flex items-center gap-4 order-2 sm:order-1 flex-shrink-0">
         {/* Item count - French text */}
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{startIndex}-{endIndex}</span>
@@ -164,9 +167,16 @@ export function InterventionPagination({
         )}
       </div>
 
+      {/* Center section: optional slot (e.g., Load More button) */}
+      {centerSlot && (
+        <div className="order-3 sm:order-2 flex-shrink-0">
+          {centerSlot}
+        </div>
+      )}
+
       {/* Pagination controls - only show if more than one page */}
       {totalPages > 1 && (
-        <div className="flex items-center gap-1 order-1 sm:order-2">
+        <div className="flex items-center gap-1 order-1 sm:order-3 flex-shrink-0">
         {/* Previous button */}
         <Button
           variant="outline"

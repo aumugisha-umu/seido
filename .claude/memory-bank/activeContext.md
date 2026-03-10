@@ -133,5 +133,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: 13 stories perf optimization + post-creation redirect UX + 110 learnings in AGENTS.md*
 
 ## Files Recently Modified
-### 2026-03-09 20:50:40 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/api/webhooks/elevenlabs/route.ts`
+### 2026-03-10 22:23:55 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/plans/2026-03-10-landing-page-redesign.md`

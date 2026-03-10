@@ -428,33 +428,28 @@ export function InterventionsNavigator({
     return configs[tabId] || { title: "Aucune donnée", description: "" }
   }
 
-  // ✅ Load More button component
-  const LoadMoreButton = () => {
-    if (!hasMore || !onLoadMore) return null
-
-    return (
-      <div className="flex justify-center py-4">
-        <Button
-          variant="outline"
-          onClick={onLoadMore}
-          disabled={isLoadingMore}
-          className="gap-2"
-        >
-          {isLoadingMore ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Chargement...
-            </>
-          ) : (
-            <>
-              <ChevronDown className="h-4 w-4" />
-              Charger plus ({interventions.length}/{total || '?'})
-            </>
-          )}
-        </Button>
-      </div>
-    )
-  }
+  // ✅ Load More button (rendered inline in pagination via loadMoreSlot)
+  const loadMoreButton = (hasMore && onLoadMore) ? (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={onLoadMore}
+      disabled={isLoadingMore}
+      className="gap-2 h-8"
+    >
+      {isLoadingMore ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Chargement...
+        </>
+      ) : (
+        <>
+          <ChevronDown className="h-4 w-4" />
+          Charger plus ({interventions.length}/{total || '?'})
+        </>
+      )}
+    </Button>
+  ) : null
 
   // Render content for each tab
   const renderTabContent = (tabId: string) => {
@@ -471,20 +466,17 @@ export function InterventionsNavigator({
     }
 
     return (
-      <>
-        <InterventionsViewContainer
-          interventions={tabData}
-          userContext={userContext}
-          loading={loading}
-          emptyStateConfig={getEmptyStateForTab(tabId)}
-          showStatusActions={true}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          hideViewSwitcher={true}
-        />
-        {/* ✅ Load More button - only show on "toutes" tab to avoid confusion with filtered tabs */}
-        {tabId === 'toutes' && <LoadMoreButton />}
-      </>
+      <InterventionsViewContainer
+        interventions={tabData}
+        userContext={userContext}
+        loading={loading}
+        emptyStateConfig={getEmptyStateForTab(tabId)}
+        showStatusActions={true}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        hideViewSwitcher={true}
+        loadMoreSlot={tabId === 'toutes' ? loadMoreButton : undefined}
+      />
     )
   }
 

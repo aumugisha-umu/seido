@@ -60,7 +60,8 @@ export class SupplierContractRepository extends BaseRepository<
         *,
         supplier:users!supplier_contracts_supplier_id_fkey(id, name, first_name, last_name, company, email, phone, company_record:companies!fk_users_company(id, name)),
         building:buildings!supplier_contracts_building_id_fkey(id, name),
-        lot:lots!supplier_contracts_lot_id_fkey(id, reference)
+        lot:lots!supplier_contracts_lot_id_fkey(id, reference),
+        documents:supplier_contract_documents(*)
       `)
       .eq('team_id', teamId)
       .is('deleted_at', null)

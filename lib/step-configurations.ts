@@ -1,4 +1,4 @@
-import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle, User, Paperclip, CalendarCheck } from "lucide-react"
+import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle, User, Paperclip, CalendarCheck, ClipboardList } from "lucide-react"
 import { StepConfig } from "@/components/ui/step-progress-header"
 
 export const buildingSteps: StepConfig[] = [
@@ -115,6 +115,26 @@ export const contractSteps: StepConfig[] = [
   {
     icon: Paperclip,
     label: "Documents"
+  },
+  {
+    icon: CalendarCheck,
+    label: "Interventions"
+  },
+  {
+    icon: Check,
+    label: "Confirmation"
+  }
+]
+
+// Steps pour la création de contrats fournisseurs (4 étapes)
+export const supplierContractSteps: StepConfig[] = [
+  {
+    icon: Building2,
+    label: "Bien"
+  },
+  {
+    icon: ClipboardList,
+    label: "Contrats"
   },
   {
     icon: CalendarCheck,

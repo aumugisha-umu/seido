@@ -1,0 +1,156 @@
+{
+  "project": "SEIDO",
+  "featureName": "Blog Hub/Cluster Redesign",
+  "branchName": "feature/landing-page-redesign",
+  "description": "Restructure 3 omnibus blog articles into 20 individual articles + 3 hub pages. Add type/hub frontmatter support to lib/blog.ts and hub-article relationship UI to blog article pages.",
+  "createdAt": "2026-03-11",
+  "prdSource": "docs/plans/2026-03-11-blog-hub-cluster-redesign.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add type/hub fields to ArticleMeta + filter/query functions",
+      "description": "As a developer, I want ArticleMeta to support type and hub fields, getLatestArticles to exclude hubs, and a new getArticlesByHub function, so that hub/cluster relationships work in code.",
+      "acceptanceCriteria": [
+        "ArticleMeta has type: string and hub: string fields",
+        "parseArticleFile extracts type (default 'article') and hub (default '')",
+        "getLatestArticles filters out type === 'hub'",
+        "getArticlesByHub(hubSlug) returns articles sorted by date",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added type/hub to ArticleMeta, filter in getLatestArticles, new getArticlesByHub function"
+    },
+    {
+      "id": "US-002",
+      "title": "Hub-article relationship banner in blog article page",
+      "description": "As a reader, I want to see a banner at the bottom of individual articles linking to the parent hub and sibling articles, so I can discover related content.",
+      "acceptanceCriteria": [
+        "Articles with hub field show a relationship banner at bottom",
+        "Banner links to parent hub page",
+        "Banner lists sibling articles from same hub",
+        "Hub pages themselves do NOT show the banner",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "HubBanner async component fetches siblings via getArticlesByHub, renders only for type !== hub"
+    },
+    {
+      "id": "US-003",
+      "title": "Create 6 Mars individual articles",
+      "description": "As a reader, I want 6 focused articles covering March 2026 Belgian real estate topics, so each topic ranks independently.",
+      "acceptanceCriteria": [
+        "6 markdown files created with correct naming (2026-03-01 to 2026-03-06)",
+        "Each has proper frontmatter (type: article, hub: essentiel-immo-mars-2026)",
+        "Each is 800-1500 words with H1/H2/H3 hierarchy",
+        "Each has sources section and Seido CTA",
+        "Internal cross-links present"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "6 articles created (1100-1300 words each), all with proper frontmatter, cross-links, sources"
+    },
+    {
+      "id": "US-004",
+      "title": "Create Mars hub page",
+      "description": "As a reader, I want a monthly index page for March 2026 linking to all 6 individual articles.",
+      "acceptanceCriteria": [
+        "2026-03-00-essentiel-immo-mars-2026.md created",
+        "Frontmatter has type: hub, category: L'essentiel immo",
+        "~400 words with summaries and links to all 6 articles",
+        "Checklist du mois section present"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Hub page with 6 article summaries, checklist, CTA"
+    },
+    {
+      "id": "US-005",
+      "title": "Create 8 Fevrier individual articles",
+      "description": "As a reader, I want 8 focused articles covering February 2026 Belgian real estate topics.",
+      "acceptanceCriteria": [
+        "8 markdown files created with correct naming (2026-02-01 to 2026-02-08)",
+        "Each has proper frontmatter (type: article, hub: essentiel-immo-fevrier-2026)",
+        "Each is 800-1500 words with H1/H2/H3 hierarchy",
+        "Each has sources section and Seido CTA"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "L",
+      "passes": true,
+      "notes": "8 articles created (1150-1500 words each), expanded content with FAQ, tables, action guides"
+    },
+    {
+      "id": "US-006",
+      "title": "Create Fevrier hub page",
+      "description": "As a reader, I want a monthly index page for February 2026 linking to all 8 individual articles.",
+      "acceptanceCriteria": [
+        "2026-02-00-essentiel-immo-fevrier-2026.md created",
+        "Frontmatter has type: hub, category: L'essentiel immo",
+        "~400 words with summaries and links to all 8 articles"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-005"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Hub page with 8 article summaries, checklist, CTA"
+    },
+    {
+      "id": "US-007",
+      "title": "Create 6 Janvier individual articles",
+      "description": "As a reader, I want 6 focused articles covering January 2026 Belgian real estate topics.",
+      "acceptanceCriteria": [
+        "6 markdown files created with correct naming (2026-01-01 to 2026-01-06)",
+        "Each has proper frontmatter (type: article, hub: essentiel-immo-janvier-2026)",
+        "Each is 800-1500 words with H1/H2/H3 hierarchy",
+        "Each has sources section and Seido CTA"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "6 articles created (950-1200 words each), professional tone, contextual CTAs"
+    },
+    {
+      "id": "US-008",
+      "title": "Create Janvier hub page",
+      "description": "As a reader, I want a monthly index page for January 2026 linking to all 6 individual articles.",
+      "acceptanceCriteria": [
+        "2026-01-00-essentiel-immo-janvier-2026.md created",
+        "Frontmatter has type: hub, category: L'essentiel immo",
+        "~400 words with summaries and links to all 6 articles"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-007"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Hub page with 6 article summaries, checklist, CTA"
+    },
+    {
+      "id": "US-009",
+      "title": "Delete 3 original omnibus articles",
+      "description": "As a developer, I want to remove the 3 original digest articles to avoid duplicate content.",
+      "acceptanceCriteria": [
+        "2026-01-panorama-immobilier-belgique-janvier-2026.md deleted",
+        "2026-02-immobilier-belgique-fevrier-2026.md deleted",
+        "2026-03-immobilier-belgique-mars-2026.md deleted",
+        "No broken references remain"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-004", "US-006", "US-008"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "3 omnibus files deleted, fixed 14 broken hub links in new articles (old slug → essentiel-immo-*)"
+    }
+  ]
+}

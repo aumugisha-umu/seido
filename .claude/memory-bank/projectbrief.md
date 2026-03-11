@@ -38,10 +38,12 @@ réduire le "mode pompier" de 70% à 30%.
 - Besoin : Timeline 8 étapes style Deliveroo
 
 ## Contraintes Techniques
-- Stack: Next.js 15, React 19, Supabase, TypeScript strict
-- Multi-tenant avec RLS policies
+- Stack: Next.js 15.2.6, React 19, Supabase, TypeScript strict, Tailwind v4
+- Multi-tenant avec RLS policies (46 tables, 193 migrations)
 - SSR-first avec @supabase/ssr
-- Production-ready avec Repository Pattern + Service Layer
+- Production-ready avec Repository Pattern (25 repos) + Service Layer (63 services)
+- Stripe billing integration (trial, monthly, yearly plans)
+- Blog content marketing (23 articles, hub/cluster architecture)
 
 ## Critères de Succès
 - [ ] Création intervention < 30 sec (gestionnaire)
@@ -50,5 +52,5 @@ réduire le "mode pompier" de 70% à 30%.
 - [ ] 0 fuite de données cross-tenant
 
 ---
-*Dernière mise à jour: 2026-01-22*
+*Dernière mise à jour: 2026-03-11*
 *Source: docs/design/persona-*.md*

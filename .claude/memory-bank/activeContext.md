@@ -1,53 +1,62 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Performance Optimization TIER 1+2 complete + Post-creation redirect UX + Compound learnings
-**Branch:** `preview`
-**Sprint:** Performance optimization + UX polish (Mar 2026)
-**Derniere analyse:** 13 stories performance optimization + 7 new AGENTS.md learnings (#104-#110) — 2026-03-02
+**Objectif:** Supplier Contracts Feature + Intervention Planner Refactoring
+**Branch:** `feature/ai-phone-assistant`
+**Sprint:** Supplier Contracts + Intervention Planner (Mar 2026)
+**Derniere analyse:** PostgREST FK fix + supplier card display + compound learnings #133-#134 — 2026-03-11
+
+---
+
+## 🚧 EN COURS: Supplier Contracts (2026-03-11)
+
+New feature: supplier contracts linked to buildings/lots with full CRUD.
+- DB: `supplier_contracts` + `supplier_contract_documents` tables (3 migrations)
+- Repository: `supplier-contract.repository.ts` (4 query methods with FK-disambiguated nested selects)
+- Service: `supplier-contract.service.ts`
+- UI: `supplier-contract-card.tsx` (person name + purple company badge), `building-contracts-tab.tsx`
+- Wizard: `supplier-contracts-step.tsx`, `supplier-confirmation-step.tsx`
+- **PostgREST FK fix**: `!fk_users_company` hint for `users→companies` nested select (PGRST201)
+- **Card display**: Person name primary + company badge (matching contact-card-compact pattern)
+
+---
+
+## ✅ COMPLETE: Intervention Planner Refactoring (2026-03-11)
+
+Extracted shared `InterventionPlannerStep` from `LeaseInterventionsStep` (540→345 lines).
+6/6 stories passed. Reusable for supplier contract reminders with configurable roles.
+- Design: `docs/plans/2026-03-11-intervention-planner-refactoring.md`
+- New files: `intervention-planner-step.tsx`, `intervention-planner.types.ts`, `assignable-roles.ts`, `supplier-interventions.ts`
+
+---
+
+## ✅ COMPLETE: Blog Hub/Cluster Redesign (2026-03-11)
+
+23 blog articles (Jan/Feb/Mar 2026 Belgian real estate news).
+Hub-cluster architecture with `hub` field linking cluster articles to their hub.
+AGENTS.md learnings #130-#132.
+
+---
+
+## ✅ COMPLETE: AI Phone Assistant Phase 1 (2026-03-09)
+
+13 stories: webhook hardening, email notifications, AI phone call integration.
+Retrospective: `docs/learnings/2026-03-09-ai-phone-webhook-fallback-retrospective.md`
+
+---
+
+## ✅ COMPLETE: Email Section Refonte Phase 1 (2026-03-06)
+
+12 stories: counts system, navigation, dead code cleanup.
+Retrospective: `docs/learnings/2026-03-06-email-refonte-phase1-retrospective.md`
 
 ---
 
 ## ✅ COMPLETE: Performance Optimization TIER 1+2 (2026-03-02)
 
-13 stories from 6-agent audit (96 findings consolidated):
-- **US-001**: Composite index on conversation_participants (thread_id, user_id)
-- **US-002**: Removed redundant auth checks in 4 server action files (~80 lines, ~16 queries/action)
-- **US-003/004/006**: Parallelized 11 Server Component pages (Phase 0 → Wave 1 → Wave 2 pattern)
-- **US-005**: Parallelized create-manager-intervention API
-- **US-007/008**: Batch operations (contract rent reminders 72→18 queries, contact insertion N→1)
-- **US-009**: Deferred invitation emails via `after()` from next/server
-- **US-010**: Removed ~85 dead revalidation calls (~120 lines)
-- **US-011**: Cached Stripe subscription info (unstable_cache, 15min TTL, webhook invalidation)
-- **US-012**: RPC for thread unread counts (15 queries → 1 RPC call)
-- **US-013**: Stats head:true optimization + contrats page after()
-
-New AGENTS.md learnings: #105-#110
+13 stories from 6-agent audit (96 findings consolidated).
+New AGENTS.md learnings: #105-#110.
 Retrospective: `docs/learnings/2026-03-02-performance-optimization-tier1-tier2-retrospective.md`
-
----
-
-## ✅ COMPLETE: Post-Creation Redirect UX (2026-03-02)
-
-4 one-line edits: immeuble, lot (single+multi), contact standalone now redirect to detail page after creation.
-Removed redundant `router.refresh()` after `router.push()`.
-AGENTS.md learning #104.
-
----
-
-## ✅ COMPLETE: Slot-Count Business Logic + Confirmation Fix (2026-03-01)
-
-`isMultiSlot` derivation: 1 slot = optional confirmation (Date fixe behavior), 2+ = mandatory.
-Non-invited contacts: confirmation logic fix.
-AGENTS.md learnings #101-#103.
-
----
-
-## ✅ COMPLETE: Subscription Billing + Onboarding Polish (2026-03-01)
-
-- Enhanced billing interval handling (monthly/yearly display)
-- Onboarding checklist: swapped steps 2↔3, hid useless building option
-- Removed beta access gate from signup page
 
 ---
 
@@ -79,13 +88,12 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
-- [ ] Commit + push preview branch (git*)
-- [ ] Merge preview to main (PR creation)
-- [ ] Deploy + verify performance improvements in production
+- [ ] Complete intervention planner refactoring (6 stories in prd.json)
+- [ ] Finalize supplier contracts feature
+- [ ] Commit + push feature/ai-phone-assistant branch (git*)
 
 ### Fonctionnalites a Venir
 - [ ] Google Maps Integration Phase 2-3
-- [ ] AI Phone Assistant (design doc in docs/AI/)
 - [ ] Locataire lot details page (plan in docs/plans/)
 - [ ] Landing page AI redesign (plan in docs/plans/)
 - [ ] More blog articles (content marketing pipeline)
@@ -94,48 +102,47 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-03-02)
+## Metriques Systeme (Mise a jour 2026-03-11)
 
 | Composant | Valeur |
 |-----------|--------|
-| **Tables DB** | **44** |
-| **Migrations** | **178** (+2: conversation_participants index, unread counts RPC) |
-| **API Routes** | **120** |
+| **Tables DB** | **46** (+2: supplier_contracts, supplier_contract_documents) |
+| **Migrations** | **193** (+15 since last update) |
+| **API Routes** | **121** (+1: upload-supplier-contract-document) |
 | **Pages** | **90** |
-| **Composants** | **381** |
+| **Composants** | **390+** |
 | **Hooks** | **71** |
-| **Services domain** | **34** |
-| **Repositories** | **21** |
-| **DB Functions** | **80** (+1: get_thread_unread_counts) |
+| **Services domain** | **35** (+1: supplier-contract.service) |
+| **Repositories** | **23** (+2: supplier-contract, supplier-contract-document) |
+| **DB Functions** | **80** |
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **110** (+15: #096-#103 slot/billing, #104 redirect, #105-#110 perf) |
-| **systemPatterns.md Patterns** | **32** (+3: parallelization, after(), RLS-as-auth) |
-| **E2E Test Files** | **8** |
-| **Blog articles** | **2** |
+| **AGENTS.md Learnings** | **134** (+24 since Mar 02: #111-#134) |
+| **Blog articles** | **23** (+21 since last update) |
+| **Retrospectives** | **39** |
 
 ---
 
-## Commits Recents (preview branch)
+## Commits Recents (feature/ai-phone-assistant branch)
 
 | Hash | Description |
 |------|-------------|
-| `82869f1` | feat(subscription): enhance billing interval handling and update UI components |
-| `6d3077f` | fix(onboarding+lots): swap checklist steps 2↔3 and hide useless building option |
-| `27ffa30` | fix(auth): remove beta access gate from signup page |
-| `89cea06` | fix(interventions): confirmation logic for non-invited contacts + slot-count business rules |
-| `e16cbe7` | fix(billing+mail+auth+storage): subscription limit fix, mail cleanup, auth migration, bucket unification |
+| `c228627` | fix(intervention): update "Traiter la demande" label |
+| `7c7b9e7` | feat(landing+blog): landing page redesign plan, blog hub-cluster articles |
+| `0e77737` | feat(ui): move Load More button inline with pagination |
+| `48914a1` | feat(wizard): harmonize document/intervention wizard sections |
+| `334fe71` | feat(ui): restore card views and default cards across all navigators |
+| `f855295` | feat(ai-phone): AI Phone Assistant Phase 1 — 13 stories |
 
 ---
 
-*Derniere mise a jour: 2026-03-02 (performance optimization TIER 1+2 complete)*
-*Focus: 13 stories perf optimization + post-creation redirect UX + 110 learnings in AGENTS.md*
+*Derniere mise a jour: 2026-03-11 (supplier contracts FK fix + card display + compound #133-#134)*
+*Focus: Supplier Contracts + Intervention Planner Refactoring*
 
 ## Files Recently Modified
-### 2026-03-11 08:00:45 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/intervention/intervention-action-buttons.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/intervention-action-utils.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tests/e2e/pages/intervention-detail.page.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tests/e2e/intervention-workflow.e2e.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tests/e2e/intervention-lifecycle.e2e.ts`
+### 2026-03-11 22:30:16 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/systemPatterns.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/techContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/productContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/projectbrief.md`

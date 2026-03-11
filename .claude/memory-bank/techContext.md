@@ -64,28 +64,30 @@ npm run supabase:migrate # Creer nouvelle migration (avec timestamp correct)
 
 ```
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
-  - 90 pages total (reparties en 5+ route groups)
+  - 76 pages total (reparties en 5+ route groups)
 app/blog/            # Blog pages (index + [slug] article pages)
 blog/articles/       # Markdown articles with YAML frontmatter
-components/          # 381 composants reutilisables (22 directories)
+components/          # 440 composants reutilisables (22 directories)
 components/blog/     # Blog components (markdown, card, list-client)
 components/billing/  # 11 billing UI components (NEW 2026-02-22)
+components/contracts/ # Supplier contract cards + building contracts tab
 hooks/               # 70 custom hooks (+useSubscription, useStrategicNotification)
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
-  repositories/      # 21 repositories (acces donnees)
-  domain/            # 34 services (logique metier)
+  repositories/      # 25 repositories (+ supplier-contract, supplier-contract-document)
+  domain/            # 63 services (logique metier + supplier-contract)
     email-notification/  # Module refactore (15 fichiers)
-app/actions/         # 17 server action files
-app/api/             # 120 API routes (10 domaines)
+app/actions/         # 21 server action files (+ supplier-contract-actions)
+app/api/             # 123 API routes (10 domaines + ai-phone)
   cron/              # 4 CRON jobs (trial-expiration, trial-notifications, behavioral-triggers, cleanup-webhook-events)
   stripe/            # Stripe webhook handler
+  ai-phone/          # AI phone assistant webhook + usage (NEW 2026-03)
 tests/               # E2E test infrastructure (Puppeteer + Vitest)
   e2e/               # 4 test files, 5 POMs, 2 helpers, global setup
   fixtures/          # Test accounts, test-document.pdf
-docs/                # 226+ fichiers markdown
+docs/                # 230+ fichiers markdown
 docs/stripe/         # Stripe docs (admin-guide, coupon-strategy, production-checklist)
-supabase/migrations/ # 178 migrations SQL (mis a jour 2026-03-02)
+supabase/migrations/ # 193 migrations SQL (mis a jour 2026-03-11)
 ```
 
 ### Module email-notification (Refactore 2026-01)
@@ -118,7 +120,7 @@ lib/services/domain/
 
 ## Base de Donnees
 
-### Tables Principales (44 total - mis a jour 2026-02-22)
+### Tables Principales (46 total - mis a jour 2026-03-11)
 
 | Phase | Tables |
 |-------|--------|
@@ -128,7 +130,9 @@ lib/services/domain/
 | 4 | contracts, contract_contacts, contract_documents, import_jobs |
 | 5 | intervention_types, intervention_type_categories |
 | 6 | intervention_quotes, quote_attachments, quote_documents |
-| **7 (NEW)** | **subscriptions, stripe_customers, stripe_invoices, stripe_webhook_events** |
+| 7 | subscriptions, stripe_customers, stripe_invoices, stripe_webhook_events |
+| **8 (NEW)** | **supplier_contracts, supplier_contract_documents** |
+| **9 (NEW)** | **ai_phone_calls, ai_phone_usage** |
 
 ### Stripe Schema (NOUVEAU 2026-02-22)
 
@@ -423,19 +427,24 @@ Fichier: `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 - `intervention_quotes` table - gere le cycle de vie des devis
 - Le statut intervention reste `planification` pendant la gestion des devis
 
-### Migrations Recentes (2026-02-22)
+### Migrations Recentes (2026-03-11)
 
 | Migration | Description |
 |-----------|-------------|
-| `20260222000000_fix_signup_trial_status.sql` | Fix trial status init in signup trigger |
-| `20260221000002_add_trial_init_to_signup_trigger.sql` | Auto-init trial on signup |
-| `20260221000001_migrate_beta_users_subscriptions.sql` | Migrate existing beta users to subscriptions |
-| `20260221000000_create_stripe_subscription_schema.sql` | Create Stripe tables + helpers |
-| `20260131000000_remove_collocation_category.sql` | Suppression 'collocation' de lot_category enum |
-| `20260201153246_add_individual_conversation_threads.sql` | Threads individuels par participant (NEW) |
-| `20260130230000_add_performance_indexes.sql` | Index de performance |
-| `20260130155700_add_contract_to_activity_entity_type.sql` | Support contrats dans activity_logs |
-| `20260129220000_add_is_internal_to_comments.sql` | Commentaires internes |
+| `20260311120000` | Remove supplier_contract start_date column |
+| `20260311110000` | Supplier contract intervention type link |
+| `20260311100000` | Supplier contracts + supplier_contract_documents tables |
+| `20260309130000` | RPC upsert_ai_phone_usage |
+| `20260309120000` | Relax intervention location constraint (NULL allowed for AI phone) |
+| `20260309100000` | AI phone assistant schema (ai_phone_calls, ai_phone_usage) |
+| `20260305100000` | Fix get_email_counts v2 |
+| `20260302120000` | get_email_counts RPC |
+| `20260302110000` | get_thread_unread_counts SECURITY DEFINER RPC |
+| `20260302100000` | Composite index on conversation_participants (thread_id, user_id) |
+| `20260228100000` | Add rappel_loyer intervention type |
+| `20260226110000` | Fix storage RLS auth.uid() vs users.id |
+| `20260225120000` | Fix RLS gestionnaire team_id mismatch (team_members source of truth) |
+| `20260222000000` | Fix signup trial status init | |
 
 ### Thread Types (Mis a jour 2026-02-01)
 
@@ -532,8 +541,9 @@ class SubscriptionEmailService {
 | **STRIPE_PRICE_ID_YEARLY** | **Stripe price ID for yearly plan** |
 
 ---
-*Derniere mise a jour: 2026-02-22*
-*Analyse approfondie: 44 tables, 120 routes, 70 hooks, 89 pages, 174 migrations*
-*Blog: 2 articles, gray-matter + react-markdown*
+*Derniere mise a jour: 2026-03-11*
+*Analyse approfondie: 46 tables, 123 routes, 70 hooks, 76 pages, 193 migrations*
+*Blog: 23 articles, gray-matter + react-markdown, hub-cluster architecture*
 *Stripe: 4 tables, 5 DB functions, 2 services, 2 repositories*
+*Supplier Contracts: 2 tables, 2 repositories, 1 service*
 *Regenerer types: npm run supabase:types*

@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-03-11
-**Total Learnings:** 132
+**Total Learnings:** 134
 
 ---
 
@@ -955,6 +955,20 @@
 **Example:** `app/blog/[slug]/page.tsx:188-225` — HubBanner async component
 **When to Use:** Any UI that depends on fetched data but doesn't need interactivity. Async Server Components are simpler than Client Components with useEffect.
 **Added:** 2026-03-11 | **Source:** Blog Hub/Cluster Redesign — US-002
+
+#### Learning #133: PostgREST PGRST201 — disambiguate multiple FK paths with `!fk_name`
+**Problem:** Adding `company_record:companies(id, name)` as a nested select inside a `users` relation fails with PGRST201 ("Could not embed because more than one relationship was found") when two FK paths exist between the same table pair (e.g., `users.company_id → companies.id` AND `companies.deleted_by → users.id`). PostgREST can't guess which FK to follow.
+**Solution:** Use the FK constraint name as a hint: `company_record:companies!fk_users_company(id, name)`. Find the constraint name in migration SQL or via `\d+ tablename` in psql. This explicitly tells PostgREST which path to traverse.
+**Example:** `lib/services/repositories/supplier-contract.repository.ts` — all 4 query methods
+**When to Use:** Any nested PostgREST select between tables that have 2+ FK relationships (forward + reverse, or multiple forward FKs). Common with audit columns (`created_by`, `deleted_by`) pointing back to `users`.
+**Added:** 2026-03-11 | **Source:** Supplier contracts — company nested relation fix
+
+#### Learning #134: Card display — show person name + company badge, not company-as-name
+**Problem:** Supplier contract cards showed `company_record.name` as the supplier name, losing the individual contact's identity. This was inconsistent with contact cards which show the person's name prominently with a company badge alongside.
+**Solution:** Split the display function into two: `getSupplierDisplayName()` (always returns person's first_name + last_name) and `getSupplierCompanyName()` (returns company_record.name or legacy company field). Render person name as primary text, company as a purple `Badge` with `Building2` icon — matching the pattern in `contact-card-compact.tsx:153-161`.
+**Example:** `components/contracts/supplier-contract-card.tsx` — `getSupplierDisplayName` + `getSupplierCompanyName`
+**When to Use:** Any new entity card that displays a contact/supplier — always show person name as primary, company as badge.
+**Added:** 2026-03-11 | **Source:** Supplier contract cards UI consistency fix
 
 ---
 

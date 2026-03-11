@@ -26,6 +26,8 @@ import { BUILDING_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots
 import { useSubscription } from '@/hooks/use-subscription'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
 import { getAccessibleLots } from '@/app/actions/subscription-actions'
+import { BuildingContractsTab } from '@/components/contracts/building-contracts-tab'
+import type { SupplierContractWithRelations } from '@/lib/types/supplier-contract.types'
 
 interface BuildingContact {
   id: string
@@ -108,6 +110,8 @@ interface BuildingDetailsClientProps {
   lotContactIdsMap: Record<string, { lotId: string; lotContactId: string; lotReference: string }>
   teamId: string
   buildingAddress?: BuildingAddress | null
+  buildingSupplierContracts: SupplierContractWithRelations[]
+  lotSupplierContractsByLotId: Record<string, SupplierContractWithRelations[]>
 }
 
 export default function BuildingDetailsClient({
@@ -119,7 +123,9 @@ export default function BuildingDetailsClient({
   teamId,
   lotsWithContacts,
   lotContactIdsMap,
-  buildingAddress
+  buildingAddress,
+  buildingSupplierContracts,
+  lotSupplierContractsByLotId
 }: BuildingDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("general")
   const router = useRouter()
@@ -322,10 +328,31 @@ export default function BuildingDetailsClient({
       type: 'other'
     }))
 
+  // Build merged lots with all contracts + total count for the Contracts tab
+  const { mergedLotsWithAllContracts, totalContractsCount } = useMemo(() => {
+    let count = buildingSupplierContracts.length
+    const merged = lotsWithContacts.map(lot => {
+      const leases = (lot.contracts || []).map(c => ({
+        ...c,
+        lot: { id: lot.id, reference: lot.reference },
+      }))
+      const suppliers = lotSupplierContractsByLotId[lot.id] || []
+      count += leases.length + suppliers.length
+      return {
+        lotId: lot.id,
+        lotReference: lot.reference,
+        leaseContracts: leases,
+        supplierContracts: suppliers,
+      }
+    })
+    return { mergedLotsWithAllContracts: merged, totalContractsCount: count }
+  }, [lotsWithContacts, lotSupplierContractsByLotId, buildingSupplierContracts.length])
+
   // Tabs configuration for EntityTabs
   const buildingTabs: TabConfig[] = [
     { value: "general", label: "Général" },
     { value: "contacts", label: "Contacts" },
+    { value: "contracts", label: "Contrats", count: totalContractsCount },
     { value: "interventions", label: "Interventions", count: stats.totalInterventions },
     { value: "documents", label: "Documents" },
     { value: "emails", label: "Emails" },
@@ -542,6 +569,15 @@ export default function BuildingDetailsClient({
                   readOnly={false}
                 />
               </div>
+            </TabContentWrapper>
+
+            {/* Contracts Tab */}
+            <TabContentWrapper value="contracts">
+              <BuildingContractsTab
+                buildingId={building.id}
+                buildingSupplierContracts={buildingSupplierContracts}
+                lotsWithContracts={mergedLotsWithAllContracts}
+              />
             </TabContentWrapper>
 
             {/* Interventions Tab */}

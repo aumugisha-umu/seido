@@ -1,55 +1,11 @@
-# Progress Log — Blog Hub/Cluster Redesign
+# Progress Log — Intervention Planner Refactoring
 # Started: 2026-03-11
-# Stories: 9 total (US-001 to US-009)
-# Branch: feature/landing-page-redesign
-# Design: docs/plans/2026-03-11-blog-hub-cluster-redesign.md
+# Stories: 6 total
+# Design: docs/plans/2026-03-11-intervention-planner-refactoring.md
 ---
 
-## US-001: Add type/hub fields to lib/blog.ts
-- **Date**: 2026-03-11
-- **Files**: lib/blog.ts
-- **Changes**: Added type/hub to ArticleMeta interface, parseArticleFile, getLatestArticles filter, new getArticlesByHub function
-
-## US-002: Hub-article relationship banner
-- **Date**: 2026-03-11
-- **Files**: app/blog/[slug]/page.tsx
-- **Changes**: Added async HubBanner component, renders sibling articles for articles with hub field, hidden on hub pages
-- **Learning**: Async Server Components can call data-fetching functions directly — no useEffect needed
-
-## US-003: Create 6 Mars individual articles
-- **Date**: 2026-03-11
-- **Files**: blog/articles/2026-03-01 to 2026-03-06
-- **Changes**: 6 articles (1100-1300 words), expanded from omnibus with deeper analysis
-
-## US-004: Create Mars hub page
-- **Date**: 2026-03-11
-- **Files**: blog/articles/2026-03-00-essentiel-immo-mars-2026.md
-
-## US-005: Create 8 Fevrier individual articles
-- **Date**: 2026-03-11
-- **Files**: blog/articles/2026-02-01 to 2026-02-08
-- **Changes**: 8 articles (1150-1500 words), added FAQ tables and action guides
-
-## US-006: Create Fevrier hub page
-- **Date**: 2026-03-11
-- **Files**: blog/articles/2026-02-00-essentiel-immo-fevrier-2026.md
-
-## US-007: Create 6 Janvier individual articles
-- **Date**: 2026-03-11
-- **Files**: blog/articles/2026-01-01 to 2026-01-06
-- **Changes**: 6 articles (950-1200 words), professional tone, contextual CTAs
-
-## US-008: Create Janvier hub page
-- **Date**: 2026-03-11
-- **Files**: blog/articles/2026-01-00-essentiel-immo-janvier-2026.md
-
-## US-009: Delete omnibus articles + fix broken links
-- **Date**: 2026-03-11
-- **Changes**: Deleted 3 omnibus files. Fixed 14 broken hub links (agents used old slug format → replaced with essentiel-immo-*)
-- **Learning**: When delegating content creation to agents, verify internal link slugs match hub frontmatter slugs — agents may infer wrong slugs from filename patterns
-
----
-# FEATURE COMPLETE: Blog Hub/Cluster Redesign
-# All 9 stories passed
-# Date: 2026-03-11
-# Result: 3 omnibus → 20 individual articles + 3 hub pages, code supports type/hub fields
+## 2026-03-11 — Fix: PostgREST ambiguous FK + Supplier card display
+- Implemented: FK hint `!fk_users_company` on 4 repository queries to fix PGRST201; refactored supplier card to show person name + company badge
+- Files: `lib/services/repositories/supplier-contract.repository.ts`, `components/contracts/supplier-contract-card.tsx`
+- Learnings: PostgREST needs `!fk_name` when 2+ FK paths exist between same table pair (audit columns like `deleted_by` create reverse FK). Card display should always prioritize person identity over company.
+- Decision: Reused contact-card-compact badge pattern (purple bg + Building2 icon) for UI consistency across all entity cards

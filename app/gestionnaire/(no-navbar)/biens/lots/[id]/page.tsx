@@ -7,7 +7,8 @@ import {
   createServerLotContactRepository,
   createServerBuildingRepository,
   createServerContractService,
-  createServerSupabaseClient
+  createServerSupabaseClient,
+  createServerSupplierContractService
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
@@ -146,11 +147,12 @@ export default async function LotDetailsPage({
 
   try {
     // Phase 1: Initialize all services in parallel
-    const [lotService, interventionService, lotContactRepository, contractService] = await Promise.all([
+    const [lotService, interventionService, lotContactRepository, contractService, supplierContractService] = await Promise.all([
       createServerLotService(),
       createServerInterventionService(),
       createServerLotContactRepository(),
-      createServerContractService()
+      createServerContractService(),
+      createServerSupplierContractService()
     ])
 
     // Phase 2: Load lot data WITH relations (building, etc.) — needed before parallel queries
@@ -223,7 +225,8 @@ export default async function LotDetailsPage({
       contactsResult,
       contractsResult,
       tenantsResult,
-      buildingContacts
+      buildingContacts,
+      supplierContracts
     ] = await Promise.all([
       // Interventions (graceful handling)
       interventionService.getByLot(id)
@@ -279,7 +282,13 @@ export default async function LotDetailsPage({
         }),
 
       // Building contacts
-      buildingContactsPromise
+      buildingContactsPromise,
+
+      // Supplier contracts for this lot
+      supplierContractService.getByLot(id).catch((error) => {
+        logger.warn('[LOT-PAGE-SERVER] Could not load supplier contracts', { error })
+        return [] as Awaited<ReturnType<typeof supplierContractService.getByLot>>
+      })
     ])
 
     // Check lot contacts result (critical — notFound if failed)
@@ -475,6 +484,7 @@ export default async function LotDetailsPage({
         buildingContacts={buildingContacts}
         interventionsWithDocs={interventionsWithDocs}
         contracts={contracts}
+        supplierContracts={supplierContracts}
         isOccupied={hasTenant}
         teamId={team.id}
         lotAddress={lotAddress}

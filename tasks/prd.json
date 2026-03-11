@@ -1,156 +1,118 @@
 {
   "project": "SEIDO",
-  "featureName": "Blog Hub/Cluster Redesign",
-  "branchName": "feature/landing-page-redesign",
-  "description": "Restructure 3 omnibus blog articles into 20 individual articles + 3 hub pages. Add type/hub frontmatter support to lib/blog.ts and hub-article relationship UI to blog article pages.",
+  "featureName": "Intervention Planner Refactoring",
+  "branchName": "feature/ai-phone-assistant",
+  "description": "Extract shared InterventionPlannerStep from lease-interventions-step.tsx. Make it reusable for supplier contract reminders with configurable assignable roles, scheduling options, and custom interventions.",
   "createdAt": "2026-03-11",
-  "prdSource": "docs/plans/2026-03-11-blog-hub-cluster-redesign.md",
+  "prdSource": "docs/plans/2026-03-11-intervention-planner-refactoring.md",
   "status": "completed",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Add type/hub fields to ArticleMeta + filter/query functions",
-      "description": "As a developer, I want ArticleMeta to support type and hub fields, getLatestArticles to exclude hubs, and a new getArticlesByHub function, so that hub/cluster relationships work in code.",
+      "title": "Shared types + assignable roles constants",
+      "description": "As a developer, I want shared types (AssignableRole, InterventionPlannerSection, InterventionPlannerStepProps) and role constants, so both lease and supplier wizards can configure the planner.",
       "acceptanceCriteria": [
-        "ArticleMeta has type: string and hub: string fields",
-        "parseArticleFile extracts type (default 'article') and hub (default '')",
-        "getLatestArticles filters out type === 'hub'",
-        "getArticlesByHub(hubSlug) returns articles sorted by date",
+        "lib/types/intervention-planner.types.ts created with all interfaces",
+        "lib/constants/assignable-roles.ts created with LEASE/SUPPLIER role configs + ROLE_TO_CONTACT_TYPE + CONTACT_TYPE_TO_ROLE mappings",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Supplier scheduling options + intervention factory",
+      "description": "As a developer, I want supplier-specific scheduling options (relative to end date / préavis) and a factory to create ScheduledInterventionData from supplier contracts.",
+      "acceptanceCriteria": [
+        "lib/constants/supplier-interventions.ts created",
+        "getSupplierSchedulingOptions returns options relative to endDate",
+        "Notice period option added when noticePeriodValue > 0",
+        "Default option is notice_date when available, else end_date",
+        "createSupplierReminderIntervention produces valid ScheduledInterventionData",
         "Lint passes"
       ],
       "priority": 1,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "Added type/hub to ArticleMeta, filter in getLatestArticles, new getArticlesByHub function"
+      "notes": ""
     },
     {
-      "id": "US-002",
-      "title": "Hub-article relationship banner in blog article page",
-      "description": "As a reader, I want to see a banner at the bottom of individual articles linking to the parent hub and sibling articles, so I can discover related content.",
+      "id": "US-003",
+      "title": "InterventionScheduleRow: configurable assignableRoles prop",
+      "description": "As a developer, I want InterventionScheduleRow to accept an optional assignableRoles prop so the assign popover shows only the relevant roles for each context.",
       "acceptanceCriteria": [
-        "Articles with hub field show a relationship banner at bottom",
-        "Banner links to parent hub page",
-        "Banner lists sibling articles from same hub",
-        "Hub pages themselves do NOT show the banner",
+        "assignableRoles prop added (optional, backward-compatible default)",
+        "Popover uses assignableRoles instead of hardcoded ASSIGN_TYPE_OPTIONS",
+        "Existing lease behavior unchanged (no prop = all 3 roles)",
         "Lint passes"
       ],
       "priority": 2,
       "dependsOn": ["US-001"],
-      "sizing": "S",
+      "sizing": "XS",
       "passes": true,
-      "notes": "HubBanner async component fetches siblings via getArticlesByHub, renders only for type !== hub"
-    },
-    {
-      "id": "US-003",
-      "title": "Create 6 Mars individual articles",
-      "description": "As a reader, I want 6 focused articles covering March 2026 Belgian real estate topics, so each topic ranks independently.",
-      "acceptanceCriteria": [
-        "6 markdown files created with correct naming (2026-03-01 to 2026-03-06)",
-        "Each has proper frontmatter (type: article, hub: essentiel-immo-mars-2026)",
-        "Each is 800-1500 words with H1/H2/H3 hierarchy",
-        "Each has sources section and Seido CTA",
-        "Internal cross-links present"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "6 articles created (1100-1300 words each), all with proper frontmatter, cross-links, sources"
+      "notes": ""
     },
     {
       "id": "US-004",
-      "title": "Create Mars hub page",
-      "description": "As a reader, I want a monthly index page for March 2026 linking to all 6 individual articles.",
+      "title": "InterventionPlannerStep shared wrapper component",
+      "description": "As a developer, I want a shared InterventionPlannerStep that handles header, ScrollArea, ContactSelector, assignment state, and section rendering, so both lease and supplier wizards reuse the same orchestration logic.",
       "acceptanceCriteria": [
-        "2026-03-00-essentiel-immo-mars-2026.md created",
-        "Frontmatter has type: hub, category: L'essentiel immo",
-        "~400 words with summaries and links to all 6 articles",
-        "Checklist du mois section present"
+        "components/contract/intervention-planner-step.tsx created (~250 lines)",
+        "Manages contactSelectorRef + activeAssignment state",
+        "handleToggle, handleDateChange, handleSchedulingOptionChange work",
+        "handleContactSelected/Removed work for both intervention rows and external keys (rent reminders)",
+        "Section rendering loop with Separators, section headers with icons, allowCustomAdd button",
+        "renderCustom sections rendered correctly",
+        "Lint passes"
       ],
-      "priority": 3,
-      "dependsOn": ["US-003"],
-      "sizing": "S",
+      "priority": 2,
+      "dependsOn": ["US-001", "US-003"],
+      "sizing": "L",
       "passes": true,
-      "notes": "Hub page with 6 article summaries, checklist, CTA"
+      "notes": ""
     },
     {
       "id": "US-005",
-      "title": "Create 8 Fevrier individual articles",
-      "description": "As a reader, I want 8 focused articles covering February 2026 Belgian real estate topics.",
+      "title": "Refactor LeaseInterventionsStep to thin wrapper",
+      "description": "As a developer, I want LeaseInterventionsStep to delegate to InterventionPlannerStep, keeping only lease-specific logic (rent reminders, section building, custom CRUD, tenant pre-selection).",
       "acceptanceCriteria": [
-        "8 markdown files created with correct naming (2026-02-01 to 2026-02-08)",
-        "Each has proper frontmatter (type: article, hub: essentiel-immo-fevrier-2026)",
-        "Each is 800-1500 words with H1/H2/H3 hierarchy",
-        "Each has sources section and Seido CTA"
+        "LeaseInterventionsStep reduced from ~540 to ~180 lines",
+        "Builds 4 sections (custom, rent, standard, documents) and passes to InterventionPlannerStep",
+        "Rent reminder block preserved via renderCustom",
+        "All existing lease wizard functionality works identically",
+        "Custom intervention add/delete/edit works",
+        "ContactSelector assignment works for all sections including rent reminders",
+        "Lint passes"
       ],
       "priority": 3,
-      "dependsOn": [],
-      "sizing": "L",
+      "dependsOn": ["US-004"],
+      "sizing": "M",
       "passes": true,
-      "notes": "8 articles created (1150-1500 words each), expanded content with FAQ, tables, action guides"
+      "notes": ""
     },
     {
       "id": "US-006",
-      "title": "Create Fevrier hub page",
-      "description": "As a reader, I want a monthly index page for February 2026 linking to all 8 individual articles.",
+      "title": "Supplier reminders step using InterventionPlannerStep",
+      "description": "As a gestionnaire, I want the supplier contract reminder step to use InterventionPlannerStep with full features: scheduling options, contact assignment, and custom reminders.",
       "acceptanceCriteria": [
-        "2026-02-00-essentiel-immo-fevrier-2026.md created",
-        "Frontmatter has type: hub, category: L'essentiel immo",
-        "~400 words with summaries and links to all 8 articles"
+        "State changed from Record<string, ReminderConfig> to ScheduledInterventionData[]",
+        "useEffect syncs interventions from supplierContracts (preserving user edits)",
+        "Case 2 renders InterventionPlannerStep with supplier sections",
+        "Custom reminders section with + Ajouter button",
+        "Contract reminders with scheduling dropdown (end date / préavis options)",
+        "Assign button shows only Gestionnaires + Prestataires",
+        "Submission converts ScheduledInterventionData[] back to Record format for server action",
+        "Lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-005"],
-      "sizing": "S",
+      "dependsOn": ["US-002", "US-004"],
+      "sizing": "L",
       "passes": true,
-      "notes": "Hub page with 8 article summaries, checklist, CTA"
-    },
-    {
-      "id": "US-007",
-      "title": "Create 6 Janvier individual articles",
-      "description": "As a reader, I want 6 focused articles covering January 2026 Belgian real estate topics.",
-      "acceptanceCriteria": [
-        "6 markdown files created with correct naming (2026-01-01 to 2026-01-06)",
-        "Each has proper frontmatter (type: article, hub: essentiel-immo-janvier-2026)",
-        "Each is 800-1500 words with H1/H2/H3 hierarchy",
-        "Each has sources section and Seido CTA"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "6 articles created (950-1200 words each), professional tone, contextual CTAs"
-    },
-    {
-      "id": "US-008",
-      "title": "Create Janvier hub page",
-      "description": "As a reader, I want a monthly index page for January 2026 linking to all 6 individual articles.",
-      "acceptanceCriteria": [
-        "2026-01-00-essentiel-immo-janvier-2026.md created",
-        "Frontmatter has type: hub, category: L'essentiel immo",
-        "~400 words with summaries and links to all 6 articles"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-007"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Hub page with 6 article summaries, checklist, CTA"
-    },
-    {
-      "id": "US-009",
-      "title": "Delete 3 original omnibus articles",
-      "description": "As a developer, I want to remove the 3 original digest articles to avoid duplicate content.",
-      "acceptanceCriteria": [
-        "2026-01-panorama-immobilier-belgique-janvier-2026.md deleted",
-        "2026-02-immobilier-belgique-fevrier-2026.md deleted",
-        "2026-03-immobilier-belgique-mars-2026.md deleted",
-        "No broken references remain"
-      ],
-      "priority": 4,
-      "dependsOn": ["US-004", "US-006", "US-008"],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "3 omnibus files deleted, fixed 14 broken hub links in new articles (old slug → essentiel-immo-*)"
+      "notes": ""
     }
   ]
 }

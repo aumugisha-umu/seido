@@ -1,0 +1,176 @@
+{
+  "project": "SEIDO",
+  "featureName": "Supplier Contracts",
+  "branchName": "feature/supplier-contracts",
+  "description": "Add supplier contract creation flow: menu options, wizard branching, repeatable contract form, DB schema, document uploads, and reminder interventions before notice date.",
+  "createdAt": "2026-03-11",
+  "prdSource": "docs/plans/2026-03-11-supplier-contracts-design.md",
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "DB migration: supplier_contracts + supplier_contract_documents tables",
+      "description": "As a developer, I want the supplier_contracts and supplier_contract_documents tables with proper RLS, indexes, and XOR constraint, so that supplier contracts can be stored securely.",
+      "acceptanceCriteria": [
+        "supplier_contracts table created with all columns from design",
+        "supplier_contract_documents table created",
+        "XOR constraint on building_id/lot_id works",
+        "RLS policies based on team_members (is_team_manager for writes, team membership for reads)",
+        "Indexes on team_id, building_id, lot_id, status, notice_date",
+        "updated_at trigger exists",
+        "npm run supabase:types regenerates types successfully"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Migration 20260311100000_supplier_contracts.sql — 2 tables, XOR constraint, 8 RLS policies, 7 indexes, updated_at trigger, types regenerated"
+    },
+    {
+      "id": "US-002",
+      "title": "DB migration: rappel_preavis_fournisseur intervention type",
+      "description": "As a developer, I want a new intervention type category 'Contrats fournisseurs' with type 'Rappel préavis fournisseur', so reminder interventions can be created for supplier contracts.",
+      "acceptanceCriteria": [
+        "intervention_type_categories row for 'Contrats fournisseurs' exists",
+        "intervention_types row for 'Rappel préavis fournisseur' linked to category",
+        "Existing cron job can pick up interventions of this type (no cron changes needed)",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Migration 20260311110000 — category 'contrat_fournisseur' + type 'rappel_preavis_fournisseur'"
+    },
+    {
+      "id": "US-003",
+      "title": "TypeScript types + Repository + Service for supplier contracts",
+      "description": "As a developer, I want SupplierContract types, repository, and service layers, so the backend can CRUD supplier contracts following SEIDO patterns.",
+      "acceptanceCriteria": [
+        "SupplierContractFormData type defined with all fields",
+        "SupplierContractRepository with create (bulk), findByTeam, findByBuilding, findByLot methods",
+        "SupplierContractService wrapping repository with business logic",
+        "Repository uses .limit(1) not .single() for multi-team safety",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Types, repository, service created. Exports added to lib/services/index.ts. Lint clean."
+    },
+    {
+      "id": "US-004",
+      "title": "Server action: createSupplierContractsAction",
+      "description": "As a developer, I want a server action that bulk-creates supplier contracts with document uploads and optional reminder interventions.",
+      "acceptanceCriteria": [
+        "Uses getServerActionAuthContextOrNull('gestionnaire')",
+        "Zod validation of contract array input",
+        "Bulk insert into supplier_contracts",
+        "Document upload to contract-documents bucket with correct path",
+        "Insert into supplier_contract_documents",
+        "Optional reminder intervention creation (batch pattern)",
+        "Returns success/error response",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001", "US-002", "US-003"],
+      "sizing": "L",
+      "passes": true,
+      "notes": "supplier-contract-actions.ts: createSupplierContractsAction + uploadSupplierContractDocumentsAction + reminder interventions. Lint clean."
+    },
+    {
+      "id": "US-005",
+      "title": "Navigation: separate menu entries for Bail and Contrat fournisseur",
+      "description": "As a gestionnaire, I want separate 'Bail locatif' and 'Contrat fournisseur' options in the sidebar and contracts page, so I can choose which type to create.",
+      "acceptanceCriteria": [
+        "Sidebar '+' button for Contrats shows dropdown with 2 options",
+        "Contracts page 'Nouveau contrat' button shows dropdown with 2 options",
+        "Bail locatif navigates to /gestionnaire/contrats/nouveau?type=bail",
+        "Contrat fournisseur navigates to /gestionnaire/contrats/nouveau?type=fournisseur",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Sidebar dropdown via createOptions pattern. Page dropdown via DropdownMenu. Both route to ?type= param."
+    },
+    {
+      "id": "US-006",
+      "title": "PropertySelector: add onBuildingSelect callback",
+      "description": "As a developer, I want PropertySelector to support an onBuildingSelect callback and respect hideBuildingSelect={false} for the supplier flow, so buildings can be selected in the wizard.",
+      "acceptanceCriteria": [
+        "onBuildingSelect(buildingId: string | null) prop added",
+        "Building 'Sélectionner' button appears when hideBuildingSelect={false}",
+        "Clicking building select button calls onBuildingSelect and highlights building",
+        "Existing onLotSelect behavior unchanged",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Already implemented — onBuildingSelect prop, building select buttons, toggle behavior exist. Just needs hideBuildingSelect={false} in fournisseur mode."
+    },
+    {
+      "id": "US-007",
+      "title": "Wizard branching: contractMode prop + supplier step config",
+      "description": "As a developer, I want contract-form-container to accept contractMode and render different steps for 'fournisseur' mode, so the wizard branches correctly.",
+      "acceptanceCriteria": [
+        "Server page reads searchParams.type (default: 'bail')",
+        "contractMode prop passed to ContractFormContainer",
+        "supplierContractSteps config added to step-configurations.ts (Bien, Contrats, Interventions, Confirmation)",
+        "Step 1 uses hideBuildingSelect={false} for fournisseur mode",
+        "formData stores buildingId or lotId based on selection",
+        "Steps 2+ render different components based on mode",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-005", "US-006"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Branching via isSupplierMode. activeSteps switches step config. renderStepContent branches for supplier mode. handleSupplierSubmit created. Lint clean."
+    },
+    {
+      "id": "US-008",
+      "title": "UI: Supplier contracts repeatable form (Step 2)",
+      "description": "As a gestionnaire, I want a repeatable form to add multiple supplier contracts with reference, supplier, cost, dates, notice period, and attachments.",
+      "acceptanceCriteria": [
+        "supplier-contracts-step.tsx component created",
+        "Auto-generated reference CF-{REF}-{index}, editable",
+        "ContactSelector filtered type=prestataire for supplier selection",
+        "Cost field (free amount)",
+        "Start date / End date side by side on same line",
+        "Notice period text field (free text)",
+        "File upload (multiple) per contract, staged until submission",
+        "Add contract button at bottom, delete button per card (min 1)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-007"],
+      "sizing": "L",
+      "passes": true,
+      "notes": "Implemented in US-007 — SupplierContractsStep with repeatable form, Select for prestataire, file upload, add/remove, dates side by side."
+    },
+    {
+      "id": "US-009",
+      "title": "UI: Supplier interventions step (Step 3) + Confirmation (Step 4)",
+      "description": "As a gestionnaire, I want to optionally schedule reminder interventions before notice dates, and review all contracts before submission.",
+      "acceptanceCriteria": [
+        "Step 3 shows proposed reminders for contracts with end_date + notice_period",
+        "User can enable/disable each reminder",
+        "Same pattern as lease-interventions-step (date, assignation config)",
+        "Step 4 shows summary of all contracts, suppliers, costs, dates, documents",
+        "Submit button calls createSupplierContractsAction",
+        "Success redirects to building or lot detail page",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-004", "US-008"],
+      "sizing": "L",
+      "passes": true,
+      "notes": "Reminder step with checkbox per contract (auto-assigns current user). Confirmation step shows summary. handleSupplierSubmit wired. Redirect to building/lot detail."
+    }
+  ]
+}

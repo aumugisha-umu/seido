@@ -84,6 +84,29 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-11 - Supplier Contracts + Blog Hub/Cluster + Intervention Planner
+
+**Session: Multi-feature work — new entity, content architecture, bug fixes**
+
+| Change | Description |
+|--------|-------------|
+| **Supplier Contracts** | New `supplier_contracts` + `supplier_contract_documents` tables, repository, service, card UI, wizard steps |
+| **Blog Hub/Cluster** | 23 articles (Jan/Feb/Mar 2026), hub-cluster architecture with sibling navigation |
+| **PostgREST FK Fix** | `!fk_users_company` hint on 4 repository queries to resolve PGRST201 ambiguous FK |
+| **Card Display Fix** | Supplier cards show person name + purple company badge (matching contact-card-compact pattern) |
+| **Intervention Planner** | Refactoring in progress (6 stories in prd.json) |
+
+**Fichiers cles modifies:**
+- `lib/services/repositories/supplier-contract.repository.ts` — FK hint fix
+- `components/contracts/supplier-contract-card.tsx` — person name + company badge
+- `components/contract/contract-form-container.tsx` — supplier contracts wizard integration
+- `lib/database.types.ts` — new table types
+- 23 blog articles in `blog/articles/`
+
+**Learnings:** AGENTS.md #130-#134
+
+---
+
 ### 2026-03-02 - Performance Optimization TIER 1+2 (13 stories)
 
 **Session: Comprehensive app-wide performance optimization from 6-agent audit**

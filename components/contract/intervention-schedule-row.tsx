@@ -28,8 +28,6 @@ import {
   Calendar,
   UserPlus,
   Users,
-  User,
-  Briefcase,
   PenLine,
   X
 } from 'lucide-react'
@@ -39,6 +37,8 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { CUSTOM_DATE_VALUE } from '@/lib/constants/lease-interventions'
 import type { SchedulingOption } from '@/lib/constants/lease-interventions'
+import type { AssignableRole } from '@/lib/types/intervention-planner.types'
+import { ALL_ASSIGNABLE_ROLES, ROLE_COLORS } from '@/lib/constants/assignable-roles'
 
 // Map des icônes par nom
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -74,17 +74,6 @@ export interface ScheduledInterventionData {
   assignedUsers: InterventionAssignment[]
 }
 
-const ROLE_COLORS: Record<string, string> = {
-  gestionnaire: 'bg-purple-100 text-purple-700 border-purple-200',
-  prestataire: 'bg-green-100 text-green-700 border-green-200',
-  locataire: 'bg-blue-100 text-blue-700 border-blue-200'
-}
-
-const ASSIGN_TYPE_OPTIONS = [
-  { type: 'manager', label: 'Gestionnaires', Icon: Users, color: 'text-purple-600' },
-  { type: 'tenant', label: 'Locataires', Icon: User, color: 'text-blue-600' },
-  { type: 'provider', label: 'Prestataires', Icon: Briefcase, color: 'text-green-600' }
-]
 
 interface InterventionScheduleRowProps {
   intervention: ScheduledInterventionData
@@ -101,6 +90,8 @@ interface InterventionScheduleRowProps {
   onDescriptionChange?: (desc: string) => void
   onDelete?: () => void
   showDelete?: boolean
+  /** Configurable roles in the assign popover. Defaults to all 3 roles. */
+  assignableRoles?: AssignableRole[]
 }
 
 export function InterventionScheduleRow({
@@ -115,7 +106,8 @@ export function InterventionScheduleRow({
   onTitleChange,
   onDescriptionChange,
   onDelete,
-  showDelete = false
+  showDelete = false,
+  assignableRoles
 }: InterventionScheduleRowProps) {
   const IconComponent = ICON_MAP[intervention.icon] || Calendar
   const isCustomDate = intervention.selectedSchedulingOption === CUSTOM_DATE_VALUE
@@ -301,7 +293,7 @@ export function InterventionScheduleRow({
             <PopoverContent align="end" className="w-48 p-1.5">
               <div className="space-y-0.5">
                 <p className="text-xs font-medium text-muted-foreground px-2 py-1">Ajouter des...</p>
-                {ASSIGN_TYPE_OPTIONS.map(({ type, label, Icon, color }) => (
+                {(assignableRoles ?? ALL_ASSIGNABLE_ROLES).map(({ type, label, Icon, color }) => (
                   <Button
                     key={type}
                     variant="ghost"

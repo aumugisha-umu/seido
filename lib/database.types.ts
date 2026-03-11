@@ -3204,6 +3204,206 @@ export type Database = {
           },
         ]
       }
+      supplier_contract_documents: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          file_size: number | null
+          filename: string
+          id: string
+          mime_type: string | null
+          original_filename: string
+          storage_bucket: string
+          storage_path: string
+          supplier_contract_id: string
+          team_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          file_size?: number | null
+          filename: string
+          id?: string
+          mime_type?: string | null
+          original_filename: string
+          storage_bucket?: string
+          storage_path: string
+          supplier_contract_id: string
+          team_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          file_size?: number | null
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          original_filename?: string
+          storage_bucket?: string
+          storage_path?: string
+          supplier_contract_id?: string
+          team_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_contract_documents_supplier_contract_id_fkey"
+            columns: ["supplier_contract_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contract_documents_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contract_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_contracts: {
+        Row: {
+          building_id: string | null
+          cost: number | null
+          cost_frequency: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          lot_id: string | null
+          metadata: Json | null
+          notice_date: string | null
+          notice_period: string | null
+          reference: string
+          start_date: string | null
+          status: string
+          supplier_id: string | null
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          building_id?: string | null
+          cost?: number | null
+          cost_frequency?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          lot_id?: string | null
+          metadata?: Json | null
+          notice_date?: string | null
+          notice_period?: string | null
+          reference: string
+          start_date?: string | null
+          status?: string
+          supplier_id?: string | null
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string | null
+          cost?: number | null
+          cost_frequency?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          lot_id?: string | null
+          metadata?: Json | null
+          notice_date?: string | null
+          notice_period?: string | null
+          reference?: string
+          start_date?: string | null
+          status?: string
+          supplier_id?: string | null
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_contracts_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_email_connections: {
         Row: {
           auth_method: string | null
@@ -4505,6 +4705,10 @@ export type Database = {
           intervention_title: string
         }[]
       }
+      get_supplier_contract_team_id: {
+        Args: { sc_id: string }
+        Returns: string
+      }
       get_team_id_from_document_path: {
         Args: { storage_path: string }
         Returns: string
@@ -4592,6 +4796,10 @@ export type Database = {
           p_team_id: string
         }
         Returns: Json
+      }
+      upsert_ai_phone_usage: {
+        Args: { p_minutes: number; p_month: string; p_team_id: string }
+        Returns: undefined
       }
       user_belongs_to_team_v2: {
         Args: { check_team_id: string }

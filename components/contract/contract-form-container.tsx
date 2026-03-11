@@ -5,17 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useSaveFormState, useRestoreFormState } from '@/hooks/use-form-persistence'
 import { toast } from 'sonner'
 import { StepProgressHeader } from '@/components/ui/step-progress-header'
-import { contractSteps } from '@/lib/step-configurations'
+import { contractSteps, supplierContractSteps } from '@/lib/step-configurations'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ContactSection } from '@/components/ui/contact-section'
-import ContactSelector, { ContactSelectorRef } from '@/components/contact-selector'
+import type { ContactSelectorRef } from '@/components/contact-selector'
 import PropertySelector from '@/components/property-selector'
 import LeaseFormDetailsMerged from '@/components/contract/lease-form-details-merged-v1'
 import { DocumentChecklist } from '@/components/contract/document-checklist'
@@ -26,7 +21,6 @@ import {
   LEASE_INTERVENTION_TEMPLATES,
   createMissingDocumentIntervention,
   resolveTemplateText,
-  CUSTOM_DATE_VALUE,
   INSURANCE_EXPIRY_NEXT_DAY_VALUE,
   type SchedulingOption
 } from '@/lib/constants/lease-interventions'
@@ -56,8 +50,24 @@ import {
   Paperclip,
   CalendarCheck,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Bell
 } from 'lucide-react'
+import { InterventionPlannerStep } from '@/components/contract/intervention-planner-step'
+import { SUPPLIER_ASSIGNABLE_ROLES } from '@/lib/constants/assignable-roles'
+import { createSupplierReminderIntervention, createEmptySupplierCustomIntervention } from '@/lib/constants/supplier-interventions'
+import type { InterventionPlannerSection } from '@/lib/types/intervention-planner.types'
+import { SupplierContractsStep } from '@/components/contract/supplier-contracts-step'
+import { SupplierConfirmationStep } from '@/components/contract/supplier-confirmation-step'
+import type {
+  SupplierContractFormItem,
+  SupplierContractReminderConfig
+} from '@/lib/types/supplier-contract.types'
+import { createEmptySupplierContractItem } from '@/lib/types/supplier-contract.types'
+import { createBrowserSupabaseClient } from '@/lib/services'
+import {
+  createSupplierContractsAction,
+} from '@/app/actions/supplier-contract-actions'
 import { logger } from '@/lib/logger'
 import { useContractUploadByCategory } from '@/hooks/use-contract-upload-by-category'
 import type {
@@ -66,7 +76,6 @@ import type {
   GuaranteeType,
   ContractContactRole,
   ContractWithRelations,
-  ContractDocumentType,
   ChargesType
 } from '@/lib/types/contract.types'
 import {
@@ -95,6 +104,7 @@ interface BuildingsData {
 
 export interface ContractFormContainerProps {
   mode: 'create' | 'edit'
+  contractMode?: 'bail' | 'fournisseur'
   teamId: string
   initialBuildingsData: BuildingsData
   initialContacts: Contact[]
@@ -207,6 +217,7 @@ function mapContractToFormData(contract: ContractWithRelations): Partial<Contrac
 
 export default function ContractFormContainer({
   mode,
+  contractMode = 'bail',
   teamId,
   initialBuildingsData,
   initialContacts,
@@ -219,6 +230,8 @@ export default function ContractFormContainer({
 }: ContractFormContainerProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const isSupplierMode = contractMode === 'fournisseur'
+  const activeSteps = isSupplierMode ? supplierContractSteps : contractSteps
 
   // Read step and returnTo from URL params (for deep linking from lot card)
   const stepParam = searchParams.get('step')
@@ -264,6 +277,92 @@ export default function ContractFormContainer({
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
+  // ── Supplier mode state ──
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
+  const selectedBuildingName = useMemo(() => {
+    if (!selectedBuildingId) return ''
+    return initialBuildingsData.buildings.find((b: any) => b.id === selectedBuildingId)?.name || ''
+  }, [selectedBuildingId, initialBuildingsData.buildings])
+  const [supplierContracts, setSupplierContracts] = useState<SupplierContractFormItem[]>(() => {
+    if (isSupplierMode) return [createEmptySupplierContractItem('', 1)]
+    return []
+  })
+  const [supplierScheduledInterventions, setSupplierScheduledInterventions] = useState<ScheduledInterventionData[]>([])
+  // Number of existing supplier contracts in DB for the selected property (offset for reference numbering)
+  const [existingContractCount, setExistingContractCount] = useState(0)
+
+  // Sync supplier interventions when contracts change (add/remove/update end dates)
+  useEffect(() => {
+    if (!isSupplierMode) return
+    setSupplierScheduledInterventions(prev => {
+      const contractsWithEndDate = supplierContracts.filter(c => c.endDate)
+      const existingByKey = new Map(prev.filter(i => !i.key.startsWith('custom_')).map(i => [i.key, i]))
+      const customInterventions = prev.filter(i => i.key.startsWith('custom_'))
+
+      const contractInterventions = contractsWithEndDate.map(contract => {
+        const existing = existingByKey.get(contract.tempId)
+        if (existing) {
+          // Preserve user edits (enabled, assignedUsers, custom date) but update options
+          const endDateObj = new Date(contract.endDate)
+          const fresh = createSupplierReminderIntervention(contract, currentUser)
+
+          // Detect if selectedSchedulingOption was still on a "default" value
+          // (end_date or notice_date) vs a manual pick (ref_minus_1m, etc.)
+          const wasOnDefaultValue = existing.selectedSchedulingOption === 'end_date'
+            || existing.selectedSchedulingOption === 'notice_date'
+          const shouldUpdateDefault = wasOnDefaultValue
+            && existing.selectedSchedulingOption !== fresh.selectedSchedulingOption
+
+          const effectiveOption = shouldUpdateDefault
+            ? fresh.selectedSchedulingOption
+            : existing.selectedSchedulingOption
+
+          return {
+            ...existing,
+            title: fresh.title,
+            description: fresh.description,
+            availableOptions: fresh.availableOptions,
+            selectedSchedulingOption: effectiveOption,
+            // Recalculate date if auto-calculated or default changed
+            scheduledDate: (shouldUpdateDefault || existing.isAutoCalculated)
+              ? (fresh.availableOptions.find(o => o.value === effectiveOption)?.calculateDate(endDateObj, endDateObj) ?? existing.scheduledDate)
+              : existing.scheduledDate,
+          }
+        }
+        return createSupplierReminderIntervention(contract, currentUser)
+      })
+
+      return [...customInterventions, ...contractInterventions]
+    })
+  }, [isSupplierMode, supplierContracts, currentUser])
+
+  // ─── Supplier custom intervention handlers ─────────────────
+  const handleSupplierAddCustom = useCallback(() => {
+    setSupplierScheduledInterventions(prev => {
+      const lastCustomIdx = prev.reduce((acc, item, idx) => item.key.startsWith('custom_') ? idx : acc, -1)
+      const newCustom = createEmptySupplierCustomIntervention(currentUser)
+      const result = [...prev]
+      result.splice(lastCustomIdx + 1, 0, newCustom)
+      return result
+    })
+  }, [currentUser])
+
+  const handleSupplierDeleteCustom = useCallback((key: string) => {
+    setSupplierScheduledInterventions(prev => prev.filter(i => i.key !== key))
+  }, [])
+
+  const handleSupplierCustomTitleChange = useCallback((key: string, title: string) => {
+    setSupplierScheduledInterventions(prev =>
+      prev.map(i => i.key === key ? { ...i, title, enabled: title.trim().length > 0 } : i)
+    )
+  }, [])
+
+  const handleSupplierCustomDescriptionChange = useCallback((key: string, description: string) => {
+    setSupplierScheduledInterventions(prev =>
+      prev.map(i => i.key === key ? { ...i, description } : i)
+    )
+  }, [])
 
   // Interventions planifiées (étape 3)
   const [scheduledInterventions, setScheduledInterventions] = useState<ScheduledInterventionData[]>([])
@@ -316,6 +415,7 @@ export default function ContractFormContainer({
 
   // Initialiser les interventions quand les données du bail changent
   useEffect(() => {
+    if (isSupplierMode) return
     if (!formData.startDate || !formData.durationMonths || !formData.chargesType) {
       setScheduledInterventions([])
       return
@@ -404,7 +504,7 @@ export default function ContractFormContainer({
     })
 
     setScheduledInterventions([...standardInterventions, ...documentInterventions])
-  }, [formData.startDate, formData.durationMonths, formData.chargesType, missingRecommendedDocuments, slots, currentUser])
+  }, [isSupplierMode, formData.startDate, formData.durationMonths, formData.chargesType, missingRecommendedDocuments, slots, currentUser])
 
   // Track original contacts for edit mode (to determine adds/removes/updates)
   const [originalContacts] = useState<FormContact[]>(() => {
@@ -423,8 +523,9 @@ export default function ContractFormContainer({
   const formState = useMemo(() => ({
     currentStep,
     formData,
-    uploadedFiles: []
-  }), [currentStep, formData])
+    uploadedFiles: [],
+    supplierContracts,
+  }), [currentStep, formData, supplierContracts])
 
   // Hook for save and redirect (create mode)
   const { saveAndRedirect } = useSaveFormState(formState)
@@ -435,6 +536,9 @@ export default function ContractFormContainer({
       logger.info(`📥 [CONTRACT-FORM] Restoring form state after contact creation`)
       setCurrentStep(restoredState.currentStep)
       setFormData(restoredState.formData)
+      if (restoredState.supplierContracts?.length) {
+        setSupplierContracts(restoredState.supplierContracts)
+      }
     }
   })
 
@@ -462,9 +566,58 @@ export default function ContractFormContainer({
   const monthlyTotal = (formData.rentAmount || 0) + (formData.chargesAmount || 0)
 
   // Handle lot selection
-  const handleLotSelect = useCallback((lotId: string | null) => {
+  const handleLotSelect = useCallback(async (lotId: string | null) => {
     setFormData(prev => ({ ...prev, lotId: lotId || '' }))
-  }, [])
+    // In supplier mode, clear building if selecting lot
+    if (isSupplierMode && lotId) {
+      setSelectedBuildingId(null)
+      // Fetch count of existing supplier contracts for this lot
+      let offset = 0
+      try {
+        const supabase = createBrowserSupabaseClient()
+        const { count } = await supabase
+          .from('supplier_contracts')
+          .select('*', { count: 'exact', head: true })
+          .eq('lot_id', lotId)
+          .is('deleted_at', null)
+        offset = count || 0
+      } catch { /* fallback to 0 */ }
+      setExistingContractCount(offset)
+      // Update references on existing supplier contracts
+      const lotRef = initialBuildingsData.lots.find((l: any) => l.id === lotId)?.reference || ''
+      setSupplierContracts(prev => prev.map((c, i) => ({
+        ...c,
+        reference: c.reference.startsWith('CF-') ? `CF-${lotRef}-${String(offset + i + 1).padStart(3, '0')}` : c.reference
+      })))
+    }
+  }, [isSupplierMode, initialBuildingsData.lots])
+
+  const handleBuildingSelect = useCallback(async (buildingId: string | null) => {
+    setSelectedBuildingId(buildingId)
+    if (buildingId) {
+      setFormData(prev => ({ ...prev, lotId: '' }))
+      // Fetch count of existing supplier contracts for this building
+      let offset = 0
+      try {
+        const supabase = createBrowserSupabaseClient()
+        const { count } = await supabase
+          .from('supplier_contracts')
+          .select('*', { count: 'exact', head: true })
+          .eq('building_id', buildingId)
+          .is('deleted_at', null)
+        offset = count || 0
+      } catch { /* fallback to 0 */ }
+      setExistingContractCount(offset)
+      const building = initialBuildingsData.buildings.find((b: any) => b.id === buildingId)
+      const buildingName = building?.name || ''
+      // Generate a short ref from building name (first 4 chars uppercase)
+      const ref = buildingName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() || 'IMM'
+      setSupplierContracts(prev => prev.map((c, i) => ({
+        ...c,
+        reference: c.reference.startsWith('CF-') ? `CF-${ref}-${String(offset + i + 1).padStart(3, '0')}` : c.reference
+      })))
+    }
+  }, [initialBuildingsData.buildings])
 
   // Update form field
   const updateField = useCallback(<K extends keyof ContractFormData>(
@@ -542,6 +695,20 @@ export default function ContractFormContainer({
 
   // Validation per step (5 steps total - ajout Interventions)
   const validateStep = useCallback((step: number): boolean => {
+    if (isSupplierMode) {
+      switch (step) {
+        case 0: // Property selection (building or lot)
+          return !!selectedBuildingId || !!formData.lotId
+        case 1: // Supplier contracts form
+          return supplierContracts.length > 0 && supplierContracts.every(c => c.reference.trim() !== '' && c.supplierId)
+        case 2: // Interventions (optional)
+          return true
+        case 3: // Confirmation
+          return true
+        default:
+          return false
+      }
+    }
     switch (step) {
       case 0: // Lot selection
         return !!formData.lotId
@@ -562,7 +729,7 @@ export default function ContractFormContainer({
       default:
         return false
     }
-  }, [formData, overlapCheckResult])
+  }, [formData, overlapCheckResult, isSupplierMode, selectedBuildingId, supplierContracts])
 
   // Navigation
   const handleNext = useCallback(() => {
@@ -570,8 +737,8 @@ export default function ContractFormContainer({
       toast.error('Veuillez compléter tous les champs requis')
       return
     }
-    setCurrentStep(prev => Math.min(prev + 1, contractSteps.length - 1))
-  }, [currentStep, validateStep])
+    setCurrentStep(prev => Math.min(prev + 1, activeSteps.length - 1))
+  }, [currentStep, validateStep, activeSteps.length])
 
   const handlePrevious = useCallback(() => {
     setCurrentStep(prev => Math.max(prev - 1, 0))
@@ -632,8 +799,100 @@ export default function ContractFormContainer({
     }
   }, [formData.contacts, originalContacts])
 
+  // Submit supplier contracts
+  const handleSupplierSubmit = useCallback(async () => {
+    if (!validateStep(currentStep)) {
+      toast.error('Veuillez compléter tous les champs requis')
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const result = await createSupplierContractsAction({
+        buildingId: selectedBuildingId,
+        lotId: formData.lotId || null,
+        teamId,
+        contracts: supplierContracts.map(c => ({
+          reference: c.reference,
+          supplierId: c.supplierId,
+          cost: c.cost,
+          costFrequency: c.costFrequency,
+          startDate: c.startDate,
+          endDate: c.endDate,
+          noticePeriodValue: c.noticePeriodValue,
+          noticePeriodUnit: c.noticePeriodUnit,
+          description: c.description,
+        })),
+        // Custom reminders (custom_*) are excluded — server action only handles contract-linked reminders for now
+        reminders: supplierScheduledInterventions
+          .filter(i => !i.key.startsWith('custom_'))
+          .reduce((acc, i) => {
+            acc[i.key] = {
+              enabled: i.enabled,
+              assignedUsers: i.assignedUsers.map(u => ({ userId: u.userId, role: u.role, name: u.name })),
+            }
+            return acc
+          }, {} as Record<string, SupplierContractReminderConfig>),
+      })
+
+      if (!result.success) {
+        toast.error(result.error || 'Erreur lors de la création')
+        return
+      }
+
+      // Upload documents for each contract via API route (per-file, no size limit)
+      const contractIds = result.data!.contractIds
+      const uploadResults = await Promise.allSettled(
+        supplierContracts.flatMap((contract, i) =>
+          contractIds[i]
+            ? contract.files.map(async file => {
+                const fd = new FormData()
+                fd.append('file', file)
+                fd.append('supplierContractId', contractIds[i])
+                fd.append('teamId', teamId)
+                const response = await fetch('/api/upload-supplier-contract-document', {
+                  method: 'POST',
+                  body: fd,
+                })
+                if (!response.ok) {
+                  const body = await response.json().catch(() => ({}))
+                  throw new Error(body.error || `Upload failed: ${response.status}`)
+                }
+                return response.json()
+              })
+            : []
+        )
+      )
+
+      const failedUploads = uploadResults.filter(r => r.status === 'rejected')
+      if (failedUploads.length > 0) {
+        logger.error({ failedUploads }, 'Some supplier contract document uploads failed')
+        toast.warning(`${result.data!.count} contrat(s) créé(s), mais ${failedUploads.length} document(s) n'ont pas pu être uploadé(s)`)
+      } else {
+        toast.success(`${result.data!.count} contrat(s) fournisseur(s) créé(s)`)
+      }
+
+      // Redirect to building or lot detail
+      if (selectedBuildingId) {
+        router.push(`/gestionnaire/biens/immeubles/${selectedBuildingId}`)
+      } else if (formData.lotId) {
+        router.push(`/gestionnaire/biens/lots/${formData.lotId}`)
+      } else {
+        router.push('/gestionnaire/contrats')
+      }
+    } catch (error) {
+      logger.error({ error }, 'Error submitting supplier contracts')
+      toast.error('Erreur inattendue')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [currentStep, validateStep, selectedBuildingId, formData.lotId, teamId, supplierContracts, supplierScheduledInterventions, router])
+
   // Submit form
   const handleSubmit = useCallback(async () => {
+    if (isSupplierMode) {
+      return handleSupplierSubmit()
+    }
+
     if (!validateStep(currentStep)) {
       toast.error('Veuillez compléter tous les champs requis')
       return
@@ -827,8 +1086,12 @@ export default function ContractFormContainer({
   }, [mode, formData, teamId, existingContract, router, currentStep, validateStep, selectedLot, syncContacts, hasPendingUploads, uploadDocumentFiles, returnTo])
 
   // Page title based on mode
-  const pageTitle = mode === 'create' ? 'Nouveau bail' : 'Modifier le contrat'
-  const submitLabel = mode === 'create' ? 'Créer le bail' : 'Enregistrer les modifications'
+  const pageTitle = isSupplierMode
+    ? 'Contrats fournisseurs'
+    : mode === 'create' ? 'Nouveau bail' : 'Modifier le contrat'
+  const submitLabel = isSupplierMode
+    ? 'Créer les contrats'
+    : mode === 'create' ? 'Créer le bail' : 'Enregistrer les modifications'
   const submitIcon = mode === 'create' ? Check : Save
   const SubmitIcon = submitIcon
 
@@ -842,6 +1105,101 @@ export default function ContractFormContainer({
 
   // Render step content
   const renderStepContent = () => {
+    // ── SUPPLIER MODE ──
+    if (isSupplierMode) {
+      switch (currentStep) {
+        case 0: // Property selection (building or lot)
+          return (
+            <div className="flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="text-center max-w-2xl mx-auto mb-4 flex-shrink-0">
+                <h2 className="text-2xl font-bold mb-2">Sélectionnez le bien</h2>
+                <p className="text-muted-foreground">
+                  Choisissez l&apos;immeuble ou le lot auquel rattacher les contrats fournisseurs.
+                </p>
+              </div>
+              <div className="flex-1 flex flex-col min-h-0">
+                <PropertySelector
+                  mode="select"
+                  onBuildingSelect={handleBuildingSelect}
+                  onLotSelect={handleLotSelect}
+                  selectedBuildingId={selectedBuildingId || undefined}
+                  selectedLotId={formData.lotId}
+                  initialData={initialBuildingsData}
+                  showViewToggle={true}
+                  compactCards={true}
+                  hideBuildingSelect={false}
+                />
+              </div>
+            </div>
+          )
+        case 1: // Supplier contracts form
+          return (
+            <SupplierContractsStep
+              contracts={supplierContracts}
+              onContractsChange={setSupplierContracts}
+              propertyReference={selectedBuildingName || (initialBuildingsData.lots.find((l: any) => l.id === formData.lotId)?.reference) || ''}
+              teamId={teamId}
+              existingContractCount={existingContractCount}
+              onRequestContactCreation={(contactType) => {
+                saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
+              }}
+            />
+          )
+        case 2: { // Interventions — Reminder configuration via shared planner
+          const customInterventions = supplierScheduledInterventions.filter(i => i.key.startsWith('custom_'))
+          const contractInterventions = supplierScheduledInterventions.filter(i => !i.key.startsWith('custom_'))
+
+          const supplierSections: InterventionPlannerSection[] = [
+            {
+              id: 'custom',
+              title: 'Rappels personnalisés',
+              icon: Calendar,
+              iconColorClass: 'text-indigo-500',
+              rows: customInterventions,
+              allowCustomAdd: true,
+            },
+            {
+              id: 'contract_reminders',
+              title: 'Rappels de fin de contrat',
+              icon: Bell,
+              iconColorClass: 'text-amber-500',
+              rows: contractInterventions,
+            },
+          ]
+
+          return (
+            <InterventionPlannerStep
+              title="Rappels d'échéance"
+              subtitle="Programmez des rappels avant les dates d'échéance de vos contrats fournisseurs. Cette étape est optionnelle."
+              headerIcon={CalendarCheck}
+              sections={supplierSections}
+              scheduledInterventions={supplierScheduledInterventions}
+              onInterventionsChange={setSupplierScheduledInterventions}
+              teamId={teamId}
+              assignableRoles={SUPPLIER_ASSIGNABLE_ROLES}
+              allowedContactTypes={['manager', 'provider']}
+              onAddCustomIntervention={handleSupplierAddCustom}
+              onDeleteCustomIntervention={handleSupplierDeleteCustom}
+              onCustomTitleChange={handleSupplierCustomTitleChange}
+              onCustomDescriptionChange={handleSupplierCustomDescriptionChange}
+            />
+          )
+        }
+        case 3: // Confirmation
+          return (
+            <SupplierConfirmationStep
+              contracts={supplierContracts}
+              buildingName={selectedBuildingName}
+              lotReference={initialBuildingsData.lots.find((l: any) => l.id === formData.lotId)?.reference}
+              contacts={initialContacts}
+            />
+          )
+        default:
+          return null
+      }
+    }
+
+    // ── BAIL MODE (existing) ──
     switch (currentStep) {
       // Step 0: Lot Selection - Layout style Patrimoine avec tabs Immeubles/Lots
       case 0:
@@ -1250,7 +1608,7 @@ export default function ContractFormContainer({
     <div className="flex flex-col flex-1 min-h-0 bg-background">
       {/* HEADER - StepProgressHeader */}
       <StepProgressHeader
-        steps={contractSteps}
+        steps={activeSteps}
         currentStep={currentStep + 1}  // Convertir 0-indexed → 1-indexed pour le header
         title={pageTitle}
         backButtonText="Retour"
@@ -1302,7 +1660,7 @@ export default function ContractFormContainer({
             </Button>
           )}
 
-          {currentStep < contractSteps.length - 1 ? (
+          {currentStep < activeSteps.length - 1 ? (
             <Button
               onClick={handleNext}
               disabled={!validateStep(currentStep)}

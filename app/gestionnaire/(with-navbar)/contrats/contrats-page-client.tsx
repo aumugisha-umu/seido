@@ -1,8 +1,14 @@
 "use client"
 
-import { Plus, Upload } from "lucide-react"
+import { Plus, Upload, ChevronDown } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { PageActions } from "@/components/page-actions"
 import { ContractsNavigator } from "@/components/contracts/contracts-navigator"
 import { useState, useEffect, useCallback, useRef } from "react"
@@ -105,9 +111,21 @@ export function ContratsPageClient({
           <Button variant="outline" className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/import')}>
             <Upload className="h-4 w-4" /><span>Importer</span>
           </Button>
-          <Button className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/contrats/nouveau')}>
-            <Plus className="h-4 w-4" /><span>Nouveau contrat</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="flex items-center space-x-2">
+                <Plus className="h-4 w-4" /><span>Nouveau contrat</span><ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => router.push('/gestionnaire/contrats/nouveau?type=bail')}>
+                Bail locatif
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/gestionnaire/contrats/nouveau?type=fournisseur')}>
+                Contrat fournisseur
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </PageActions>
 
         {/* Card wrapper - Structure exacte du dashboard */}

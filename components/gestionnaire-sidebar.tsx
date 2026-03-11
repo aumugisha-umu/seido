@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Loader2,
   Plus,
+  ChevronDown,
 } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -36,10 +37,21 @@ import {
 } from "@/components/ui/sidebar"
 import { TeamSelector, TeamSelectorCompact } from "@/components/team-selector"
 import { useCurrentTeam } from "@/hooks/use-current-team"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import { SubscriptionSidebarCard } from "@/components/billing/subscription-sidebar-card"
 import type { Team } from "@/lib/services/core/service-types"
+
+interface CreateOption {
+  href: string
+  label: string
+}
 
 interface NavigationItem {
   href: string
@@ -47,13 +59,18 @@ interface NavigationItem {
   icon: React.ComponentType<{ className?: string }>
   createHref?: string
   createLabel?: string
+  /** Multiple create options — renders dropdown instead of direct link */
+  createOptions?: CreateOption[]
 }
 
 const mainNavItems: NavigationItem[] = [
   { href: "/gestionnaire/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/gestionnaire/biens", label: "Patrimoine", icon: Building2, createHref: "/gestionnaire/biens/lots/nouveau", createLabel: "Nouveau lot" },
   { href: "/gestionnaire/contacts", label: "Contacts", icon: Users, createHref: "/gestionnaire/contacts/nouveau", createLabel: "Nouveau contact" },
-  { href: "/gestionnaire/contrats", label: "Contrats", icon: FileText, createHref: "/gestionnaire/contrats/nouveau", createLabel: "Nouveau contrat" },
+  { href: "/gestionnaire/contrats", label: "Contrats", icon: FileText, createLabel: "Nouveau contrat", createOptions: [
+    { href: "/gestionnaire/contrats/nouveau?type=bail", label: "Bail locatif" },
+    { href: "/gestionnaire/contrats/nouveau?type=fournisseur", label: "Contrat fournisseur" },
+  ] },
   { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench, createHref: "/gestionnaire/interventions/nouvelle-intervention", createLabel: "Nouvelle intervention" },
   { href: "/gestionnaire/mail", label: "Emails", icon: Mail },
 ]
@@ -161,7 +178,36 @@ export default function GestionnaireSidebar({
             <span>{item.label}</span>
           </Link>
         </SidebarMenuButton>
-        {item.createHref && (
+        {item.createOptions ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuAction
+                className={cn(
+                  "right-2 flex h-6 w-6 items-center justify-center rounded-md",
+                  "bg-sidebar-accent/50 text-sidebar-foreground/60",
+                  "hover:bg-white hover:text-primary hover:shadow-sm",
+                  "peer-data-[active=true]/menu-button:bg-white peer-data-[active=true]/menu-button:text-primary peer-data-[active=true]/menu-button:shadow-sm",
+                  "group-hover/menu-item:bg-white group-hover/menu-item:text-primary group-hover/menu-item:shadow-sm",
+                  "transition-all duration-150",
+                  "[&>svg]:size-3.5"
+                )}
+                data-testid={`sidebar-create-${item.href.split('/').pop()}`}
+              >
+                <Plus />
+                <span className="sr-only">{item.createLabel}</span>
+              </SidebarMenuAction>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="start" className="w-48">
+              {item.createOptions.map((option) => (
+                <DropdownMenuItem key={option.href} asChild>
+                  <Link href={option.href} onClick={handleNavClick}>
+                    {option.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : item.createHref && (
           <SidebarMenuAction
             asChild
             className={cn(

@@ -10,14 +10,14 @@
 |  - Page data loading          |  - Interactive forms         |
 |  - Auth via getServerAuth()   |  - Real-time updates         |
 +-------------------------------------------------------------+
-|                    Domain Services (34)                      |
+|                    Domain Services (63)                      |
 |  intervention, notification, email, scheduling, subscription |
 +-------------------------------------------------------------+
-|                    Repositories (21)                         |
+|                    Repositories (25)                         |
 |  intervention, notification, user, building, subscription    |
 +-------------------------------------------------------------+
 |                    Supabase (PostgreSQL + RLS)               |
-|  44 tables | 80 fonctions | 210 indexes | 47 triggers       |
+|  46 tables | 80 fonctions | 210 indexes | 47 triggers       |
 +-------------------------------------------------------------+
 ```
 
@@ -64,7 +64,7 @@ const interventions = await repository.findAll()
 const { data } = await supabase.from('interventions').select('*')
 ```
 
-> Source: lib/services/README.md - 21 repositories implementes (incl. subscription, stripe-customer)
+> Source: lib/services/README.md - 25 repositories implementes (incl. subscription, stripe-customer, supplier-contract)
 
 ### 3. Notification Architecture
 
@@ -374,14 +374,15 @@ const { data } = await supabase.from('lots').select('*').eq('team_id', teamId)
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
   - 89 pages (5+ route groups)
   - 120 API routes (10 domaines + billing CRON)
-components/          # 381 composants (22 directories)
+components/          # 440 composants (22 directories)
   billing/           # 11 billing UI components (NEW 2026-02-22)
+  contracts/         # Supplier contract cards + building contracts tab
 hooks/               # 70 custom hooks (+useSubscription, useStrategicNotification)
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
-  repositories/      # 21 repositories (acces donnees + subscription + stripe-customer)
-  domain/            # 34 services (logique metier + subscription + subscription-email)
-app/actions/         # 17 server action files (+subscription-actions)
+  repositories/      # 25 repositories (+ supplier-contract, supplier-contract-document)
+  domain/            # 63 services (logique metier + subscription + supplier-contract)
+app/actions/         # 21 server action files (+subscription, supplier-contract)
 contexts/            # 3 React contexts (auth, team, realtime)
 tests/               # Infrastructure E2E
 ```
@@ -405,7 +406,7 @@ tests/               # Infrastructure E2E
 - `stripe-webhook.handler.ts` - Webhook event processing (8 event types)
 
 ---
-*Derniere mise a jour: 2026-02-22*
-*Analyse approfondie: 381 composants, 70 hooks, 34 services, 21 repositories*
-*Total patterns: 31 (+1: Subscription Service Pattern with Layered Fail)*
+*Derniere mise a jour: 2026-03-11*
+*Analyse approfondie: 440 composants, 70 hooks, 63 services, 25 repositories*
+*Total patterns: 34 (+3: Parallelization, after(), RLS-as-auth)*
 *References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*

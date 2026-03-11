@@ -6,7 +6,8 @@ import {
   createServerLotService,
   createServerInterventionService,
   createServerContractService,
-  createServerSupabaseClient
+  createServerSupabaseClient,
+  createServerSupplierContractService
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import BuildingDetailsClient from './building-details-client'
@@ -110,11 +111,12 @@ export default async function BuildingDetailsPage({
 
   try {
     // Initialize all services in parallel (server-side)
-    const [buildingService, lotService, interventionService, contractService, supabase] = await Promise.all([
+    const [buildingService, lotService, interventionService, contractService, supplierContractService, supabase] = await Promise.all([
       createServerBuildingService(),
       createServerLotService(),
       createServerInterventionService(),
       createServerContractService(),
+      createServerSupplierContractService(),
       createServerSupabaseClient()
     ])
 
@@ -159,7 +161,9 @@ export default async function BuildingDetailsPage({
       contractsResult,
       interventionsResult,
       buildingContactsResponse,
-      addressResponse
+      addressResponse,
+      buildingSupplierContracts,
+      lotSupplierContracts
     ] = await Promise.all([
       // Occupied lot IDs from active contracts
       contractService.getOccupiedLotIdsByTeam(team.id).catch(() => {
@@ -201,7 +205,19 @@ export default async function BuildingDetailsPage({
             .select('latitude, longitude, formatted_address')
             .eq('id', building.address_id)
             .single()
-        : Promise.resolve({ data: null })
+        : Promise.resolve({ data: null }),
+
+      // Supplier contracts: building-level
+      supplierContractService.getByBuilding(id).catch(() => {
+        logger.warn('[BUILDING-PAGE-SERVER] Could not load building supplier contracts')
+        return [] as Awaited<ReturnType<typeof supplierContractService.getByBuilding>>
+      }),
+
+      // Supplier contracts: lot-level (batch for all lots)
+      supplierContractService.getByLotIds(lotIds).catch(() => {
+        logger.warn('[BUILDING-PAGE-SERVER] Could not load lot supplier contracts')
+        return [] as Awaited<ReturnType<typeof supplierContractService.getByLotIds>>
+      })
     ])
 
     logger.info('✅ [BUILDING-PAGE-SERVER] Parallel queries completed', {
@@ -330,8 +346,19 @@ export default async function BuildingDetailsPage({
       })
     }
 
+    // Group lot-level supplier contracts by lot_id
+    const lotSupplierContractsByLotId: Record<string, typeof lotSupplierContracts> = {}
+    for (const sc of lotSupplierContracts) {
+      if (!sc.lot_id) continue
+      const key = sc.lot_id
+      if (!lotSupplierContractsByLotId[key]) lotSupplierContractsByLotId[key] = []
+      lotSupplierContractsByLotId[key].push(sc)
+    }
+
     logger.info('🎉 [BUILDING-PAGE-SERVER] All data loaded successfully', {
       buildingId: id,
+      buildingSupplierContracts: buildingSupplierContracts.length,
+      lotSupplierContracts: lotSupplierContracts.length,
       totalElapsed: `${Date.now() - startTime}ms`
     })
 
@@ -348,6 +375,8 @@ export default async function BuildingDetailsPage({
         lotContactIdsMap={lotContactIdsMap}
         teamId={team.id}
         buildingAddress={buildingAddress}
+        buildingSupplierContracts={buildingSupplierContracts}
+        lotSupplierContractsByLotId={lotSupplierContractsByLotId}
       />
     )
   } catch (error) {

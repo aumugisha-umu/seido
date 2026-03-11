@@ -135,9 +135,9 @@ export class InterventionDetailPage {
     await new Promise(resolve => setTimeout(resolve, 800))
   }
 
-  /** Click "Traiter la demande" button (gestionnaire, status=demande) */
+  /** Click "Traiter demande" button (gestionnaire, status=demande) */
   async clickProcessRequest(): Promise<void> {
-    await this.clickActionButton('Traiter la demande')
+    await this.clickActionButton('Traiter demande')
   }
 
   /** Click "Planifier" button (gestionnaire, status=approuvee) */

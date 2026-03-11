@@ -204,7 +204,7 @@ export function InterventionActionButtons({
           actions.push(
             {
               key: 'process_request',
-              label: 'Traiter la demande',
+              label: 'Traiter demande',
               icon: FileText,
               variant: 'default',
               description: 'Examiner et traiter cette demande d\'intervention'

@@ -96,7 +96,7 @@ const getGestionnaireActions = (
     case 'demande':
       return [
         {
-          label: 'Traiter la demande',
+          label: 'Traiter demande',
           icon: FileText,
           variant: 'primary',
           actionType: 'process_request',

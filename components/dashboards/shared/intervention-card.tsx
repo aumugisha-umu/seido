@@ -464,7 +464,7 @@ export const InterventionCard = memo(function InterventionCard({
                 onClick={() => handleActionClick(action)}
                 disabled={isLoading}
                 className={cn(
-                  "flex-1 justify-center min-h-[44px]",
+                  "flex-1 min-w-0 justify-center min-h-[44px]",
                   isGreenAction && "bg-green-600 hover:bg-green-700 text-white",
                 )}
                 aria-label={`${action.label} l'intervention ${intervention.reference || intervention.id}`}
@@ -476,8 +476,8 @@ export const InterventionCard = memo(function InterventionCard({
                   </>
                 ) : (
                   <>
-                    <action.icon className="h-4 w-4 mr-2" aria-hidden="true" />
-                    {action.label}
+                    <action.icon className="h-4 w-4 mr-2 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{action.label}</span>
                   </>
                 )}
               </Button>

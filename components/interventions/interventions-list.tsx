@@ -144,7 +144,7 @@ export function InterventionsList({
     }
 
     return (
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${className}`}>
+      <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 ${className}`}>
         {[...Array(6)].map((_, i) => (
           <div key={i} className="border rounded-lg p-4 lg:p-5 animate-pulse">
             <div className="space-y-3">
@@ -196,7 +196,7 @@ export function InterventionsList({
   // Default grid layout with vertical scroll, fills available space
   return (
     <div className={`flex-1 min-h-0 overflow-y-auto ${className}`}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-4">
         {displayedInterventions.map((intervention) => (
           <InterventionCard
             key={intervention.id}

@@ -14,6 +14,8 @@ export interface ArticleMeta {
   tags: string[]
   description: string
   reading_time: string
+  type: string
+  hub: string
 }
 
 export interface Article extends ArticleMeta {
@@ -38,6 +40,8 @@ const parseArticleFile = (filename: string): Article | null => {
     tags: data.tags || [],
     description: data.description || '',
     reading_time: data.reading_time || '5 min',
+    type: data.type || 'article',
+    hub: data.hub || '',
     content,
   }
 }
@@ -73,7 +77,15 @@ export const getArticleBySlug = async (slug: string): Promise<Article | null> =>
 export const getLatestArticles = async (n: number): Promise<ArticleMeta[]> => {
   const articles = await getAllArticles()
   return articles
+    .filter((a) => a.type !== 'hub')
     .slice(0, n)
+    .map(({ content: _content, ...meta }) => meta)
+}
+
+export const getArticlesByHub = async (hubSlug: string): Promise<ArticleMeta[]> => {
+  const articles = await getAllArticles()
+  return articles
+    .filter((a) => a.hub === hubSlug)
     .map(({ content: _content, ...meta }) => meta)
 }
 

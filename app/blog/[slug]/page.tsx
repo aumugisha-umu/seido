@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { ArrowLeft, Calendar, Clock, User, Tag } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, User, Tag, BookOpen } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { JsonLd } from '@/components/seo/json-ld'
-import { getArticleBySlug, getAllSlugs } from '@/lib/blog'
+import { getArticleBySlug, getArticlesByHub, getAllSlugs } from '@/lib/blog'
 import { BlogMarkdown } from '@/components/blog/blog-markdown'
 
 interface BlogArticlePageProps {
@@ -175,7 +175,56 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
           </div>
         </div>
 
+        {/* Hub-article relationship banner */}
+        {article.hub && article.type !== 'hub' && (
+          <HubBanner hubSlug={article.hub} currentSlug={article.slug} />
+        )}
+
       </div>
     </>
+  )
+}
+
+async function HubBanner({ hubSlug, currentSlug }: { hubSlug: string; currentSlug: string }) {
+  const [hubArticle, siblings] = await Promise.all([
+    getArticleBySlug(hubSlug),
+    getArticlesByHub(hubSlug),
+  ])
+
+  const otherArticles = siblings.filter((a) => a.slug !== currentSlug)
+
+  if (!hubArticle || otherArticles.length === 0) return null
+
+  return (
+    <div className="max-w-4xl mx-auto mt-10">
+      <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 md:p-8">
+        <div className="flex items-center gap-2 mb-4">
+          <BookOpen className="h-5 w-5 text-blue-400" />
+          <span className="text-sm font-medium text-white/70">Cet article fait partie de</span>
+        </div>
+
+        <Link
+          href={`/blog/${hubSlug}`}
+          className="text-lg font-semibold text-blue-300 hover:text-blue-200 transition-colors"
+        >
+          {hubArticle.title}
+        </Link>
+
+        <div className="mt-5 grid gap-2">
+          <span className="text-xs font-medium text-white/40 uppercase tracking-wider">
+            Autres articles de ce dossier
+          </span>
+          {otherArticles.map((sibling) => (
+            <Link
+              key={sibling.slug}
+              href={`/blog/${sibling.slug}`}
+              className="text-sm text-white/60 hover:text-white transition-colors py-1"
+            >
+              &rarr; {sibling.title}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }

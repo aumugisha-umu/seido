@@ -36,7 +36,7 @@ interface TestimonialCardProps {
 
 function TestimonialCard({ quote, author, role, company, rating }: TestimonialCardProps) {
   return (
-    <Card className="h-full border-2 hover:border-brand-purple/50 transition-colors duration-300">
+    <Card className="h-full border border-white/10 bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-colors duration-300">
       <CardContent className="p-8 flex flex-col h-full">
         {/* Rating Stars */}
         <div className="flex gap-1 mb-4">
@@ -46,15 +46,15 @@ function TestimonialCard({ quote, author, role, company, rating }: TestimonialCa
         </div>
 
         {/* Quote */}
-        <blockquote className="text-gray-700 mb-6 flex-1 leading-relaxed">
+        <blockquote className="text-white/70 mb-6 flex-1 leading-relaxed">
           "{quote}"
         </blockquote>
 
         {/* Author Info */}
-        <div className="border-t border-gray-200 pt-4">
-          <div className="font-semibold text-gray-900">{author}</div>
-          <div className="text-sm text-gray-600">{role}</div>
-          <div className="text-xs text-brand-purple font-medium mt-1">{company}</div>
+        <div className="border-t border-white/10 pt-4">
+          <div className="font-semibold text-white">{author}</div>
+          <div className="text-sm text-white/50">{role}</div>
+          <div className="text-xs text-blue-400 font-medium mt-1">{company}</div>
         </div>
       </CardContent>
     </Card>
@@ -67,14 +67,14 @@ export function TestimonialsSection() {
   )
 
   return (
-    <section className="py-16 md:py-24 bg-white">
+    <section className="py-16 md:py-24">
       <div className="container mx-auto px-4">
         {/* Section Header */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
             Ils utilisent déjà SEIDO
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-white/60 max-w-2xl mx-auto">
             Découvrez pourquoi des centaines de professionnels nous font confiance
           </p>
         </div>
@@ -107,18 +107,12 @@ export function TestimonialsSection() {
 
             {/* Navigation */}
             <div className="flex justify-center gap-4 mt-8">
-              <CarouselPrevious className="relative left-0 translate-y-0" />
-              <CarouselNext className="relative right-0 translate-y-0" />
+              <CarouselPrevious className="relative left-0 translate-y-0 border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white" />
+              <CarouselNext className="relative right-0 translate-y-0 border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white" />
             </div>
           </Carousel>
         </div>
 
-        {/* Trust Badge */}
-        <div className="text-center mt-12">
-          <p className="text-sm text-gray-600">
-            Rejoignez <span className="font-semibold text-brand-purple">500+ gestionnaires</span> en Belgique
-          </p>
-        </div>
       </div>
     </section>
   )

@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-09
-**Total Learnings:** 129
+**Last Updated:** 2026-03-11
+**Total Learnings:** 132
 
 ---
 
@@ -934,6 +934,27 @@
 **Example:** Failing row had `building_id=null, lot_id=null` → violated `valid_intervention_location` XOR constraint
 **When to Use:** Any "Value does not meet constraints" error from Supabase/PostgREST
 **Added:** 2026-03-09 | **Source:** AI Phone Assistant — debugging constraint violation after fallback
+
+#### Learning #130: Agent-delegated content — verify cross-reference slugs match canonical frontmatter
+**Problem:** When 3 SEO copywriter agents created 20 blog articles in parallel, all 14 Mars/Fevrier articles linked to the hub using the OLD omnibus slug (`/blog/immobilier-belgique-mars-2026`) instead of the new hub slug (`/blog/essentiel-immo-mars-2026`). Agents inferred slugs from the source filename pattern, not from the hub's actual frontmatter.
+**Solution:** After agent-delegated content creation, always grep for cross-reference links and verify they match the canonical slugs in the target files' frontmatter. For batch fixes: `sed -i 's|old-slug|new-slug|g' blog/articles/2026-03-0*.md`. Better yet: include exact slugs in agent prompts AND run a post-creation validation step.
+**Example:** `blog/articles/2026-03-01-*.md` through `2026-03-06-*.md` — 14 files fixed with sed
+**When to Use:** Any time you delegate content creation to agents that must cross-link to other content. Verify slugs post-creation.
+**Added:** 2026-03-11 | **Source:** Blog Hub/Cluster Redesign — US-009
+
+#### Learning #131: Additive schema changes with defaults — zero migration for existing content
+**Problem:** Adding `type` and `hub` fields to `ArticleMeta` could break all existing articles that don't have these frontmatter fields.
+**Solution:** Use defaults in the parser: `type: data.type || 'article'` and `hub: data.hub || ''`. Existing articles automatically get `type: 'article'` (correct) and `hub: ''` (no parent). No frontmatter migration needed for existing content. Filter functions use positive checks (`type !== 'hub'`, `hub === hubSlug`) so empty defaults are naturally excluded.
+**Example:** `lib/blog.ts:42-43` — default values in parseArticleFile
+**When to Use:** Adding new metadata fields to a content system with existing files. Always default to the "normal" case.
+**Added:** 2026-03-11 | **Source:** Blog Hub/Cluster Redesign — US-001
+
+#### Learning #132: Async Server Component for data-dependent UI — no useEffect needed
+**Problem:** The hub-article relationship banner needs to fetch sibling articles from the same hub. In a Client Component, this would require useEffect + useState + loading state.
+**Solution:** Make it an async Server Component function in the same file. `async function HubBanner({ hubSlug, currentSlug })` directly calls `getArticlesByHub(hubSlug)` and `getArticleBySlug(hubSlug)` with `Promise.all`. No client-side state, no loading spinners, no hydration issues. The parent conditionally renders it with `{article.hub && article.type !== 'hub' && <HubBanner ... />}`.
+**Example:** `app/blog/[slug]/page.tsx:188-225` — HubBanner async component
+**When to Use:** Any UI that depends on fetched data but doesn't need interactivity. Async Server Components are simpler than Client Components with useEffect.
+**Added:** 2026-03-11 | **Source:** Blog Hub/Cluster Redesign — US-002
 
 ---
 

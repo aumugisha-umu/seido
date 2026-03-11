@@ -5,11 +5,11 @@ import { faq } from '@/data/faq'
 import { getLatestArticles } from '@/lib/blog'
 
 export const metadata: Metadata = {
-  title: 'Gestion Locative Simplifiee — Gagnez jusqu\'à 10h/semaine | SEIDO',
-  description: 'SEIDO connecte gestionnaires, prestataires et locataires sur une seule plateforme. Interventions, documents, communication : tout au meme endroit. Essai gratuit.',
+  title: 'Gestion Locative Tout-en-Un — Gagnez 10h/semaine | SEIDO',
+  description: 'Logiciel de gestion locative tout-en-un pour gestionnaires immobiliers. Interventions pilotées, portail locataire, portail prestataire. Essai gratuit 1 mois — sans carte bancaire.',
   openGraph: {
-    title: 'Gestion Locative Simplifiee — Gagnez jusqu\'à 10h/semaine | SEIDO',
-    description: 'SEIDO connecte gestionnaires, prestataires et locataires sur une seule plateforme. Interventions, documents, communication : tout au meme endroit. Essai gratuit.',
+    title: 'Gestion Locative Tout-en-Un — Gagnez 10h/semaine | SEIDO',
+    description: 'Logiciel de gestion locative tout-en-un pour gestionnaires immobiliers. Interventions pilotées, portail locataire, portail prestataire. Essai gratuit 1 mois — sans carte bancaire.',
     images: ['/images/preview_image.webp'],
     type: 'website',
     url: 'https://www.seido-app.com',
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-      title: 'Gestion Locative Simplifiee — Gagnez jusqu\'à 10h/semaine | SEIDO',
-    description: 'SEIDO connecte gestionnaires, prestataires et locataires sur une seule plateforme. Interventions, documents, communication : tout au meme endroit. Essai gratuit.',
+    title: 'Gestion Locative Tout-en-Un — Gagnez 10h/semaine | SEIDO',
+    description: 'Logiciel de gestion locative tout-en-un pour gestionnaires immobiliers. Interventions pilotées, portail locataire, portail prestataire. Essai gratuit 1 mois — sans carte bancaire.',
     images: ['/images/preview_image.webp'],
   },
   alternates: {

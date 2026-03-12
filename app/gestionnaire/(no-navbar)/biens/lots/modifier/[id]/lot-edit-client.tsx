@@ -300,7 +300,6 @@ export default function LotEditClient({
 
         // Redirect to lot details page
         router.push(`/gestionnaire/biens/lots/${lotId}`)
-        router.refresh()
       } else {
         logger.error("❌ [LOT-EDIT] Update failed:", result.error)
         setError(result.error || "Erreur lors de la modification du lot")

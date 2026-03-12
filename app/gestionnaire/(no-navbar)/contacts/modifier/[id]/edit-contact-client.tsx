@@ -286,7 +286,6 @@ export function EditContactClient({
                         logger.info("✅ Invitation sent:", inviteResult)
                         toast.success("Contact modifié et invitation envoyée !")
                         router.push("/gestionnaire/contacts")
-                        router.refresh()
                         return // Skip the default success toast
                     }
                 } catch (inviteError) {
@@ -325,7 +324,6 @@ export function EditContactClient({
                         logger.info("✅ Access revoked:", revokeResult)
                         toast.success("Contact modifié et accès révoqué")
                         router.push("/gestionnaire/contacts")
-                        router.refresh()
                         return // Skip the default success toast
                     }
                 } catch (revokeError) {
@@ -338,7 +336,6 @@ export function EditContactClient({
 
             toast.success("Contact modifié avec succès")
             router.push("/gestionnaire/contacts")
-            router.refresh()
 
         } catch (error) {
             logger.error("❌ Error saving contact:", error)

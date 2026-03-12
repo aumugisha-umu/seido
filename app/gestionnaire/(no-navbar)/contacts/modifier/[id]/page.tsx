@@ -1,5 +1,5 @@
 import { getServerAuthContext } from '@/lib/server-context'
-import { createServerContactService, createServerSupabaseClient } from '@/lib/services'
+import { createServerContactService } from '@/lib/services'
 import { createServerCompanyRepository } from '@/lib/services/repositories/company.repository'
 import { logger } from '@/lib/logger'
 import { EditContactClient } from './edit-contact-client'
@@ -16,19 +16,26 @@ export default async function EditContactPage({
   try {
     logger.info("🔵 [EDIT-CONTACT-PAGE] Server-side fetch starting")
 
-    // 1. Auth & Team context
-    const { user, team } = await getServerAuthContext('gestionnaire')
+    // Phase 0: Auth + params in parallel
+    const [{ user, team }, { id }] = await Promise.all([
+      getServerAuthContext('gestionnaire'),
+      params
+    ])
 
     if (!team || !team.id) {
       logger.warn('⚠️ [EDIT-CONTACT-PAGE] Missing team in auth context')
       redirect('/auth/login')
     }
 
-    const { id } = await params
     logger.info(`🔍 [EDIT-CONTACT-PAGE] Fetching contact with ID: ${id} for team: ${team.id}`)
 
-    // 2. Fetch Contact Data (via team_members to respect RLS)
-    const contactService = await createServerContactService()
+    // Phase 1: Create services in parallel
+    const [contactService, companyRepository] = await Promise.all([
+      createServerContactService(),
+      createServerCompanyRepository()
+    ])
+
+    // Phase 2: Fetch contact (gate — must exist before proceeding)
     const contactResult = await contactService.findContactInTeam(team.id, id)
 
     logger.info(`🔍 [EDIT-CONTACT-PAGE] Service result: success=${contactResult.success}, data=${contactResult.data ? 'found' : 'null'}`)
@@ -40,14 +47,12 @@ export default async function EditContactPage({
 
     const contact = contactResult.data
 
-    // Verify team ownership
     if (contact.team_id !== team.id) {
       logger.warn(`⚠️ [EDIT-CONTACT-PAGE] Unauthorized access attempt to contact ${id} by team ${team.id}`)
       notFound()
     }
 
-    // 3. Fetch Companies (for the company selector)
-    const companyRepository = await createServerCompanyRepository()
+    // Phase 3: Fetch companies (service already initialized in Phase 1)
     let companies: any[] = []
     const companiesResult = await companyRepository.findActiveByTeam(team.id)
 

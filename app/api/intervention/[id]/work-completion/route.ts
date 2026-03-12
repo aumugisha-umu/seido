@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { after } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
@@ -178,22 +179,24 @@ export async function POST(
 
     logger.info({}, "✅ Work completion report submitted successfully")
 
-    // Send notifications via server action (handles in-app, push, and email)
-    try {
-      const notifResult = await notifyInterventionStatusChange({
-        interventionId: interventionId,
-        oldStatus: 'planifiee',
-        newStatus: 'cloturee_par_prestataire'
-      })
+    const deferredInterventionId = interventionId
+    after(async () => {
+      try {
+        const notifResult = await notifyInterventionStatusChange({
+          interventionId: deferredInterventionId,
+          oldStatus: 'planifiee',
+          newStatus: 'cloturee_par_prestataire'
+        })
 
-      if (notifResult.success) {
-        logger.info({ count: notifResult.data?.length }, "📧 Work completion notifications sent")
-      } else {
-        logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+        if (notifResult.success) {
+          logger.info({ count: notifResult.data?.length }, "📧 Work completion notifications sent (via after())")
+        } else {
+          logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed (via after())")
+        }
+      } catch (notifError) {
+        logger.warn({ notifError: notifError }, "⚠️ Could not send work completion notifications (via after())")
       }
-    } catch (notifError) {
-      logger.warn({ notifError: notifError }, "⚠️ Could not send work completion notifications:")
-    }
+    })
 
     return NextResponse.json({
       success: true,

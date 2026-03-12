@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
-import { getAllArticles, getAllCategories, getAllTags } from '@/lib/blog'
+import { getAllArticles, getAllCategories, getTagsWithFrequency } from '@/lib/blog'
 import { BlogListClient } from '@/components/blog/blog-list-client'
 
 export const metadata: Metadata = {
@@ -21,10 +21,10 @@ export const metadata: Metadata = {
 }
 
 export default async function BlogIndexPage() {
-  const [articles, categories, tags] = await Promise.all([
+  const [articles, categories, tagsWithFrequency] = await Promise.all([
     getAllArticles(),
     getAllCategories(),
-    getAllTags(),
+    getTagsWithFrequency(),
   ])
 
   // Strip content from articles for the list (only need metadata)
@@ -33,7 +33,6 @@ export default async function BlogIndexPage() {
   return (
     <>
       <div className="container mx-auto px-4 py-6 md:py-10">
-  
 
         {/* Article list with filters */}
         <div className="max-w-6xl mx-auto">
@@ -52,7 +51,7 @@ export default async function BlogIndexPage() {
             <BlogListClient
               articles={articleMetas}
               categories={categories}
-              tags={tags}
+              tagsWithFrequency={tagsWithFrequency}
             />
           </Suspense>
         </div>

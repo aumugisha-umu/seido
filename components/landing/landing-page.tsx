@@ -20,7 +20,6 @@ import { DemoRequestForm } from './demo-request-form'
 import { LandingHeader } from './landing-header'
 import { PricingCards } from '@/components/pricing-cards'
 import { BlogArticleCard } from '@/components/blog/blog-article-card'
-import { TestimonialsSection } from './sections/testimonials-section'
 import type { ArticleMeta } from '@/lib/blog'
 
 /**
@@ -86,7 +85,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             <LandingHeader showNav={true} />
 
             {/* Hero Section - Background Video with Overlay */}
-            <section className="relative z-10 min-h-[600px] md:min-h-[calc(100vh-153px)] flex items-center justify-start overflow-hidden">
+            <section className="relative z-10 min-h-[600px] md:min-h-[calc(100vh-73px)] flex items-center justify-start overflow-hidden">
                 {/* Background Video - Desktop only, Image on mobile */}
                 <div className="absolute inset-0 z-0 bg-[#131426]">
                     {/* Mobile: Static gradient background */}
@@ -115,13 +114,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
                         <h1 className="landing-display mb-6 md:mb-8 drop-shadow-2xl">
                             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-300">
-                                Chaque intervention pilotée.
+                                La gestion locative
                             </span>
                             <span className="block text-white">
-                                Chaque acteur connecté.
-                            </span>
-                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-                                Zéro appel inutile.
+                                en toute sereinité
                             </span>
                         </h1>
 
@@ -168,31 +164,6 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 </div>
             </section>
 
-            {/* Social Proof Band */}
-            <section className="relative z-10 border-y border-white/10 bg-white/5 backdrop-blur-sm">
-                <div className="container mx-auto px-4 py-6">
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
-                        <div className="flex items-center gap-2">
-                            <Building2 className="w-5 h-5 text-blue-400" />
-                            <span className="landing-body font-bold text-white">500+</span>
-                            <span className="landing-body-sm text-white/60">lots gérés</span>
-                        </div>
-                        <div className="hidden sm:block w-px h-6 bg-white/20" />
-                        <div className="flex items-center gap-2">
-                            <Zap className="w-5 h-5 text-blue-400" />
-                            <span className="landing-body font-bold text-white">2 400+</span>
-                            <span className="landing-body-sm text-white/60">interventions traitées</span>
-                        </div>
-                        <div className="hidden sm:block w-px h-6 bg-white/20" />
-                        <div className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-blue-400" />
-                            <span className="landing-body font-bold text-white">98%</span>
-                            <span className="landing-body-sm text-white/60">de satisfaction</span>
-                        </div>
-                    </div>
-                    {/* TODO: Ajouter logos clients quand disponibles */}
-                </div>
-            </section>
 
             {/* Combined Problem Section: Costs & Causes */}
             <section className="relative z-10 container mx-auto px-4 py-24">
@@ -211,7 +182,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             <div className="landing-h1 text-red-400 mb-2">
                                 <CountUp end={40} suffix="%" />
                             </div>
-                            <div className="landing-body text-white/80 font-medium">de votre temps <strong>englouti</strong> par la gestion des interventions</div>
+                            <div className="landing-body text-white/80 font-medium">de votre temps <strong>englouti</strong> par les urgences</div>
                         </div>
                     </FadeIn>
                     <FadeIn delay={100}>
@@ -276,7 +247,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
-                            Seido, votre outil de gestion opérationnelle
+                            Logiciel de gestion locative tout-en-un
                         </h2>
                         <p className="landing-subtitle text-white/60">
                             Interventions pilotées en temps réel, avec historique et preuves au même endroit.
@@ -284,75 +255,42 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </div>
                 </FadeIn>
 
-                {/* Walkthrough: 4-Step Intervention Flow — Compact Horizontal Stepper */}
-                <FadeIn>
-                    <div id="roles" className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
-                        {[
-                            {
-                                step: 1,
-                                title: "Le locataire signale",
-                                desc: "Votre locataire prend une photo, décrit le problème, envoie. Vous recevez une demande structurée, pas un SMS flou.",
-                                image: "/images/screenshots/walkthrough-1-locataire.webp",
-                                fallbackImage: "/images/mobile-portals.png",
-                                color: "from-orange-600 to-orange-400",
-                                borderColor: "border-l-orange-500/60",
-                            },
-                            {
-                                step: 2,
-                                title: "Vous pilotez en 30 secondes",
-                                desc: "Affectez un prestataire, validez un devis, planifiez un créneau. Depuis votre bureau ou votre canapé.",
-                                image: "/images/screenshots/walkthrough-2-dashboard.webp",
-                                fallbackImage: "/images/dashboard-hero.png",
-                                color: "from-blue-600 to-blue-400",
-                                borderColor: "border-l-blue-500/60",
-                            },
-                            {
-                                step: 3,
-                                title: "Le prestataire agit en autonomie",
-                                desc: "Il voit l'adresse, le contact, le problème. Il propose un créneau, upload ses photos. Zéro allers-retours.",
-                                image: "/images/screenshots/walkthrough-3-prestataire.webp",
-                                fallbackImage: "/images/mobile-portals.png",
-                                color: "from-green-600 to-green-400",
-                                borderColor: "border-l-green-500/60",
-                            },
-                            {
-                                step: 4,
-                                title: "Tout le monde est informé — automatiquement",
-                                desc: "Locataire notifié, gestionnaire informé, historique complet. Preuve béton en cas de litige.",
-                                image: "/images/screenshots/walkthrough-4-timeline.webp",
-                                fallbackImage: "/images/mockup_desktop.webp",
-                                color: "from-purple-600 to-purple-400",
-                                borderColor: "border-l-purple-500/60",
-                            }
-                        ].map((item) => (
-                            <div key={item.step}
-                                 className={`rounded-2xl p-5 bg-[#1e293b]/70 border border-white/10 backdrop-blur-md border-l-2 ${item.borderColor} hover:-translate-y-1 transition-transform duration-300`}>
-                                {/* Image — hidden on mobile for compactness */}
-                                <div className="hidden sm:block relative rounded-xl overflow-hidden bg-white/5 border border-white/10 aspect-[3/2] mb-4">
-                                    <Image
-                                        src={item.image}
-                                        alt={item.title}
-                                        fill
-                                        className="object-cover"
-                                        onError={(e) => {
-                                            const target = e.target as HTMLImageElement
-                                            target.src = item.fallbackImage
-                                        }}
-                                    />
-                                </div>
-                                {/* Step badge + title */}
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${item.color} flex items-center justify-center text-white text-sm font-bold shrink-0`}>
-                                        {item.step}
+                {/* Gestionnaire Hero Card */}
+                <div id="roles" className="mb-16">
+                    <FadeIn delay={0}>
+                        <div className="relative group rounded-3xl overflow-hidden hover:-translate-y-2 transition-transform duration-500">
+                            {/* Gradient glow effect */}
+                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 rounded-3xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity duration-500" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <div className="relative p-8 md:p-10 bg-[#1e293b]/70 border border-blue-500/30 backdrop-blur-md">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center">
+                                        <Building2 className="w-6 h-6 text-white" />
                                     </div>
-                                    <h3 className="text-base font-semibold text-white">{item.title}</h3>
+                                    <div>
+                                        <h3 className="landing-h3 text-white">Tout voir. Sans rien demander.</h3>
+                                        <p className="landing-caption text-blue-300">Chaque intervention, de la demande à la facture, au même endroit.</p>
+                                    </div>
                                 </div>
-                                {/* Description */}
-                                <p className="text-sm text-white/60 leading-relaxed">{item.desc}</p>
+                                <ul className="grid md:grid-cols-3 gap-4">
+                                    <li className="flex items-start landing-body-sm text-white/80">
+                                        <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
+                                        <span><strong>Fini les "t'en es où ?"</strong> → Timeline complète, accessible à tous.</span>
+                                    </li>
+                                    <li className="flex items-start landing-body-sm text-white/80">
+                                        <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
+                                        <span><strong>Devis en 2 clics</strong> → Demander, comparer, valider. Sans email.</span>
+                                    </li>
+                                    <li className="flex items-start landing-body-sm text-white/80">
+                                        <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
+                                        <span><strong>Alertes intelligentes</strong> → Notifié quand c'est urgent. Silence sinon.</span>
+                                    </li>
+                                </ul>
+                                <p className="mt-6 landing-caption text-white/40">+ tableaux de bord, relances, chat, pilotage prestataires…</p>
                             </div>
-                        ))}
-                    </div>
-                </FadeIn>
+                        </div>
+                    </FadeIn>
+                </div>
 
                 {/* Portails inclus - Benefit for gestionnaire */}
                 <FadeIn delay={100}>
@@ -376,7 +314,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     <Wrench className="w-8 h-8 text-green-400" />
                                     <div>
                                         <h3 className="landing-h4 text-white">Le Portail Prestataire</h3>
-                                        <p className="landing-caption text-green-400/80">Ils bossent. Vous êtes informé. Sans un seul appel.</p>
+                                        <p className="landing-caption text-green-400/80">Ils bossent. Vous êtes informé.</p>
                                     </div>
                                 </div>
                                 <p className="landing-body-sm text-white/60 mb-5">Des interventions claires, côté terrain.</p>
@@ -474,7 +412,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         },
                         {
                             icon: Mail,
-                            title: "Vos emails au bon endroit",
+                            title: "Connectez vos emails",
                             desc: "Vos emails liés à vos biens. Discutez en équipe, créez une intervention en quelques clics.",
                             color: "text-purple-400",
                             bg: "bg-purple-400/10"
@@ -571,7 +509,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         {
                             icon: BarChart3,
                             title: "Pilotage Financier",
-                            desc: "Réconciliation bancaire auto. Impayés détectés. Régularisation des charges en 3 clics. Connexion comptable (Exact Online, etc.). Vos soirées Excel, c'est fini.",
+                            desc: "Réconciliation bancaire auto. Impayés détectés. Régularisation des charges en 3 clics. Vos soirées Excel, c'est fini.",
                             tags: ["T4 2026"]
                         }
                     ].map((item, i) => (
@@ -607,8 +545,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
 
 
-            {/* Testimonials Section */}
-            <TestimonialsSection />
+            {/* Testimonials section removed — will be added back with real testimonials */}
 
             {/* Pricing - Gradient Borders */}
             < section id="pricing" className="relative z-10 container mx-auto px-4 py-24" >
@@ -622,7 +559,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             <span className="landing-caption font-medium text-green-400">Aucune carte bancaire requise</span>
                         </div>
                         <h2 className="landing-h2 mb-4 text-white">
-                            Un mois pour voir la différence. Sans carte bancaire.
+                            Un mois pour voir la différence
                         </h2>
                         <p className="landing-subtitle text-white/60 mb-6">
                             Testez avec vos vraies données. Gardez tout si ça vous convient. Partez sans friction sinon.
@@ -696,27 +633,6 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     />
                 </FadeIn>
 
-                {/* 3 Steps to Start */}
-                <FadeIn delay={200}>
-                    <div className="max-w-3xl mx-auto mt-16">
-                        <h3 className="landing-h4 text-white text-center mb-8">Opérationnel en 3 étapes</h3>
-                        <div className="grid md:grid-cols-3 gap-6">
-                            {[
-                                { step: "1", title: "Créez votre compte", desc: "2 minutes, sans carte bancaire.", icon: Zap },
-                                { step: "2", title: "Importez vos biens", desc: "CSV, Excel, ou on s'en occupe.", icon: Building2 },
-                                { step: "3", title: "Invitez vos acteurs", desc: "Locataires et prestataires en 1 clic.", icon: Mail }
-                            ].map((item) => (
-                                <div key={item.step} className="text-center p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-400 flex items-center justify-center text-white font-bold mx-auto mb-3">
-                                        {item.step}
-                                    </div>
-                                    <h4 className="landing-body font-semibold text-white mb-1">{item.title}</h4>
-                                    <p className="landing-caption text-white/60">{item.desc}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </FadeIn>
 
             </section >
 
@@ -879,7 +795,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             Et si lundi prochain était différent ?
                         </h2>
                         <p className="landing-subtitle text-white/60 mb-4 relative z-10">
-                            Plus de visibilité. Moins d'appels. Zéro engagement.
+                            Plus de visibilité. Moins de surprises. Zéro engagement.
                         </p>
                         <p className="landing-body text-green-400 mb-10 relative z-10 font-medium">
                             1 mois gratuit, sans carte bancaire
@@ -887,7 +803,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         <div className="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
                             <Link href="/auth/signup">
                                 <Button size="lg" className="h-14 px-10 text-lg bg-white text-black hover:bg-white/90 rounded-full transition-all hover:scale-105 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
-                                    Démarrer mon mois gratuit
+                                    Essayer gratuitement — 1 mois offert
                                 </Button>
                             </Link>
                         </div>

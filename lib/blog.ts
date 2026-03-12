@@ -105,3 +105,19 @@ export const getAllSlugs = async (): Promise<string[]> => {
   const articles = await getAllArticles()
   return articles.map((a) => a.slug)
 }
+
+export interface TagWithFrequency {
+  tag: string
+  count: number
+}
+
+export const getTagsWithFrequency = async (): Promise<TagWithFrequency[]> => {
+  const articles = await getAllArticles()
+  const freq = new Map<string, number>()
+  articles.flatMap((a) => a.tags).forEach((tag) => {
+    freq.set(tag, (freq.get(tag) || 0) + 1)
+  })
+  return Array.from(freq.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+}

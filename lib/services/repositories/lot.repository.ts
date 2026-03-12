@@ -552,7 +552,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
           user:user_id!inner(role)
         )
       `)
-      .eq('lot_contacts.user.role', 'tenant')
+      .eq('lot_contacts.user.role', 'locataire')
 
     if (buildingId) {
       queryBuilder = queryBuilder.eq('building_id', buildingId)

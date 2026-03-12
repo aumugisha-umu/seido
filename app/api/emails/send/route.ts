@@ -19,13 +19,18 @@ export async function POST(request: Request) {
 
         const smtpService = new SMTPService(supabase);
 
+        const escapeHtml = (str: string) =>
+            str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+
+        const sanitizedBody = escapeHtml(body)
+
         const result = await smtpService.sendEmail({
             connectionId: emailConnectionId,
             to,
             cc: cc || undefined,
             subject,
             text: body,
-            html: `<p>${body.replace(/\n/g, '<br>')}</p>`,
+            html: `<p>${sanitizedBody.replace(/\n/g, '<br>')}</p>`,
             inReplyToEmailId
         });
 

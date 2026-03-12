@@ -15,31 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 // Tab components
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 
-// ✅ LAZY LOADED: Heavy chat component loaded on demand (US-304)
-// Reduces initial bundle size and improves TTI by 200-500ms
-const InterventionChatTab = dynamic(
-  () => import('@/components/interventions/intervention-chat-tab').then(mod => ({ default: mod.InterventionChatTab })),
-  {
-    loading: () => (
-      <div className="flex-1 flex flex-col p-4 space-y-4">
-        <div className="flex gap-2">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-8 w-24 rounded-full" />
-          ))}
-        </div>
-        <div className="flex-1 space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
-              <Skeleton className={`h-16 ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'} rounded-lg`} />
-            </div>
-          ))}
-        </div>
-        <Skeleton className="h-12 w-full rounded-lg" />
-      </div>
-    ),
-    ssr: false
-  }
-)
+// Lazy-loaded chat component shared across all roles
+import { LazyInterventionChatTab as InterventionChatTab } from '@/components/interventions/lazy-intervention-chat-tab'
 
 // Modale d'upload de documents
 import { DocumentUploadDialog } from '@/components/interventions/document-upload-dialog'

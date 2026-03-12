@@ -33,10 +33,12 @@ export default async function ContactsPage() {
       )
     }
 
-    // ✅ Create services
-    const contactService = await createServerContactService()
-    const companyRepository = await createServerCompanyRepository()
-    const supabase = await createServerSupabaseClient()
+    // ✅ Create services in parallel
+    const [contactService, companyRepository, supabase] = await Promise.all([
+      createServerContactService(),
+      createServerCompanyRepository(),
+      createServerSupabaseClient()
+    ])
 
     // ✅ Parallel data fetching (Dashboard pattern)
     let contacts: any[] = []

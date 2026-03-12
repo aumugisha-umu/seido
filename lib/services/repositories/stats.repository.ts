@@ -325,10 +325,10 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
           .select('*', { count: 'exact', head: true })
           .eq('created_by', userId),
         this.supabase
-          .from('interventions')
-          .select('*', { count: 'exact', head: true })
-          .or(`assigned_gestionnaire.eq.${userId},assigned_prestataire.eq.${userId}`)
-          .in('status', ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']),
+          .from('intervention_assignments')
+          .select('intervention:intervention_id!inner(status)', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .in('intervention.status', ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']),
         this.supabase
           .from('activity_logs')
           .select('*', { count: 'exact', head: true })

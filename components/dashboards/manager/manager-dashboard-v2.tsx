@@ -153,6 +153,8 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
             <div className="dashboard__container pb-24 lg:pb-6 flex flex-col">
                 {/* Header Actions (rendered in topbar via portal) */}
                 <PageActions>
+                    {/* Onboarding pill — sits left/center in topbar, buttons stay right */}
+                    <OnboardingChecklist className="mr-auto" progress={onboardingProgress} isTrialing={isTrialing ?? false} defaultExpanded />
                     <Button
                         variant="outline"
                         onClick={navigateToImport}
@@ -244,11 +246,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                         contractStats={contractStats}
                         onActionsClick={handleActionsClick}
                     />
-                </div>
-
-                {/* Onboarding Checklist — trialing users only (SSR data) */}
-                <div className="lg:order-2">
-                    <OnboardingChecklist className="mb-4" progress={onboardingProgress} isTrialing={isTrialing ?? false} />
                 </div>
 
                 {/* Unread Messages Section */}

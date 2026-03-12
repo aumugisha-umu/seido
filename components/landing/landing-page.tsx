@@ -128,8 +128,9 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         </h1>
 
                         <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                            Vos interventions, rappels et documents centralisés, vos locataires informés, vos prestataires autonomes. <span className="font-bold">Gagnez jusqu&apos;à 10h/semaine.</span>
+                            Vos interventions, rappels, documents et communications centralisés. <br/> Vos locataires informés, vos prestataires autonomes. <br/><span className="font-bold">Gagnez jusqu&apos;à 10h/semaine.</span>
                         </p>
+                        
 
                         <div className="flex flex-col sm:flex-row gap-4 mb-4 md:mb-6 max-w-2xl">
                             <Link href="/auth/signup">

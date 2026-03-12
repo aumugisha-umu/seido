@@ -20,6 +20,7 @@ import { createServerInterventionRepository } from '@/lib/services/repositories/
 import { createServerUserRepository } from '@/lib/services/repositories/user.repository'
 import { createServerBuildingRepository } from '@/lib/services/repositories/building.repository'
 import { createServerLotRepository } from '@/lib/services/repositories/lot.repository'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { logger } from '@/lib/logger'
 
 // ============================================================================
@@ -49,15 +50,16 @@ export async function dispatchInterventionCreated(interventionId: string): Promi
   error?: string
 }> {
   try {
-    // Note: No auth check here - the caller (Server Action) has already verified permissions
-    // This prevents double-authentication issues and cache conflicts
+    const authContext = await getServerActionAuthContextOrNull()
+    if (!authContext) {
+      return { success: false, error: 'Authentication required' }
+    }
 
     logger.info(
       { interventionId },
       '📬 [DISPATCHER-ACTION] dispatchInterventionCreated called'
     )
 
-    // Create dispatcher with dependencies (Phase 2: Email enabled)
     const notificationRepository = await createServerNotificationRepository()
     const interventionRepository = await createServerInterventionRepository()
     const userRepository = await createServerUserRepository()
@@ -149,8 +151,10 @@ export async function dispatchInterventionStatusChange(params: {
   error?: string
 }> {
   try {
-    // Note: No auth check here - the caller (Server Action) has already verified permissions
-    // This prevents double-authentication issues and cache conflicts
+    const authContext = await getServerActionAuthContextOrNull()
+    if (!authContext) {
+      return { success: false, error: 'Authentication required' }
+    }
 
     logger.info(
       {
@@ -161,7 +165,6 @@ export async function dispatchInterventionStatusChange(params: {
       '📬 [DISPATCHER-ACTION] dispatchInterventionStatusChange called'
     )
 
-    // Create dispatcher with dependencies (Phase 2: Email enabled)
     const notificationRepository = await createServerNotificationRepository()
     const interventionRepository = await createServerInterventionRepository()
     const userRepository = await createServerUserRepository()

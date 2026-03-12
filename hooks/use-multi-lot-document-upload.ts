@@ -12,14 +12,9 @@ import type { GenericFileWithPreview, GenericDocumentSlotConfig, GenericDocument
 import type { UsePropertyDocumentUploadReturn } from '@/hooks/use-property-document-upload'
 import { computeExpiryDate } from '@/lib/constants/property-document-slots'
 
-const ALLOWED_MIME_TYPES = [
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-]
+import { ALLOWED_DOCUMENT_MIME_TYPES } from '@/lib/constants/mime-types'
+
+const ALLOWED_MIME_TYPES = ALLOWED_DOCUMENT_MIME_TYPES
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 interface UseMultiLotDocumentUploadOptions {

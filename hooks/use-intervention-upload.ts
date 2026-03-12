@@ -2,25 +2,9 @@ import { useState, useCallback, useEffect } from 'react'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
 
-// Allowed MIME types (matching server-side validation)
-const ALLOWED_MIME_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/plain',
-  'application/zip',
-  'audio/webm',
-  'audio/mp4',
-  'audio/ogg',
-  'audio/wav',
-  'audio/mpeg',
-]
+import { ALLOWED_INTERVENTION_MIME_TYPES } from '@/lib/constants/mime-types'
+
+const ALLOWED_MIME_TYPES = ALLOWED_INTERVENTION_MIME_TYPES
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 

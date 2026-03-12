@@ -21,6 +21,7 @@ import {
   signImpersonationToken,
   verifyImpersonationToken,
   IMPERSONATION_COOKIE_NAME,
+  IMPERSONATION_FLAG_COOKIE_NAME,
   IMPERSONATION_DURATION_HOURS
 } from '@/lib/impersonation-jwt'
 import { logger } from '@/lib/logger'
@@ -106,12 +107,20 @@ export async function startImpersonationAction(targetUserId: string): Promise<Ac
     )
 
     const cookieStore = await cookies()
+    const maxAge = IMPERSONATION_DURATION_HOURS * 60 * 60
     cookieStore.set(IMPERSONATION_COOKIE_NAME, impersonationToken, {
       path: '/',
-      httpOnly: false, // Permet detection cote client pour afficher le bandeau
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: IMPERSONATION_DURATION_HOURS * 60 * 60
+      maxAge,
+    })
+    cookieStore.set(IMPERSONATION_FLAG_COOKIE_NAME, '1', {
+      path: '/',
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge,
     })
 
     // 7. Construire l'URL de redirection
@@ -156,16 +165,16 @@ export async function stopImpersonationAction(): Promise<ActionResult> {
     // Verifier et decoder le token
     const payload = verifyImpersonationToken(token)
     if (!payload?.admin_email) {
-      // Token invalide, supprimer quand meme le cookie
       cookieStore.delete(IMPERSONATION_COOKIE_NAME)
+      cookieStore.delete(IMPERSONATION_FLAG_COOKIE_NAME)
       return {
         success: false,
         error: 'Token d\'impersonation invalide ou expire'
       }
     }
 
-    // Supprimer le cookie d'impersonation
     cookieStore.delete(IMPERSONATION_COOKIE_NAME)
+    cookieStore.delete(IMPERSONATION_FLAG_COOKIE_NAME)
 
     // Verifier que le service admin est configure
     if (!isAdminConfigured()) {
@@ -238,8 +247,8 @@ export async function checkImpersonationAction(): Promise<ActionResult<{ isActiv
 
     const payload = verifyImpersonationToken(token)
     if (!payload) {
-      // Token invalide, le supprimer
       cookieStore.delete(IMPERSONATION_COOKIE_NAME)
+      cookieStore.delete(IMPERSONATION_FLAG_COOKIE_NAME)
       return {
         success: true,
         data: { isActive: false }

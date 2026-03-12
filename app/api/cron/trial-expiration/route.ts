@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { getSubscriptionEmailService } from '@/lib/services/domain/subscription-email.service'
 import { FREE_TIER_LIMIT } from '@/lib/stripe'
+import { chunkArray } from '@/lib/utils/array-utils'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -53,49 +54,56 @@ export async function GET(request: Request) {
 
     logger.info({ count: subs.length }, '[CRON-TRIAL-EXP] Found expired trials')
 
-    for (const sub of subs) {
-      const lotCount = sub.billable_properties ?? 0
-      const newStatus = lotCount <= FREE_TIER_LIMIT ? 'free_tier' : 'read_only'
-      const isReadOnly = newStatus === 'read_only'
+    const chunks = chunkArray(subs, 5)
+    for (const chunk of chunks) {
+      const results = await Promise.allSettled(chunk.map(async (sub) => {
+        const lotCount = sub.billable_properties ?? 0
+        const newStatus = lotCount <= FREE_TIER_LIMIT ? 'free_tier' : 'read_only'
+        const isReadOnly = newStatus === 'read_only'
 
-      // Transition status
-      const { error: updateError } = await supabase
-        .from('subscriptions')
-        .update({
-          status: newStatus,
-          trial_expired_email_sent: true,
-        })
-        .eq('id', sub.id)
+        const { error: updateError } = await supabase
+          .from('subscriptions')
+          .update({
+            status: newStatus,
+            trial_expired_email_sent: true,
+          })
+          .eq('id', sub.id)
 
-      if (updateError) {
-        logger.error({ error: updateError, subId: sub.id }, '[CRON-TRIAL-EXP] Update error')
-        continue
+        if (updateError) {
+          logger.error({ error: updateError, subId: sub.id }, '[CRON-TRIAL-EXP] Update error')
+          return
+        }
+
+        const { data: members } = await supabase
+          .from('team_members')
+          .select('user_id, users!inner(email, first_name)')
+          .eq('team_id', sub.team_id)
+          .eq('role', 'admin')
+          .is('left_at', null)
+          .limit(1)
+
+        const member = members?.[0]
+        if (member?.users?.email) {
+          await emailService.sendTrialExpired(
+            member.users.email,
+            {
+              firstName: member.users.first_name || 'Gestionnaire',
+              teamName: (sub.teams as { name: string })?.name || 'Votre equipe',
+              lotCount,
+              isReadOnly,
+            },
+          )
+        }
+
+        transitioned++
+        logger.info({ subId: sub.id, newStatus, lotCount }, '[CRON-TRIAL-EXP] Transitioned')
+      }))
+
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          logger.error({ error: r.reason }, '[CRON-TRIAL-EXP] Chunk item failed')
+        }
       }
-
-      // Send trial-expired email
-      const { data: members } = await supabase
-        .from('team_members')
-        .select('user_id, users!inner(email, first_name)')
-        .eq('team_id', sub.team_id)
-        .eq('role', 'admin')
-        .is('left_at', null)
-        .limit(1)
-
-      const member = members?.[0]
-      if (member?.users?.email) {
-        await emailService.sendTrialExpired(
-          member.users.email,
-          {
-            firstName: member.users.first_name || 'Gestionnaire',
-            teamName: (sub.teams as { name: string })?.name || 'Votre equipe',
-            lotCount,
-            isReadOnly,
-          },
-        )
-      }
-
-      transitioned++
-      logger.info({ subId: sub.id, newStatus, lotCount }, '[CRON-TRIAL-EXP] Transitioned')
     }
 
     const timing = Date.now() - startTime

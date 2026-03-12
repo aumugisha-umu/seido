@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { getSubscriptionEmailService } from '@/lib/services/domain/subscription-email.service'
+import { chunkArray } from '@/lib/utils/array-utils'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -69,45 +70,46 @@ export async function GET(request: Request) {
 
       logger.info({ window: window.days, count: subs.length }, '[CRON-TRIAL-NOTIF] Found subs to notify')
 
-      for (const sub of subs) {
-        // Get the gestionnaire admin email for this team
-        const { data: members } = await supabase
-          .from('team_members')
-          .select('user_id, users!inner(email, first_name)')
-          .eq('team_id', sub.team_id)
-          .eq('role', 'admin')
-          .is('left_at', null)
-          .limit(1)
+      const chunks = chunkArray(subs, 5)
+      for (const chunk of chunks) {
+        await Promise.allSettled(chunk.map(async (sub) => {
+          const { data: members } = await supabase
+            .from('team_members')
+            .select('user_id, users!inner(email, first_name)')
+            .eq('team_id', sub.team_id)
+            .eq('role', 'admin')
+            .is('left_at', null)
+            .limit(1)
 
-        const member = members?.[0]
-        if (!member?.users?.email) {
-          logger.warn({ teamId: sub.team_id }, '[CRON-TRIAL-NOTIF] No admin email found')
-          continue
-        }
+          const member = members?.[0]
+          if (!member?.users?.email) {
+            logger.warn({ teamId: sub.team_id }, '[CRON-TRIAL-NOTIF] No admin email found')
+            return
+          }
 
-        const daysLeft = Math.max(1, Math.ceil(
-          (new Date(sub.trial_end).getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
-        ))
+          const daysLeft = Math.max(1, Math.ceil(
+            (new Date(sub.trial_end).getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
+          ))
 
-        const result = await emailService.sendTrialEnding(
-          member.users.email,
-          {
-            firstName: member.users.first_name || 'Gestionnaire',
-            teamName: (sub.teams as { name: string })?.name || 'Votre equipe',
-            daysLeft,
-            lotCount: sub.billable_properties ?? 0,
-          },
-        )
+          const result = await emailService.sendTrialEnding(
+            member.users.email,
+            {
+              firstName: member.users.first_name || 'Gestionnaire',
+              teamName: (sub.teams as { name: string })?.name || 'Votre equipe',
+              daysLeft,
+              lotCount: sub.billable_properties ?? 0,
+            },
+          )
 
-        if (result.success) {
-          // Set idempotency flag
-          await supabase
-            .from('subscriptions')
-            .update({ [window.flag]: true })
-            .eq('id', sub.id)
+          if (result.success) {
+            await supabase
+              .from('subscriptions')
+              .update({ [window.flag]: true })
+              .eq('id', sub.id)
 
-          totalSent++
-        }
+            totalSent++
+          }
+        }))
       }
     }
 

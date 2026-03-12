@@ -19,15 +19,22 @@ import { EmailService } from '@/lib/services/domain/email.service'
 export async function POST(request: NextRequest) {
   logger.info({}, "📅 intervention-schedule API route called")
 
-  // Initialize services
-  const interventionService = await createServerInterventionService()
-
-  // Initialize notification services with repositories
-  const notificationRepository = await createServerNotificationRepository()
-  const interventionRepository = await createServerInterventionRepository()
-  const userRepository = await createServerUserRepository()
-  const buildingRepository = await createServerBuildingRepository()
-  const lotRepository = await createServerLotRepository()
+  // Initialize services in parallel
+  const [
+    interventionService,
+    notificationRepository,
+    interventionRepository,
+    userRepository,
+    buildingRepository,
+    lotRepository,
+  ] = await Promise.all([
+    createServerInterventionService(),
+    createServerNotificationRepository(),
+    createServerInterventionRepository(),
+    createServerUserRepository(),
+    createServerBuildingRepository(),
+    createServerLotRepository(),
+  ])
   const emailService = new EmailService()
 
   const notificationService = new NotificationService(notificationRepository)

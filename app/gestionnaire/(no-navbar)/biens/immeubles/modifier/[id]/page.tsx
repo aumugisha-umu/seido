@@ -10,33 +10,31 @@ interface PageProps {
 }
 
 export default async function EditBuildingPage({ params }: PageProps) {
-  const resolvedParams = await params
-
-  // ✅ Centralized auth + team fetching
-  const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
+  // Phase 0: Auth + params in parallel
+  const [resolvedParams, { user, profile, team, supabase }] = await Promise.all([
+    params,
+    getServerAuthContext('gestionnaire')
+  ])
 
   if (!user || !profile || !team) {
     redirect('/login')
   }
 
-  // Initialize services
-  const buildingService = await createServerBuildingService()
-  const teamService = await createServerTeamService()
+  // Phase 1: Create services in parallel
+  const [buildingService, teamService] = await Promise.all([
+    createServerBuildingService(),
+    createServerTeamService()
+  ])
 
   try {
-    // STEP 1: Log start of loading process
     logger.info(`[EDIT-BUILDING] Loading building ${resolvedParams.id} for team ${team.id}`)
 
-    const buildingResult = await buildingService.getByIdWithRelations(resolvedParams.id)
+    // Phase 2: Fetch building + team members in parallel (both only need team.id)
+    const [buildingResult, teamMembersResult] = await Promise.all([
+      buildingService.getByIdWithRelations(resolvedParams.id),
+      teamService.getTeamMembers(team.id)
+    ])
 
-    // STEP 2: Log query result
-    logger.info(`[EDIT-BUILDING] Query result:`, {
-      success: buildingResult.success,
-      hasData: !!buildingResult.data,
-      error: buildingResult.success ? null : buildingResult.error
-    })
-
-    // STEP 3: Check query success with detailed error
     if (!buildingResult.success || !buildingResult.data) {
       logger.error(`[EDIT-BUILDING] Building not found or query failed`, {
         buildingId: resolvedParams.id,
@@ -47,8 +45,8 @@ export default async function EditBuildingPage({ params }: PageProps) {
     }
 
     const building = buildingResult.data
+    const teamMembers = teamMembersResult?.data || []
 
-    // STEP 4: Log building data structure
     logger.info(`[EDIT-BUILDING] Building loaded:`, {
       buildingId: building.id,
       buildingName: building.name,
@@ -58,34 +56,16 @@ export default async function EditBuildingPage({ params }: PageProps) {
       buildingContactsCount: building.building_contacts?.length || 0
     })
 
-    // STEP 5: Verify team ownership with detailed error
     if (building.team_id !== team.id) {
-      logger.error(`[EDIT-BUILDING] Team mismatch - building does not belong to user's team`, {
+      logger.error(`[EDIT-BUILDING] Team mismatch`, {
         buildingId: resolvedParams.id,
         buildingTeamId: building.team_id,
-        userTeamId: team.id,
-        buildingName: building.name
+        userTeamId: team.id
       })
       redirect('/gestionnaire/biens')
     }
 
-    // STEP 6: Log before transformation
-    logger.info(`[EDIT-BUILDING] Team verification passed, transforming data...`)
-
     const transformedData = transformBuildingForEdit(building)
-
-    // STEP 7: Log transformation success
-    logger.info(`[EDIT-BUILDING] Data transformation complete:`, {
-      lotsCount: transformedData.lots.length,
-      buildingManagersCount: transformedData.buildingManagers.length,
-      buildingContactsCount: Object.values(transformedData.buildingContacts).flat().length
-    })
-
-    // STEP 8: Load team members
-    logger.info(`[EDIT-BUILDING] Loading team members for team ${team.id}`)
-    const teamMembersResult = await teamService.getTeamMembers(team.id)
-    const teamMembers = teamMembersResult?.data || []
-    logger.info(`[EDIT-BUILDING] Loaded ${teamMembers.length} team members`)
 
     // Prepare user profile for client component
     const userProfile = {

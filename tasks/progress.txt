@@ -1,17 +1,21 @@
 # Progress Log — Production Readiness Audit Remediation
 # Started: 2026-03-12
-# Stories: 35 total (Waves A-F)
+# Stories: 34 implemented (Waves A-F), 2 pre-existing (F02, F04)
 # Source: docs/audit/production-readiness-audit-2026-03-12-FINAL.md
+# Implementation: tasks/production-readiness-sprint-instructions.md
 ---
 2026-03-12 | INIT | PRD created from verified audit (8 audit agents + 4 verification agents + external cross-review)
 2026-03-12 | INIT | 5 false positives eliminated: C23 (indexes exist), D1 (Next.js already patched), F7 (modal used via shim), F8 (calendar properly lazy-loaded), UserUpdate proprietaire (exists in types)
 2026-03-12 | INIT | Previous prd.json archived to tasks/archive/2026-03-12-confirmation-pages-harmonization/
 ---
-2026-03-12 | COMPLETE | All 35 stories implemented across 6 waves
-2026-03-12 | WAVE-A | A01(cron auth), A02(headers), A03(key logging), A04(locataire bug)
-2026-03-12 | WAVE-B | B01(open redirect), B02(XSS), B03(dispatcher auth), B04(doc download), B05(filter injection), B06(debug info), B07(team_id)
-2026-03-12 | WAVE-C | C01(CI pipeline), C02(CSP report-only), C03(analytics pin), C04(httpOnly cookie), C05(deps cleanup)
-2026-03-12 | WAVE-D | D01(stats repo), D02(VALID_TRANSITIONS), D03(deleted_at), D04(findByBuilding), D05(role enum), D06(duplicate validation)
-2026-03-12 | WAVE-E | E01(import parallel), E02(contract parallel), E03(cron parallel), E04(after() deferral), E05(service init parallel), E06(dead cache deleted)
-2026-03-12 | WAVE-F | F01(MIME constants), F02(loading.tsx), F03(Sentry stub), F04(health endpoint), F05(debug guard), F06(WCAG — already clean), F07(lazy chat tab)
-2026-03-12 | TESTS | ~150 new unit/integration tests added across 25 test files
+2026-03-12 | COMPLETE | All stories implemented across 6 waves (30 commits on preview branch)
+---
+2026-03-12 | WAVE-A (5/5) | A01: cron auth bypass fix (5 routes), A02: HSTS + Permissions-Policy headers, A03: service role key logging fix, A04: lot.repository findOccupied() role fix, A05: CSP Report-Only + /api/csp-report endpoint
+2026-03-12 | WAVE-B (7/7) | B01: open redirect in impersonation, B02: XSS email body escape, B03: dispatcher actions auth guard, B04: rate limiter document download, B05: PostgREST filter injection sanitize, B06: reset-password error leak removal, B07: upload route team_id from auth context
+2026-03-12 | WAVE-C (4/4) | C01: pin @vercel/analytics ^1.5.0, C02: dependency hygiene (devDeps + remove unused toast), C03: remove no-op webpack config, C04: impersonation cookie httpOnly split
+2026-03-12 | WAVE-D (6/6) | D01: stats.repository fix column refs via intervention_assignments, D02: VALID_TRANSITIONS alignment + contestee, D03: getDocuments() deleted_at filter, D04: findByBuilding() OR condition for building-level, D05: user.repository role enum fix, D06: validateRequired re-export dedup
+2026-03-12 | WAVE-E (6/6) | E01: chunkArray utility created, E02: contract creation already parallelized, E03: cron loops chunked Promise.allSettled, E04: work-completion after() deferral, E05: service init Promise.all in schedule+finalize, E06: dead cache layer deleted (cached-queries.ts + index.ts)
+2026-03-12 | WAVE-F (6/6) | F01: MIME types centralized to lib/constants/mime-types.ts, F02: userScalable already absent (no-op), F03: getPriorityColor consolidated to canonical lib/intervention-utils.ts, F04: health endpoint already existed, F05: test/debug pages server-side NODE_ENV guard, F06: chat tab skeleton deduplicated via LazyInterventionChatTab
+---
+2026-03-12 | VERIFY | npm run build: PASS (166 static pages generated)
+2026-03-12 | VERIFY | npm run lint: PASS (only pre-existing storybook + @ts-ignore warnings)

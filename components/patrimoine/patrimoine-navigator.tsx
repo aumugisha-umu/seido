@@ -67,7 +67,8 @@ export function PatrimoineNavigator({
         setViewMode,
         mounted,
         filteredData,
-        createRowClickHandler
+        createRowClickHandler,
+        createRowHoverHandler
     } = useDataNavigator({
         data: currentData,
         searchableFields: currentConfig.searchConfig.searchableFields as string[],
@@ -113,6 +114,7 @@ export function PatrimoineNavigator({
                             loading={loading}
                             emptyMessage={emptyConfig.description}
                             onRowClick={createRowClickHandler(buildingsTableConfig.rowHref)}
+                            onRowHover={createRowHoverHandler(buildingsTableConfig.rowHref)}
                         />
                     </div>
                 </>
@@ -207,6 +209,7 @@ export function PatrimoineNavigator({
                                 ? createLockedAwareRowClickHandler(lotsTableConfig.rowHref)
                                 : createRowClickHandler(lotsTableConfig.rowHref)
                             }
+                            onRowHover={createRowHoverHandler(lotsTableConfig.rowHref)}
                         />
                     </div>
                 </>

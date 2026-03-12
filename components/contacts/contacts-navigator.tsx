@@ -174,7 +174,8 @@ export function ContactsNavigator({
         setViewMode,
         mounted,
         filteredData,
-        createRowClickHandler
+        createRowClickHandler,
+        createRowHoverHandler
     } = useDataNavigator({
         data: currentData,
         searchableFields: currentConfig.searchConfig.searchableFields as string[],
@@ -229,6 +230,7 @@ export function ContactsNavigator({
                             loading={loading}
                             emptyMessage={emptyConfig.description}
                             onRowClick={createRowClickHandler(config.rowHref)}
+                            onRowHover={createRowHoverHandler(config.rowHref)}
                         />
                     </div>
                 </>

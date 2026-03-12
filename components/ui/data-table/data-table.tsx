@@ -31,6 +31,8 @@ interface DataTableProps<T = any> {
     onSort?: (columnId: string, direction: 'asc' | 'desc') => void
     /** Callback when a row is clicked - enables clickable rows with hover styling */
     onRowClick?: (item: T) => void
+    /** Callback on row mouse-enter — used for prefetching navigation targets */
+    onRowHover?: (item: T) => void
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -40,7 +42,8 @@ export function DataTable<T extends Record<string, any>>({
     loading = false,
     emptyMessage = 'Aucune donnée disponible',
     onSort,
-    onRowClick
+    onRowClick,
+    onRowHover
 }: DataTableProps<T>) {
     const router = useRouter()
     const [sortColumn, setSortColumn] = useState<string | null>(null)
@@ -171,6 +174,7 @@ export function DataTable<T extends Record<string, any>>({
                                     onRowClick && "cursor-pointer hover:bg-slate-50 transition-colors"
                                 )}
                                 onClick={() => onRowClick?.(item)}
+                                onMouseEnter={onRowHover ? () => onRowHover(item) : undefined}
                             >
                                 {columns.map((column, colIndex) => {
                                     const cellKey = `${itemId}-col-${column.id}-${colIndex}`

@@ -18,6 +18,7 @@ import {
   validateNumber
 } from '../core/service-types'
 import { logger } from '@/lib/logger'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 
 const logInfo = (msg: string, data?: object) => logger.info(msg, data)
 const logDebug = (msg: string, data?: object) => logger.debug(msg, data)
@@ -335,7 +336,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       const fallbackQuery = this.supabase
         .from(this.tableName)
         .select('*, address_record:address_id(*)')
-        .ilike('name', `%${query}%`)
+        .ilike('name', `%${sanitizeSearch(query)}%`)
 
       if (options?.teamId) {
         fallbackQuery.eq('team_id', options.teamId)

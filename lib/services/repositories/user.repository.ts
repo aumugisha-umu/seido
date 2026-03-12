@@ -12,6 +12,7 @@ import {
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { User, UserInsert, UserUpdate } from '../core/service-types'
 import { NotFoundException, handleError } from '../core/error-handler'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 import {
   validateRequired,
   validateEmail,
@@ -239,7 +240,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select('*')
-      .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+      .or(`name.ilike.%${sanitizeSearch(query)}%,email.ilike.%${sanitizeSearch(query)}%`)
 
     if (options?.role) {
       validateEnum(options.role, ['admin', 'manager', 'provider', 'tenant'] as const, 'role')

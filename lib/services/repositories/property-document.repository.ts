@@ -20,6 +20,7 @@ import type {
 import { NotFoundException, handleError, createErrorResponse } from '../core/error-handler'
 import { validateRequired, validateLength, validateNumber } from '../core/service-types'
 import { logger } from '@/lib/logger'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 
 /**
  * PropertyDocument Repository
@@ -318,7 +319,7 @@ export class PropertyDocumentRepository extends BaseRepository<
         uploaded_by_user:uploaded_by(name)
       `)
       .is('deleted_at', null)
-      .or(`filename.ilike.%${query}%,title.ilike.%${query}%,description.ilike.%${query}%`)
+      .or(`filename.ilike.%${sanitizeSearch(query)}%,title.ilike.%${sanitizeSearch(query)}%,description.ilike.%${sanitizeSearch(query)}%`)
 
     if (options?.teamId) {
       queryBuilder = queryBuilder.eq('team_id', options.teamId)

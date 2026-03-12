@@ -79,6 +79,16 @@ const nextConfig = {
               "worker-src 'self' blob:"
             ].join('; ')
           },
+          // HSTS — enforce HTTPS for 2 years
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains'
+          },
+          // Restrict browser features
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()'
+          },
           // Cache compression hint
           {
             key: 'Vary',

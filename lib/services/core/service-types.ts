@@ -504,16 +504,7 @@ export interface UpdateContactDTO {
 // VALIDATION UTILITIES
 // ===================================
 
-export function validateRequired<T extends Record<string, unknown>>(
-  data: T,
-  fields: (keyof T)[]
-): void {
-  for (const field of fields) {
-    if (!data[field]) {
-      throw new Error(`Field '${String(field)}' is required`)
-    }
-  }
-}
+export { validateRequired } from './error-handler'
 
 export function validateEmail(email: string): void {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

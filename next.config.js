@@ -154,10 +154,6 @@ const nextConfig = {
       'recharts'  // ⚡ Added: ~150KB savings via tree-shaking
     ]
   },
-
-  webpack: (config) => {
-    return config
-  }
 }
 
 module.exports = withSerwist(withBundleAnalyzer(nextConfig))

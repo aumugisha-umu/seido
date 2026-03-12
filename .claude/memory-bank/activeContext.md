@@ -141,5 +141,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Supplier Contracts + Intervention Planner Refactoring*
 
 ## Files Recently Modified
-### 2026-03-12 11:04:12 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/billing/onboarding-checklist.tsx`
+### 2026-03-12 22:06:03 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/production-readiness-sprint-instructions.md`

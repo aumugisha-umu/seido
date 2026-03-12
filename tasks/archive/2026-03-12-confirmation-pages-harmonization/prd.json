@@ -1,0 +1,147 @@
+{
+  "project": "SEIDO",
+  "featureName": "Confirmation Pages Harmonization",
+  "branchName": "preview",
+  "description": "Create reusable confirmation components and migrate all 6 wizard confirmation pages to a harmonized design. Show all fields including empty ones. Responsive mobile-first.",
+  "createdAt": "2026-03-12",
+  "prdSource": "tasks/prd-confirmation-pages-harmonization.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create 8 reusable confirmation components",
+      "description": "Create components/confirmation/ with: PageShell, EntityHeader, SummaryBanner, Section, KeyValueGrid, FinancialHighlight, ContactGrid, DocumentList + barrel index.ts",
+      "acceptanceCriteria": [
+        "8 components created in components/confirmation/",
+        "All components accept className prop for extensibility",
+        "KeyValueGrid shows 'Non renseigne' for empty values",
+        "ContactGrid shows 'Aucun' per empty group",
+        "DocumentList shows uploaded + missing recommended",
+        "All responsive (mobile stack, tablet 2-col, desktop 3-4 col)",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "All 8 components created with consistent API. Barrel index.ts exports all."
+    },
+    {
+      "id": "US-002",
+      "title": "Migrate Immeuble confirmation page",
+      "description": "Refactor building-confirmation-step.tsx to use new components.",
+      "acceptanceCriteria": [
+        "BuildingConfirmationStep uses ConfirmationPageShell + EntityHeader + SummaryBanner",
+        "Building contacts use ConfirmationContactGrid with 4 groups + empty states",
+        "Building documents shown via ConfirmationDocumentList",
+        "Building interventions shown with dates and assignees",
+        "Each lot card shows contacts + documents + interventions",
+        "Empty fields show 'Non renseigne' or 'Aucun'",
+        "Responsive: mobile stack, tablet 2-col contacts, desktop 4-col contacts",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "L",
+      "passes": true,
+      "notes": "Most complex page. Lot cards with nested contacts/docs/interventions all migrated."
+    },
+    {
+      "id": "US-003",
+      "title": "Migrate Lot confirmation page + add missing docs/interventions",
+      "description": "Refactor lot-creation-form.tsx step 5 to use new components. FIX: add documents and interventions sections that are currently missing.",
+      "acceptanceCriteria": [
+        "Lot confirmation uses ConfirmationPageShell + EntityHeader",
+        "Documents section added (was missing) showing lotDocUploads per lot",
+        "Interventions section added (was missing) showing scheduledInterventions per lot",
+        "Both 'existing' and 'independent' variants work",
+        "Independent lots show full address in KeyValueGrid",
+        "Empty states for all contact groups and optional fields",
+        "Responsive layout",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "L",
+      "passes": true,
+      "notes": "Key fix: Documents + Interventions sections added. Unused imports (CardHeader, CardTitle, Input) cleaned up."
+    },
+    {
+      "id": "US-004",
+      "title": "Migrate Bail confirmation page",
+      "description": "Refactor contract-form-container.tsx case 4 to use new components.",
+      "acceptanceCriteria": [
+        "Bail confirmation uses ConfirmationPageShell + EntityHeader",
+        "FinancialHighlight shows loyer + charges + type + frequence + total",
+        "Guarantee section always visible (shows 'Aucune garantie' if none)",
+        "Signataires shown with ContactGrid (locataires + garants)",
+        "Documents via DocumentList with missing recommended alert",
+        "Interventions list with all enabled + disabled count",
+        "Rent reminder shown if enabled",
+        "Desktop: finances sidebar right, content left",
+        "Mobile: finances first (top), then content stack",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Desktop 2-col with FinancialHighlight sidebar. Mobile finances-first."
+    },
+    {
+      "id": "US-005",
+      "title": "Migrate Contrat fournisseur confirmation page",
+      "description": "Refactor supplier-confirmation-step.tsx to use new components.",
+      "acceptanceCriteria": [
+        "Supplier confirmation uses ConfirmationPageShell (3xl) + EntityHeader",
+        "Each contract shows all fields including 'Non renseigne' for empty ones",
+        "Rappels/interventions from step 2 shown per contract (was missing)",
+        "FinancialHighlight for total recap at bottom",
+        "File names shown (not just count)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Per-contract cards with all 7 fields. File names visible."
+    },
+    {
+      "id": "US-006",
+      "title": "Migrate Contact confirmation page",
+      "description": "Refactor step-4-confirmation.tsx to use new components.",
+      "acceptanceCriteria": [
+        "Contact confirmation uses ConfirmationPageShell (3xl) + EntityHeader",
+        "Societe section: shows company info or 'Aucune societe (personne physique)'",
+        "All coordonnees shown including empty phone/notes",
+        "Acces & invitation section with status explanation",
+        "Entity link section always visible ('Aucune liaison' if none)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Icon color mapped per contact type. Pre-existing unused onInviteChange prop noted."
+    },
+    {
+      "id": "US-007",
+      "title": "Migrate Intervention confirmation page",
+      "description": "Refactor intervention-confirmation-summary.tsx to use new components.",
+      "acceptanceCriteria": [
+        "Intervention confirmation uses ConfirmationPageShell + EntityHeader + SummaryBanner",
+        "Desktop: 2 columns (details+planning left, contacts+options right)",
+        "All scheduling variants handled (fixed, slots, flexible)",
+        "Empty description/instructions/files shown as 'Non renseigne'/'Aucun'",
+        "Contacts via ContactGrid (gestionnaires, prestataires, locataires)",
+        "Options section: devis, mode assignation, confirmation requise",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Desktop 2-column layout. All 3 scheduling variants handled. ~150 lines of inline JSX removed."
+    }
+  ]
+}

@@ -1,11 +1,17 @@
-# Progress Log — Intervention Planner Refactoring
-# Started: 2026-03-11
-# Stories: 6 total
-# Design: docs/plans/2026-03-11-intervention-planner-refactoring.md
+# Progress Log — Production Readiness Audit Remediation
+# Started: 2026-03-12
+# Stories: 35 total (Waves A-F)
+# Source: docs/audit/production-readiness-audit-2026-03-12-FINAL.md
 ---
-
-## 2026-03-11 — Fix: PostgREST ambiguous FK + Supplier card display
-- Implemented: FK hint `!fk_users_company` on 4 repository queries to fix PGRST201; refactored supplier card to show person name + company badge
-- Files: `lib/services/repositories/supplier-contract.repository.ts`, `components/contracts/supplier-contract-card.tsx`
-- Learnings: PostgREST needs `!fk_name` when 2+ FK paths exist between same table pair (audit columns like `deleted_by` create reverse FK). Card display should always prioritize person identity over company.
-- Decision: Reused contact-card-compact badge pattern (purple bg + Building2 icon) for UI consistency across all entity cards
+2026-03-12 | INIT | PRD created from verified audit (8 audit agents + 4 verification agents + external cross-review)
+2026-03-12 | INIT | 5 false positives eliminated: C23 (indexes exist), D1 (Next.js already patched), F7 (modal used via shim), F8 (calendar properly lazy-loaded), UserUpdate proprietaire (exists in types)
+2026-03-12 | INIT | Previous prd.json archived to tasks/archive/2026-03-12-confirmation-pages-harmonization/
+---
+2026-03-12 | COMPLETE | All 35 stories implemented across 6 waves
+2026-03-12 | WAVE-A | A01(cron auth), A02(headers), A03(key logging), A04(locataire bug)
+2026-03-12 | WAVE-B | B01(open redirect), B02(XSS), B03(dispatcher auth), B04(doc download), B05(filter injection), B06(debug info), B07(team_id)
+2026-03-12 | WAVE-C | C01(CI pipeline), C02(CSP report-only), C03(analytics pin), C04(httpOnly cookie), C05(deps cleanup)
+2026-03-12 | WAVE-D | D01(stats repo), D02(VALID_TRANSITIONS), D03(deleted_at), D04(findByBuilding), D05(role enum), D06(duplicate validation)
+2026-03-12 | WAVE-E | E01(import parallel), E02(contract parallel), E03(cron parallel), E04(after() deferral), E05(service init parallel), E06(dead cache deleted)
+2026-03-12 | WAVE-F | F01(MIME constants), F02(loading.tsx), F03(Sentry stub), F04(health endpoint), F05(debug guard), F06(WCAG — already clean), F07(lazy chat tab)
+2026-03-12 | TESTS | ~150 new unit/integration tests added across 25 test files

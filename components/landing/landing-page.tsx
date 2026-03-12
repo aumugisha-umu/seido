@@ -12,7 +12,8 @@ import {
     Building2, Wrench, Home,
     CheckCircle2, ArrowRight, Zap, Shield, BarChart3, Mail,
     Sparkles, Smartphone, Clock, MessageSquare, TrendingUp,
-    FileText, AlertTriangle, Linkedin
+    FileText, AlertTriangle, Linkedin,
+    Phone, Search, Send, RefreshCw, RotateCcw
 } from 'lucide-react'
 import { faq } from '@/data/faq'
 import { CountUp } from '@/components/ui/count-up'
@@ -119,16 +120,16 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     <div className="w-full lg:w-6/10">
 
                         <h1 className="landing-display mb-6 md:mb-8 drop-shadow-2xl">
-                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-300">
+                            <span className="block text-white">
                                 La gestion locative
                             </span>
-                            <span className="block text-white">
+                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-300">
                                 en toute sérénité
                             </span>
                         </h1>
 
                         <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                            Vos interventions, rappels, documents et communications centralisés. <br/> Vos locataires informés, vos prestataires autonomes. <br/><span className="font-bold">Gagnez jusqu&apos;à 10h/semaine.</span>
+                            Chaque demande déclenche une boucle qui prenait des jours à terminer. <br/> SEIDO centralise et automatise, vous décidez en quelques clics.<br/><span className="font-bold">De 10h à 1h par personne, par semaine.</span>
                         </p>
                         
 
@@ -160,7 +161,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             </div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                <span className="landing-caption text-white/80">Portail locataires & prestataires</span>
+                                <span className="landing-caption text-white/80">Toute la gestion immobilière</span>
                             </div>
                         </div>
                     </div>
@@ -174,7 +175,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn>
                     <div className="text-center mb-12">
                         <h2 id="heading-problem" className="landing-h2 text-white mb-4">
-                            Le vrai coût d'une gestion locative sans outil adapté
+                            Le vrai coût des boucles mal gérées
                         </h2>
                     </div>
                 </FadeIn >
@@ -216,33 +217,97 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn>
                     <div className="max-w-4xl mx-auto text-center mb-12">
                         <h2 className="landing-h2 text-white mb-4">
-                            Gestion des interventions : là où ça coince
+                            Le même schéma, en boucle, chaque jour
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            Trois scénarios qui reviennent en boucle.
+                            Appel, email, WhatsApp — puis la recherche commence.
                         </p>
                     </div>
                 </FadeIn>
 
-                <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-                    {[
-                        { icon: MessageSquare, title: "\"J'ai dit quoi déjà ?\"", desc: "Le locataire appelle. Le prestataire aussi. Personne n'a la même info." },
-                        { icon: AlertTriangle, title: "\"C'est fait ou pas ?\"", desc: "Vous avez envoyé l'ordre. Depuis : silence radio." },
-                        { icon: FileText, title: "\"C'est où ce devis ?\"", desc: "Dans les mails ? WhatsApp ? Le Drive ? Bonne chance." }
-                    ].map((item, i) => (
-                        <FadeIn key={i} delay={i * 100} className="h-full">
-                            <div className="p-8 rounded-3xl border border-white/5 bg-white/5 backdrop-blur-sm h-full hover:-translate-y-2 hover:bg-white/10 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 group">
-                                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                                    <item.icon className="w-6 h-6 text-red-400" />
+                {/* Loop Flow Diagram */}
+                {(() => {
+                    const loopSteps = [
+                        { icon: Phone, label: 'Déclencheur', sublabel: 'Appel / email / WhatsApp' },
+                        { icon: Search, label: 'Recherche', sublabel: "Où est l'info ?" },
+                        { icon: Send, label: 'Transmission', sublabel: 'Vous transmettez' },
+                        { icon: Clock, label: 'Attente', sublabel: 'Silence radio' },
+                        { icon: RefreshCw, label: 'Relance', sublabel: 'Vous relancez' },
+                        { icon: RotateCcw, label: 'Recommence', sublabel: 'Retour case départ' },
+                    ]
+                    const isPain = (i: number) => i >= 3
+                    return (
+                        <div className="max-w-5xl mx-auto">
+                            {/* Desktop: horizontal flow */}
+                            <FadeIn>
+                                <div className="hidden md:block">
+                                    {/* Steps row */}
+                                    <div className="flex items-start justify-between gap-2">
+                                        {loopSteps.map((step, i) => (
+                                            <div key={i} className="flex items-start flex-1">
+                                                {/* Step */}
+                                                <div className="flex flex-col items-center text-center flex-1">
+                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 transition-colors ${isPain(i) ? 'bg-red-500/15 border border-red-500/30' : 'bg-white/10 border border-white/10'}`}>
+                                                        <step.icon className={`w-6 h-6 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} />
+                                                    </div>
+                                                    <span className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isPain(i) ? 'text-red-400' : 'text-white/80'}`}>
+                                                        {step.label}
+                                                    </span>
+                                                    <span className="text-xs text-white/40">{step.sublabel}</span>
+                                                </div>
+                                                {/* Connector */}
+                                                {i < loopSteps.length - 1 && (
+                                                    <div className="flex items-center pt-6 -mx-1">
+                                                        <div className={`w-6 border-t-2 border-dashed ${isPain(i + 1) ? 'border-red-500/40' : 'border-white/20'}`} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Return arc below */}
+                                    <div className="relative mx-8 mt-4 mb-2">
+                                        <div className="h-10 border-b-2 border-l-2 border-r-2 border-dashed border-red-500/40 rounded-b-3xl" />
+                                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30">
+                                            <span className="text-xs font-bold text-red-400">× 50 fois par jour</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <h3 className="landing-h4 text-white mb-3">{item.title}</h3>
-                                <p className="landing-body-sm text-white/60">
-                                    {item.desc}
-                                </p>
-                            </div>
-                        </FadeIn>
-                    ))}
-                </div>
+                            </FadeIn>
+
+                            {/* Mobile: vertical flow */}
+                            <FadeIn>
+                                <div className="md:hidden">
+                                    <div className="relative pl-10">
+                                        {/* Vertical rail */}
+                                        <div className="absolute left-4 top-0 bottom-16 w-0.5 bg-gradient-to-b from-white/20 via-white/20 to-red-500/40" />
+                                        {loopSteps.map((step, i) => (
+                                            <div key={i} className="relative flex items-start gap-4 mb-6">
+                                                {/* Node on rail */}
+                                                <div className={`absolute -left-6 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isPain(i) ? 'bg-red-500/15 border border-red-500/30' : 'bg-white/10 border border-white/10'}`}>
+                                                    <step.icon className={`w-5 h-5 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} />
+                                                </div>
+                                                {/* Text */}
+                                                <div className="pt-1">
+                                                    <span className={`text-sm font-semibold ${isPain(i) ? 'text-red-400' : 'text-white/80'}`}>
+                                                        {step.label}
+                                                    </span>
+                                                    <span className="text-xs text-white/40 ml-2">{step.sublabel}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {/* Return arc */}
+                                        <div className="relative -left-6 mt-2 mb-2">
+                                            <div className="w-10 h-8 border-b-2 border-l-2 border-dashed border-red-500/40 rounded-bl-2xl" />
+                                            <div className="mt-2 inline-block px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30">
+                                                <span className="text-xs font-bold text-red-400">× 50 fois par jour</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </FadeIn>
+                        </div>
+                    )
+                })()}
             </section >
 
             {/* SEIDO Experience Section - Moved here after pain points */}
@@ -250,10 +315,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 id="heading-features" className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
-                            Logiciel de gestion locative tout-en-un
+                            Chaque étape de la boucle, court-circuitée
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            Interventions pilotées en temps réel, avec historique et preuves au même endroit.
+                            Recherche, transmission, attente, relance — SEIDO les élimine une par une. Voici comment.
                         </p>
                     </div>
                 </FadeIn>
@@ -271,25 +336,25 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                         <Building2 className="w-6 h-6 text-white" />
                                     </div>
                                     <div>
-                                        <h3 className="landing-h3 text-white">Tout voir. Sans rien demander.</h3>
-                                        <p className="landing-caption text-blue-300">Chaque intervention, de la demande à la facture, au même endroit.</p>
+                                        <h3 className="landing-h3 text-white">Fini la recherche. Fini l&apos;attente.</h3>
+                                        <p className="landing-caption text-blue-300">L&apos;info est là avant même que vous la cherchiez.</p>
                                     </div>
                                 </div>
                                 <ul className="grid md:grid-cols-3 gap-4">
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Fini les "t'en es où ?"</strong> → Timeline complète, accessible à tous.</span>
+                                        <span><strong className="line-through text-red-400/60 mr-1">Recherche</strong> <strong>→ Timeline complète</strong> — tout l&apos;historique au même endroit, sans fouiller.</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Devis en 2 clics</strong> → Demander, comparer, valider. Sans email.</span>
+                                        <span><strong className="line-through text-red-400/60 mr-1">Attente</strong> <strong>→ Alertes intelligentes</strong> — notifié quand c&apos;est urgent, silence sinon.</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Alertes intelligentes</strong> → Notifié quand c'est urgent. Silence sinon.</span>
+                                        <span><strong className="line-through text-red-400/60 mr-1">Relance</strong> <strong>→ Devis en 2 clics</strong> — demander, comparer, valider. Sans email.</span>
                                     </li>
                                 </ul>
-                                <p className="mt-6 landing-caption text-white/40">+ tableaux de bord, relances, chat, pilotage prestataires…</p>
+                                <p className="mt-6 landing-caption text-white/40">+ tableaux de bord, chat intégré, pilotage prestataires — chaque boucle se ferme en quelques clics.</p>
                             </div>
                         </div>
                     </FadeIn>
@@ -299,10 +364,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn delay={100}>
                     <div className="text-center max-w-3xl mx-auto mb-8">
                         <h3 className="landing-h3 text-white mb-3">
-                            Déléguez sans perdre le contrôle
+                            Chacun coupe sa part de la boucle
                         </h3>
                         <p className="landing-subtitle text-white/60">
-                            Chacun fait sa part. Vous gardez la visibilité.
+                            Le prestataire met à jour. Le locataire suit. Vous n&apos;avez plus à relayer.
                         </p>
                     </div>
                 </FadeIn>
@@ -317,26 +382,26 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     <Wrench className="w-8 h-8 text-green-400" />
                                     <div>
                                         <h3 className="landing-h4 text-white">Le Portail Prestataire</h3>
-                                        <p className="landing-caption text-green-400/80">Ils bossent. Vous êtes informé.</p>
+                                        <p className="landing-caption text-green-400/80">Coupe les étapes 3 à 5 : transmission, attente, relance.</p>
                                     </div>
                                 </div>
-                                <p className="landing-body-sm text-white/60 mb-5">Des interventions claires, côté terrain.</p>
+                                <p className="landing-body-sm text-white/60 mb-5">Le prestataire agit et met à jour — vous n&apos;êtes plus le relais.</p>
                                 <ul className="space-y-3">
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>RDV autonome</strong> avec le locataire.</span>
+                                        <span><strong>RDV autonome</strong> avec le locataire — sans passer par vous.</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Rapport terrain</strong> (photos avant/après).</span>
+                                        <span><strong>Rapport terrain</strong> (photos avant/après) — la mise à jour arrive toute seule.</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Facture au bon dossier</strong>, automatiquement.</span>
+                                        <span><strong>Facture au bon dossier</strong> — plus de "c&apos;est pour quel bien déjà ?".</span>
                                     </li>
                                 </ul>
                                 <div className="mt-5 pt-4 border-t border-white/10">
-                                    <p className="landing-caption text-white/40">→ Moins d’allers-retours et de relances</p>
+                                    <p className="landing-caption text-white/40">→ Vous ne transmettez plus, vous ne relancez plus</p>
                                 </div>
                             </div>
                         </div>
@@ -351,26 +416,26 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     <Home className="w-8 h-8 text-orange-400" />
                                     <div>
                                         <h3 className="landing-h4 text-white">Le Portail Locataire</h3>
-                                        <p className="landing-caption text-orange-400/80">Ils signalent. Ils suivent. Ils arrêtent d'appeler.</p>
+                                        <p className="landing-caption text-orange-400/80">Coupe les étapes 1 et 6 : le déclencheur est structuré, plus de recommencement.</p>
                                     </div>
                                 </div>
-                                <p className="landing-body-sm text-white/60 mb-5">Des demandes plus claires, moins de friction.</p>
+                                <p className="landing-body-sm text-white/60 mb-5">Le locataire signale proprement et suit tout seul — il n&apos;a plus besoin de rappeler.</p>
                                 <ul className="space-y-3">
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-orange-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Signalement guidé</strong> (+ photos).</span>
+                                        <span><strong>Signalement guidé</strong> (+ photos) — un déclencheur propre remplace l&apos;appel chaotique.</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-orange-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Suivi “type colis”</strong> : statut clair.</span>
+                                        <span><strong>Suivi &quot;type colis&quot;</strong> — le locataire voit le statut, il arrête de rappeler.</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-orange-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Validation de fin</strong> : vous savez que c’est réglé.</span>
+                                        <span><strong>Validation de fin</strong> — la boucle se ferme. Pas de &quot;retour case départ&quot;.</span>
                                     </li>
                                 </ul>
                                 <div className="mt-5 pt-4 border-t border-white/10">
-                                    <p className="landing-caption text-white/40">→ Locataires rassurés, moins de conflits</p>
+                                    <p className="landing-caption text-white/40">→ Plus de cycle : signaler → résolu, point final</p>
                                 </div>
                             </div>
                         </div>
@@ -381,10 +446,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn delay={300}>
                     <div className="text-center max-w-3xl mx-auto mt-16 mb-12">
                         <h3 className="landing-h3 text-white mb-3">
-                            Pensé pour vous faciliter la vie
+                            Ce qui rend la coupure possible
                         </h3>
                         <p className="landing-body text-white/60">
-                            Simple à déployer. Facile à suivre. Conçu pour le terrain.
+                            Pas de formation. Pas de migration complexe. Vous coupez la boucle dès le premier jour.
                         </p>
                     </div>
                 </FadeIn>
@@ -395,28 +460,28 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         {
                             icon: Zap,
                             title: "Opérationnel ce soir",
-                            desc: "Import CSV, invitations en masse. Demain vous pilotez.",
+                            desc: "Import CSV, invitations en masse. La boucle se coupe dès demain.",
                             color: "text-yellow-400",
                             bg: "bg-yellow-400/10"
                         },
                         {
                             icon: Shield,
                             title: "Preuve béton",
-                            desc: "Photo + date + heure + qui. En cas de litige, vous êtes couvert.",
+                            desc: "Photo + date + heure + qui. Plus besoin de reconstituer l'historique.",
                             color: "text-green-400",
                             bg: "bg-green-400/10"
                         },
                         {
                             icon: Smartphone,
                             title: "Bureau dans la poche",
-                            desc: "Validez un devis depuis le canapé. Votre week-end reste votre week-end.",
+                            desc: "Validez un devis depuis n'importe où. La boucle n'attend plus votre bureau.",
                             color: "text-blue-400",
                             bg: "bg-blue-400/10"
                         },
                         {
                             icon: Mail,
-                            title: "Connectez vos emails",
-                            desc: "Vos emails liés à vos biens. Discutez en équipe, créez une intervention en quelques clics.",
+                            title: "Emails connectés",
+                            desc: "Vos emails rattachés aux biens. Fini les recherches dans 4 boîtes différentes.",
                             color: "text-purple-400",
                             bg: "bg-purple-400/10"
                         }
@@ -490,30 +555,36 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             <span>Vision</span>
                         </div>
                         <h2 id="heading-roadmap" className="landing-h2 mb-6 text-white">
-                            Aujourd'hui l'opérationnel, demain la gestion complète.
+                            Une plateforme qui évolue avec vous
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            On commence par le plus douloureux : la gestion opérationnelle.
-                        </p>
-                        <p className="landing-subtitle text-white/60">
-                         Puis on étend à l'ensemble de la gestion locative.
+                            Chaque étape raccourcit vos boucles. Jusqu&apos;à ce qu&apos;elles se ferment presque toutes seules.
                         </p>
                     </div>
                 </FadeIn>
 
-                <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
                     {[
                         {
-                            icon: FileText,
-                            title: "Gestion Administrative",
-                            desc: "Baux, diagnostics, échéances : tout au même endroit. Alertes automatiques. Signature électronique. Fini la chasse aux documents.",
-                            tags: ["T3 2026"]
+                            icon: Building2,
+                            title: "Centraliser",
+                            desc: "Toutes vos données, documents et interactions sur une seule plateforme. Recherche instantanée. Transfert en quelques clics.",
+                            tags: ["Disponible"],
+                            tagStyle: "bg-green-500/10 border-green-500/20 text-green-400"
                         },
                         {
-                            icon: BarChart3,
-                            title: "Pilotage Financier",
-                            desc: "Réconciliation bancaire auto. Impayés détectés. Régularisation des charges en 3 clics. Vos soirées Excel, c'est fini.",
-                            tags: ["T4 2026"]
+                            icon: Zap,
+                            title: "Automatiser",
+                            desc: "Notifications intelligentes, rappels d'échéances, alertes de retard. Tout ce qui est prévisible est automatisé.",
+                            tags: ["En cours"],
+                            tagStyle: "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                        },
+                        {
+                            icon: Sparkles,
+                            title: "Anticiper",
+                            desc: "Plus notre système apprend de vos habitudes, plus il vous libère du temps. Chaque boucle traitée rend la suivante plus rapide.",
+                            tags: ["Bientôt"],
+                            tagStyle: "bg-white/5 border-white/10 text-white/40"
                         }
                     ].map((item, i) => (
                         <FadeIn key={i} delay={i * 100} className="h-full">
@@ -534,7 +605,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
                                     <div className="flex flex-wrap gap-2 mt-auto">
                                         {item.tags.map((tag, j) => (
-                                            <span key={j} className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/40">
+                                            <span key={j} className={`px-3 py-1 rounded-full border text-xs ${item.tagStyle}`}>
                                                 {tag}
                                             </span>
                                         ))}
@@ -798,7 +869,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             Et si lundi prochain était différent ?
                         </p>
                         <p className="landing-subtitle text-white/60 mb-4 relative z-10">
-                            Plus de visibilité. Moins de surprises. Zéro engagement.
+                            Des boucles plus courtes. Des décisions plus rapides. Zéro engagement.
                         </p>
                         <p className="landing-body text-green-400 mb-10 relative z-10 font-medium">
                             1 mois gratuit, sans carte bancaire
@@ -832,7 +903,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                 />
                             </div>
                             <p className="landing-caption text-white/40 mb-4">
-                                Moins de chaos. Plus de sérénité.
+                                Moins de boucles. Plus de temps.
                             </p>
                             <p className="landing-caption text-white/40 text-xs">
                                 © {new Date().getFullYear()} SEIDO. Tous droits réservés.

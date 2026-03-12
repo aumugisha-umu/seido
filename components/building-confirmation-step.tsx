@@ -3,14 +3,21 @@
 import React from "react"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
-import { BuildingContactCardV3 } from "@/components/ui/building-contact-card-v3"
-import { LotContactCardV4 } from "@/components/ui/lot-contact-card-v4"
-import { CheckCircle2, AlertTriangle, Paperclip, CalendarCheck, ChevronDown, ChevronRight } from "lucide-react"
+import { Building2, Home, Users, FileText, CalendarCheck, CheckCircle2, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react"
 import { ParticipantChip } from "@/components/interventions/shared/layout/participants-row"
+import {
+  ConfirmationPageShell,
+  ConfirmationEntityHeader,
+  ConfirmationSummaryBanner,
+  ConfirmationSection,
+  ConfirmationKeyValueGrid,
+  ConfirmationContactGrid,
+  ConfirmationDocumentList,
+} from "@/components/confirmation"
 import type { User as UserType, Contact } from "@/lib/services/core/service-types"
 import type { GenericDocumentSlotState } from "@/components/documents/types"
 import type { ScheduledInterventionData } from "@/components/contract/intervention-schedule-row"
-import { LotCategory } from "@/lib/lot-types"
+import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
 
 interface BuildingInfo {
   name: string
@@ -55,74 +62,46 @@ interface BuildingConfirmationStepProps {
   lotInterventions?: Record<string, ScheduledInterventionData[]>
 }
 
-// ─── Collapsible summary sub-components ─────────────────────────────
+// ─── Helper: map GenericDocumentSlotState[] → ConfirmationDocumentList slots ─
+const mapDocSlots = (slots: GenericDocumentSlotState[]) =>
+  slots.map((s) => ({
+    label: s.label,
+    fileCount: s.files.length,
+    fileNames: s.files.map((f) => ({ name: f.name, url: f.signedUrl })),
+    recommended: !!s.recommended,
+  }))
 
-const DocumentsSummary = ({ slots }: { slots: GenericDocumentSlotState[] }) => {
-  const [expanded, setExpanded] = React.useState(false)
-  const slotsWithFiles = slots.filter(s => s.files.length > 0)
-  const missingRecommended = slots.filter(s => s.recommended && s.files.length === 0)
-  const totalFiles = slotsWithFiles.reduce((acc, s) => acc + s.files.length, 0)
+// ─── Helper: map contacts to ContactTypeGroup[] ─────────────────────────────
+const mapContactGroup = (type: string, contacts: Contact[], emptyLabel: string) => ({
+  type,
+  contacts: contacts.map((c) => ({
+    id: c.id,
+    name: `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || c.company_name || "Sans nom",
+    email: c.email ?? undefined,
+  })),
+  emptyLabel,
+})
 
-  if (totalFiles === 0 && missingRecommended.length === 0) return null
+const mapManagerGroup = (managers: UserType[]) => ({
+  type: "Gestionnaires",
+  contacts: managers.map((m) => ({
+    id: m.id,
+    name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email || "Sans nom",
+    email: m.email ?? undefined,
+  })),
+  emptyLabel: "Aucun gestionnaire",
+})
 
-  return (
-    <div className="mt-3 border-t border-border/40 pt-3">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full"
-      >
-        {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-        <Paperclip className="h-3.5 w-3.5" />
-        <span>Documents ({totalFiles})</span>
-        {missingRecommended.length > 0 && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-600 ml-auto">
-            {missingRecommended.length} manquant{missingRecommended.length > 1 ? 's' : ''}
-          </Badge>
-        )}
-      </button>
-
-      {expanded && (
-        <div className="mt-2 space-y-1.5 pl-6">
-          {slotsWithFiles.map((slot, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-              <span className="font-medium">{slot.label}</span>
-              <span className="text-muted-foreground">
-                — {slot.files.length} fichier{slot.files.length > 1 ? 's' : ''}
-              </span>
-            </div>
-          ))}
-          {missingRecommended.length > 0 && (
-            <div className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
-                <div className="text-xs text-amber-700">
-                  <p className="font-medium mb-1">Recommandés manquants :</p>
-                  <ul className="list-disc list-inside space-y-0.5">
-                    {missingRecommended.map((slot, i) => (
-                      <li key={i}>{slot.label}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
+// ─── Interventions sub-component (kept inline, not in reusable lib) ──────────
 const InterventionsSummary = ({ interventions }: { interventions: ScheduledInterventionData[] }) => {
   const [expanded, setExpanded] = React.useState(false)
-  const enabled = interventions.filter(i => i.enabled && i.scheduledDate)
-  const disabled = interventions.filter(i => !i.enabled)
+  const enabled = interventions.filter((i) => i.enabled && i.scheduledDate)
+  const disabled = interventions.filter((i) => !i.enabled)
 
   if (enabled.length === 0 && disabled.length === 0) return null
 
   return (
-    <div className="mt-3 border-t border-border/40 pt-3">
+    <div className="space-y-2">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
@@ -133,28 +112,28 @@ const InterventionsSummary = ({ interventions }: { interventions: ScheduledInter
         <span>Interventions ({enabled.length})</span>
         {disabled.length > 0 && (
           <span className="text-xs text-muted-foreground ml-auto">
-            {disabled.length} désactivée{disabled.length > 1 ? 's' : ''}
+            {disabled.length} desactivee{disabled.length > 1 ? "s" : ""}
           </span>
         )}
       </button>
 
       {expanded && (
-        <div className="mt-2 space-y-1.5 pl-6">
+        <div className="space-y-1.5 pl-6">
           {enabled.map((intervention, i) => (
             <div key={i} className="flex items-start gap-2 text-sm">
               <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium">{intervention.title}</span>
                 <span className="text-muted-foreground">
-                  — {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '—'}
+                  — {intervention.scheduledDate ? format(intervention.scheduledDate, "dd/MM/yyyy") : "—"}
                 </span>
                 {intervention.assignedUsers.length > 0 && (
                   <div className="flex items-center gap-1 flex-wrap">
-                    {intervention.assignedUsers.map(user => (
+                    {intervention.assignedUsers.map((user) => (
                       <ParticipantChip
                         key={user.userId}
                         participant={{ id: user.userId, name: user.name }}
-                        roleKey={user.role === 'gestionnaire' ? 'managers' : user.role === 'prestataire' ? 'providers' : 'tenants'}
+                        roleKey={user.role === "gestionnaire" ? "managers" : user.role === "prestataire" ? "providers" : "tenants"}
                       />
                     ))}
                   </div>
@@ -165,7 +144,9 @@ const InterventionsSummary = ({ interventions }: { interventions: ScheduledInter
           {disabled.length > 0 && (
             <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
               <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              <span>{disabled.length} intervention{disabled.length > 1 ? 's' : ''} désactivée{disabled.length > 1 ? 's' : ''}</span>
+              <span>
+                {disabled.length} intervention{disabled.length > 1 ? "s" : ""} desactivee{disabled.length > 1 ? "s" : ""}
+              </span>
             </div>
           )}
         </div>
@@ -187,21 +168,17 @@ export function BuildingConfirmationStep({
   buildingDocSlots = [],
   lotDocSlots = {},
   buildingInterventions = [],
-  lotInterventions = {}
+  lotInterventions = {},
 }: BuildingConfirmationStepProps) {
   // State to manage lot expansion (collapsed by default in confirmation)
-  // Include both new lots and existing lots
-  const [expandedLots, setExpandedLots] = React.useState<{ [key: string]: boolean }>(
-    () => {
-      const newLotsEntries = lots.map(lot => [lot.id, false])
-      const existingLotsEntries = existingLots.map(lot => [lot.id, false])
-      return Object.fromEntries([...newLotsEntries, ...existingLotsEntries])
-    }
-  )
+  const [expandedLots, setExpandedLots] = React.useState<{ [key: string]: boolean }>(() => {
+    const newLotsEntries = lots.map((lot) => [lot.id, false])
+    const existingLotsEntries = existingLots.map((lot) => [lot.id, false])
+    return Object.fromEntries([...newLotsEntries, ...existingLotsEntries])
+  })
 
-  // Toggle lot expansion
   const toggleLotExpansion = (lotId: string) => {
-    setExpandedLots(prev => ({ ...prev, [lotId]: !prev[lotId] }))
+    setExpandedLots((prev) => ({ ...prev, [lotId]: !prev[lotId] }))
   }
 
   // Helper functions to extract contacts by type
@@ -214,149 +191,214 @@ export function BuildingConfirmationStep({
   }
 
   // Map building contacts from object to arrays
-  const providers = buildingContacts['provider'] || []
-  const owners = buildingContacts['owner'] || []
-  const others = buildingContacts['other'] || []
+  const providers = buildingContacts["provider"] || []
+  const owners = buildingContacts["owner"] || []
+  const others = buildingContacts["other"] || []
+
+  // Compute summary metrics
+  const fullAddress = `${buildingInfo.address}, ${buildingInfo.postalCode ? `${buildingInfo.postalCode} ` : ""}${buildingInfo.city}${buildingInfo.country ? `, ${buildingInfo.country}` : ""}`
+  const totalContacts = buildingManagers.length + providers.length + owners.length + others.length
+  const totalDocFiles = buildingDocSlots.reduce((acc, s) => acc + s.files.length, 0)
+  const enabledInterventions = buildingInterventions.filter((i) => i.enabled && i.scheduledDate)
 
   return (
-    <div className="space-y-3 @container">
-      {/* Building Card - Contacts + docs/interventions (address shown in header) */}
-      <BuildingContactCardV3
-        buildingName={buildingInfo.name || `Immeuble - ${buildingInfo.address}`}
-        buildingAddress={`${buildingInfo.address}, ${buildingInfo.postalCode ? `${buildingInfo.postalCode} ` : ''}${buildingInfo.city}${buildingInfo.country ? `, ${buildingInfo.country}` : ''}`}
-        buildingManagers={buildingManagers}
-        providers={providers}
-        owners={owners}
-        others={others}
-        readOnly={true}
-      >
-        {(buildingDocSlots.length > 0 || buildingInterventions.length > 0) && (
-          <div className="px-4 pb-3">
-            {buildingDocSlots.length > 0 && (
-              <DocumentsSummary slots={buildingDocSlots} />
-            )}
-            {buildingInterventions.length > 0 && (
-              <InterventionsSummary interventions={buildingInterventions} />
-            )}
-          </div>
-        )}
-      </BuildingContactCardV3>
+    <ConfirmationPageShell maxWidth="7xl">
+      {/* Entity Header */}
+      <ConfirmationEntityHeader
+        icon={Building2}
+        title={buildingInfo.name || `Immeuble - ${buildingInfo.address}`}
+        subtitle={fullAddress}
+        badges={[
+          ...(lots.length > 0
+            ? [{ label: `${lots.length} nouveau${lots.length > 1 ? "x" : ""} lot${lots.length > 1 ? "s" : ""}`, className: "bg-green-50 text-green-700 border-green-200" }]
+            : []),
+          ...(existingLots.length > 0
+            ? [{ label: `${existingLots.length} lot${existingLots.length > 1 ? "s" : ""} existant${existingLots.length > 1 ? "s" : ""}`, variant: "secondary" as const }]
+            : []),
+        ]}
+      />
 
-      {/* Lots Section - Show both existing and new lots */}
-      {(existingLots.length > 0 || lots.length > 0) && (
-        <div className="space-y-3">
-          {/* Existing Lots */}
-          {existingLots.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 px-1">
-                <h3 className="text-sm font-semibold text-gray-700">
-                  Lots existants dans l&apos;immeuble
-                </h3>
-                <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-gray-100 text-gray-700">
-                  {existingLots.length}
-                </Badge>
-              </div>
+      {/* Summary Banner */}
+      <ConfirmationSummaryBanner
+        metrics={[
+          { label: "Lots", value: lots.length + existingLots.length, icon: <Home className="h-3.5 w-3.5" /> },
+          { label: "Contacts", value: totalContacts, icon: <Users className="h-3.5 w-3.5" /> },
+          { label: "Documents", value: totalDocFiles, icon: <FileText className="h-3.5 w-3.5" /> },
+          { label: "Interventions", value: enabledInterventions.length, icon: <CalendarCheck className="h-3.5 w-3.5" /> },
+        ]}
+      />
 
-              {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {existingLots.map((lot, index) => {
-                  const isExpanded = expandedLots[lot.id] || false
+      {/* General Information */}
+      <ConfirmationSection title="Informations generales">
+        <ConfirmationKeyValueGrid
+          pairs={[
+            {
+              label: "Description",
+              value: buildingInfo.description || undefined,
+              empty: !buildingInfo.description,
+              fullWidth: true,
+            },
+            {
+              label: "Pays",
+              value: buildingInfo.country || undefined,
+              empty: !buildingInfo.country,
+            },
+          ]}
+          columns={1}
+        />
+      </ConfirmationSection>
 
-                  return (
-                    <div
-                      key={lot.id}
-                      className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}
-                    >
-                      <LotContactCardV4
-                        lotNumber={index + 1}
-                        lotReference={lot.reference}
-                        lotCategory={lot.category}
-                        isExpanded={isExpanded}
-                        onToggleExpand={() => toggleLotExpansion(lot.id)}
-                        lotManagers={[]} // Existing lots don't have managers in this context
-                        tenants={[]}
-                        providers={[]}
-                        owners={[]}
-                        others={[]}
-                        readOnly={true}
-                        isExisting={true}
-                        floor={lot.floor}
-                        doorNumber={lot.door_number}
-                        description={lot.description}
-                      />
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
+      {/* Building Contacts */}
+      <ConfirmationSection title="Contacts de l'immeuble">
+        <ConfirmationContactGrid
+          groups={[
+            mapManagerGroup(buildingManagers),
+            mapContactGroup("Prestataires", providers, "Aucun prestataire"),
+            mapContactGroup("Proprietaires", owners, "Aucun proprietaire"),
+            mapContactGroup("Autres", others, "Aucun autre contact"),
+          ]}
+          columns={4}
+        />
+      </ConfirmationSection>
 
-          {/* New Lots being created */}
-          {lots.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 px-1">
-                <h3 className="text-sm font-semibold text-gray-700">
-                  {existingLots.length > 0 ? "Nouveaux lots ajoutés" : "Lots"}
-                </h3>
-                <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-green-100 text-green-700">
-                  {lots.length}
-                </Badge>
-              </div>
+      {/* Building Documents */}
+      <ConfirmationSection title="Documents de l'immeuble">
+        <ConfirmationDocumentList slots={mapDocSlots(buildingDocSlots)} />
+      </ConfirmationSection>
 
-              {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {lots.map((lot, index) => {
-                  const isExpanded = expandedLots[lot.id] || false
-                  const lotNumber = index + 1
-                  const lotManagers = getAssignedManagers(lot.id)
-                  const tenants = getLotContactsByType(lot.id, 'tenant')
-                  const lotProviders = getLotContactsByType(lot.id, 'provider')
-                  const lotOwners = getLotContactsByType(lot.id, 'owner')
-                  const lotOthers = getLotContactsByType(lot.id, 'other')
-                  const lotDocs = lotDocSlots[lot.id] || []
-                  const lotIntv = lotInterventions[lot.id] || []
-
-                  return (
-                    <div
-                      key={lot.id}
-                      className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}
-                    >
-                      <LotContactCardV4
-                        lotNumber={lotNumber}
-                        lotReference={lot.reference}
-                        lotCategory={lot.category}
-                        isExpanded={isExpanded}
-                        onToggleExpand={() => toggleLotExpansion(lot.id)}
-                        lotManagers={lotManagers}
-                        tenants={tenants}
-                        providers={lotProviders}
-                        owners={lotOwners}
-                        others={lotOthers}
-                        buildingManagers={buildingManagers}
-                        buildingProviders={providers}
-                        buildingOwners={owners}
-                        buildingOthers={others}
-                        readOnly={true}
-                        isExisting={false}
-                        floor={lot.floor}
-                        doorNumber={lot.doorNumber}
-                        description={lot.description}
-                      >
-                        {isExpanded && (lotDocs.length > 0 || lotIntv.length > 0) && (
-                          <div className="px-4 pb-3">
-                            {lotDocs.length > 0 && <DocumentsSummary slots={lotDocs} />}
-                            {lotIntv.length > 0 && <InterventionsSummary interventions={lotIntv} />}
-                          </div>
-                        )}
-                      </LotContactCardV4>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Building Interventions */}
+      {buildingInterventions.length > 0 && (
+        <ConfirmationSection title="Interventions de l'immeuble">
+          <InterventionsSummary interventions={buildingInterventions} />
+        </ConfirmationSection>
       )}
-    </div>
+
+      {/* Existing Lots (collapsible section) */}
+      {existingLots.length > 0 && (
+        <ConfirmationSection title="Lots existants">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {existingLots.map((lot, index) => {
+              const isExpanded = expandedLots[lot.id] || false
+              const catConfig = getLotCategoryConfig(lot.category)
+
+              return (
+                <div key={lot.id} className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}>
+                  <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+                    {/* Lot header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleLotExpansion(lot.id)}
+                      className="flex items-center gap-2 w-full text-left"
+                    >
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      <span className="text-sm font-semibold text-foreground flex-1 truncate">
+                        #{index + 1} — {lot.reference || "Sans reference"}
+                      </span>
+                      <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${catConfig.bgColor} ${catConfig.color} border-0`}>
+                        {catConfig.label}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-gray-50 text-gray-600 border-gray-200">
+                        Existant
+                      </Badge>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="space-y-3 pl-6">
+                        <ConfirmationKeyValueGrid
+                          pairs={[
+                            { label: "Etage", value: lot.floor || undefined, empty: !lot.floor },
+                            { label: "Porte", value: lot.door_number || undefined, empty: !lot.door_number },
+                            { label: "Description", value: lot.description || undefined, empty: !lot.description, fullWidth: true },
+                          ]}
+                          columns={2}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </ConfirmationSection>
+      )}
+
+      {/* New Lots */}
+      {lots.length > 0 && (
+        <ConfirmationSection title={existingLots.length > 0 ? "Nouveaux lots ajoutes" : "Lots"}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {lots.map((lot, index) => {
+              const isExpanded = expandedLots[lot.id] || false
+              const lotManagers = getAssignedManagers(lot.id)
+              const tenants = getLotContactsByType(lot.id, "tenant")
+              const lotProviders = getLotContactsByType(lot.id, "provider")
+              const lotOwners = getLotContactsByType(lot.id, "owner")
+              const lotOthers = getLotContactsByType(lot.id, "other")
+              const lotDocs = lotDocSlots[lot.id] || []
+              const lotIntv = lotInterventions[lot.id] || []
+              const catConfig = getLotCategoryConfig(lot.category)
+
+              return (
+                <div key={lot.id} className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}>
+                  <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+                    {/* Lot header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleLotExpansion(lot.id)}
+                      className="flex items-center gap-2 w-full text-left"
+                    >
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      <span className="text-sm font-semibold text-foreground flex-1 truncate">
+                        #{index + 1} — {lot.reference || "Sans reference"}
+                      </span>
+                      <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${catConfig.bgColor} ${catConfig.color} border-0`}>
+                        {catConfig.label}
+                      </Badge>
+                    </button>
+
+                    {/* Always show key info even when collapsed */}
+                    {!isExpanded && (
+                      <div className="pl-6 flex items-center gap-3 text-xs text-muted-foreground">
+                        {lot.floor && <span>Etage {lot.floor}</span>}
+                        {lot.doorNumber && <span>Porte {lot.doorNumber}</span>}
+                        <span>{lotManagers.length + tenants.length + lotProviders.length + lotOwners.length + lotOthers.length} contacts</span>
+                      </div>
+                    )}
+
+                    {/* Expanded details */}
+                    {isExpanded && (
+                      <div className="space-y-4 pl-6">
+                        <ConfirmationKeyValueGrid
+                          pairs={[
+                            { label: "Etage", value: lot.floor || undefined, empty: !lot.floor },
+                            { label: "Porte", value: lot.doorNumber || undefined, empty: !lot.doorNumber },
+                            { label: "Description", value: lot.description || undefined, empty: !lot.description, fullWidth: true },
+                          ]}
+                          columns={2}
+                        />
+
+                        <ConfirmationContactGrid
+                          groups={[
+                            mapManagerGroup(lotManagers),
+                            mapContactGroup("Locataires", tenants, "Aucun locataire"),
+                            mapContactGroup("Prestataires", lotProviders, "Aucun prestataire"),
+                            mapContactGroup("Proprietaires", lotOwners, "Aucun proprietaire"),
+                            mapContactGroup("Autres", lotOthers, "Aucun autre contact"),
+                          ]}
+                          columns={5}
+                        />
+
+                        {lotDocs.length > 0 && <ConfirmationDocumentList slots={mapDocSlots(lotDocs)} />}
+
+                        {lotIntv.length > 0 && <InterventionsSummary interventions={lotIntv} />}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </ConfirmationSection>
+      )}
+    </ConfirmationPageShell>
   )
 }

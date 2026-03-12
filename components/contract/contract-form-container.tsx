@@ -7,9 +7,7 @@ import { toast } from 'sonner'
 import { StepProgressHeader } from '@/components/ui/step-progress-header'
 import { contractSteps, supplierContractSteps } from '@/lib/step-configurations'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { Card, CardContent } from '@/components/ui/card'
 import type { ContactSelectorRef } from '@/components/contact-selector'
 import PropertySelector from '@/components/property-selector'
 import LeaseFormDetailsMerged from '@/components/contract/lease-form-details-merged-v1'
@@ -39,15 +37,10 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Building2,
-  Home,
   Euro,
   Calendar,
-  Users,
-  Shield,
   FileText,
   Save,
-  Paperclip,
   CalendarCheck,
   AlertTriangle,
   CheckCircle2,
@@ -81,8 +74,19 @@ import type {
 import {
   GUARANTEE_TYPE_LABELS,
   CONTRACT_DURATION_OPTIONS,
-  CONTRACT_CONTACT_ROLE_LABELS
+  CONTRACT_CONTACT_ROLE_LABELS,
+  PAYMENT_FREQUENCY_LABELS,
+  CHARGES_TYPE_LABELS
 } from '@/lib/types/contract.types'
+import {
+  ConfirmationPageShell,
+  ConfirmationEntityHeader,
+  ConfirmationSection,
+  ConfirmationKeyValueGrid,
+  ConfirmationFinancialHighlight,
+  ConfirmationContactGrid,
+  ConfirmationDocumentList,
+} from '@/components/confirmation'
 
 // ============================================================================
 // TYPES
@@ -669,6 +673,23 @@ export default function ContractFormContainer({
     try {
       const contactData = JSON.parse(contactDataStr)
 
+      // Handle supplier mode: assign to first unassigned supplier contract
+      if (isSupplierMode && (contactTypeParam === 'provider' || contactTypeParam === 'prestataire')) {
+        const unassignedContract = supplierContracts.find(c => !c.supplierId)
+        if (unassignedContract) {
+          setSupplierContracts(prev => prev.map(c =>
+            c.tempId === unassignedContract.tempId
+              ? { ...c, supplierId: contactId, supplierName: contactData.name }
+              : c
+          ))
+          toast.success(`${contactData.name} assigné automatiquement !`)
+        } else {
+          toast.info(`${contactData.name} créé. Assignez-le manuellement.`)
+        }
+        sessionStorage.removeItem(`contact-data-${sessionKeyParam}`)
+        return
+      }
+
       const roleMap: Record<string, ContractContactRole> = {
         'tenant': 'locataire',
         'locataire': 'locataire',
@@ -945,69 +966,63 @@ export default function ContractFormContainer({
           )
         }
 
-        // Upload documents with their categories
-        if (hasPendingUploads) {
-          logger.info('[CONTRACT-FORM] Uploading documents...')
-          await uploadDocumentFiles(contractId)
+        // Compute rent reminder dates synchronously before parallel phase (pure date math)
+        const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+        let reminderDates: Date[] = []
+        if (rentReminderConfig.enabled && formData.startDate && formData.durationMonths) {
+          const leaseStart = parseLocalDate(formData.startDate)
+          const leaseEnd = calculateContractEndDate(formData.startDate, formData.durationMonths)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const current = new Date(leaseStart.getFullYear(), leaseStart.getMonth(), 1)
+          const endMonth = new Date(leaseEnd.getFullYear(), leaseEnd.getMonth(), 1)
+          while (current <= endMonth) {
+            const d = new Date(current.getFullYear(), current.getMonth(), rentReminderConfig.dayOfMonth)
+            if (d >= today) reminderDates.push(d)
+            current.setMonth(current.getMonth() + 1)
+          }
         }
 
-        // Create scheduled interventions
-        const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
-        if (toCreate.length > 0) {
-          logger.info(`[CONTRACT-FORM] Creating ${toCreate.length} interventions...`)
-          const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+        // Parallelize: documents + interventions + reminders (US-E02)
+        await Promise.all([
+          // Op 1: Upload documents
+          hasPendingUploads ? (async () => {
+            logger.info('[CONTRACT-FORM] Uploading documents...')
+            await uploadDocumentFiles(contractId)
+          })() : Promise.resolve(),
 
-          const results = await Promise.allSettled(
-            toCreate.map(async (intervention) => {
-              return createInterventionAction({
+          // Op 2: Create scheduled interventions
+          toCreate.length > 0 ? (async () => {
+            logger.info(`[CONTRACT-FORM] Creating ${toCreate.length} interventions...`)
+            const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+            const results = await Promise.allSettled(
+              toCreate.map(async (intervention) => createInterventionAction({
                 title: intervention.title,
                 description: intervention.description,
                 type: intervention.interventionTypeCode,
                 urgency: 'basse',
                 lot_id: formData.lotId!,
                 team_id: teamId,
-                contract_id: contractId,  // Lier l'intervention au contrat
+                contract_id: contractId,
                 requested_date: intervention.scheduledDate || undefined
               }, {
-                useServiceRole: true,  // Bypass RLS pour création batch
+                useServiceRole: true,
                 assignments: intervention.assignedUsers.length > 0
                   ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
                   : undefined
-              })
-            })
-          )
-
-          const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length
-          const failedCount = results.length - successCount
-
-          if (successCount > 0) {
-            logger.info({ successCount, failedCount, contractId }, 'Lease interventions created')
-          }
-        }
-
-        // Create rent payment reminders (batch: 1 auth + 1 subscription check + 1 bulk insert)
-        if (rentReminderConfig.enabled && formData.startDate && formData.durationMonths) {
-          const leaseStart = parseLocalDate(formData.startDate)
-          const leaseEnd = calculateContractEndDate(formData.startDate, formData.durationMonths)
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-
-          const reminderDates: Date[] = []
-          const current = new Date(leaseStart.getFullYear(), leaseStart.getMonth(), 1)
-          const endMonth = new Date(leaseEnd.getFullYear(), leaseEnd.getMonth(), 1)
-
-          while (current <= endMonth) {
-            const reminderDate = new Date(current.getFullYear(), current.getMonth(), rentReminderConfig.dayOfMonth)
-            if (reminderDate >= today) {
-              reminderDates.push(reminderDate)
+              }))
+            )
+            const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length
+            const failedCount = results.length - successCount
+            if (successCount > 0) {
+              logger.info({ successCount, failedCount, contractId }, 'Lease interventions created')
             }
-            current.setMonth(current.getMonth() + 1)
-          }
+          })() : Promise.resolve(),
 
-          if (reminderDates.length > 0) {
+          // Op 3: Create rent payment reminders
+          reminderDates.length > 0 ? (async () => {
             logger.info(`[CONTRACT-FORM] Creating ${reminderDates.length} rent payment reminders (batch)...`)
             const { createBatchRentRemindersAction } = await import('@/app/actions/intervention-actions')
-
             const reminders = reminderDates.map(date => {
               const monthLabel = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
               const capitalizedMonth = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
@@ -1016,7 +1031,6 @@ export default function ContractFormContainer({
                 scheduledDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
               }
             })
-
             const batchResult = await createBatchRentRemindersAction(reminders, {
               lot_id: formData.lotId!,
               team_id: teamId,
@@ -1025,14 +1039,13 @@ export default function ContractFormContainer({
                 ? rentReminderConfig.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
                 : undefined
             })
-
             if (batchResult.success && batchResult.data) {
               logger.info({ ...batchResult.data, contractId }, 'Rent payment reminders created (batch)')
             } else {
               logger.warn({ error: batchResult.error, contractId }, 'Batch rent reminders failed')
             }
-          }
-        }
+          })() : Promise.resolve(),
+        ])
 
         // Send notification (fire-and-forget — non-critical for user flow)
         createContractNotification(contractId).catch(() => {})
@@ -1310,231 +1323,132 @@ export default function ContractFormContainer({
           formData.startDate!,
           formData.durationMonths || 12
         )
+        const endDate = formData.startDate && formData.durationMonths
+          ? calculateContractEndDate(formData.startDate, formData.durationMonths)
+          : null
+        const durationLabel = CONTRACT_DURATION_OPTIONS.find(o => o.value === formData.durationMonths)?.label || `${formData.durationMonths} mois`
+        const chargesTypeLabel = formData.chargesType ? CHARGES_TYPE_LABELS[formData.chargesType] : ''
+        const frequencyLabel = formData.paymentFrequency ? PAYMENT_FREQUENCY_LABELS[formData.paymentFrequency] : ''
+        const enabledInterventions = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+        const disabledInterventions = scheduledInterventions.filter(i => !i.enabled)
+
+        // Map document slots for ConfirmationDocumentList
+        const documentSlotsSummary = slots.map(slot => {
+          const slotConfig = LEASE_DOCUMENT_SLOTS.find(s => s.type === slot.type)
+          return {
+            label: slotConfig?.label || slot.type,
+            fileCount: slot.files.length,
+            fileNames: slot.files.map((f: any) => ({ name: f.name || f.fileName || '', url: f.signedUrl })),
+            recommended: slotConfig?.recommended ?? false,
+          }
+        })
+
+        // Map contacts into groups for ConfirmationContactGrid
+        const tenantContacts = (formData.contacts || [])
+          .filter(c => c.role === 'locataire')
+          .map(c => {
+            const info = initialContacts.find(ic => ic.id === c.userId)
+            return { id: c.userId, name: info?.name || 'Inconnu', email: info?.email || undefined, sublabel: CONTRACT_CONTACT_ROLE_LABELS[c.role] }
+          })
+        const guarantorContacts = (formData.contacts || [])
+          .filter(c => c.role === 'garant')
+          .map(c => {
+            const info = initialContacts.find(ic => ic.id === c.userId)
+            return { id: c.userId, name: info?.name || 'Inconnu', email: info?.email || undefined, sublabel: CONTRACT_CONTACT_ROLE_LABELS[c.role] }
+          })
+
+        // Guarantee pairs
+        const guaranteePairs = (() => {
+          if (formData.guaranteeType === 'pas_de_garantie' || !formData.guaranteeType) {
+            return [{ label: 'Type', value: 'Aucune garantie' }]
+          }
+          const pairs: { label: string; value: React.ReactNode; empty?: boolean }[] = [
+            { label: 'Type', value: GUARANTEE_TYPE_LABELS[formData.guaranteeType] },
+            { label: 'Montant', value: formData.guaranteeAmount ? `${formData.guaranteeAmount.toLocaleString('fr-FR')} €` : undefined, empty: !formData.guaranteeAmount },
+            { label: 'Notes', value: formData.guaranteeNotes || undefined, empty: !formData.guaranteeNotes },
+          ]
+          return pairs
+        })()
+
         return (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="text-center max-w-2xl mx-auto">
-              <h2 className="text-2xl font-bold mb-2">Récapitulatif</h2>
-              <p className="text-muted-foreground">
-                {mode === 'create'
-                  ? 'Vérifiez les informations avant de créer le bail.'
-                  : 'Vérifiez les modifications avant d\'enregistrer.'}
-              </p>
-            </div>
+          <ConfirmationPageShell maxWidth="5xl">
+            <ConfirmationEntityHeader
+              icon={FileText}
+              title={displayRef}
+              subtitle={selectedLot ? `${selectedLot.building?.name || 'Lot'} · Lot ${selectedLot.reference}` : undefined}
+              badges={[
+                { label: durationLabel },
+                { label: formData.startDate ? parseLocalDate(formData.startDate).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : '' },
+              ]}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Lot info - Large Card */}
-              <Card className="md:col-span-2 overflow-hidden border-border/60 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Home className="h-4 w-4 text-primary" />
-                    Lot concerné
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  {selectedLot && (
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Building2 className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-lg font-semibold">
-                          {selectedLot.building ? `${selectedLot.building.name}` : `Lot ${selectedLot.reference}`}
-                        </p>
-                        {selectedLot.building && <p className="text-muted-foreground">Lot {selectedLot.reference}</p>}
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {selectedLot.street || selectedLot.city}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
+              {/* RIGHT COLUMN (sidebar) - order-first on mobile */}
+              <div className="order-first lg:order-none lg:col-start-2">
+                <ConfirmationFinancialHighlight
+                  title="Finances"
+                  icon={Euro}
+                  lines={[
+                    { label: 'Loyer HC', value: `${(formData.rentAmount || 0).toLocaleString('fr-FR')} €` },
+                    { label: 'Charges', value: `${(formData.chargesAmount || 0).toLocaleString('fr-FR')} €` },
+                    { label: 'Type charges', value: chargesTypeLabel, muted: true },
+                    { label: 'Frequence', value: frequencyLabel, muted: true },
+                  ]}
+                  totalLabel="Total mensuel"
+                  totalValue={`${monthlyTotal.toLocaleString('fr-FR')} €`}
+                />
+              </div>
 
-              {/* Financial info - Highlight Card */}
-              <Card className="bg-primary/5 border-primary/20 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2 text-primary">
-                    <Euro className="h-4 w-4" />
-                    Finances
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Loyer HC</span>
-                      <span className="font-medium">{formData.rentAmount?.toLocaleString('fr-FR')} €</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Charges</span>
-                      <span className="font-medium">{(formData.chargesAmount || 0).toLocaleString('fr-FR')} €</span>
-                    </div>
-                  </div>
-                  <Separator className="bg-primary/20" />
-                  <div className="flex justify-between items-end">
-                    <span className="font-medium text-sm">Total mensuel</span>
-                    <span className="text-3xl font-bold text-primary tracking-tight">{monthlyTotal.toLocaleString('fr-FR')} €</span>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* LEFT COLUMN */}
+              <div className="space-y-5 lg:col-start-1 lg:row-start-1">
+                <ConfirmationSection title="Lot concerne">
+                  <ConfirmationKeyValueGrid pairs={[
+                    { label: 'Immeuble', value: selectedLot?.building?.name || 'N/A', empty: !selectedLot?.building?.name },
+                    { label: 'Reference lot', value: selectedLot?.reference || 'N/A', empty: !selectedLot?.reference },
+                    { label: 'Adresse', value: selectedLot?.street || selectedLot?.city || undefined, empty: !selectedLot?.street && !selectedLot?.city },
+                    { label: 'Etage', value: selectedLot?.floor != null ? `${selectedLot.floor}` : undefined, empty: selectedLot?.floor == null },
+                  ]} />
+                </ConfirmationSection>
 
-              {/* Guarantee info - Only show if guarantee is defined */}
-              {formData.guaranteeType && formData.guaranteeType !== 'pas_de_garantie' && (
-                <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-primary" />
-                      Garantie locative
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-3">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</p>
-                      <p className="font-medium mt-1">{GUARANTEE_TYPE_LABELS[formData.guaranteeType]}</p>
-                    </div>
-                    {formData.guaranteeAmount && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Montant</p>
-                        <p className="font-medium mt-1 text-primary">{formData.guaranteeAmount.toLocaleString('fr-FR')} €</p>
-                      </div>
-                    )}
-                    {formData.guaranteeNotes && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</p>
-                        <p className="text-sm mt-1 text-muted-foreground">{formData.guaranteeNotes}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+                <ConfirmationSection title="Details du bail">
+                  <ConfirmationKeyValueGrid pairs={[
+                    { label: 'Reference', value: <span className="font-mono text-primary">{displayRef}</span> },
+                    { label: "Date d'effet", value: formData.startDate ? parseLocalDate(formData.startDate).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : undefined, empty: !formData.startDate },
+                    { label: 'Date de fin', value: endDate ? endDate.toLocaleDateString('fr-FR', { dateStyle: 'long' }) : undefined, empty: !endDate },
+                    { label: 'Duree', value: durationLabel },
+                    { label: 'Type de charges', value: chargesTypeLabel, empty: !chargesTypeLabel },
+                    { label: 'Frequence de paiement', value: frequencyLabel, empty: !frequencyLabel },
+                  ]} />
+                </ConfirmationSection>
 
-              {/* Contract info */}
-              <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    Détails du bail
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Référence</p>
-                    <p className="font-mono font-medium mt-1 text-primary">{displayRef}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date d'effet</p>
-                      <p className="text-sm mt-1 flex items-center gap-2">
-                        <Calendar className="h-3 w-3" />
-                        {parseLocalDate(formData.startDate!).toLocaleDateString('fr-FR', { dateStyle: 'long' })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Durée</p>
-                      <p className="text-sm mt-1">{CONTRACT_DURATION_OPTIONS.find(o => o.value === formData.durationMonths)?.label || `${formData.durationMonths} mois`}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                <ConfirmationSection title="Garantie">
+                  <ConfirmationKeyValueGrid pairs={guaranteePairs} />
+                </ConfirmationSection>
 
-              {/* Contacts info */}
-              <Card className="md:col-span-2 border-border/60 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Users className="h-4 w-4 text-primary" />
-                    Signataires ({(formData.contacts || []).length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(formData.contacts || []).map((contact, index) => {
-                      const info = initialContacts.find(c => c.id === contact.userId)
-                      return (
-                        <div key={index} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/50">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                            {info?.name?.[0] || 'C'}
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">{info?.name}</p>
-                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 mt-1">
-                              {CONTRACT_CONTACT_ROLE_LABELS[contact.role]}
-                            </Badge>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                <ConfirmationSection title="Signataires">
+                  <ConfirmationContactGrid
+                    groups={[
+                      { type: 'Locataires', contacts: tenantContacts, emptyLabel: 'Aucun locataire' },
+                      { type: 'Garants', contacts: guarantorContacts, emptyLabel: 'Aucun garant' },
+                    ]}
+                    columns={2}
+                  />
+                </ConfirmationSection>
 
-            {/* Section Documents */}
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Paperclip className="h-4 w-4 text-primary" />
-                  Documents ajoutés
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                {hasDocuments ? (
-                  <div className="space-y-2">
-                    {slots.filter(slot => slot.files.length > 0).map((slot, index) => {
-                      const slotConfig = LEASE_DOCUMENT_SLOTS.find(s => s.type === slot.type)
-                      return (
-                        <div key={index} className="flex items-center gap-2 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                          <span className="font-medium">{slotConfig?.label || slot.type}</span>
-                          <span className="text-muted-foreground">
-                            - {slot.files.length} fichier{slot.files.length > 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      )
-                    })}
-                    {missingRecommendedDocuments.length > 0 && (
-                      <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                          <div className="text-xs text-amber-700">
-                            <p className="font-medium mb-1">Documents recommandés manquants:</p>
-                            <ul className="list-disc list-inside space-y-0.5">
-                              {missingRecommendedDocuments.map((docType, idx) => {
-                                const slotConfig = LEASE_DOCUMENT_SLOTS.find(s => s.type === docType)
-                                return (
-                                  <li key={idx}>{slotConfig?.label || docType}</li>
-                                )
-                              })}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Aucun document ajouté</p>
-                )}
-              </CardContent>
-            </Card>
+                <ConfirmationSection title="Documents">
+                  <ConfirmationDocumentList slots={documentSlotsSummary} />
+                </ConfirmationSection>
 
-            {/* Section Interventions */}
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CalendarCheck className="h-4 w-4 text-primary" />
-                  Interventions planifiées
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                {(scheduledInterventions.filter(i => i.enabled && i.scheduledDate).length > 0 || rentReminderConfig.enabled) ? (
-                  <div className="space-y-2">
-                    {scheduledInterventions
-                      .filter(i => i.enabled && i.scheduledDate)
-                      .map((intervention, index) => (
+                <ConfirmationSection title="Interventions & rappels">
+                  {(enabledInterventions.length > 0 || rentReminderConfig.enabled) ? (
+                    <div className="space-y-2">
+                      {enabledInterventions.map((intervention, index) => (
                         <div key={index} className="flex items-start gap-2 text-sm">
                           <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium">{intervention.title}</span>
                             <span className="text-muted-foreground">
-                              - {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '—'}
+                              - {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '\u2014'}
                             </span>
                             {intervention.assignedUsers.length > 0 && (
                               <div className="flex items-center gap-1 flex-wrap">
@@ -1550,27 +1464,28 @@ export default function ContractFormContainer({
                           </div>
                         </div>
                       ))}
-                    {scheduledInterventions.filter(i => !i.enabled).length > 0 && (
-                      <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>
-                          {scheduledInterventions.filter(i => !i.enabled).length} intervention(s) désactivée(s)
-                        </span>
-                      </div>
-                    )}
-                    {rentReminderConfig.enabled && (
-                      <div className="mt-4 flex items-center gap-2 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span className="font-medium">Rappels de paiement du loyer</span>
-                        <span className="text-muted-foreground">— le {rentReminderConfig.dayOfMonth} de chaque mois</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Aucune intervention planifiée</p>
-                )}
-              </CardContent>
-            </Card>
+                      {disabledInterventions.length > 0 && (
+                        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          <span>
+                            {disabledInterventions.length} intervention(s) desactivee(s)
+                          </span>
+                        </div>
+                      )}
+                      {rentReminderConfig.enabled && (
+                        <div className="mt-4 flex items-center gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                          <span className="font-medium">Rappels de paiement du loyer</span>
+                          <span className="text-muted-foreground">&mdash; le {rentReminderConfig.dayOfMonth} de chaque mois</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Aucune intervention planifiee</p>
+                  )}
+                </ConfirmationSection>
+              </div>
+            </div>
 
             {/* Changes summary (edit mode only) */}
             {mode === 'edit' && (() => {
@@ -1585,10 +1500,10 @@ export default function ContractFormContainer({
                     <CardContent className="p-4">
                       <h4 className="font-medium text-amber-800 mb-2">Modifications des contacts</h4>
                       {toRemove > 0 && (
-                        <p className="text-sm text-amber-700">- {toRemove} contact(s) seront retirés</p>
+                        <p className="text-sm text-amber-700">- {toRemove} contact(s) seront retires</p>
                       )}
                       {toAdd > 0 && (
-                        <p className="text-sm text-amber-700">+ {toAdd} contact(s) seront ajoutés</p>
+                        <p className="text-sm text-amber-700">+ {toAdd} contact(s) seront ajoutes</p>
                       )}
                     </CardContent>
                   </Card>
@@ -1596,7 +1511,7 @@ export default function ContractFormContainer({
               }
               return null
             })()}
-          </div>
+          </ConfirmationPageShell>
         )
 
       default:

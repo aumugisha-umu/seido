@@ -6,11 +6,11 @@ import { testimonials } from '@/data/testimonials'
 import { getLatestArticles } from '@/lib/blog'
 
 export const metadata: Metadata = {
-  title: 'Logiciel Gestion Locative Belgique — Gagnez 10h/semaine | SEIDO',
-  description: 'SEIDO est le logiciel SaaS de gestion locative belge. Interventions, portail locataire, portail prestataire : tout centralisé. Essai gratuit 14 jours.',
+  title: 'Logiciel Gestion Locative Belgique — De 10h à 1h/semaine | SEIDO',
+  description: 'SEIDO centralise toutes vos données, documents et interactions immobilières. Fermez vos boucles de gestion en quelques clics. Essai gratuit 1 mois.',
   openGraph: {
-    title: 'Logiciel Gestion Locative Belgique — Gagnez 10h/semaine | SEIDO',
-    description: 'SEIDO est le logiciel SaaS de gestion locative belge. Interventions, portail locataire, portail prestataire : tout centralisé. Essai gratuit 14 jours.',
+    title: 'Logiciel Gestion Locative Belgique — De 10h à 1h/semaine | SEIDO',
+    description: 'SEIDO centralise toutes vos données, documents et interactions immobilières. Fermez vos boucles de gestion en quelques clics. Essai gratuit 1 mois.',
     images: ['/images/preview_image.webp'],
     type: 'website',
     url: 'https://www.seido-app.com',
@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Logiciel Gestion Locative Belgique — Gagnez 10h/semaine | SEIDO',
-    description: 'SEIDO est le logiciel SaaS de gestion locative belge. Interventions, portail locataire, portail prestataire : tout centralisé. Essai gratuit 14 jours.',
+    title: 'Logiciel Gestion Locative Belgique — De 10h à 1h/semaine | SEIDO',
+    description: 'SEIDO centralise toutes vos données, documents et interactions immobilières. Fermez vos boucles de gestion en quelques clics. Essai gratuit 1 mois.',
     images: ['/images/preview_image.webp'],
   },
   alternates: {

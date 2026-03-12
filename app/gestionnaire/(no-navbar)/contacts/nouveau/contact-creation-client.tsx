@@ -426,7 +426,11 @@ export function ContactCreationClient({
           logger.error(`❌ [CREATE-CONTACT] Failed to save contact data:`, err)
         }
 
-        const redirectUrl = `${returnUrl}?sessionKey=${sessionKey}&newContactId=${newContactId}&contactType=${formData.contactType}`
+        const returnUrlObj = new URL(returnUrl, window.location.origin)
+        returnUrlObj.searchParams.set('sessionKey', sessionKey)
+        returnUrlObj.searchParams.set('newContactId', newContactId)
+        returnUrlObj.searchParams.set('contactType', formData.contactType)
+        const redirectUrl = returnUrlObj.pathname + returnUrlObj.search
         logger.info(`🔙 [CREATE-CONTACT] Returning to origin: ${redirectUrl}`)
         router.push(redirectUrl)
       } else {
@@ -467,11 +471,18 @@ export function ContactCreationClient({
           if (returnUrl) {
             // Retour au formulaire d'origine sans créer de contact
             // Si sessionKey existe, on le passe pour restaurer l'état du formulaire
-            const redirectUrl = sessionKey
-              ? `${returnUrl}?sessionKey=${sessionKey}&cancelled=true`
-              : returnUrl // Pas de sessionKey = retour simple (cas de intervention-detail)
-            logger.info(`🔙 [CREATE-CONTACT] Cancelled, returning to origin: ${redirectUrl}`)
-            router.push(redirectUrl)
+            if (sessionKey) {
+              const returnUrlObj = new URL(returnUrl, window.location.origin)
+              returnUrlObj.searchParams.set('sessionKey', sessionKey)
+              returnUrlObj.searchParams.set('cancelled', 'true')
+              const redirectUrl = returnUrlObj.pathname + returnUrlObj.search
+              logger.info(`🔙 [CREATE-CONTACT] Cancelled, returning to origin: ${redirectUrl}`)
+              router.push(redirectUrl)
+            } else {
+              // Pas de sessionKey = retour simple (cas de intervention-detail)
+              logger.info(`🔙 [CREATE-CONTACT] Cancelled, returning to origin: ${returnUrl}`)
+              router.push(returnUrl)
+            }
           } else {
             router.push('/gestionnaire/contacts')
           }

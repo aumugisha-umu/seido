@@ -1,0 +1,11 @@
+# Progress Log — Intervention Planner Refactoring
+# Started: 2026-03-11
+# Stories: 6 total
+# Design: docs/plans/2026-03-11-intervention-planner-refactoring.md
+---
+
+## 2026-03-11 — Fix: PostgREST ambiguous FK + Supplier card display
+- Implemented: FK hint `!fk_users_company` on 4 repository queries to fix PGRST201; refactored supplier card to show person name + company badge
+- Files: `lib/services/repositories/supplier-contract.repository.ts`, `components/contracts/supplier-contract-card.tsx`
+- Learnings: PostgREST needs `!fk_name` when 2+ FK paths exist between same table pair (audit columns like `deleted_by` create reverse FK). Card display should always prioritize person identity over company.
+- Decision: Reused contact-card-compact badge pattern (purple bg + Building2 icon) for UI consistency across all entity cards

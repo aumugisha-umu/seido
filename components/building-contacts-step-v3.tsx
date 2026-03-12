@@ -202,12 +202,18 @@ export function BuildingContactsStepV3({
   return (
     <div className="space-y-4">
       <Tabs defaultValue="contacts" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto">
-          <TabsTrigger value="contacts" className="flex items-center gap-2">
+        <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto bg-slate-100 border border-slate-200 p-1 rounded-xl">
+          <TabsTrigger
+            value="contacts"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+          >
             <Users className="w-4 h-4" />
             <span>Contacts</span>
           </TabsTrigger>
-          <TabsTrigger value="documents" className="flex items-center gap-2">
+          <TabsTrigger
+            value="documents"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+          >
             <Paperclip className="w-4 h-4" />
             <span>Documents</span>
             {buildingDocUpload.hasFiles && (

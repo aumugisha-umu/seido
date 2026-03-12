@@ -117,7 +117,7 @@ export function TestimonialsSection() {
         {/* Trust Badge */}
         <div className="text-center mt-12">
           <p className="text-sm text-white/50">
-            Rejoignez <span className="font-semibold text-blue-400">500+ gestionnaires</span> en Belgique
+            Rejoignez les <span className="font-semibold text-blue-400">professionnels de l&apos;immobilier</span> qui ont fermé leurs boucles
           </p>
         </div>
       </div>

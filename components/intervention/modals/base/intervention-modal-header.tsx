@@ -34,14 +34,8 @@ interface InterventionModalHeaderProps {
   className?: string
 }
 
-// Helper functions (copied from programming-modal)
-const getPriorityColor = (priority: string) => {
-  const p = priority?.toLowerCase() || 'normale'
-  if (p === 'urgente') return 'bg-red-100 text-red-800 border-red-200'
-  if (p === 'haute') return 'bg-orange-100 text-orange-800 border-orange-200'
-  if (p === 'normale') return 'bg-blue-100 text-blue-800 border-blue-200'
-  return 'bg-slate-100 text-slate-800 border-slate-200'
-}
+// Priority helpers — getPriorityColor imported from canonical source
+import { getPriorityColor } from '@/lib/intervention-utils'
 
 const getPriorityLabel = (priority: string) => {
   const p = priority?.toLowerCase() || 'normale'

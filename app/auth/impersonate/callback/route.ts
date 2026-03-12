@@ -11,7 +11,8 @@ import { logger } from '@/lib/logger'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const tokenHash = searchParams.get('token_hash')
-  const next = searchParams.get('next') || '/gestionnaire/dashboard'
+  const nextParam = searchParams.get('next') || '/gestionnaire/dashboard'
+  const next = (nextParam.startsWith('/') && !nextParam.startsWith('//')) ? nextParam : '/gestionnaire/dashboard'
 
   logger.info('[IMPERSONATE-CALLBACK] Processing callback', {
     hasToken: !!tokenHash,

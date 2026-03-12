@@ -11,7 +11,7 @@
  * Basé sur ContactsNavigator mais adapté au contexte intervention.
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
@@ -70,6 +70,15 @@ export function InterventionContactsNavigator({
   className
 }: InterventionContactsNavigatorProps) {
   const router = useRouter()
+  const prefetchedRef = useRef<Set<string>>(new Set())
+
+  const handlePrefetch = useCallback((href: string) => {
+    if (!prefetchedRef.current.has(href)) {
+      prefetchedRef.current.add(href)
+      router.prefetch(href)
+    }
+  }, [router])
+
   const [activeTab, setActiveTab] = useState<'contacts' | 'companies'>('contacts')
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards')
@@ -243,11 +252,12 @@ export function InterventionContactsNavigator({
     return (
       <div className={gridClass}>
         {filteredContacts.map(contact => (
-          <ContactCardCompact
-            key={contact.id}
-            contact={contact}
-            onClick={() => router.push(`/gestionnaire/contacts/details/${contact.id}`)}
-          />
+          <div key={contact.id} onMouseEnter={() => handlePrefetch(`/gestionnaire/contacts/details/${contact.id}`)}>
+            <ContactCardCompact
+              contact={contact}
+              onClick={() => router.push(`/gestionnaire/contacts/details/${contact.id}`)}
+            />
+          </div>
         ))}
       </div>
     )
@@ -267,11 +277,12 @@ export function InterventionContactsNavigator({
     return (
       <div className={gridClass}>
         {filteredCompanies.map(company => (
-          <CompanyCardCompact
-            key={company.id}
-            company={company}
-            onClick={() => router.push(`/gestionnaire/contacts/societes/${company.id}`)}
-          />
+          <div key={company.id} onMouseEnter={() => handlePrefetch(`/gestionnaire/contacts/societes/${company.id}`)}>
+            <CompanyCardCompact
+              company={company}
+              onClick={() => router.push(`/gestionnaire/contacts/societes/${company.id}`)}
+            />
+          </div>
         ))}
       </div>
     )

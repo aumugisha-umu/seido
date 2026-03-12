@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Eye,
@@ -85,6 +85,14 @@ export function ContractsListView({
   className
 }: ContractsListViewProps) {
   const router = useRouter()
+  const prefetchedRef = useRef<Set<string>>(new Set())
+
+  const handleRowHover = useCallback((href: string) => {
+    if (!prefetchedRef.current.has(href)) {
+      prefetchedRef.current.add(href)
+      router.prefetch(href)
+    }
+  }, [router])
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField | null>(null)
@@ -392,6 +400,7 @@ export function ContractsListView({
                   key={contract.id}
                   className="hover:bg-slate-50 cursor-pointer transition-colors"
                   onClick={() => handleRowClick(contract.id)}
+                  onMouseEnter={() => handleRowHover(`/gestionnaire/contrats/${contract.id}`)}
                 >
                   {/* Title Cell */}
                   <TableCell className="font-medium">

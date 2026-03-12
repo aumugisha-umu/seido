@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -102,6 +102,15 @@ export function BuildingContactsNavigator({
   isEmbeddedInCard = false
 }: BuildingContactsNavigatorProps) {
   const router = useRouter()
+  const prefetchedRef = useRef<Set<string>>(new Set())
+
+  const handlePrefetch = useCallback((href: string) => {
+    if (!prefetchedRef.current.has(href)) {
+      prefetchedRef.current.add(href)
+      router.prefetch(href)
+    }
+  }, [router])
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -482,6 +491,7 @@ export function BuildingContactsNavigator({
                           variant="outline"
                           className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
                           onClick={() => router.push(`/gestionnaire/contacts/details/${contact.user.id}`)}
+                          onMouseEnter={() => handlePrefetch(`/gestionnaire/contacts/details/${contact.user.id}`)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           Détails
@@ -648,6 +658,7 @@ export function BuildingContactsNavigator({
                                     variant="ghost"
                                     className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
                                     onClick={() => router.push(`/gestionnaire/contacts/details/${contact.user.id}`)}
+                                    onMouseEnter={() => handlePrefetch(`/gestionnaire/contacts/details/${contact.user.id}`)}
                                   >
                                     <Eye className="h-3 w-3" />
                                   </Button>

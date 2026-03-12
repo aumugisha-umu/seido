@@ -93,7 +93,25 @@ const nextConfig = {
           {
             key: 'Vary',
             value: 'Accept-Encoding'
-          }
+          },
+          // CSP Report-Only — stricter than enforced CSP, reports violations without blocking (production only)
+          ...(process.env.NODE_ENV !== 'development' ? [{
+            key: 'Content-Security-Policy-Report-Only',
+            value: [
+              "default-src 'self'",
+              "base-uri 'self'",
+              "script-src 'self' 'unsafe-inline' https://*.contentsquare.net https://*.contentsquare.com https://*.vercel-insights.com https://*.vercel-scripts.com https://*.vercel.app https://*.frill.co https://maps.googleapis.com https://*.googleapis.com",
+              "style-src 'self' 'unsafe-inline' https://*.frill.co https://fonts.googleapis.com",
+              "img-src 'self' data: blob: https: https://*.googleapis.com https://*.gstatic.com https://*.google.com https://lh3.googleusercontent.com",
+              "font-src 'self' data: https://frill-prod-app.b-cdn.net https://fonts.gstatic.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.contentsquare.net https://*.contentsquare.com https://*.vercel-insights.com https://*.vercel-scripts.com https://*.frill.co https://frill-prod-app.b-cdn.net https://lh3.googleusercontent.com https://maps.googleapis.com https://*.googleapis.com https://*.gstatic.com https://*.google.com https://fonts.gstatic.com",
+              "frame-src 'self' https://*.frill.co https://*.google.com",
+              "frame-ancestors 'self'",
+              "media-src 'self' blob:",
+              "worker-src 'self' blob:",
+              "report-uri /api/csp-report"
+            ].join('; ')
+          }] : [])
         ]
       }
     ]

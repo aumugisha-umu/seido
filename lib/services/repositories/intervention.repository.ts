@@ -433,7 +433,6 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
    * Get interventions for a building (all lots in the building)
    */
   async findByBuilding(buildingId: string) {
-    // First get all lots for this building
     const { data: lots, error: lotsError } = await this.supabase
       .from('lots')
       .select('id')
@@ -443,11 +442,12 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       return createErrorResponse(handleError(lotsError, 'intervention:findByBuilding'))
     }
 
-    if (!lots || lots.length === 0) {
-      return { success: true as const, data: [] }
-    }
+    const lotIds = (lots || []).map(lot => lot.id)
 
-    const lotIds = lots.map(lot => lot.id)
+    const orConditions = [`building_id.eq.${buildingId}`]
+    if (lotIds.length > 0) {
+      orConditions.push(`lot_id.in.(${lotIds.join(',')})`)
+    }
 
     const { data, error } = await this.supabase
       .from(this.tableName)
@@ -463,7 +463,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           user:user_id(id, name, email, role, provider_category)
         )
       `)
-      .in('lot_id', lotIds)
+      .or(orConditions.join(','))
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -797,6 +797,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         validated_by_user:validated_by(name, email)
       `)
       .eq('intervention_id', _interventionId)
+      .is('deleted_at', null)
       .order('uploaded_at', { ascending: false })
 
     if (error) {
@@ -891,17 +892,16 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     // ✅ FIX (Oct 23, 2025): Use French statuses matching database enum
     // ✅ UPDATE (Nov 2025): 'en_cours' is DEPRECATED - direct transition to cloturee_par_*
     const validTransitions: Record<Intervention['status'], Intervention['status'][]> = {
-      'demande': ['rejetee', 'approuvee', 'annulee'],
-      'rejetee': [], // Terminal state
-      'approuvee': ['demande_de_devis', 'planification', 'annulee'],
-      'demande_de_devis': ['planification', 'annulee'],
+      'demande': ['rejetee', 'approuvee'],
+      'rejetee': [],
+      'approuvee': ['planification', 'annulee'],
       'planification': ['planifiee', 'annulee'],
-      'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
-      'en_cours': ['cloturee_par_prestataire', 'annulee'], // DEPRECATED - kept for backward compatibility
-      'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'], // Manager can finalize directly
+      'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'],
+      'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'],
       'cloturee_par_locataire': ['cloturee_par_gestionnaire'],
-      'cloturee_par_gestionnaire': [], // Terminal state
-      'annulee': [] // Terminal state
+      'cloturee_par_gestionnaire': [],
+      'annulee': [],
+      'contestee': ['cloturee_par_gestionnaire', 'annulee'],
     }
 
     const allowedNextStatuses = validTransitions[currentStatus]

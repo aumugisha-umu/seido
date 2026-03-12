@@ -64,17 +64,15 @@ export async function POST(request: NextRequest) {
 
     const validatedData = validation.data
 
-    // Récupérer les champs restants après validation
     const documentType = formData.get('document_type') as string
-    const teamId = formData.get('team_id') as string
+    const teamId = userProfile.team_id
     const title = formData.get('title') as string | null
     const expiryDate = formData.get('expiry_date') as string | null
 
-    // Validation des champs non validés par Zod
     if (!documentType || !teamId) {
       return NextResponse.json({
         success: false,
-        error: 'Champs requis manquants : document_type, team_id'
+        error: 'Champs requis manquants : document_type ou team_id non résolu'
       }, { status: 400 })
     }
 

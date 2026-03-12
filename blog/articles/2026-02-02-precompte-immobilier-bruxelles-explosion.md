@@ -110,7 +110,7 @@ La tendance est structurellement haussiere : les communes bruxelloises font face
 
 ---
 
-> **Avec Seido**, vous centralisez les documents fiscaux de chaque propriete — avis de precompte, quittances, historique des charges. Vous pouvez comparer les charges fiscales entre vos biens et produire des analyses de rentabilite actualisees pour vos proprietaires. [Decouvrir Seido →](https://seido.be)
+> **Avec Seido**, vous centralisez les documents fiscaux de chaque propriete — avis de precompte, quittances, historique des charges. Vous pouvez comparer les charges fiscales entre vos biens et produire des analyses de rentabilite actualisees pour vos proprietaires. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

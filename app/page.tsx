@@ -2,14 +2,15 @@ import { LandingPage } from '@/components/landing'
 import { JsonLd } from '@/components/seo/json-ld'
 import type { Metadata } from 'next'
 import { faq } from '@/data/faq'
+import { testimonials } from '@/data/testimonials'
 import { getLatestArticles } from '@/lib/blog'
 
 export const metadata: Metadata = {
-  title: 'Gestion Locative Simplifiee — Gagnez jusqu\'à 10h/semaine | SEIDO',
-  description: 'SEIDO connecte gestionnaires, prestataires et locataires sur une seule plateforme. Interventions, documents, communication : tout au meme endroit. Essai gratuit.',
+  title: 'Logiciel Gestion Locative Belgique — Gagnez 10h/semaine | SEIDO',
+  description: 'SEIDO est le logiciel SaaS de gestion locative belge. Interventions, portail locataire, portail prestataire : tout centralisé. Essai gratuit 14 jours.',
   openGraph: {
-    title: 'Gestion Locative Simplifiee — Gagnez jusqu\'à 10h/semaine | SEIDO',
-    description: 'SEIDO connecte gestionnaires, prestataires et locataires sur une seule plateforme. Interventions, documents, communication : tout au meme endroit. Essai gratuit.',
+    title: 'Logiciel Gestion Locative Belgique — Gagnez 10h/semaine | SEIDO',
+    description: 'SEIDO est le logiciel SaaS de gestion locative belge. Interventions, portail locataire, portail prestataire : tout centralisé. Essai gratuit 14 jours.',
     images: ['/images/preview_image.webp'],
     type: 'website',
     url: 'https://www.seido-app.com',
@@ -18,12 +19,16 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-      title: 'Gestion Locative Simplifiee — Gagnez jusqu\'à 10h/semaine | SEIDO',
-    description: 'SEIDO connecte gestionnaires, prestataires et locataires sur une seule plateforme. Interventions, documents, communication : tout au meme endroit. Essai gratuit.',
+    title: 'Logiciel Gestion Locative Belgique — Gagnez 10h/semaine | SEIDO',
+    description: 'SEIDO est le logiciel SaaS de gestion locative belge. Interventions, portail locataire, portail prestataire : tout centralisé. Essai gratuit 14 jours.',
     images: ['/images/preview_image.webp'],
   },
   alternates: {
     canonical: 'https://www.seido-app.com',
+    languages: {
+      'fr-BE': 'https://www.seido-app.com',
+      'x-default': 'https://www.seido-app.com',
+    },
   },
 }
 
@@ -38,11 +43,30 @@ export default async function HomePage() {
           '@context': 'https://schema.org',
           '@graph': [
             {
+              '@type': 'WebSite',
+              name: 'SEIDO',
+              url: 'https://www.seido-app.com',
+              potentialAction: {
+                '@type': 'SearchAction',
+                target: 'https://www.seido-app.com/blog?q={search_term_string}',
+                'query-input': 'required name=search_term_string',
+              },
+            },
+            {
               '@type': 'Organization',
               name: 'SEIDO',
+              legalName: 'UMUMENTUM SRL',
               url: 'https://www.seido-app.com',
               logo: 'https://www.seido-app.com/images/Logo/Logo_Seido_Color.png',
               description: 'Plateforme de gestion locative tout-en-un pour gestionnaires immobiliers en Belgique',
+              address: {
+                '@type': 'PostalAddress',
+                streetAddress: 'Rue de Grand-Bigard 14',
+                addressLocality: 'Berchem-Sainte-Agathe',
+                postalCode: '1082',
+                addressCountry: 'BE',
+              },
+              vatID: 'BE0775691974',
               contactPoint: {
                 '@type': 'ContactPoint',
                 email: 'contact@seido-app.com',
@@ -56,6 +80,7 @@ export default async function HomePage() {
             {
               '@type': 'SoftwareApplication',
               name: 'SEIDO',
+              url: 'https://www.seido-app.com',
               applicationCategory: 'BusinessApplication',
               operatingSystem: 'Web',
               offers: {
@@ -63,6 +88,12 @@ export default async function HomePage() {
                 price: '0',
                 priceCurrency: 'EUR',
                 description: 'Essai gratuit — puis 5 EUR/lot/mois ou 50 EUR/lot/an',
+              },
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: '5',
+                reviewCount: '5',
+                bestRating: '5',
               },
               featureList: [
                 'Gestion interventions multi-statut',
@@ -85,6 +116,24 @@ export default async function HomePage() {
                 },
               })),
             },
+            ...testimonials.map((t) => ({
+              '@type': 'Review' as const,
+              datePublished: '2026-01-15',
+              author: {
+                '@type': 'Person' as const,
+                name: t.author,
+              },
+              reviewRating: {
+                '@type': 'Rating' as const,
+                ratingValue: String(t.rating),
+                bestRating: '5',
+              },
+              reviewBody: t.quote,
+              itemReviewed: {
+                '@type': 'SoftwareApplication' as const,
+                name: 'SEIDO',
+              },
+            })),
           ],
         }}
       />

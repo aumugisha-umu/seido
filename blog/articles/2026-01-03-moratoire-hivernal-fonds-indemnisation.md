@@ -135,7 +135,7 @@ Cette confirmation judiciaire rend le dispositif definitivement ancre dans le pa
 
 ---
 
-> **Avec Seido**, documentez soigneusement chaque etape : mises en demeure, rappels, preuves de non-paiement. Chaque echange avec le locataire est trace, les documents sont centralises par lot, et vous pouvez generer un historique complet en cas de procedure. Un dossier bien constitue fait souvent la difference. [Centraliser vos documents →](https://seido.be)
+> **Avec Seido**, documentez soigneusement chaque etape : mises en demeure, rappels, preuves de non-paiement. Chaque echange avec le locataire est trace, les documents sont centralises par lot, et vous pouvez generer un historique complet en cas de procedure. Un dossier bien constitue fait souvent la difference. [Centraliser vos documents →](https://www.seido-app.com)
 
 ---
 

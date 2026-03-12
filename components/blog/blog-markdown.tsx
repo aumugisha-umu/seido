@@ -16,12 +16,8 @@ export const BlogMarkdown = ({ content }: BlogMarkdownProps) => {
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeSlug, rehypeAutolinkHeadings]}
       components={{
-        // Headings — skip H1 (rendered in article header)
-        h1: ({ children }) => (
-          <h2 className="text-2xl md:text-3xl font-bold text-white mt-10 mb-4">
-            {children}
-          </h2>
-        ),
+        // H1 suppressed — already rendered in article page header
+        h1: () => null,
         h2: ({ children }) => (
           <h2 className="text-2xl md:text-3xl font-bold text-white mt-10 mb-4 pb-2 border-b border-white/10">
             {children}

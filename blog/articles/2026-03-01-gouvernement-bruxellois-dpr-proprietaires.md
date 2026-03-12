@@ -121,7 +121,7 @@ Le SNPC a annonce qu'il resterait vigilant sur ces questions et interviendrait d
 
 ---
 
-> **Avec Seido**, vous centralisez les documents reglementaires de chaque bien : certificats PEB, permis d'urbanisme, historique des travaux. En cas de regularisation via la DLUU ou de renouvellement des certificats energetiques, votre dossier est deja constitue. [Centraliser vos documents →](https://seido.be)
+> **Avec Seido**, vous centralisez les documents reglementaires de chaque bien : certificats PEB, permis d'urbanisme, historique des travaux. En cas de regularisation via la DLUU ou de renouvellement des certificats energetiques, votre dossier est deja constitue. [Centraliser vos documents →](https://www.seido-app.com)
 
 ---
 

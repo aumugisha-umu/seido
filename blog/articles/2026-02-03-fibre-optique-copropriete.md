@@ -104,7 +104,7 @@ Si le droit d'acces est automatique, la gestion administrative des interventions
 
 ---
 
-> **Avec Seido**, chaque intervention technique dans les parties communes est tracee : demande d'acces, passage des techniciens, photos avant et apres. Le syndic dispose d'un historique complet des interventions fibre, accessible en ligne — utile en cas de contestation ou pour informer les coproprietaires lors de l'assemblee generale annuelle. [Decouvrir Seido →](https://seido.be)
+> **Avec Seido**, chaque intervention technique dans les parties communes est tracee : demande d'acces, passage des techniciens, photos avant et apres. Le syndic dispose d'un historique complet des interventions fibre, accessible en ligne — utile en cas de contestation ou pour informer les coproprietaires lors de l'assemblee generale annuelle. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

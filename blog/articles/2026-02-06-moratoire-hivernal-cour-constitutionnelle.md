@@ -116,7 +116,7 @@ La preparation reste utile :
 
 ---
 
-> **Avec Seido**, l'historique des paiements, des mises en demeure et des echanges avec le locataire est centralise et horodate. En cas de procedure d'expulsion ou de demande d'indemnisation au Fonds regional, vous disposez d'un dossier complet et structure — pret a etre transmis a votre avocat ou aux services du Fonds. [Decouvrir Seido →](https://seido.be)
+> **Avec Seido**, l'historique des paiements, des mises en demeure et des echanges avec le locataire est centralise et horodate. En cas de procedure d'expulsion ou de demande d'indemnisation au Fonds regional, vous disposez d'un dossier complet et structure — pret a etre transmis a votre avocat ou aux services du Fonds. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

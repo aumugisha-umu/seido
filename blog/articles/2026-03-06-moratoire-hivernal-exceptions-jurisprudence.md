@@ -160,7 +160,7 @@ La validite de la renonciation repose sur le caractere libre et eclaire du conse
 
 ---
 
-> **Avec Seido**, chaque echange avec le locataire est trace et horodate : mises en demeure, accords de paiement, preuves de non-paiement, justificatifs de versements. En cas de procedure, vous disposez d'un dossier complet et structure — sans avoir a chercher dans vos emails ou vos papiers. [Suivre vos locataires →](https://seido.be)
+> **Avec Seido**, chaque echange avec le locataire est trace et horodate : mises en demeure, accords de paiement, preuves de non-paiement, justificatifs de versements. En cas de procedure, vous disposez d'un dossier complet et structure — sans avoir a chercher dans vos emails ou vos papiers. [Suivre vos locataires →](https://www.seido-app.com)
 
 ---
 

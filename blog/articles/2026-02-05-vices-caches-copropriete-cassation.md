@@ -128,7 +128,7 @@ Ces mesures conservatoires n'interferent pas avec l'action en garantie des vices
 
 ---
 
-> **Avec Seido**, chaque signalement est trace avec photos, date et historique des echanges. En cas de vice cache affectant plusieurs lots, le gestionnaire peut rapidement identifier tous les coproprietaires concernes, centraliser la documentation et prouver la date de decouverte — un element determinant pour respecter le "bref delai" de l'action en garantie. [Decouvrir Seido →](https://seido.be)
+> **Avec Seido**, chaque signalement est trace avec photos, date et historique des echanges. En cas de vice cache affectant plusieurs lots, le gestionnaire peut rapidement identifier tous les coproprietaires concernes, centraliser la documentation et prouver la date de decouverte — un element determinant pour respecter le "bref delai" de l'action en garantie. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

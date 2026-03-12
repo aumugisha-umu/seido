@@ -145,7 +145,7 @@ Les taxes d'inoccupation comportent generalement des exemptions pour les biens e
 
 ---
 
-> **Avec Seido**, chaque echange avec l'administration est trace et horodate : mises en demeure, reponses, photos de l'etat du bien. En cas de contestation d'une taxe comportementale, vous disposez d'un dossier complet et structure — un argument de poids devant l'ombudsman ou les tribunaux. [Documenter vos echanges →](https://seido.be)
+> **Avec Seido**, chaque echange avec l'administration est trace et horodate : mises en demeure, reponses, photos de l'etat du bien. En cas de contestation d'une taxe comportementale, vous disposez d'un dossier complet et structure — un argument de poids devant l'ombudsman ou les tribunaux. [Documenter vos echanges →](https://www.seido-app.com)
 
 ---
 

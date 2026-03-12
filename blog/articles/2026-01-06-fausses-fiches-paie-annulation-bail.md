@@ -149,7 +149,7 @@ L'enjeu n'est pas de soumettre chaque candidature a un interrogatoire ou a des v
 
 ---
 
-> **Avec Seido**, chaque candidature locative peut etre documentee : pieces justificatives, echanges, et historique complet. En cas de litige, vous disposez d'un dossier structure et horodate — un avantage decisif devant le juge de paix. [Decouvrir Seido →](https://seido.be)
+> **Avec Seido**, chaque candidature locative peut etre documentee : pieces justificatives, echanges, et historique complet. En cas de litige, vous disposez d'un dossier structure et horodate — un avantage decisif devant le juge de paix. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

@@ -33,7 +33,9 @@ export const generateMetadata = async ({
       title: article.title,
       description: article.description,
       type: 'article',
+      url: `https://www.seido-app.com/blog/${article.slug}`,
       publishedTime: article.date,
+      modifiedTime: article.updated_at || article.date,
       authors: [article.author],
       locale: 'fr_BE',
       siteName: 'SEIDO',
@@ -46,6 +48,10 @@ export const generateMetadata = async ({
     },
     alternates: {
       canonical: `https://www.seido-app.com/blog/${article.slug}`,
+      languages: {
+        'fr-BE': `https://www.seido-app.com/blog/${article.slug}`,
+        'x-default': `https://www.seido-app.com/blog/${article.slug}`,
+      },
     },
   }
 }
@@ -69,25 +75,65 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
       <JsonLd
         data={{
           '@context': 'https://schema.org',
-          '@type': 'Article',
-          headline: article.title,
-          description: article.description,
-          datePublished: article.date,
-          author: {
-            '@type': 'Organization',
-            name: article.author,
-            url: 'https://www.seido-app.com',
-          },
-          publisher: {
-            '@type': 'Organization',
-            name: 'SEIDO',
-            url: 'https://www.seido-app.com',
-          },
-          mainEntityOfPage: {
-            '@type': 'WebPage',
-            '@id': `https://www.seido-app.com/blog/${article.slug}`,
-          },
-          keywords: article.tags.join(', '),
+          '@graph': [
+            {
+              '@type': 'BlogPosting',
+              headline: article.title,
+              description: article.description,
+              datePublished: article.date,
+              dateModified: article.updated_at || article.date,
+              author: {
+                '@type': 'Person',
+                name: article.author,
+                jobTitle: 'Fondateur SEIDO',
+                url: 'https://www.linkedin.com/company/seido-app',
+              },
+              publisher: {
+                '@type': 'Organization',
+                name: 'SEIDO',
+                url: 'https://www.seido-app.com',
+                logo: {
+                  '@type': 'ImageObject',
+                  url: 'https://www.seido-app.com/images/Logo/Logo_Seido_Color.png',
+                },
+              },
+              mainEntityOfPage: {
+                '@type': 'WebPage',
+                '@id': `https://www.seido-app.com/blog/${article.slug}`,
+              },
+              image: `https://www.seido-app.com/blog/${article.slug}/opengraph-image`,
+              keywords: article.tags.join(', '),
+              inLanguage: 'fr-BE',
+              isPartOf: {
+                '@type': 'Blog',
+                name: 'Blog SEIDO',
+                url: 'https://www.seido-app.com/blog',
+              },
+            },
+            {
+              '@type': 'BreadcrumbList',
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  name: 'Accueil',
+                  item: 'https://www.seido-app.com',
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: 'Blog',
+                  item: 'https://www.seido-app.com/blog',
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 3,
+                  name: article.title,
+                  item: `https://www.seido-app.com/blog/${article.slug}`,
+                },
+              ],
+            },
+          ],
         }}
       />
 

@@ -148,7 +148,7 @@ Cette seconde reforme a encore renforce les droits des coproprietaires : possibi
 
 ---
 
-> **Seido pour les coproprietes** : suivez chaque intervention technique, centralisez les PV d'assemblee, et garantissez une transparence totale entre gestionnaire, coproprietaires et prestataires. C'est exactement le type d'outil qui fluidifie la relation syndic-coproprietaires. [Decouvrir Seido →](https://seido.be)
+> **Seido pour les coproprietes** : suivez chaque intervention technique, centralisez les PV d'assemblee, et garantissez une transparence totale entre gestionnaire, coproprietaires et prestataires. C'est exactement le type d'outil qui fluidifie la relation syndic-coproprietaires. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

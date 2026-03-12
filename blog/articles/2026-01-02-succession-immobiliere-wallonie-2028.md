@@ -139,7 +139,7 @@ La reforme successorale wallonne va accelerer les transmissions de patrimoine im
 
 Accompagner vos proprietaires dans leurs projets de transmission commence par une connaissance precise de leur patrimoine : valeur estimee de chaque bien, historique des interventions et travaux, charges annuelles, baux en cours. Ces informations sont indispensables pour que notaires et conseillers fiscaux puissent proposer les bonnes strategies.
 
-> **Avec Seido**, vous avez une vue complete de chaque bien : son historique d'interventions, ses documents, ses baux et sa valeur — des informations precieuses pour accompagner vos proprietaires dans leurs projets de transmission. [Decouvrir Seido →](https://seido.be)
+> **Avec Seido**, vous avez une vue complete de chaque bien : son historique d'interventions, ses documents, ses baux et sa valeur — des informations precieuses pour accompagner vos proprietaires dans leurs projets de transmission. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

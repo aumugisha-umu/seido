@@ -54,4 +54,4 @@ Les juges de paix d'Uccle (juin 2025) et de Woluwe-Saint-Pierre (novembre 2025) 
 
 ---
 
-**Simplifiez votre gestion immobiliere avec [Seido](https://seido.be) — la plateforme qui centralise interventions, documents et communication avec vos locataires et prestataires.**
+**Simplifiez votre gestion immobiliere avec [Seido](https://www.seido-app.com) — la plateforme qui centralise interventions, documents et communication avec vos locataires et prestataires.**

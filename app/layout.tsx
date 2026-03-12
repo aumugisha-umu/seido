@@ -20,10 +20,9 @@ import { NotificationPromptProvider } from "@/contexts/notification-prompt-conte
 import "./globals.css"
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'),
-  title: "SEIDO - Gestion Immobilière",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://www.seido-app.com'),
+  title: { default: 'SEIDO — Gestion Locative', template: '%s | SEIDO' },
   description: "Plateforme de gestion immobilière multi-rôles pour propriétaires, gestionnaires, locataires et prestataires",
-  generator: "v0.app",
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -45,8 +44,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: '#1e40af'
 }
 

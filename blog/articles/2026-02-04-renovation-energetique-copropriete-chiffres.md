@@ -123,7 +123,7 @@ Chaque etape est digerable individuellement. L'ensemble du processus reste long,
 
 ---
 
-> **Seido pour les coproprietes** : piloter une renovation energetique sur 8 ans necessite un suivi rigoureux. Avec Seido, chaque etape est documentee — des premiers devis aux decisions d'AG, en passant par le suivi des travaux et la gestion des prestataires. Les coproprietaires ont acces a l'avancement en temps reel, ce qui facilite les votes et accelere les decisions. [Planifier vos renovations avec Seido →](https://seido.be)
+> **Seido pour les coproprietes** : piloter une renovation energetique sur 8 ans necessite un suivi rigoureux. Avec Seido, chaque etape est documentee — des premiers devis aux decisions d'AG, en passant par le suivi des travaux et la gestion des prestataires. Les coproprietaires ont acces a l'avancement en temps reel, ce qui facilite les votes et accelere les decisions. [Planifier vos renovations avec Seido →](https://www.seido-app.com)
 
 ---
 

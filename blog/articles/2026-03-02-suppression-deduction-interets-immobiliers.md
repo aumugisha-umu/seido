@@ -117,7 +117,7 @@ Aucune de ces strategies n'est neutre en termes de couts et d'impacts fiscaux. U
 
 ---
 
-> **Conseil Seido** : conservez une trace complete de vos emprunts, avertissements-extraits de role et reclamations fiscales. Avec Seido, chaque document est centralise par bien et horodate — un dossier structure pour etayer votre reclamation ou participer au recours collectif. [Organiser vos documents →](https://seido.be)
+> **Conseil Seido** : conservez une trace complete de vos emprunts, avertissements-extraits de role et reclamations fiscales. Avec Seido, chaque document est centralise par bien et horodate — un dossier structure pour etayer votre reclamation ou participer au recours collectif. [Organiser vos documents →](https://www.seido-app.com)
 
 ---
 

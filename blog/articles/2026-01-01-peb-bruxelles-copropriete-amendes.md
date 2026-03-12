@@ -150,7 +150,7 @@ Si vos certificats actuels sont etablis avec les tables climatiques actuelles, a
 
 ---
 
-> **Avec Seido**, planifiez et suivez les interventions de renovation energetique de chaque copropriete, documentez les certificats PEB par unite, et centralisez les devis des prestataires pour une prise de decision transparente en assemblee generale. [Decouvrir Seido →](https://seido.be)
+> **Avec Seido**, planifiez et suivez les interventions de renovation energetique de chaque copropriete, documentez les certificats PEB par unite, et centralisez les devis des prestataires pour une prise de decision transparente en assemblee generale. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

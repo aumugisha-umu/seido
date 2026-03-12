@@ -114,7 +114,7 @@ Si vous gerez des biens a la Cote pour des proprietaires non-residents :
 
 ---
 
-> **Avec Seido**, les documents fiscaux de chaque bien sont centralises et accessibles en permanence — avis de taxation, preuves de paiement, historique des charges. En cas d'evolution favorable de la jurisprudence sur les taxes de residences secondaires, vos proprietaires disposeront immediatement des documents necessaires pour faire valoir leurs droits. [Decouvrir Seido →](https://seido.be)
+> **Avec Seido**, les documents fiscaux de chaque bien sont centralises et accessibles en permanence — avis de taxation, preuves de paiement, historique des charges. En cas d'evolution favorable de la jurisprudence sur les taxes de residences secondaires, vos proprietaires disposeront immediatement des documents necessaires pour faire valoir leurs droits. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

@@ -139,7 +139,7 @@ En cas de contestation sur la validite de la ratification, le proces-verbal d'AG
 
 ---
 
-> **Avec Seido**, les proces-verbaux d'assemblee generale sont centralises et accessibles a tout moment — par le syndic, l'avocat, et les coproprietaires. Chaque decision relative a une action en justice est tracee, horodatee, et retrouvable en quelques secondes. En cas de contestation de la ratification, vous avez la preuve instantanement. [Decouvrir Seido →](https://seido.be)
+> **Avec Seido**, les proces-verbaux d'assemblee generale sont centralises et accessibles a tout moment — par le syndic, l'avocat, et les coproprietaires. Chaque decision relative a une action en justice est tracee, horodatee, et retrouvable en quelques secondes. En cas de contestation de la ratification, vous avez la preuve instantanement. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,10 @@ import { DemoRequestForm } from './demo-request-form'
 import { LandingHeader } from './landing-header'
 import { PricingCards } from '@/components/pricing-cards'
 import { BlogArticleCard } from '@/components/blog/blog-article-card'
+const TestimonialsSection = dynamic(
+    () => import('./sections/testimonials-section').then(mod => ({ default: mod.TestimonialsSection })),
+    { loading: () => <div className="py-16 md:py-24"><div className="container mx-auto px-4 text-center"><div className="h-8 w-64 mx-auto bg-white/5 rounded animate-pulse mb-8" /><div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-4">{[1,2].map(i => <div key={i} className="h-48 rounded-2xl bg-white/5 animate-pulse" />)}</div></div></div> }
+)
 import type { ArticleMeta } from '@/lib/blog'
 
 /**
@@ -84,6 +89,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             {/* Navigation Header - Shared Component */}
             <LandingHeader showNav={true} />
 
+            <main>
             {/* Hero Section - Background Video with Overlay */}
             <section className="relative z-10 min-h-[600px] md:min-h-[calc(100vh-73px)] flex items-center justify-start overflow-hidden">
                 {/* Background Video - Desktop only, Image on mobile */}
@@ -117,12 +123,12 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                 La gestion locative
                             </span>
                             <span className="block text-white">
-                                en toute sereinité
+                                en toute sérénité
                             </span>
                         </h1>
 
                         <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                            Vos interventions centralisees, vos locataires informés, vos prestataires autonomes. <span className="font-bold">Gagnez jusqu'à 10h/semaine.</span>
+                            Vos interventions, rappels et documents centralisés, vos locataires informés, vos prestataires autonomes. <span className="font-bold">Gagnez jusqu&apos;à 10h/semaine.</span>
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 mb-4 md:mb-6 max-w-2xl">
@@ -142,10 +148,6 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             </Button>
                         </div>
 
-                        <p className="landing-caption text-white/50 mb-8 md:mb-10">
-                            
-                        </p>
-
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
@@ -157,7 +159,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             </div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                <span className="landing-caption text-white/80">App locataires & prestataires</span>
+                                <span className="landing-caption text-white/80">Portail locataires & prestataires</span>
                             </div>
                         </div>
                     </div>
@@ -166,11 +168,11 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
 
             {/* Combined Problem Section: Costs & Causes */}
-            <section className="relative z-10 container mx-auto px-4 py-24">
+            <section className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-problem">
                 {/* Part 1: The Hidden Costs */}
                 <FadeIn>
                     <div className="text-center mb-12">
-                        <h2 className="landing-h2 text-white mb-4">
+                        <h2 id="heading-problem" className="landing-h2 text-white mb-4">
                             Le vrai coût d'une gestion locative sans outil adapté
                         </h2>
                     </div>
@@ -243,10 +245,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </section >
 
             {/* SEIDO Experience Section - Moved here after pain points */}
-            < section id="features" className="relative z-10 container mx-auto px-4 py-24" >
+            < section id="features" className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-features" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
-                        <h2 className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
+                        <h2 id="heading-features" className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
                             Logiciel de gestion locative tout-en-un
                         </h2>
                         <p className="landing-subtitle text-white/60">
@@ -479,14 +481,14 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </section >
 
             {/* Upcoming Features - Roadmap */}
-            < section className="relative z-10 container mx-auto px-4 py-24 bg-[#1e293b]/30" >
+            < section className="relative z-10 container mx-auto px-4 py-24 bg-[#1e293b]/30" aria-labelledby="heading-roadmap" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm font-medium mb-6">
                             <Sparkles className="w-4 h-4" />
                             <span>Vision</span>
                         </div>
-                        <h2 className="landing-h2 mb-6 text-white">
+                        <h2 id="heading-roadmap" className="landing-h2 mb-6 text-white">
                             Aujourd'hui l'opérationnel, demain la gestion complète.
                         </h2>
                         <p className="landing-subtitle text-white/60">
@@ -545,10 +547,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
 
 
-            {/* Testimonials section removed — will be added back with real testimonials */}
+            <TestimonialsSection />
 
             {/* Pricing - Gradient Borders */}
-            < section id="pricing" className="relative z-10 container mx-auto px-4 py-24" >
+            < section id="pricing" className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-pricing" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/30 mb-6">
@@ -558,7 +560,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             </span>
                             <span className="landing-caption font-medium text-green-400">Aucune carte bancaire requise</span>
                         </div>
-                        <h2 className="landing-h2 mb-4 text-white">
+                        <h2 id="heading-pricing" className="landing-h2 mb-4 text-white">
                             Un mois pour voir la différence
                         </h2>
                         <p className="landing-subtitle text-white/60 mb-6">
@@ -637,11 +639,11 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </section >
 
             {/* Contact Section */}
-            < section id="contact" className="relative z-10 container mx-auto px-4 py-24" >
+            < section id="contact" className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-contact" >
                 <FadeIn>
                     <div className="max-w-4xl mx-auto">
                         <div className="text-center mb-12">
-                            <h2 className="landing-h2 text-white mb-4">
+                            <h2 id="heading-contact" className="landing-h2 text-white mb-4">
                                 Contactez-nous
                             </h2>
                             <p className="landing-subtitle text-white/60">
@@ -691,11 +693,11 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </section >
 
             {/* FAQ Section */}
-            < section id="faq" className="relative z-10 bg-[#1e293b]/30 py-24" >
+            < section id="faq" className="relative z-10 bg-[#1e293b]/30 py-24" aria-labelledby="heading-faq" >
                 <div className="container mx-auto px-4">
                     <FadeIn>
                         <div className="text-center mb-12">
-                            <h2 className="landing-h2 text-white mb-4">
+                            <h2 id="heading-faq" className="landing-h2 text-white mb-4">
                                 Questions fréquentes — Gestion locative SEIDO
                             </h2>
                             <p className="landing-subtitle text-white/60 max-w-2xl mx-auto">
@@ -745,15 +747,15 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
             {/* Blog Section — 3 Latest Articles */}
             {latestArticles.length > 0 && (
-                <section id="blog" className="relative z-10 container mx-auto px-4 py-24">
+                <section id="blog" className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-blog">
                     <FadeIn>
                         <div className="text-center mb-12">
                             <Badge className="mb-4 bg-purple-500/10 text-purple-300 border-purple-500/20 hover:bg-purple-500/10">
                                 <FileText className="w-3.5 h-3.5 mr-1.5" />
                                 Blog
                             </Badge>
-                            <h2 className="landing-h2 text-white mb-4">
-                                Actualites gestion immobiliere Belgique
+                            <h2 id="heading-blog" className="landing-h2 text-white mb-4">
+                                Actualités gestion immobilière Belgique
                             </h2>
                             <p className="landing-body text-white/60 max-w-2xl mx-auto">
                                 Analyses, decryptages et conseils pratiques pour gestionnaires immobiliers, proprietaires et syndics.
@@ -791,9 +793,9 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn>
                     <div className="max-w-4xl mx-auto relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 blur-[100px]" />
-                        <h2 className="landing-h1 text-white mb-6 relative z-10">
+                        <p className="landing-h1 text-white mb-6 relative z-10">
                             Et si lundi prochain était différent ?
-                        </h2>
+                        </p>
                         <p className="landing-subtitle text-white/60 mb-4 relative z-10">
                             Plus de visibilité. Moins de surprises. Zéro engagement.
                         </p>
@@ -810,6 +812,8 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </div>
                 </FadeIn>
             </section >
+
+            </main>
 
             {/* Footer */}
             < footer className="relative z-10 border-t border-white/10 bg-[#020617] py-12" >
@@ -836,7 +840,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
 
                         <div>
-                            <h3 className="landing-body font-semibold text-white mb-3">Contact</h3>
+                            <p className="landing-body font-semibold text-white mb-3">Contact</p>
                             <ul className="space-y-2 landing-caption text-white/60">
                                 <li><a href="mailto:contact@seido-app.com" className="hover:text-white transition-colors">contact@seido-app.com</a></li>
                                 <li>Bruxelles, Belgique</li>
@@ -854,7 +858,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         </div>
 
                         <div>
-                            <h3 className="landing-body font-semibold text-white mb-3">Produit</h3>
+                            <p className="landing-body font-semibold text-white mb-3">Produit</p>
                             <ul className="space-y-2 landing-caption text-white/60">
                                 <li><a href="#features" className="hover:text-white transition-colors">Fonctionnalités</a></li>
                                 <li><a href="#pricing" className="hover:text-white transition-colors">Tarifs</a></li>
@@ -864,7 +868,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         </div>
 
                         <div>
-                            <h3 className="landing-body font-semibold text-white mb-3">Légal</h3>
+                            <p className="landing-body font-semibold text-white mb-3">Légal</p>
                             <ul className="space-y-2 landing-caption text-white/60">
                                 <li><Link href="/confidentialite" className="hover:text-white transition-colors">Confidentialité</Link></li>
                                 <li><Link href="/conditions-generales" className="hover:text-white transition-colors">CGU</Link></li>

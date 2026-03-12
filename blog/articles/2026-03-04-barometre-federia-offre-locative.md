@@ -125,7 +125,7 @@ Les proprietaires qui envisagent de vendre leur bien locatif doivent etre inform
 
 ---
 
-> **Pour les gestionnaires** : ces chiffres confirment que documenter la valeur locative et l'historique de chaque bien est plus important que jamais. Avec Seido, vous suivez l'evolution des loyers, des charges et des baux successifs — des donnees essentielles pour justifier votre politique locative et anticiper les tendances du marche. [Suivre vos baux →](https://seido.be)
+> **Pour les gestionnaires** : ces chiffres confirment que documenter la valeur locative et l'historique de chaque bien est plus important que jamais. Avec Seido, vous suivez l'evolution des loyers, des charges et des baux successifs — des donnees essentielles pour justifier votre politique locative et anticiper les tendances du marche. [Suivre vos baux →](https://www.seido-app.com)
 
 ---
 

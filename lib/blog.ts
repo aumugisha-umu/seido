@@ -5,10 +5,24 @@ import { unstable_cache } from 'next/cache'
 
 const ARTICLES_DIR = path.join(process.cwd(), 'blog', 'articles')
 
+const calculateReadingTime = (content: string): string => {
+  const stripped = content
+    .replace(/!\[.*?\]\(.*?\)/g, '')   // images
+    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1') // links (keep text)
+    .replace(/[#*>|`~-]/g, '')         // markdown syntax chars
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const wordCount = stripped.split(/\s+/).filter(Boolean).length
+  const minutes = Math.max(1, Math.ceil(wordCount / 200))
+  return `${minutes} min de lecture`
+}
+
 export interface ArticleMeta {
   slug: string
   title: string
   date: string
+  updated_at: string
   author: string
   category: string
   tags: string[]
@@ -35,11 +49,12 @@ const parseArticleFile = (filename: string): Article | null => {
     slug: data.slug,
     title: data.title,
     date: data.date,
+    updated_at: data.updated_at || data.date,
     author: data.author || 'Equipe Seido',
     category: data.category || 'General',
     tags: data.tags || [],
     description: data.description || '',
-    reading_time: data.reading_time || '5 min',
+    reading_time: calculateReadingTime(content),
     type: data.type || 'article',
     hub: data.hub || '',
     content,

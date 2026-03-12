@@ -4,7 +4,7 @@ import React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
-import { Bell, Mail, AlertTriangle, Phone } from "lucide-react"
+import { Bell, Mail, AlertTriangle } from "lucide-react"
 import { PushNotificationToggle } from "@/components/push-notification-toggle"
 import { InstallPWAButton } from "@/components/install-pwa-button"
 import { SubscriptionSummaryCard } from "@/components/billing/subscription-summary-card"
@@ -99,7 +99,7 @@ export default function SettingsPage({ role }: SettingsPageProps) {
             </Card>
           )}
 
-          {/* AI Phone Assistant (Gestionnaire only) */}
+          {/* AI Phone Assistant — hidden until feature is ready for production
           {role === 'gestionnaire' && (
             <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => router.push('/gestionnaire/parametres/assistant-ia')}>
               <CardHeader>
@@ -113,6 +113,7 @@ export default function SettingsPage({ role }: SettingsPageProps) {
               </CardHeader>
             </Card>
           )}
+          */}
         </div>
       </div>
     </div>

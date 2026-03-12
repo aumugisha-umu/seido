@@ -123,7 +123,7 @@ La Region bruxelloise a exprime sa volonte de renforcer la portee de la grille d
 
 ---
 
-> **Avec Seido**, l'historique des loyers et des baux successifs est centralise pour chaque lot. En cas de contestation ou de passage devant la Commission paritaire locative, vous disposez d'un dossier structure avec l'evolution des loyers, les travaux realises et les justificatifs — un argument solide pour defendre votre politique locative. [Centraliser vos baux avec Seido →](https://seido.be)
+> **Avec Seido**, l'historique des loyers et des baux successifs est centralise pour chaque lot. En cas de contestation ou de passage devant la Commission paritaire locative, vous disposez d'un dossier structure avec l'evolution des loyers, les travaux realises et les justificatifs — un argument solide pour defendre votre politique locative. [Centraliser vos baux avec Seido →](https://www.seido-app.com)
 
 ---
 

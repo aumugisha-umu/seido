@@ -4,10 +4,15 @@ import { LandingHeader } from '@/components/landing/landing-header'
 export const metadata: Metadata = {
   title: {
     template: '%s | Blog SEIDO',
-    default: 'Blog | SEIDO — Actualites gestion immobiliere Belgique',
+    default: 'Blog | SEIDO — Actualités gestion immobilière Belgique',
   },
   description:
-    'Articles et analyses sur la gestion immobiliere en Belgique : reglementation, copropriete, fiscalite, renovation energetique. Par Equipe Seido.',
+    'Articles et analyses sur la gestion immobilière en Belgique : réglementation, copropriété, fiscalité, rénovation énergétique. Par Équipe Seido.',
+  alternates: {
+    types: {
+      'application/rss+xml': 'https://www.seido-app.com/blog/feed.xml',
+    },
+  },
 }
 
 export default function BlogLayout({

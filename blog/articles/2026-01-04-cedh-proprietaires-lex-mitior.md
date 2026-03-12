@@ -131,7 +131,7 @@ Pour les gestionnaires immobiliers, c'est un sujet a surveiller de pres — nota
 
 ---
 
-> Avec Seido, documentez chaque intervention sur un bien, y compris les aspects reglementaires : permis obtenus, travaux realises, date et nature des interventions. En cas de litige urbanistique, cette documentation horodatee peut etre decisive. [Decouvrir Seido →](https://seido.be)
+> Avec Seido, documentez chaque intervention sur un bien, y compris les aspects reglementaires : permis obtenus, travaux realises, date et nature des interventions. En cas de litige urbanistique, cette documentation horodatee peut etre decisive. [Decouvrir Seido →](https://www.seido-app.com)
 
 ---
 

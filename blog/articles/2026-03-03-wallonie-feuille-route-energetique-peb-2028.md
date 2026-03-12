@@ -123,7 +123,7 @@ Pour un gestionnaire qui administre plusieurs dizaines de biens wallons, une app
 
 ---
 
-> **Seido pour la renovation energetique** : planifiez les travaux d'amelioration de chaque bien, centralisez les devis des prestataires, suivez l'avancement des chantiers et archivez les certificats PEB. Votre historique complet facilite les decisions et documente la valorisation de votre patrimoine. [Planifier vos renovations →](https://seido.be)
+> **Seido pour la renovation energetique** : planifiez les travaux d'amelioration de chaque bien, centralisez les devis des prestataires, suivez l'avancement des chantiers et archivez les certificats PEB. Votre historique complet facilite les decisions et documente la valorisation de votre patrimoine. [Planifier vos renovations →](https://www.seido-app.com)
 
 ---
 

@@ -43,7 +43,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
     }
 
     if ('role' in data && data.role) {
-      validateEnum(data.role, ['admin', 'manager', 'provider', 'tenant'] as const, 'role')
+      validateEnum(data.role, ['admin', 'gestionnaire', 'prestataire', 'locataire'] as const, 'role')
     }
 
     // For insert, validate required fields
@@ -173,7 +173,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
    * Get users by role
    */
   async findByRole(role: User['role']) {
-    validateEnum(role, ['admin', 'manager', 'provider', 'tenant'] as const, 'role')
+    validateEnum(role, ['admin', 'gestionnaire', 'prestataire', 'locataire'] as const, 'role')
 
     const { data, error } = await this.supabase
       .from(this.tableName)
@@ -243,7 +243,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       .or(`name.ilike.%${sanitizeSearch(query)}%,email.ilike.%${sanitizeSearch(query)}%`)
 
     if (options?.role) {
-      validateEnum(options.role, ['admin', 'manager', 'provider', 'tenant'] as const, 'role')
+      validateEnum(options.role, ['admin', 'gestionnaire', 'prestataire', 'locataire'] as const, 'role')
       queryBuilder = queryBuilder.eq('role', options.role)
     }
 

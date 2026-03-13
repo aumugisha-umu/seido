@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useViewMode, type ViewMode } from '@/hooks/use-view-mode'
 import { useDebounce } from '@/hooks/use-debounce'
+import { usePrefetchHandler } from '@/hooks/use-prefetch'
 
 // ============================================================================
 // USE DATA NAVIGATOR HOOK
@@ -141,8 +142,7 @@ export function useDataNavigator<T>({
     // Count active filters (excluding 'all' values)
     const activeFilterCount = Object.values(activeFilters).filter(v => v && v !== 'all').length
 
-    // Track prefetched URLs to avoid duplicate calls
-    const prefetchedRef = useRef<Set<string>>(new Set())
+    const prefetchHandler = usePrefetchHandler()
 
     // Create row click handler from rowHref config
     const createRowClickHandler = (rowHref?: (item: T) => string) => {
@@ -151,17 +151,10 @@ export function useDataNavigator<T>({
             : undefined
     }
 
-    // Prefetch on first hover per URL — gives the same benefit as <Link prefetch>
     const createRowHoverHandler = useCallback((rowHref?: (item: T) => string) => {
         if (!rowHref) return undefined
-        return (item: T) => {
-            const href = rowHref(item)
-            if (!prefetchedRef.current.has(href)) {
-                prefetchedRef.current.add(href)
-                router.prefetch(href)
-            }
-        }
-    }, [router])
+        return (item: T) => prefetchHandler(rowHref(item))
+    }, [prefetchHandler])
 
     return {
         // Search

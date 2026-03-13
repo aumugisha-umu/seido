@@ -11,7 +11,7 @@ interface PageProps {
 
 export default async function EditBuildingPage({ params }: PageProps) {
   // Phase 0: Auth + params in parallel
-  const [resolvedParams, { user, profile, team, supabase }] = await Promise.all([
+  const [resolvedParams, { user, profile, team }] = await Promise.all([
     params,
     getServerAuthContext('gestionnaire')
   ])
@@ -87,7 +87,6 @@ export default async function EditBuildingPage({ params }: PageProps) {
       />
     )
   } catch (error) {
-    // STEP 9: Detailed error logging
     logger.error(`[EDIT-BUILDING] Unexpected error loading building for edit`)
     logger.error(`[EDIT-BUILDING] Building ID: ${resolvedParams.id}`)
     logger.error(`[EDIT-BUILDING] Team ID: ${team.id}`)

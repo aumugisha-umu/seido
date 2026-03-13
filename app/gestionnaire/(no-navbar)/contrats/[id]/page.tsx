@@ -54,6 +54,10 @@ export default async function ContractDetailsPage({
     getServerAuthContext('gestionnaire')
   ])
 
+  if (!team?.id) {
+    notFound()
+  }
+
   logger.info('📄 [CONTRACT-PAGE-SERVER] Loading contract details', {
     contractId: id,
     timestamp: new Date().toISOString()

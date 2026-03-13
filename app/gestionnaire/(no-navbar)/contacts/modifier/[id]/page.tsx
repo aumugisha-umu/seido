@@ -35,8 +35,11 @@ export default async function EditContactPage({
       createServerCompanyRepository()
     ])
 
-    // Phase 2: Fetch contact (gate — must exist before proceeding)
-    const contactResult = await contactService.findContactInTeam(team.id, id)
+    // Phase 2: Fetch contact + companies in parallel (companies only needs team.id)
+    const [contactResult, companiesResult] = await Promise.all([
+      contactService.findContactInTeam(team.id, id),
+      companyRepository.findActiveByTeam(team.id)
+    ])
 
     logger.info(`🔍 [EDIT-CONTACT-PAGE] Service result: success=${contactResult.success}, data=${contactResult.data ? 'found' : 'null'}`)
 
@@ -52,13 +55,9 @@ export default async function EditContactPage({
       notFound()
     }
 
-    // Phase 3: Fetch companies (service already initialized in Phase 1)
-    let companies: any[] = []
-    const companiesResult = await companyRepository.findActiveByTeam(team.id)
-
-    if (companiesResult.success && companiesResult.data) {
-      companies = companiesResult.data
-    }
+    const companies = companiesResult.success && companiesResult.data
+      ? companiesResult.data
+      : []
 
     logger.info(`✅ [EDIT-CONTACT-PAGE] Data loaded for contact: ${contact.id}`)
 

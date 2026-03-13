@@ -122,4 +122,25 @@ export function usePrefetchHandlers(href: string, options?: UsePrefetchOptions) 
   return { onMouseEnter, onMouseLeave }
 }
 
+/**
+ * Returns a stable callback that prefetches a URL on first call per unique href.
+ * Uses an internal Set to avoid duplicate prefetch calls.
+ *
+ * @example
+ * ```tsx
+ * const prefetch = usePrefetchHandler()
+ * <TableRow onMouseEnter={() => prefetch(`/items/${id}`)} />
+ * ```
+ */
+export function usePrefetchHandler(): (href: string) => void {
+  const router = useRouter()
+  const prefetchedRef = useRef<Set<string>>(new Set())
+  return useCallback((href: string) => {
+    if (!prefetchedRef.current.has(href)) {
+      prefetchedRef.current.add(href)
+      router.prefetch(href)
+    }
+  }, [router])
+}
+
 export default usePrefetch

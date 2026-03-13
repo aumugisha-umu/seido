@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo, useRef, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { usePrefetchHandler } from '@/hooks/use-prefetch'
 import {
   Eye,
   Edit,
@@ -85,14 +86,7 @@ export function ContractsListView({
   className
 }: ContractsListViewProps) {
   const router = useRouter()
-  const prefetchedRef = useRef<Set<string>>(new Set())
-
-  const handleRowHover = useCallback((href: string) => {
-    if (!prefetchedRef.current.has(href)) {
-      prefetchedRef.current.add(href)
-      router.prefetch(href)
-    }
-  }, [router])
+  const handleRowHover = usePrefetchHandler()
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField | null>(null)

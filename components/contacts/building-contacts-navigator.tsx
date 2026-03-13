@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { usePrefetchHandler } from '@/hooks/use-prefetch'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -102,14 +103,7 @@ export function BuildingContactsNavigator({
   isEmbeddedInCard = false
 }: BuildingContactsNavigatorProps) {
   const router = useRouter()
-  const prefetchedRef = useRef<Set<string>>(new Set())
-
-  const handlePrefetch = useCallback((href: string) => {
-    if (!prefetchedRef.current.has(href)) {
-      prefetchedRef.current.add(href)
-      router.prefetch(href)
-    }
-  }, [router])
+  const handlePrefetch = usePrefetchHandler()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

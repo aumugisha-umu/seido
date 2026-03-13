@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-11
-**Total Learnings:** 134
+**Last Updated:** 2026-03-13
+**Total Learnings:** 137
 
 ---
 
@@ -969,6 +969,27 @@
 **Example:** `components/contracts/supplier-contract-card.tsx` — `getSupplierDisplayName` + `getSupplierCompanyName`
 **When to Use:** Any new entity card that displays a contact/supplier — always show person name as primary, company as badge.
 **Added:** 2026-03-11 | **Source:** Supplier contract cards UI consistency fix
+
+#### Learning #135: Deprecated enum cleanup — grep entire codebase, not just typed references
+**Problem:** After removing `demande_de_devis` from the DB enum and TypeScript type, 30+ files still had executable references. TypeScript couldn't catch them because status values are often stored in `Record<string, ...>` configs, `string[]` filter arrays, and template literal comparisons — all typed as `string`, not the union type. A targeted review (3 parallel agents) found only 16 bugs; a full-codebase `grep 'demande_de_devis'` revealed 14 more, including a CRITICAL API route (`generate-intervention-magic-links`) that was **writing** the deprecated status to the database.
+**Solution:** When deprecating any enum value: (1) `grep -r 'value_name' --include='*.ts' --include='*.tsx'` the ENTIRE codebase, (2) classify each hit as comment vs executable code, (3) fix ALL executable references in one batch, (4) verify with build. Never trust a scoped/targeted review alone.
+**Example:** `app/api/generate-intervention-magic-links/route.ts` — was setting `status: 'demande_de_devis'` in DB write, fixed to `requires_quote: true`
+**When to Use:** Any time a DB enum value, status, or role is deprecated/renamed
+**Added:** 2026-03-13 | **Source:** Post-audit production bug fixes — 30 bugs across 45 files
+
+#### Learning #136: sanitizeSearch() needed on ALL .ilike() with user input, not just search bars
+**Problem:** `sanitizeSearch()` was only applied to explicit search bar queries (lot.repository, building.repository primary path) but missed `.ilike()` calls in filter params: `company.repository.findByName()`, `address.repository.findByTeam(city)`, `building.repository.findByCity()`. These accept user-controlled strings that could inject PostgREST filter syntax (`%`, `_`, `\`).
+**Solution:** Audit EVERY `.ilike()` and `.or()` call in ALL repositories. If the argument comes from outside the repository (function parameter, not hardcoded), wrap it in `sanitizeSearch()`. Import from `@/lib/utils/sanitize-search`.
+**Example:** `lib/services/repositories/company.repository.ts` — `.ilike('name', sanitizeSearch(name))`, `lib/services/repositories/address.repository.ts` — city filter
+**When to Use:** Writing or reviewing any repository method that accepts a string parameter for filtering
+**Added:** 2026-03-13 | **Source:** Post-audit security review — 5 repositories fixed
+
+#### Learning #137: .single() on composite UNIQUE — must filter ALL constraint columns
+**Problem:** `intervention_assignments` has UNIQUE on `(intervention_id, user_id, role)`. Using `.single()` with only `.eq('intervention_id', id).eq('user_id', userId)` fails if the same user is assigned with multiple roles. The prestataire detail page queried without `.eq('role')` and the `intervention-confirm-participation` endpoint didn't know the role at all.
+**Solution:** When using `.single()`, verify ALL columns of the UNIQUE constraint are in the WHERE clause. If you can't filter all columns (e.g., role unknown at that endpoint), use `.limit(1).maybeSingle()` instead. If the role IS known (e.g., prestataire page), add `.eq('role', 'prestataire')` to make the query match the constraint.
+**Example:** `app/prestataire/(no-navbar)/interventions/[id]/page.tsx` — added `.eq('role', 'prestataire')`, `app/api/intervention-confirm-participation/route.ts` — changed to `.limit(1).maybeSingle()`
+**When to Use:** Any `.single()` call on a table with composite UNIQUE constraints
+**Added:** 2026-03-13 | **Source:** Post-audit .single() safety review
 
 ---
 

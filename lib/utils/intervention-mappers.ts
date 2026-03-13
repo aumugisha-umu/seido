@@ -107,7 +107,6 @@ export const STATUS_TO_FRONTEND: Record<string, string> = {
   'demande': 'nouvelle-demande',
   'rejetee': 'rejetee',
   'approuvee': 'approuvee',
-  'demande_de_devis': 'devis-a-fournir',
   'planification': 'planification',
   'planifiee': 'planifiee',
   'cloturee_par_prestataire': 'travaux-termines',
@@ -123,7 +122,6 @@ export const STATUS_TO_LABEL: Record<string, string> = {
   'demande': 'Nouvelle demande',
   'rejetee': 'Rejetée',
   'approuvee': 'Approuvée',
-  'demande_de_devis': 'En attente de devis',
   'planification': 'Planification',
   'planifiee': 'Planifiée',
   'cloturee_par_prestataire': 'Travaux terminés',
@@ -264,7 +262,6 @@ export const statusRequiresManagerAction = (status: string): boolean => {
   return [
     'demande',
     'approuvee',
-    'demande_de_devis',
     'planification',
     'planifiee'
   ].includes(status)

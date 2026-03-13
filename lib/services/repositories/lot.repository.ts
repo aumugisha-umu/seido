@@ -13,6 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Lot, LotInsert, LotUpdate, User } from '../core/service-types'
 import { NotFoundException, handleError, createErrorResponse } from '../core/error-handler'
 import { logger } from '@/lib/logger'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 import {
   validateRequired,
   validateLength,
@@ -646,7 +647,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         *,
         building:building_id(id, name, team_id)
       `)
-      .or(`reference.ilike.%${query}%`)
+      .or(`reference.ilike.%${sanitizeSearch(query)}%`)
 
     if (options?.buildingId) {
       queryBuilder = queryBuilder.eq('building_id', options.buildingId)

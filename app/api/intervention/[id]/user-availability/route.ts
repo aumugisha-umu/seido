@@ -73,7 +73,7 @@ export async function POST(
     // Check if user has access to this intervention
     const hasAccess = (
       intervention.tenant_id === user.id || // User is the tenant
-      intervention.intervention_contacts.some(ic => ic.user_id === user.id) || // User is assigned
+      intervention.intervention_assignments.some(ic => ic.user_id === user.id) || // User is assigned
       user.role === 'gestionnaire' // User is a manager (will be checked with team access later)
     )
 
@@ -265,7 +265,7 @@ export async function GET(
     if (!interventionError && intervention) {
       const hasAccess = (
         intervention.tenant_id === user.id ||
-        intervention.intervention_contacts.some(ic => ic.user_id === user.id) ||
+        intervention.intervention_assignments.some(ic => ic.user_id === user.id) ||
         user.role === 'gestionnaire'
       )
 

@@ -626,7 +626,6 @@ export class StatsService {
             const requiresAction = [
               'demande',
               'approuvee',
-              'demande_de_devis',
               'planification',
               'planifiee'
             ].includes(intervention.status)

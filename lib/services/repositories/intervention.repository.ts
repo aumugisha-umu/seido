@@ -76,11 +76,10 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     if ('status' in data && data.status) {
-      // ✅ FIX (Oct 23, 2025): Use French statuses matching database enum
-      // Note: 'en_cours' is DEPRECATED but kept for DB compatibility
+      // ✅ FIX: Use French statuses matching current database enum (9 active statuses)
       validateEnum(data.status, [
-        'demande', 'rejetee', 'approuvee', 'demande_de_devis',
-        'planification', 'planifiee', 'en_cours', // DEPRECATED
+        'demande', 'rejetee', 'approuvee',
+        'planification', 'planifiee',
         'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire',
         'annulee'
       ], 'status')
@@ -748,18 +747,15 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     // Calculate statistics
-    // ✅ FIX (Oct 23, 2025): Use French statuses matching database enum
-    // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
+    // ✅ FIX: Use current 9-status enum (demande_de_devis + en_cours removed)
     const stats = {
       total: statusStats?.length || 0,
       byStatus: {
         demande: 0,
         rejetee: 0,
         approuvee: 0,
-        demande_de_devis: 0,
         planification: 0,
         planifiee: 0,
-        en_cours: 0, // DEPRECATED - kept for backward compatibility
         cloturee_par_prestataire: 0,
         cloturee_par_locataire: 0,
         cloturee_par_gestionnaire: 0,

@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
 
     // Add provider to intervention viaintervention_assignments
     await supabase
-      .from('intervention_contacts')
+      .from('intervention_assignments')
       .upsert({
         intervention_id: interventionId,
         user_id: userProfile.id,

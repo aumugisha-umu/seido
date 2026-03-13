@@ -1,0 +1,1123 @@
+{
+  "project": "SEIDO",
+  "featureName": "Production Readiness Audit Remediation",
+  "branchName": "preview",
+  "description": "Fix 29 verified critical and 62 important issues. 35 stories in 6 waves, split into 8 independent worktree groups for parallel execution.",
+  "createdAt": "2026-03-12",
+  "prdSource": "tasks/prd-production-readiness-audit.md",
+  "auditSource": "docs/audit/production-readiness-audit-2026-03-12-FINAL.md",
+  "status": "complete",
+  "worktreeGroups": {
+    "WT1": {
+      "name": "Config & Platform",
+      "stories": [
+        "US-A02",
+        "US-C01",
+        "US-C02",
+        "US-C03",
+        "US-C05"
+      ],
+      "sharedFiles": [
+        "next.config.js",
+        "package.json",
+        ".github/",
+        ".env.example"
+      ],
+      "canRunWith": [
+        "WT2",
+        "WT3",
+        "WT4",
+        "WT5",
+        "WT6",
+        "WT7"
+      ],
+      "softConflict": "WT8 (F03 Sentry touches next.config.js — merge-friendly, different sections)"
+    },
+    "WT2": {
+      "name": "Cron Routes",
+      "stories": [
+        "US-A01",
+        "US-E03"
+      ],
+      "sharedFiles": [
+        "app/api/cron/*/route.ts"
+      ],
+      "internalOrder": "US-A01 THEN US-E03 (auth fix before parallelization)",
+      "canRunWith": [
+        "WT1",
+        "WT3",
+        "WT4",
+        "WT5",
+        "WT6",
+        "WT7",
+        "WT8"
+      ]
+    },
+    "WT3": {
+      "name": "Repository Layer",
+      "stories": [
+        "US-A03",
+        "US-A04",
+        "US-B05",
+        "US-D01",
+        "US-D05",
+        "US-D06"
+      ],
+      "sharedFiles": [
+        "lib/services/core/",
+        "lib/services/repositories/",
+        "lib/utils/sanitize-search.ts"
+      ],
+      "canRunWith": [
+        "WT1",
+        "WT2",
+        "WT5",
+        "WT6",
+        "WT7",
+        "WT8"
+      ],
+      "softConflict": "WT4 (D02-D04 touch intervention.repository.ts — different methods, merge-friendly)"
+    },
+    "WT4": {
+      "name": "Intervention Domain",
+      "stories": [
+        "US-D02",
+        "US-D03",
+        "US-D04"
+      ],
+      "sharedFiles": [
+        "lib/services/repositories/intervention.repository.ts",
+        "lib/services/domain/intervention-service.ts",
+        "lib/services/utils/intervention-display.ts"
+      ],
+      "canRunWith": [
+        "WT1",
+        "WT2",
+        "WT5",
+        "WT6",
+        "WT7",
+        "WT8"
+      ],
+      "softConflict": "WT3 (B05 touches intervention.repository.ts search method — different section)"
+    },
+    "WT5": {
+      "name": "Auth & API Security",
+      "stories": [
+        "US-B01",
+        "US-B02",
+        "US-B03",
+        "US-B06",
+        "US-B07",
+        "US-C04"
+      ],
+      "sharedFiles": [
+        "app/auth/",
+        "app/api/emails/",
+        "app/api/reset-password/",
+        "app/api/change-*/",
+        "app/api/property-documents/",
+        "app/actions/dispatcher-actions.ts",
+        "app/actions/impersonation-actions.ts"
+      ],
+      "canRunWith": [
+        "WT1",
+        "WT2",
+        "WT3",
+        "WT4",
+        "WT6",
+        "WT7",
+        "WT8"
+      ]
+    },
+    "WT6": {
+      "name": "Document Download Security",
+      "stories": [
+        "US-B04"
+      ],
+      "sharedFiles": [
+        "app/api/download-intervention-document/",
+        "lib/utils/document-token.ts (NEW)"
+      ],
+      "canRunWith": [
+        "WT1",
+        "WT2",
+        "WT3",
+        "WT4",
+        "WT5",
+        "WT7",
+        "WT8"
+      ]
+    },
+    "WT7": {
+      "name": "Performance Optimization",
+      "stories": [
+        "US-E01",
+        "US-E02",
+        "US-E04",
+        "US-E05",
+        "US-E06"
+      ],
+      "sharedFiles": [
+        "lib/services/domain/import.service.ts",
+        "components/contract/contract-form-container.tsx",
+        "app/api/intervention-schedule/",
+        "app/api/intervention-finalize/",
+        "app/api/intervention/[id]/work-completion/",
+        "lib/cache/"
+      ],
+      "canRunWith": [
+        "WT1",
+        "WT2",
+        "WT3",
+        "WT4",
+        "WT5",
+        "WT6",
+        "WT8"
+      ]
+    },
+    "WT8": {
+      "name": "Frontend Quality",
+      "stories": [
+        "US-F01",
+        "US-F02",
+        "US-F03",
+        "US-F04",
+        "US-F05",
+        "US-F06",
+        "US-F07"
+      ],
+      "sharedFiles": [
+        "hooks/",
+        "components/",
+        "app/layout.tsx",
+        "app/api/health/ (NEW)",
+        "app/gestionnaire/ routes"
+      ],
+      "canRunWith": [
+        "WT2",
+        "WT3",
+        "WT4",
+        "WT5",
+        "WT6",
+        "WT7"
+      ],
+      "softConflict": "WT1 (F03 Sentry touches next.config.js + package.json — merge-friendly)"
+    }
+  },
+  "userStories": [
+    {
+      "id": "US-A01",
+      "title": "Fix cron auth bypass (5 routes)",
+      "description": "As a platform admin, I want cron endpoints to reject unauthenticated requests when CRON_SECRET is unset.",
+      "acceptanceCriteria": [
+        "5 cron routes use fail-closed: if (!process.env.CRON_SECRET || authHeader !== ...)",
+        "Matches intervention-reminders/route.ts:42 pattern",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: each route returns 401 when CRON_SECRET env is unset",
+        "Unit test: each route returns 401 when Authorization header is missing",
+        "Unit test: each route returns 401 when Authorization header has wrong value",
+        "Unit test: each route returns 200 when CRON_SECRET set and header matches"
+      ],
+      "existingTests": [
+        "tests/unit/stripe/cron-behavioral-triggers.test.ts",
+        "tests/unit/stripe/cron-cleanup-webhooks.test.ts",
+        "tests/unit/stripe/cron-trial-expiration.test.ts",
+        "tests/unit/stripe/cron-trial-notifications.test.ts"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "A",
+      "worktree": "WT2",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-A02",
+      "title": "Add missing security headers (HSTS + Permissions-Policy)",
+      "description": "As a security engineer, I want proper HTTP security headers.",
+      "acceptanceCriteria": [
+        "next.config.js includes Strict-Transport-Security: max-age=63072000; includeSubDomains",
+        "next.config.js includes Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: parse next.config.js headers array, assert HSTS and Permissions-Policy present with correct values",
+        "Smoke test: curl -I localhost:3000 | grep Strict-Transport-Security"
+      ],
+      "existingTests": [],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "A",
+      "worktree": "WT1",
+      "regressionRisk": "Low-Medium",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-A03",
+      "title": "Remove service role key from logs",
+      "description": "As a security engineer, I want no portion of the service role key logged.",
+      "acceptanceCriteria": [
+        "supabase-client.ts no longer logs keyPrefix, keySuffix, or keyLength",
+        "Replaced with keyPresent: boolean only",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: mock logger, call createServiceRoleSupabaseClient(), assert log output contains keyPresent:true but NOT keyPrefix/keySuffix/keyLength"
+      ],
+      "existingTests": [],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "A",
+      "worktree": "WT3",
+      "regressionRisk": "None",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-A04",
+      "title": "Fix LotRepository.findOccupied() wrong role",
+      "description": "As a gestionnaire, I want the occupied lots query to return correct results.",
+      "acceptanceCriteria": [
+        "lot.repository.ts:555 uses 'locataire' instead of 'tenant'",
+        "Lint passes"
+      ],
+      "tests": [
+        "Integration test: create lot with locataire contact, call findOccupied(), assert lot appears in results",
+        "Integration test: findVacant() still works (uses correct 'locataire' already)"
+      ],
+      "existingTests": [],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "A",
+      "worktree": "WT3",
+      "regressionRisk": "Low",
+      "notes": "Live bug — currently always returns empty | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-B01",
+      "title": "Fix open redirect in impersonation callback",
+      "description": "As a security engineer, I want the impersonation callback to reject external redirect URLs.",
+      "acceptanceCriteria": [
+        "next parameter validated: must start with / and not start with //",
+        "Fallback to /gestionnaire/dashboard if invalid",
+        "Impersonation flow works for all role dashboards",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: next='https://evil.com' -> redirects to /gestionnaire/dashboard",
+        "Unit test: next='//evil.com' -> redirects to /gestionnaire/dashboard",
+        "Unit test: next='/locataire/dashboard' -> redirects to /locataire/dashboard",
+        "Unit test: next=undefined -> redirects to /gestionnaire/dashboard"
+      ],
+      "existingTests": [],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "B",
+      "worktree": "WT5",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-B02",
+      "title": "Fix XSS in email send route + add Zod validation",
+      "description": "As a gestionnaire, I want email composition safe from HTML injection.",
+      "acceptanceCriteria": [
+        "Email body HTML-escaped before <br> replacement",
+        "Zod schema validates to, subject, body, cc fields",
+        "Invalid input returns 400 with generic error",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: body '<script>alert(1)</script>' -> escaped to &lt;script&gt;",
+        "Unit test: body with newlines -> <br> replacement still works post-escaping",
+        "Unit test: invalid email in 'to' -> 400 response",
+        "Unit test: missing 'subject' -> 400 response",
+        "Unit test: valid input -> 200 response"
+      ],
+      "existingTests": [],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "B",
+      "worktree": "WT5",
+      "regressionRisk": "Medium",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-B03",
+      "title": "Add auth to dispatcher actions",
+      "description": "As a security engineer, I want dispatcher-actions to verify caller authentication.",
+      "acceptanceCriteria": [
+        "dispatcher-actions.ts uses getServerActionAuthContextOrNull()",
+        "Returns early if auth is null",
+        "Existing internal callers continue to work",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: unauthenticated call returns early without dispatching",
+        "Integration test: authenticated call dispatches notifications normally",
+        "Regression test: intervention creation flow still triggers notifications end-to-end"
+      ],
+      "existingTests": [
+        "lib/services/domain/__tests__/notification-dispatcher.service.test.ts"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "B",
+      "worktree": "WT5",
+      "regressionRisk": "Medium-High",
+      "notes": "Test ALL notification dispatch flows | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-B04",
+      "title": "Secure document download with signed tokens",
+      "description": "As a security engineer, I want document download links to use signed tokens.",
+      "acceptanceCriteria": [
+        "Email links include HMAC-signed token (document_id + expiration)",
+        "Download route validates HMAC before serving",
+        "Token expires after configurable TTL (24h default)",
+        "Rate limiting on download endpoint",
+        "Backward-compatible: existing UUID-only links still work during migration period",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: HMAC signing produces valid token",
+        "Unit test: HMAC verification rejects tampered token",
+        "Unit test: expired token rejected with 401",
+        "Unit test: valid token serves file with 200",
+        "Unit test: rate limit triggers after N requests from same IP",
+        "Integration test: email notification includes signed URL",
+        "Regression test: existing UUID-only download still works (migration period)"
+      ],
+      "existingTests": [],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "wave": "B",
+      "worktree": "WT6",
+      "regressionRisk": "HIGH",
+      "notes": "Standalone worktree — complex, must preserve email link UX | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-B05",
+      "title": "Standardize PostgREST search sanitization",
+      "description": "As a security engineer, I want all search queries to sanitize user input.",
+      "acceptanceCriteria": [
+        "Shared utility lib/utils/sanitize-search.ts created",
+        "Applied in 5 repositories + 1 admin action",
+        "Search works with normal characters (letters, spaces, accents)",
+        "Special characters stripped safely",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: sanitizeSearch('normal text') -> 'normal text'",
+        "Unit test: sanitizeSearch('test,id.neq.0') -> 'testidneq0'",
+        "Unit test: sanitizeSearch('cafe au lait') -> preserved (accents OK)",
+        "Unit test: sanitizeSearch('') -> ''",
+        "Integration test: search 'Jean' in contacts -> returns results",
+        "Integration test: search 'test,id.neq.0' -> no filter injection, safe results"
+      ],
+      "existingTests": [],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "B",
+      "worktree": "WT3",
+      "regressionRisk": "Low",
+      "notes": "Pattern from contact.repository.ts:299 | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-B06",
+      "title": "Remove debug info from error responses",
+      "description": "As a security engineer, I want error responses to never contain internal details.",
+      "acceptanceCriteria": [
+        "reset-password: no debugInfo, no error details, no email list logging",
+        "change-password: generic error message only",
+        "change-email: generic error message only",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: reset-password error response has no 'debugInfo' key",
+        "Unit test: reset-password error response has no 'details' key with Supabase message",
+        "Unit test: change-password error response is generic string only",
+        "Unit test: change-email error response is generic string only",
+        "Unit test: no console.log/logger.info with user email list in reset-password"
+      ],
+      "existingTests": [],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "B",
+      "worktree": "WT5",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-B07",
+      "title": "Derive team_id server-side in upload route",
+      "description": "As a security engineer, I want the upload route to derive team_id from authenticated profile.",
+      "acceptanceCriteria": [
+        "property-documents/upload route gets team_id from authenticated profile",
+        "Storage path and DB insert use server-derived team_id",
+        "Upload works end-to-end for gestionnaires",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: team_id from FormData is ignored, server-derived value used instead",
+        "Integration test: upload document as gestionnaire, verify team_id matches user's team",
+        "Regression test: upload flow still works end-to-end"
+      ],
+      "existingTests": [],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "B",
+      "worktree": "WT5",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-C01",
+      "title": "Set up GitHub Actions CI pipeline",
+      "description": "As a developer, I want automated lint checking on every PR.",
+      "acceptanceCriteria": [
+        ".github/workflows/ci.yml runs npm run lint on push/PR",
+        "Pipeline passes on current codebase",
+        "Pipeline status visible in GitHub PR checks",
+        "Lint passes"
+      ],
+      "tests": [
+        "Manual test: push PR, verify CI runs and shows green check",
+        "Manual test: introduce lint error, verify CI fails"
+      ],
+      "existingTests": [],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "C",
+      "worktree": "WT1",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-C02",
+      "title": "CSP report-only mode",
+      "description": "As a security engineer, I want CSP violations collected before enforcing stricter policy.",
+      "acceptanceCriteria": [
+        "Content-Security-Policy-Report-Only header added with stricter policy",
+        "Violations reported to logging endpoint or console",
+        "Existing functionality unaffected",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: next.config.js headers include Content-Security-Policy-Report-Only",
+        "Manual test: browse app, check browser DevTools for CSP violations logged",
+        "Regression test: all third-party scripts (Contentsquare, Frill, Maps) still load"
+      ],
+      "existingTests": [],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "wave": "C",
+      "worktree": "WT1",
+      "regressionRisk": "None",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-C03",
+      "title": "Pin @vercel/analytics version",
+      "description": "As a developer, I want reproducible builds.",
+      "acceptanceCriteria": [
+        "package.json changes 'latest' to '^X.Y.Z'",
+        "npm install produces identical lockfile",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: grep package.json for 'latest' -> no matches in dependencies",
+        "Manual test: npm install twice -> lockfile unchanged"
+      ],
+      "existingTests": [],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "C",
+      "worktree": "WT1",
+      "regressionRisk": "None",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-C04",
+      "title": "Split impersonation cookie for httpOnly",
+      "description": "As a security engineer, I want the impersonation JWT to be httpOnly.",
+      "acceptanceCriteria": [
+        "impersonation-token cookie set with httpOnly: true",
+        "is-impersonating boolean cookie with httpOnly: false for banner",
+        "Banner detection reads boolean cookie",
+        "Impersonation flow works end-to-end",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: startImpersonation sets two cookies with correct httpOnly flags",
+        "Unit test: stopImpersonation clears both cookies",
+        "Integration test: impersonation banner visible after start",
+        "Integration test: banner disappears after stop",
+        "Regression test: full impersonate -> act -> stop flow works"
+      ],
+      "existingTests": [],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "C",
+      "worktree": "WT5",
+      "regressionRisk": "Medium",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-C05",
+      "title": "Dependency hygiene cleanup",
+      "description": "As a developer, I want dependencies properly categorized.",
+      "acceptanceCriteria": [
+        "6 packages moved to devDependencies",
+        "@radix-ui/react-toast removed",
+        "No-op webpack override removed from next.config.js",
+        "Missing env vars documented in .env.example",
+        "npm install and lint pass"
+      ],
+      "tests": [
+        "Unit test: @radix-ui/react-toast not in package.json",
+        "Unit test: @types/* packages in devDependencies not dependencies",
+        "Unit test: pino-pretty in devDependencies",
+        "Unit test: dotenv in devDependencies",
+        "Manual test: npm install succeeds",
+        "Manual test: npm run build succeeds (no missing runtime deps)"
+      ],
+      "existingTests": [],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "C",
+      "worktree": "WT1",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-D01",
+      "title": "Fix StatsRepository nonexistent columns",
+      "description": "As an admin, I want accurate intervention counts per user.",
+      "acceptanceCriteria": [
+        "stats.repository.ts rewritten to use intervention_assignments",
+        "Returns correct counts for gestionnaires and prestataires",
+        "Lint passes"
+      ],
+      "tests": [
+        "Integration test: create interventions with assignments, call getUserStats(), verify counts match",
+        "Integration test: gestionnaire stats count interventions where assigned as gestionnaire",
+        "Integration test: prestataire stats count interventions where assigned as prestataire"
+      ],
+      "existingTests": [],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "D",
+      "worktree": "WT3",
+      "regressionRisk": "Medium",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-D02",
+      "title": "Harmonize VALID_TRANSITIONS (service + repository)",
+      "description": "As a developer, I want a single source of truth for status transitions.",
+      "acceptanceCriteria": [
+        "Repository VALID_TRANSITIONS aligned with service version",
+        "demande_de_devis and en_cours removed from repository",
+        "contestee added to repository map",
+        "intervention-display.ts deprecated refs cleaned",
+        "All transitions tested",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: repository VALID_TRANSITIONS keys match service VALID_TRANSITIONS keys exactly",
+        "Unit test: no reference to 'demande_de_devis' or 'en_cours' in transition maps",
+        "Unit test: 'contestee' has valid transitions defined",
+        "Integration test: status transition demande->approuvee works for gestionnaire",
+        "Integration test: status transition approuvee->planification works",
+        "Integration test: status transition planifiee->cloturee_par_prestataire works",
+        "Regression test: all 9 active statuses reachable through valid paths"
+      ],
+      "existingTests": [
+        "tests/unit/intervention-status-transitions.test.ts",
+        "tests/integration/intervention-transitions.test.ts"
+      ],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "D",
+      "worktree": "WT4",
+      "regressionRisk": "HIGH",
+      "notes": "Test ALL workflow transitions for all roles | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-D03",
+      "title": "Fix getDocuments() missing deleted_at filter",
+      "description": "As a gestionnaire, I want soft-deleted documents hidden.",
+      "acceptanceCriteria": [
+        "getDocuments() adds .is('deleted_at', null)",
+        "Matches batch version getDocumentsByInterventionIds()",
+        "Lint passes"
+      ],
+      "tests": [
+        "Integration test: soft-delete document, call getDocuments(), assert document NOT in results",
+        "Integration test: non-deleted documents still returned",
+        "Regression test: getDocumentsByInterventionIds() still filters correctly"
+      ],
+      "existingTests": [],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "D",
+      "worktree": "WT4",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-D04",
+      "title": "Fix findByBuilding() to include building-level interventions",
+      "description": "As a gestionnaire, I want building-level interventions visible in building views.",
+      "acceptanceCriteria": [
+        "Query captures both lot_id IN (lotIds) AND building_id = buildingId",
+        "Building-level interventions (lot_id IS NULL) visible",
+        "Lint passes"
+      ],
+      "tests": [
+        "Integration test: create intervention with building_id set, lot_id NULL, call findByBuilding(), assert it appears",
+        "Integration test: lot-level interventions still appear",
+        "Regression test: building view shows both lot-level and building-level interventions"
+      ],
+      "existingTests": [],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "D",
+      "worktree": "WT4",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-D05",
+      "title": "Fix UserRepository role enum values",
+      "description": "As a developer, I want correct French role names in validation.",
+      "acceptanceCriteria": [
+        "Validation uses ['admin', 'gestionnaire', 'prestataire', 'locataire', 'proprietaire']",
+        "Matches DB enum and service-types.ts",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: validate() accepts 'gestionnaire' (not 'manager')",
+        "Unit test: validate() accepts 'locataire' (not 'tenant')",
+        "Unit test: validate() accepts 'prestataire' (not 'provider')",
+        "Unit test: validate() accepts 'proprietaire'",
+        "Unit test: validate() rejects 'manager', 'tenant', 'provider'"
+      ],
+      "existingTests": [],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "D",
+      "worktree": "WT3",
+      "regressionRisk": "Low",
+      "notes": "Currently dead code but prevents future trap | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-D06",
+      "title": "Consolidate duplicate validation functions",
+      "description": "As a developer, I want consistent validation utilities.",
+      "acceptanceCriteria": [
+        "Single source in error-handler.ts with ValidationException",
+        "Duplicates removed from service-types.ts",
+        "All import sites updated",
+        "UUID validation accepts v1-v5",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: validateRequired throws ValidationException (not plain Error)",
+        "Unit test: validateEmail accepts valid emails, rejects invalid",
+        "Unit test: validateUUID accepts v1 through v5 UUIDs",
+        "Unit test: no validateRequired/validateEmail/validateUUID exports from service-types.ts",
+        "Regression test: all repositories compile (vitest list)"
+      ],
+      "existingTests": [],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "D",
+      "worktree": "WT3",
+      "regressionRisk": "Medium",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-E01",
+      "title": "Parallelize import service entity loops",
+      "description": "As a gestionnaire, I want large imports to complete in seconds.",
+      "acceptanceCriteria": [
+        "Entity loops use Promise.allSettled with chunks of 10",
+        "Inter-phase order preserved",
+        "Partial failures logged per entity",
+        "350 entities < 10 seconds",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: chunkArray(items, 10) produces correct chunks",
+        "Unit test: importBuildings processes items in parallel batches",
+        "Integration test: import 50 buildings, verify all created",
+        "Integration test: import with 1 bad entity, verify others still created (partial failure)",
+        "Integration test: inter-phase order: companies before contacts before buildings before lots",
+        "Performance test: 350 entities completes in < 10 seconds"
+      ],
+      "existingTests": [],
+      "priority": 5,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "wave": "E",
+      "worktree": "WT7",
+      "regressionRisk": "Medium-High",
+      "notes": "Keep inter-phase order, only parallelize intra-phase | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-E02",
+      "title": "Parallelize contract creation post-steps",
+      "description": "As a gestionnaire, I want contract creation to be faster.",
+      "acceptanceCriteria": [
+        "After contacts: docs + interventions + reminders in Promise.all",
+        "Contacts step runs first",
+        "Lint passes"
+      ],
+      "tests": [
+        "Integration test: create contract with contacts + docs + interventions + reminders, all created",
+        "Regression test: contract creation flow still works end-to-end",
+        "Regression test: contacts are linked before interventions (dependency order)"
+      ],
+      "existingTests": [],
+      "priority": 5,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "E",
+      "worktree": "WT7",
+      "regressionRisk": "Medium",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-E03",
+      "title": "Parallelize 3 cron sequential loops",
+      "description": "As a platform admin, I want cron jobs to process subscriptions faster.",
+      "acceptanceCriteria": [
+        "trial-expiration: Promise.allSettled chunks of 5",
+        "trial-notifications: Promise.all windows + Promise.allSettled subs",
+        "behavioral-triggers: Promise.allSettled + inner Promise.all",
+        "Each cron logs processed count and failures",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: trial-expiration processes 10 subs in parallel, all updated",
+        "Unit test: trial-notifications processes 3 windows in parallel",
+        "Unit test: behavioral-triggers parallelizes admin email + intervention count fetch",
+        "Unit test: partial email failure doesn't stop other subscriptions",
+        "Regression test: existing cron unit tests still pass"
+      ],
+      "existingTests": [
+        "tests/unit/stripe/cron-trial-expiration.test.ts",
+        "tests/unit/stripe/cron-trial-notifications.test.ts",
+        "tests/unit/stripe/cron-behavioral-triggers.test.ts"
+      ],
+      "priority": 5,
+      "dependsOn": [
+        "US-A01"
+      ],
+      "sizing": "S",
+      "passes": true,
+      "wave": "E",
+      "worktree": "WT2",
+      "regressionRisk": "Medium",
+      "notes": "Auth fix (A01) must be done first. Watch Resend rate limits. | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-E04",
+      "title": "Add after() to 3 routes for notification deferral",
+      "description": "As a user, I want faster API responses.",
+      "acceptanceCriteria": [
+        "work-completion: notifyInterventionStatusChange in after()",
+        "intervention-finalize: in-app notifs + activity log in after()",
+        "intervention-schedule: in-app notifs in after()",
+        "Notifications still delivered",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: work-completion route returns response before notification call",
+        "Unit test: intervention-finalize defers in-app notifications",
+        "Unit test: intervention-schedule defers in-app notifications",
+        "Regression test: notifications are delivered (check DB after request)",
+        "Regression test: activity logs are written (check DB after request)"
+      ],
+      "existingTests": [],
+      "priority": 5,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "E",
+      "worktree": "WT7",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-E05",
+      "title": "Parallelize service init in 2 routes",
+      "description": "As a developer, I want faster API route cold starts.",
+      "acceptanceCriteria": [
+        "intervention-schedule: 6 awaits in Promise.all",
+        "intervention-finalize: same",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: all 6 services initialized after Promise.all",
+        "Regression test: intervention-schedule route works end-to-end",
+        "Regression test: intervention-finalize route works end-to-end"
+      ],
+      "existingTests": [],
+      "priority": 5,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "E",
+      "worktree": "WT7",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-E06",
+      "title": "Activate or remove dead cache layer",
+      "description": "As a developer, I want cache infrastructure either working or deleted.",
+      "acceptanceCriteria": [
+        "Decision: activate OR delete lib/cache/cached-queries.ts",
+        "Dead revalidateTag calls cleaned",
+        "Dead revalidatePath calls cleaned",
+        "Lint passes"
+      ],
+      "tests": [
+        "If activated: Unit test — cached function returns same data on 2nd call (cache hit)",
+        "If activated: Unit test — revalidateTag clears cache, next call hits DB",
+        "If deleted: grep for 'cached-queries' returns 0 matches",
+        "If deleted: grep for dead revalidateTag calls returns 0 matches",
+        "Regression test: pages still load data correctly"
+      ],
+      "existingTests": [],
+      "priority": 5,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "E",
+      "worktree": "WT7",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-F01",
+      "title": "Extract shared ALLOWED_MIME_TYPES",
+      "description": "As a developer, I want consistent upload validation.",
+      "acceptanceCriteria": [
+        "lib/constants/mime-types.ts created",
+        "All 8 definition sites import from shared constant",
+        "Upload behavior unchanged",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: ALLOWED_MIME_TYPES includes pdf, jpg, png, doc, docx",
+        "Unit test: AUDIO_MIME_TYPES variant includes mp3, wav (intervention-specific)",
+        "Regression test: upload PDF works, upload exe rejected"
+      ],
+      "existingTests": [],
+      "priority": 6,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "F",
+      "worktree": "WT8",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-F02",
+      "title": "Add loading.tsx to 16 bare route segments",
+      "description": "As a user, I want loading indicators during navigation.",
+      "acceptanceCriteria": [
+        "loading.tsx added to 16 identified routes",
+        "Consistent skeleton/spinner style",
+        "Lint passes"
+      ],
+      "tests": [
+        "E2E test: navigate to 3 sample routes, verify skeleton appears before content",
+        "Lint: all new loading.tsx files pass"
+      ],
+      "existingTests": [],
+      "priority": 6,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "wave": "F",
+      "worktree": "WT8",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-F03",
+      "title": "Set up Sentry error tracking",
+      "description": "As a developer, I want production errors reported to Sentry.",
+      "acceptanceCriteria": [
+        "@sentry/nextjs installed and initialized",
+        "Error boundaries send errors to Sentry",
+        "Source maps uploaded during build",
+        "Environment tagging",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: Sentry.init called with correct DSN and environment",
+        "Manual test: trigger error, verify appears in Sentry dashboard",
+        "Manual test: source maps resolve to original source"
+      ],
+      "existingTests": [],
+      "priority": 6,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "wave": "F",
+      "worktree": "WT8",
+      "regressionRisk": "Low",
+      "notes": "Soft conflict with WT1 on next.config.js — merge-friendly | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-F04",
+      "title": "Add /api/health endpoint",
+      "description": "As a platform admin, I want a health check endpoint.",
+      "acceptanceCriteria": [
+        "app/api/health/route.ts returns { status: ok, timestamp }",
+        "No auth required, response < 200ms",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: GET /api/health returns 200 with { status: 'ok', timestamp: ISO }",
+        "Unit test: response time < 200ms",
+        "Unit test: no auth header required"
+      ],
+      "existingTests": [],
+      "priority": 6,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "F",
+      "worktree": "WT8",
+      "regressionRisk": "None",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-F05",
+      "title": "Remove test/debug pages from production",
+      "description": "As a security engineer, I want test pages inaccessible in production.",
+      "acceptanceCriteria": [
+        "test-property-preview deleted or env-guarded",
+        "Debug routes deleted or env-guarded",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: route file has NODE_ENV guard OR file deleted",
+        "Manual test: /gestionnaire/test-property-preview returns 404 in production"
+      ],
+      "existingTests": [],
+      "priority": 6,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "F",
+      "worktree": "WT8",
+      "regressionRisk": "None",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-F06",
+      "title": "Fix userScalable accessibility",
+      "description": "As a user with visual impairments, I want to pinch-to-zoom.",
+      "acceptanceCriteria": [
+        "userScalable: true in layout.tsx",
+        "maximumScale removed or set to 5",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: viewport config has userScalable !== false",
+        "Manual test: mobile pinch-to-zoom works"
+      ],
+      "existingTests": [],
+      "priority": 6,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "F",
+      "worktree": "WT8",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    },
+    {
+      "id": "US-F07",
+      "title": "Extract chat tab skeleton to shared module",
+      "description": "As a developer, I want the chat tab dynamic import in one place.",
+      "acceptanceCriteria": [
+        "Shared lazy-chat-tab.tsx created",
+        "3 role-specific clients import from shared module",
+        "Chat tab lazy-loads for all roles",
+        "Lint passes"
+      ],
+      "tests": [
+        "Unit test: shared module exports dynamic component",
+        "E2E test: chat tab loads on gestionnaire intervention detail",
+        "E2E test: chat tab loads on locataire intervention detail",
+        "E2E test: chat tab loads on prestataire intervention detail"
+      ],
+      "existingTests": [],
+      "priority": 6,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "wave": "F",
+      "worktree": "WT8",
+      "regressionRisk": "Low",
+      "notes": " | Implemented 2026-03-12"
+    }
+  ]
+}

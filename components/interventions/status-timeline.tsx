@@ -11,7 +11,6 @@ import {
   Circle,
   XCircle,
   Clock,
-  FileText,
   Calendar,
   Flag,
   User
@@ -57,7 +56,6 @@ const shortLabels: Partial<Record<InterventionStatus, string>> = {
   'cloturee_par_gestionnaire': 'Clôturée',
   'rejetee': 'Rejetée',
   'annulee': 'Annulée',
-  'demande_de_devis': 'Devis',
 }
 
 // Status flow definition
@@ -79,12 +77,6 @@ const statusFlow: Record<InterventionStatus, TimelineStep> = {
     label: 'Approuvée',
     icon: CheckCircle,
     description: "La demande a été approuvée et peut être planifiée"
-  },
-  'demande_de_devis': {
-    status: 'demande_de_devis',
-    label: 'Estimation demandée',
-    icon: FileText,
-    description: "Une estimation a été demandée au prestataire"
   },
   'planification': {
     status: 'planification',

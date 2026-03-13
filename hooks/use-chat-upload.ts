@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { logger } from '@/lib/logger'
 
-import { ALLOWED_CHAT_MIME_TYPES } from '@/lib/constants/mime-types'
+import { ALLOWED_DOCUMENT_MIME_TYPES_EXTENDED } from '@/lib/constants/mime-types'
 
-const ALLOWED_MIME_TYPES = ALLOWED_CHAT_MIME_TYPES
+const ALLOWED_MIME_TYPES = ALLOWED_DOCUMENT_MIME_TYPES_EXTENDED
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
 

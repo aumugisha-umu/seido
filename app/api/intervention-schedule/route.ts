@@ -104,9 +104,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if intervention can be scheduled
-    // Allow 'demande_de_devis' to enable planning while waiting for quote
     // planifiee allowed for re-planning (modify planning from scheduled state)
-    if (!['approuvee', 'planification', 'planifiee', 'demande_de_devis'].includes(intervention.status)) {
+    if (!['approuvee', 'planification', 'planifiee'].includes(intervention.status)) {
       return NextResponse.json({
         success: false,
         error: `L'intervention ne peut pas être planifiée (statut actuel: ${intervention.status})`

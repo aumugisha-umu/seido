@@ -60,7 +60,7 @@ export async function GET(
     } else if (user.role === 'gestionnaire') {
       // Check if gestionnaire has access to this intervention
       const { data: assignment, error: assignmentError } = await supabase
-        .from('intervention_contacts')
+        .from('intervention_assignments')
         .select('id')
         .eq('intervention_id', interventionId)
         .eq('user_id', user.id)

@@ -101,8 +101,8 @@ export async function PATCH(
     const managersToNotify = new Set<string>()
 
     // Ajouter les gestionnaires assignés à l'intervention viaintervention_assignments
-    if (intervention.intervention_contacts) {
-      intervention.intervention_contacts
+    if (intervention.intervention_assignments) {
+      intervention.intervention_assignments
         .filter(contact => contact.role === 'gestionnaire')
         .forEach(contact => {
           managersToNotify.add(contact.user.id)

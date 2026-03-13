@@ -78,7 +78,7 @@ const WORKFLOW_ACTIONS = {
     label: 'Demander une estimation',
     color: 'bg-yellow-500',
     requiresProvider: true,
-    nextStatus: 'demande_de_devis' as InterventionStatus
+    nextStatus: 'approuvee' as InterventionStatus // Quote tracked via requires_quote flag, not status
   },
   startPlanning: {
     icon: Calendar,
@@ -140,12 +140,6 @@ function getAvailableActions(
     case 'approuvee':
       if (role === 'gestionnaire' || role === 'admin') {
         actions.push('requestQuote', 'startPlanning', 'cancel')
-      }
-      break
-
-    case 'demande_de_devis':
-      if (role === 'gestionnaire' || role === 'admin') {
-        actions.push('startPlanning', 'cancel')
       }
       break
 

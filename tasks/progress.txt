@@ -1,21 +1,39 @@
-# Progress Log — Production Readiness Audit Remediation
-# Started: 2026-03-12
-# Stories: 34 implemented (Waves A-F), 2 pre-existing (F02, F04)
-# Source: docs/audit/production-readiness-audit-2026-03-12-FINAL.md
-# Implementation: tasks/production-readiness-sprint-instructions.md
+# Progress Log — Post-Audit Bug Fixes (Simplify Review)
+# Started: 2026-03-13
+# Stories: 11 total (30 bugs across P0-P2)
+# Source: /simplify cross-review findings
 ---
-2026-03-12 | INIT | PRD created from verified audit (8 audit agents + 4 verification agents + external cross-review)
-2026-03-12 | INIT | 5 false positives eliminated: C23 (indexes exist), D1 (Next.js already patched), F7 (modal used via shim), F8 (calendar properly lazy-loaded), UserUpdate proprietaire (exists in types)
-2026-03-12 | INIT | Previous prd.json archived to tasks/archive/2026-03-12-confirmation-pages-harmonization/
+2026-03-13 | US-001 | PASS | Fixed 7 API routes: intervention_contacts → intervention_assignments
+  Files: work-completion/route.ts, create-provider-account/route.ts, quotes/route.ts, select-slot/route.ts, availabilities/route.ts, user-availability/route.ts, quotes/[id]/cancel/route.ts
+  Learning: Table rename left behind property access references (.intervention_contacts) even when query table was correct
+2026-03-13 | US-002 | PASS | Fixed search injection in lot.repository.ts + building.repository.ts
+  Files: lot.repository.ts (added sanitizeSearch import + usage), building.repository.ts (primary .or() path)
+  Learning: building.repository.ts fallback path was secure but primary path wasn't — asymmetric security
+2026-03-13 | US-003 | PASS | Added proprietaire to validateEnum in user.repository.ts (3 occurrences)
+  Files: user.repository.ts (lines 46, 176, 246)
+2026-03-13 | US-004 | PASS | Removed deprecated statuses demande_de_devis + en_cours
+  Files: intervention.repository.ts (validate + stats), intervention-schedule/route.ts
+2026-03-13 | US-005 | PASS | Fixed .single() without role filter
+  Files: prestataire/interventions/[id]/page.tsx (.eq('role','prestataire')), intervention-confirm-participation/route.ts (.limit(1).maybeSingle())
+  Learning: prestataire page knows the role → add filter; generic endpoint doesn't → use maybeSingle
+2026-03-13 | US-006 | PASS | Removed dead code: getPriorityColor (intervention-display.ts), ALLOWED_CHAT_MIME_TYPES (mime-types.ts)
+  Files: intervention-display.ts, mime-types.ts, use-chat-upload.ts
 ---
-2026-03-12 | COMPLETE | All stories implemented across 6 waves (30 commits on preview branch)
+--- FULL APP REVIEW (14 additional bugs found) ---
+2026-03-13 | US-007 | PASS | CRITICAL: Fixed API routes writing deprecated status to DB
+  Files: generate-intervention-magic-links/route.ts (requires_quote:true instead of status change), quotes/[quoteId]/approve/route.ts, quotes/[quoteId]/reject/route.ts, intervention-cancel/route.ts
+  Learning: generate-intervention-magic-links was WRITING demande_de_devis to DB — most dangerous bug in the batch
+2026-03-13 | US-008 | PASS | Cleaned demande_de_devis from 4 service/utility files
+  Files: intervention-display.ts, notification.service.ts, email-notification/types.ts, stats.service.ts
+2026-03-13 | US-009 | PASS | Added sanitizeSearch to 3 more repositories
+  Files: company.repository.ts, address.repository.ts, building.repository.ts (findByCity)
+  Learning: sanitizeSearch needed everywhere .ilike() uses user input, not just search bars
+2026-03-13 | US-010 | PASS | Cleaned demande_de_devis from 11 UI components/hooks
+  Files: status-timeline.tsx, big-calendar-wrapper.tsx, integrated-quotes-card.tsx, seido-badge.config.ts, interventions-navigator.tsx, execution-tab.tsx, intervention-cancel-button.tsx, programming-modal-FINAL.tsx, intervention-modal-header.tsx, use-tenant-data.ts, use-prestataire-data.ts
+  Learning: Status checks in UI should use requires_quote flag, not status === 'demande_de_devis'
+2026-03-13 | US-011 | PASS | Cleaned demande_de_devis from mappers + API routes + tests
+  Files: intervention-mappers.ts, quotes/[quoteId]/route.ts, intervention-quote-validate/route.ts, intervention-mappers.test.ts
+  Learning: When removing a status, grep the ENTIRE codebase — initial review found 16 files but full review found 30+
 ---
-2026-03-12 | WAVE-A (5/5) | A01: cron auth bypass fix (5 routes), A02: HSTS + Permissions-Policy headers, A03: service role key logging fix, A04: lot.repository findOccupied() role fix, A05: CSP Report-Only + /api/csp-report endpoint
-2026-03-12 | WAVE-B (7/7) | B01: open redirect in impersonation, B02: XSS email body escape, B03: dispatcher actions auth guard, B04: rate limiter document download, B05: PostgREST filter injection sanitize, B06: reset-password error leak removal, B07: upload route team_id from auth context
-2026-03-12 | WAVE-C (4/4) | C01: pin @vercel/analytics ^1.5.0, C02: dependency hygiene (devDeps + remove unused toast), C03: remove no-op webpack config, C04: impersonation cookie httpOnly split
-2026-03-12 | WAVE-D (6/6) | D01: stats.repository fix column refs via intervention_assignments, D02: VALID_TRANSITIONS alignment + contestee, D03: getDocuments() deleted_at filter, D04: findByBuilding() OR condition for building-level, D05: user.repository role enum fix, D06: validateRequired re-export dedup
-2026-03-12 | WAVE-E (6/6) | E01: chunkArray utility created, E02: contract creation already parallelized, E03: cron loops chunked Promise.allSettled, E04: work-completion after() deferral, E05: service init Promise.all in schedule+finalize, E06: dead cache layer deleted (cached-queries.ts + index.ts)
-2026-03-12 | WAVE-F (6/6) | F01: MIME types centralized to lib/constants/mime-types.ts, F02: userScalable already absent (no-op), F03: getPriorityColor consolidated to canonical lib/intervention-utils.ts, F04: health endpoint already existed, F05: test/debug pages server-side NODE_ENV guard, F06: chat tab skeleton deduplicated via LazyInterventionChatTab
----
-2026-03-12 | VERIFY | npm run build: PASS (166 static pages generated)
-2026-03-12 | VERIFY | npm run lint: PASS (only pre-existing storybook + @ts-ignore warnings)
+2026-03-13 | VERIFY | npm run lint: PASS (pre-existing warnings only)
+2026-03-13 | VERIFY | Unit tests (intervention-mappers): 36/36 PASS

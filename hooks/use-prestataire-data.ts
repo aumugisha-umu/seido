@@ -288,12 +288,12 @@ export const usePrestataireData = (userId: string) => {
       const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
       
       const interventionsEnCours = transformedInterventions.filter(i =>
-        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee'].includes(i.status)
+        ['demande', 'approuvee', 'planification', 'planifiee'].includes(i.status)
       ).length
 
       const urgentesCount = transformedInterventions.filter(i =>
         ['haute', 'urgente'].includes(i.priority) &&
-        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee'].includes(i.status)
+        ['demande', 'approuvee', 'planification', 'planifiee'].includes(i.status)
       ).length
 
       const terminesCeMois = transformedInterventions.filter(i => {
@@ -311,7 +311,7 @@ export const usePrestataireData = (userId: string) => {
       // 5. Get urgent interventions for dashboard
       const urgentInterventions: UrgentIntervention[] = transformedInterventions
         .filter(i => ['haute', 'urgente'].includes(i.priority) &&
-                    ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee'].includes(i.status))
+                    ['demande', 'approuvee', 'planification', 'planifiee'].includes(i.status))
         .slice(0, 3) // Show only top 3
         .map(i => ({
           id: i.id,

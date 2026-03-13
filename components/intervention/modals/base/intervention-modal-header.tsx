@@ -62,7 +62,7 @@ const getInterventionLocationText = (intervention: InterventionData): string => 
   }
 
   // Determine if we should show simplified location (for quote stages)
-  const isQuoteStage = intervention.status === 'demande_de_devis'
+  const isQuoteStage = intervention.requires_quote === true
 
   // Case 1: lot object is populated
   if (intervention.lot && typeof intervention.lot === 'object') {

@@ -13,6 +13,7 @@ import {
   validateNumber
 } from '../core/service-types'
 import { logger } from '@/lib/logger'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 
 // Type aliases from database
 type AddressRow = Database['public']['Tables']['addresses']['Row']
@@ -122,7 +123,7 @@ export class AddressRepository extends BaseRepository<Address, AddressInsert, Ad
       .is('deleted_at', null)
 
     if (options?.city) {
-      query = query.ilike('city', `%${options.city}%`)
+      query = query.ilike('city', `%${sanitizeSearch(options.city)}%`)
     }
 
     if (options?.hasCoordinates === true) {

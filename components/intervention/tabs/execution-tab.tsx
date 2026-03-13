@@ -68,7 +68,7 @@ export function ExecutionTab({
   // All users have same permissions based on intervention status
   // For prestataire, only show "Modifier la planification" if they have their own pending slots
   const canProposeSlots = (() => {
-    const baseCondition = ['approuvee', 'demande_de_devis', 'planification'].includes(currentStatus)
+    const baseCondition = ['approuvee', 'planification'].includes(currentStatus)
 
     if (!baseCondition) return false
 

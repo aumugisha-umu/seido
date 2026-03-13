@@ -37,6 +37,3 @@ export const ALLOWED_INTERVENTION_MIME_TYPES = [
   ...AUDIO_MIME_TYPES,
 ] as const
 
-export const ALLOWED_CHAT_MIME_TYPES = [
-  ...ALLOWED_DOCUMENT_MIME_TYPES_EXTENDED,
-] as const

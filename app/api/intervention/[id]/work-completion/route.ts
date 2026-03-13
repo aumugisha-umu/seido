@@ -103,12 +103,13 @@ export async function POST(
 
     // Check if user is assigned to this intervention
     const { data: assignment, error: assignmentError } = await supabase
-      .from('intervention_contacts')
+      .from('intervention_assignments')
       .select('*')
       .eq('intervention_id', interventionId)
       .eq('user_id', user.id)
       .eq('role', 'prestataire')
-      .single()
+      .limit(1)
+      .maybeSingle()
 
     if (assignmentError || !assignment) {
       return NextResponse.json({

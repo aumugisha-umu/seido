@@ -285,7 +285,7 @@ export async function POST(request: NextRequest) {
           try {
             const notifResult = await notifyInterventionStatusChange({
               interventionId: quote.intervention.id,
-              oldStatus: 'demande_de_devis',
+              oldStatus: 'approuvee',
               newStatus: 'planifiee'
             })
 

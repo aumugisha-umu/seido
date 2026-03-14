@@ -5,24 +5,24 @@
  *
  * Permet de lier un nouveau contact directement à :
  * - Un bien (immeuble ou lot via PropertySelector avec tabs internes)
- *   - Locataires : uniquement lots (pas d'immeuble directement)
+ *   - Locataires : pas de bien (uniquement contrat - bail locatif)
  *   - Autres : immeubles et lots
  * - Un contrat (pas pour les prestataires - contrat = bail locatif)
+ * - Un contrat fournisseur (prestataires uniquement)
  *
  * Règles métier de filtrage :
- * | Type Contact   | Building | Lot | Contract |
- * |----------------|----------|-----|----------|
- * | gestionnaire   |    ✅    | ✅  |    ✅    |
- * | locataire      |    ❌    | ✅  |    ✅    |
- * | prestataire    |    ✅    | ✅  |    ❌    |
- * | autre          |    ✅    | ✅  |    ✅    |
+ * | Type Contact   | Building | Lot | Contract | Supplier Contract |
+ * |----------------|----------|-----|----------|-------------------|
+ * | gestionnaire   |    ✅    | ✅  |    ✅    |        ❌         |
+ * | locataire      |    ❌    | ❌  |    ✅    |        ❌         |
+ * | prestataire    |    ✅    | ✅  |    ❌    |        ✅         |
+ * | autre          |    ✅    | ✅  |    ✅    |        ❌         |
  *
- * Architecture (v3 - 2026-01):
- * - 2 Tabs: Bien | Contrat
+ * Architecture (v4 - 2026-03):
+ * - 2-3 Tabs depending on contact type
  * - Tab "Bien": PropertySelector complet avec tabs internes (Immeubles/Lots)
- *   → UX cohérente avec création d'intervention
- *   → showOnlyLots=true pour les locataires
- * - ContractMiniSelector pour les contrats
+ * - Tab "Contrat": ContractMiniSelector pour les bails
+ * - Tab "Contrats fournisseur": SupplierContractMiniSelector (prestataires only)
  */
 
 import { useState, useEffect, useMemo } from 'react'
@@ -35,11 +35,13 @@ import {
   ChevronDown,
   Building2,
   FileText,
-  X
+  X,
+  Briefcase
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import PropertySelector from '@/components/property-selector'
 import ContractMiniSelector from './contract-mini-selector'
+import SupplierContractMiniSelector from './supplier-contract-mini-selector'
 
 // Types
 interface Lot {
@@ -77,8 +79,27 @@ interface Contract {
   status?: string | null
 }
 
-type EntityType = 'building' | 'lot' | 'contract' | null
-type TabType = 'property' | 'contract'
+interface SupplierContractDTO {
+  id: string
+  reference: string | null
+  supplier: {
+    name: string | null
+    company: string | null
+  } | null
+  building: {
+    id: string
+    name: string
+  } | null
+  lot: {
+    id: string
+    reference: string
+  } | null
+  status: string | null
+  end_date: string | null
+}
+
+type EntityType = 'building' | 'lot' | 'contract' | 'supplier_contract' | null
+type TabType = 'property' | 'contract' | 'supplier_contract'
 
 interface EntityLinkSectionProps {
   contactType: string
@@ -87,6 +108,7 @@ interface EntityLinkSectionProps {
   linkedBuildingId: string | null
   linkedLotId: string | null
   linkedContractId: string | null
+  linkedSupplierContractId: string | null
   onFieldChange: (field: string, value: string | null) => void
   // Données pré-chargées côté serveur
   buildings: Building[]
@@ -100,42 +122,52 @@ export function EntityLinkSection({
   linkedBuildingId,
   linkedLotId,
   linkedContractId,
+  linkedSupplierContractId,
   onFieldChange,
   buildings,
   lots
 }: EntityLinkSectionProps) {
+  // Filtrer les options disponibles selon le type de contact
+  const isLocataire = contactType === 'locataire'
+  const isPrestataire = contactType === 'prestataire'
+  const showPropertyOption = !isLocataire
+  const showContractOption = !isPrestataire
+  const showSupplierContractOption = isPrestataire
+
+  // Dynamic title based on contact type
+  const sectionTitle = isLocataire ? 'Lier à un bail' : 'Lier à une entité'
+
   const [isOpen, setIsOpen] = useState(false)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loadingContracts, setLoadingContracts] = useState(false)
-  const [activeTab, setActiveTab] = useState<TabType>('property')
+  const [supplierContracts, setSupplierContracts] = useState<SupplierContractDTO[]>([])
+  const [loadingSupplierContracts, setLoadingSupplierContracts] = useState(false)
 
-  // Filtrer les options disponibles selon le type de contact
-  // - Locataire → peut sélectionner un lot (pas d'immeuble directement)
-  // - Prestataire → pas de contrat (contrat = bail locatif, pas pour prestataires)
-  const isLocataire = contactType === 'locataire'
-  const showContractOption = contactType !== 'prestataire'
+  // Default tab based on contact type
+  const getDefaultTab = (): TabType => {
+    if (isLocataire) return 'contract'
+    return 'property'
+  }
+  const [activeTab, setActiveTab] = useState<TabType>(getDefaultTab)
 
   // Calculer le nombre de tabs visibles pour adapter la grille
-  // Tabs: property (toujours), contract (pas pour prestataires)
   const visibleTabsCount = [
-    true, // property toujours visible
-    showContractOption
+    showPropertyOption,
+    showContractOption,
+    showSupplierContractOption
   ].filter(Boolean).length
 
   // Définir le tab par défaut basé sur l'entité liée
   useEffect(() => {
     if (linkedEntityType) {
-      // Si l'entité liée est un building ou lot → tab "property"
       if (linkedEntityType === 'building' || linkedEntityType === 'lot') {
         setActiveTab('property')
-      }
-      // Si l'entité liée est un contrat mais que le contact est prestataire → tab "property"
-      else if (linkedEntityType === 'contract' && !showContractOption) {
+      } else if (linkedEntityType === 'contract' && !showContractOption) {
         setActiveTab('property')
-      }
-      // Sinon utiliser "contract" comme tab
-      else if (linkedEntityType === 'contract') {
+      } else if (linkedEntityType === 'contract') {
         setActiveTab('contract')
+      } else if (linkedEntityType === 'supplier_contract') {
+        setActiveTab('supplier_contract')
       }
     }
   }, [linkedEntityType, showContractOption])
@@ -144,6 +176,13 @@ export function EntityLinkSection({
   useEffect(() => {
     if (activeTab === 'contract' && contracts.length === 0 && !loadingContracts) {
       fetchContracts()
+    }
+  }, [activeTab])
+
+  // Charger les contrats fournisseur quand on switch sur le tab "supplier_contract"
+  useEffect(() => {
+    if (activeTab === 'supplier_contract' && supplierContracts.length === 0 && !loadingSupplierContracts) {
+      fetchSupplierContracts()
     }
   }, [activeTab])
 
@@ -162,39 +201,57 @@ export function EntityLinkSection({
     }
   }
 
+  const fetchSupplierContracts = async () => {
+    setLoadingSupplierContracts(true)
+    try {
+      const response = await fetch(`/api/supplier-contracts/list?teamId=${teamId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setSupplierContracts(data.supplierContracts || [])
+      }
+    } catch (error) {
+      console.error('Error fetching supplier contracts:', error)
+    } finally {
+      setLoadingSupplierContracts(false)
+    }
+  }
+
   // Handlers de sélection - clear autres + set nouvelle valeur
   const handleBuildingSelect = (buildingId: string | null) => {
-    // Clear all other linked IDs
     onFieldChange('linkedLotId', null)
     onFieldChange('linkedContractId', null)
-    // Set building
+    onFieldChange('linkedSupplierContractId', null)
     onFieldChange('linkedBuildingId', buildingId)
     onFieldChange('linkedEntityType', buildingId ? 'building' : null)
   }
 
   const handleLotSelect = (lotId: string | null) => {
-    // Clear all other linked IDs
     onFieldChange('linkedBuildingId', null)
     onFieldChange('linkedContractId', null)
-    // Set lot
+    onFieldChange('linkedSupplierContractId', null)
     onFieldChange('linkedLotId', lotId)
     onFieldChange('linkedEntityType', lotId ? 'lot' : null)
   }
 
   const handleContractSelect = (contractId: string | null) => {
-    // Clear all other linked IDs
     onFieldChange('linkedBuildingId', null)
     onFieldChange('linkedLotId', null)
-    // Set contract
+    onFieldChange('linkedSupplierContractId', null)
     onFieldChange('linkedContractId', contractId)
     onFieldChange('linkedEntityType', contractId ? 'contract' : null)
+  }
+
+  const handleSupplierContractSelect = (supplierContractId: string | null) => {
+    onFieldChange('linkedBuildingId', null)
+    onFieldChange('linkedLotId', null)
+    onFieldChange('linkedContractId', null)
+    onFieldChange('linkedSupplierContractId', supplierContractId)
+    onFieldChange('linkedEntityType', supplierContractId ? 'supplier_contract' : null)
   }
 
   // Handler de changement de tab
   const handleTabChange = (value: string) => {
     setActiveTab(value as TabType)
-    // Ne pas clear la sélection au changement de tab
-    // L'utilisateur peut naviguer entre tabs et garder sa sélection visible
   }
 
   // Clear all links
@@ -203,6 +260,7 @@ export function EntityLinkSection({
     onFieldChange('linkedBuildingId', null)
     onFieldChange('linkedLotId', null)
     onFieldChange('linkedContractId', null)
+    onFieldChange('linkedSupplierContractId', null)
   }
 
   // Récupérer le nom de l'entité sélectionnée pour l'affichage
@@ -218,6 +276,10 @@ export function EntityLinkSection({
     if (linkedContractId) {
       const contract = contracts.find(c => c.id === linkedContractId)
       return contract?.reference || contract?.lot?.reference || 'Contrat sélectionné'
+    }
+    if (linkedSupplierContractId) {
+      const sc = supplierContracts.find(c => c.id === linkedSupplierContractId)
+      return sc?.reference || 'Contrat fournisseur sélectionné'
     }
     return null
   }
@@ -252,7 +314,7 @@ export function EntityLinkSection({
               )} />
               <div className="text-left">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">Lier à une entité</span>
+                  <span className="font-medium">{sectionTitle}</span>
                   <Badge variant="outline" className="text-xs font-normal">
                     Optionnel
                   </Badge>
@@ -277,35 +339,45 @@ export function EntityLinkSection({
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className={cn(
                 "grid w-full",
+                visibleTabsCount === 3 && "grid-cols-3",
                 visibleTabsCount === 2 && "grid-cols-2",
                 visibleTabsCount === 1 && "grid-cols-1"
               )}>
-                <TabsTrigger value="property" className="flex items-center gap-1.5">
-                  <Building2 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Bien</span>
-                </TabsTrigger>
+                {showPropertyOption && (
+                  <TabsTrigger value="property" className="flex items-center gap-1.5">
+                    <Building2 className="h-4 w-4" />
+                    <span className="hidden sm:inline">Bien</span>
+                  </TabsTrigger>
+                )}
                 {showContractOption && (
                   <TabsTrigger value="contract" className="flex items-center gap-1.5">
                     <FileText className="h-4 w-4" />
                     <span className="hidden sm:inline">Contrat</span>
                   </TabsTrigger>
                 )}
+                {showSupplierContractOption && (
+                  <TabsTrigger value="supplier_contract" className="flex items-center gap-1.5">
+                    <Briefcase className="h-4 w-4" />
+                    <span className="hidden sm:inline">Contrats fournisseur</span>
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* Tab Bien - PropertySelector complet avec tabs internes Immeubles/Lots */}
-              <TabsContent value="property" className="mt-4">
-                <PropertySelector
-                  mode="select"
-                  initialData={propertySelectorData}
-                  onBuildingSelect={isLocataire ? undefined : handleBuildingSelect}
-                  onLotSelect={handleLotSelect}
-                  selectedBuildingId={linkedBuildingId || undefined}
-                  selectedLotId={linkedLotId || undefined}
-                  showOnlyLots={isLocataire}
-                  compactCards={false}
-                  showViewToggle={true}
-                />
-              </TabsContent>
+              {showPropertyOption && (
+                <TabsContent value="property" className="mt-4">
+                  <PropertySelector
+                    mode="select"
+                    initialData={propertySelectorData}
+                    onBuildingSelect={handleBuildingSelect}
+                    onLotSelect={handleLotSelect}
+                    selectedBuildingId={linkedBuildingId || undefined}
+                    selectedLotId={linkedLotId || undefined}
+                    compactCards={false}
+                    showViewToggle={true}
+                  />
+                </TabsContent>
+              )}
 
               {/* Tab Contrat (non disponible pour les prestataires) */}
               {showContractOption && (
@@ -315,6 +387,18 @@ export function EntityLinkSection({
                     selectedId={linkedContractId}
                     onSelect={handleContractSelect}
                     loading={loadingContracts}
+                  />
+                </TabsContent>
+              )}
+
+              {/* Tab Contrats fournisseur (prestataires uniquement) */}
+              {showSupplierContractOption && (
+                <TabsContent value="supplier_contract" className="mt-4">
+                  <SupplierContractMiniSelector
+                    contracts={supplierContracts}
+                    selectedId={linkedSupplierContractId}
+                    onSelect={handleSupplierContractSelect}
+                    loading={loadingSupplierContracts}
                   />
                 </TabsContent>
               )}

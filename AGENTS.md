@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-13
-**Total Learnings:** 137
+**Last Updated:** 2026-03-14
+**Total Learnings:** 141
 
 ---
 
@@ -990,6 +990,34 @@
 **Example:** `app/prestataire/(no-navbar)/interventions/[id]/page.tsx` — added `.eq('role', 'prestataire')`, `app/api/intervention-confirm-participation/route.ts` — changed to `.limit(1).maybeSingle()`
 **When to Use:** Any `.single()` call on a table with composite UNIQUE constraints
 **Added:** 2026-03-13 | **Source:** Post-audit .single() safety review
+
+#### Learning #138: Stripe trial checkout returns `no_payment_required` not `paid`
+**Problem:** `verifyCheckoutSession` checked `payment_status === 'paid'` to confirm a successful checkout. Trial checkouts with `subscription_data.trial_end` return `payment_status: 'no_payment_required'` because no charge occurs. Checkout appeared to fail even though the subscription was created correctly.
+**Solution:** Accept both `'paid'` and `'no_payment_required'` as valid payment statuses in `verifyCheckoutSession` and webhook `checkout.session.completed` handler. Trial = no payment = `no_payment_required`.
+**Example:** `app/actions/subscription-actions.ts:verifyCheckoutSession()` — `['paid', 'no_payment_required'].includes(paymentStatus)`
+**When to Use:** Any Stripe Checkout integration that supports trial periods via `subscription_data.trial_end`
+**Added:** 2026-03-14 | **Source:** Stripe trial payment collection feature
+
+#### Learning #139: Status constant sets must match canonical service — audit cross-file consistency
+**Problem:** `BLOCKED_STATUSES` was defined in 3 files (`subscription-guard.ts`, `notification-actions.ts`, `conversation-notification-actions.ts`) with `['read_only', 'unpaid', 'incomplete_expired']`. But `subscription.service.ts` also treats `paused` as blocked (is_read_only=true). Paused teams' locataires/prestataires were not blocked, and notifications still fired.
+**Solution:** (1) Define status constants in ONE shared file and import everywhere. (2) When creating a status set, always cross-reference the canonical service that defines the business rule (e.g., `subscription.service.ts:getSubscriptionInfo`). (3) Include ALL statuses the service treats as equivalent.
+**Example:** `lib/subscription-guard.ts` — single source of truth for `BLOCKED_STATUSES`, imported by both notification action files
+**When to Use:** Any time you create a Set/array of statuses that mirrors business logic from a service class
+**Added:** 2026-03-14 | **Source:** Simplify review — semantic bug found by cross-referencing subscription.service.ts
+
+#### Learning #140: `unstable_cache` wrappers should be shared utilities, not duplicated in layouts
+**Problem:** `getCachedSubscriptionInfo` was copy-pasted identically in gestionnaire, locataire, and prestataire layouts (3 copies). Any change to cache key, TTL, or query logic required updating 3 files. The locataire/prestataire copies also dragged in 5 unnecessary imports each.
+**Solution:** Extract `unstable_cache`-wrapped functions to shared utility files (e.g., `lib/subscription-cache.ts`). Import from layouts. This reduces each layout from ~15 import lines to 1.
+**Example:** `lib/subscription-cache.ts` — shared `getCachedSubscriptionInfo`, imported by all 3 role layouts
+**When to Use:** Any `unstable_cache` wrapper used by 2+ Server Components — extract to `lib/` immediately
+**Added:** 2026-03-14 | **Source:** Simplify review — triple duplication across role layouts
+
+#### Learning #141: `'use server'` file helpers can't be imported cross-file — extract to `lib/`
+**Problem:** `isTeamNotificationsBlocked` was needed in both `notification-actions.ts` and `conversation-notification-actions.ts`. Since both are `'use server'` files, the helper was duplicated (copy-pasted) rather than shared. This led to 3 copies of the same function with identical logic.
+**Solution:** Extract shared server-side helpers to `lib/` files (not `'use server'` action files). `lib/subscription-guard.ts` is importable by any file — server actions, Server Components, API routes. Reserve `'use server'` files for exported server actions only.
+**Example:** `lib/subscription-guard.ts:isTeamSubscriptionBlocked()` — imported by `notification-actions.ts`, `conversation-notification-actions.ts`, and page Server Components
+**When to Use:** Whenever you need a helper function in 2+ server action files — move it to `lib/` immediately
+**Added:** 2026-03-14 | **Source:** Simplify review — triple duplication of subscription blocking helper
 
 ---
 

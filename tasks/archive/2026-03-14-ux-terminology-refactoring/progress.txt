@@ -1,0 +1,33 @@
+# Progress Log — UX Terminology Refactoring
+# Started: 2026-03-14
+# Stories: 5 total
+---
+
+## 2026-03-14 — US-001: DB Migration
+- Migration `20260314100000_ux_terminology_refactoring.sql`
+- Updated labels: bien→Interventions, bail→Gestion locative, locataire→Demandes
+- New category `rappel` (Rappels) with 6 types
+- Expanded `provider_category` enum: +artisan, services, energie, administration, juridique
+- Pushed to remote DB successfully
+
+## 2026-03-14 — US-002: Combobox rappel support
+- `intervention-type-combobox.tsx`: added violet color for rappel, updated CategoryCode type
+- Files: `components/intervention/intervention-type-combobox.tsx`
+
+## 2026-03-14 — US-003: Provider category constants
+- Expanded PROVIDER_CATEGORIES from 2 → 11 entries with labels
+- Added PROVIDER_CATEGORY_ICONS mapping (11 Lucide icons)
+- Added getProviderCategoryIcon() helper
+- Files: `components/contact-details/constants.ts`
+
+## 2026-03-14 — US-004: Contact creation form
+- Added providerCategory field to ContactFormData
+- New provider category selector in step-1-type.tsx (icons + labels)
+- providerCategory flows: form → payload → API (with fallback to auto-mapping)
+- Updated ContactInvitationService to use explicit providerCategory
+- Files: contact-creation-client.tsx, step-1-type.tsx, contact-invitation.service.ts
+
+## 2026-03-14 — US-005: Contact table + detail
+- Contact info card shows provider_category badge with icon
+- New "Catégorie" column in contacts table with icon+label badge
+- Files: contact-info-card.tsx, contacts.config.tsx

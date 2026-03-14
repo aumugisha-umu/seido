@@ -188,10 +188,11 @@ export const inviteUserSchema = z.object({
   companyPlaceId: z.string().max(500).optional().nullable(),
   companyFormattedAddress: z.string().max(500).optional().nullable(),
   // Champs liaison à une entité (optionnel)
-  linkedEntityType: z.enum(['building', 'lot', 'contract', 'intervention']).optional().nullable(),
+  linkedEntityType: z.enum(['building', 'lot', 'contract', 'supplier_contract', 'intervention']).optional().nullable(),
   linkedBuildingId: uuidSchema.optional().nullable(),
   linkedLotId: uuidSchema.optional().nullable(),
   linkedContractId: uuidSchema.optional().nullable(),
+  linkedSupplierContractId: uuidSchema.optional().nullable(),
   linkedInterventionId: uuidSchema.optional().nullable(),
 }).superRefine((data, ctx) => {
   // Email obligatoire si shouldInviteToApp === true

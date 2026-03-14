@@ -29,6 +29,7 @@ export interface OnboardingProgress {
   hasIntervention: boolean
   hasClosedIntervention: boolean
   hasEmail: boolean
+  hasImportedData: boolean
 }
 
 // =============================================================================
@@ -475,6 +476,7 @@ export async function getOnboardingProgress(): Promise<ActionResult<OnboardingPr
         hasIntervention: (interventions.count ?? 0) > 0,
         hasClosedIntervention: (closedInterventions.count ?? 0) > 0,
         hasEmail: (emails.count ?? 0) > 0,
+        hasImportedData: false, // Optional step — tracked via localStorage skip
       },
     }
   } catch (error) {

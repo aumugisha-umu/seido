@@ -1,4 +1,27 @@
-# Progress Log — Stripe Trial Payment Collection & Blocked Mode
-# Started: 2026-03-13
-# Stories: 11 total
+# Progress Log — Microsoft Clarity Integration (replace Contentsquare)
+# Started: 2026-03-14
+# Stories: 4/4 complete
 ---
+
+## 2026-03-14 — US-001: Install @microsoft/clarity + env variables
+- Installed: @microsoft/clarity v1.0.2 (0 deps, includes TypeScript defs)
+- Files: .env.local, .env.example, package.json, package-lock.json
+- Learnings: NPM package API uses camelCase (setTag, consentV2) vs inline script lowercase
+
+## 2026-03-14 — US-002: CSP headers update
+- Replaced: contentsquare.net/com → *.clarity.ms in script-src, connect-src, img-src
+- Added: c.bing.com to connect-src (Clarity data collection)
+- Files: next.config.js (both enforced CSP + report-only CSP)
+- Learnings: Clarity uses multiple subdomains (a-z.clarity.ms) — wildcard *.clarity.ms is mandatory
+
+## 2026-03-14 — US-003: Rewrite analytics hooks
+- Rewrote: analytics-provider.tsx (Clarity.init + ConsentV2 with GDPR)
+- Rewrote: use-analytics-identify.ts (Clarity.identify + setTag for 3 custom tags)
+- Deleted: use-analytics-tracking.ts (Clarity handles SPA tracking automatically via pushState interception)
+- Tags: user_role, subscription_status, subscription_plan
+- Learnings: ConsentV2 requires { ad_Storage, analytics_Storage } with capital S — inconsistent casing
+
+## 2026-03-14 — US-004: Cleanup Contentsquare
+- Removed: <Script src="https://t.contentsquare.net/uxa/b3cbc84e830fe.js"> from layout.tsx
+- Removed: unused next/script import
+- Files: app/layout.tsx

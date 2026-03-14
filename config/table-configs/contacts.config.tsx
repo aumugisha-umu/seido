@@ -2,6 +2,7 @@ import { Users, Mail, Phone, MapPin, Building2, Send, Edit, Eye, Archive, Trash2
 import { Badge } from '@/components/ui/badge'
 import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
 import { CompanyCardCompact } from '@/components/contacts/company-card-compact'
+import { getProviderCategoryLabel, getProviderCategoryIcon } from '@/components/contact-details/constants'
 import type { DataTableConfig } from '@/components/data-navigator/types'
 
 // Contact type
@@ -169,6 +170,22 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
                     {getContactTypeLabel(contact.role)}
                 </Badge>
             )
+        },
+        {
+            id: 'provider_category',
+            header: 'Catégorie',
+            accessorKey: 'provider_category',
+            sortable: true,
+            cell: (contact) => {
+                if (!contact.provider_category || contact.role !== 'prestataire') return <span className="text-sm text-slate-400">-</span>
+                const Icon = getProviderCategoryIcon(contact.provider_category)
+                return (
+                    <Badge variant="outline" className="text-xs bg-muted text-foreground border-border gap-1">
+                        <Icon className="h-3 w-3" />
+                        {getProviderCategoryLabel(contact.provider_category)}
+                    </Badge>
+                )
+            }
         },
         {
             id: 'speciality',

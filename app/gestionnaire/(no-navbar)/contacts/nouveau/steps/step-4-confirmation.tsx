@@ -71,10 +71,11 @@ interface Step4ConfirmationProps {
   existsInCurrentTeam?: boolean
   hasAuthAccount?: boolean
   // Liaison à une entité (optionnel)
-  linkedEntityType?: 'building' | 'lot' | 'contract' | null
+  linkedEntityType?: 'building' | 'lot' | 'contract' | 'supplier_contract' | null
   linkedBuildingId?: string | null
   linkedLotId?: string | null
   linkedContractId?: string | null
+  linkedSupplierContractId?: string | null
   // Données pour affichage (noms/références)
   buildings?: Building[]
   lots?: Lot[]
@@ -108,6 +109,7 @@ export function Step4Confirmation({
   linkedBuildingId,
   linkedLotId,
   linkedContractId,
+  linkedSupplierContractId,
   buildings,
   lots,
   contracts
@@ -215,6 +217,13 @@ export function Step4Confirmation({
         { label: "Type", value: "Contrat" },
         { label: "Entité", value: c?.reference || c?.lot?.reference || 'Contrat sélectionné' },
         ...(c?.lot?.building?.name ? [{ label: "Immeuble parent", value: c.lot.building.name }] : []),
+      ]
+    }
+
+    if (linkedEntityType === 'supplier_contract' && linkedSupplierContractId) {
+      return [
+        { label: "Type", value: "Contrat fournisseur" },
+        { label: "Entité", value: `Contrat fournisseur sélectionné` },
       ]
     }
 

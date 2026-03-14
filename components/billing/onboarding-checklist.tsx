@@ -14,6 +14,7 @@ import {
   PartyPopper,
   Zap,
   Lightbulb,
+  Upload,
   X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -41,6 +42,9 @@ interface ChecklistStep {
   ctaLabel: string
   icon: React.ElementType
   href: string
+  /** If true, the step can be skipped by the user */
+  optional?: boolean
+  skipLabel?: string
 }
 
 // =============================================================================
@@ -48,6 +52,7 @@ interface ChecklistStep {
 // =============================================================================
 
 const DISMISS_KEY = 'seido_onboarding_dismissed'
+const SKIPPED_STEPS_KEY = 'seido_onboarding_skipped_steps'
 
 const STEPS: ChecklistStep[] = [
   {
@@ -61,21 +66,11 @@ const STEPS: ChecklistStep[] = [
     href: '/gestionnaire/biens/lots/nouveau',
   },
   {
-    id: 'hasEmail',
-    label: 'Connecter votre email',
-    description: 'Reliez votre boite mail professionnelle',
-    whyItMatters: 'En connectant votre email, vous centralisez toutes vos communications dans SEIDO. Fini les allers-retours entre votre boite mail et votre outil de gestion.',
-    howItConnects: 'Les emails liés aux interventions et aux contacts apparaîtront directement dans SEIDO, avec historique complet.',
-    ctaLabel: 'Connecter mon email',
-    icon: Mail,
-    href: '/gestionnaire/parametres/emails',
-  },
-  {
     id: 'hasContact',
     label: 'Ajouter des contacts',
-    description: 'Invitez prestataires, locataires ou gestionnaires',
-    whyItMatters: 'Vos contacts sont au coeur de SEIDO. Prestataires pour les missions et devis, locataires pour signaler des problemes, gestionnaires pour collaborer. Invites a l\'app, ils accedent a leur portail dedie.',
-    howItConnects: 'Sans invitation, le contact reste dans votre carnet d\'adresses. Avec invitation, il recoit un acces a l\'application et des notifications automatiques.',
+    description: 'Ajoutez vos collègues, locataires, prestataires',
+    whyItMatters: 'Vous pouvez inviter chaque contact à rejoindre l\'application ou non. Même sans compte SEIDO, un contact invité recevra les notifications par email pour les actions auxquelles il est assigné.',
+    howItConnects: 'Avec un compte, il accède en plus à son portail dédié pour suivre ses interventions.',
     ctaLabel: 'Ajouter un contact',
     icon: Users,
     href: '/gestionnaire/contacts/nouveau',
@@ -101,14 +96,26 @@ const STEPS: ChecklistStep[] = [
     href: '/gestionnaire/interventions/nouvelle-intervention',
   },
   {
-    id: 'hasClosedIntervention',
-    label: 'Clôturer une intervention',
-    description: 'Terminez un cycle complet',
-    whyItMatters: 'La clôture archive l\'intervention avec tout son historique : échanges, devis, photos, créneaux.',
-    howItConnects: 'L\'historique reste consultable sur la fiche du lot pour référence future.',
-    ctaLabel: 'Voir mes interventions',
-    icon: CheckCircle2,
-    href: '/gestionnaire/interventions',
+    id: 'hasEmail',
+    label: 'Connecter votre email',
+    description: 'Reliez votre boite mail professionnelle',
+    whyItMatters: 'En connectant votre email, vous centralisez toutes vos communications dans SEIDO. Fini les allers-retours entre votre boite mail et votre outil de gestion.',
+    howItConnects: 'Les emails liés aux interventions et aux contacts apparaîtront directement dans SEIDO, avec historique complet.',
+    ctaLabel: 'Connecter mon email',
+    icon: Mail,
+    href: '/gestionnaire/parametres/emails',
+  },
+  {
+    id: 'hasImportedData',
+    label: 'Importer vos données',
+    description: 'Importez lots, contacts et contrats en une seule fois',
+    whyItMatters: 'Dans la section Import, téléchargez notre template Excel, remplissez-le avec vos données existantes et importez tout en un clic. En cas de souci pendant l\'upload, envoyez simplement le fichier au support et nous ferons l\'import pour vous.',
+    howItConnects: 'Vous pouvez aussi passer cette étape et ajouter vos biens, contacts et contrats manuellement depuis les différentes sections de l\'application.',
+    ctaLabel: 'Accéder à l\'import',
+    icon: Upload,
+    href: '/gestionnaire/import',
+    optional: true,
+    skipLabel: 'Je préfère ajouter manuellement',
   },
 ]
 
@@ -120,6 +127,7 @@ export function OnboardingChecklist({ className, progress, isTrialing, defaultEx
   const router = useRouter()
   const [expanded, setExpanded] = useState(defaultExpanded ?? false)
   const [dismissed, setDismissed] = useState(false)
+  const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set())
   const [celebratingStep, setCelebratingStep] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -127,6 +135,10 @@ export function OnboardingChecklist({ className, progress, isTrialing, defaultEx
     if (sessionStorage.getItem(DISMISS_KEY) === 'true') {
       setDismissed(true)
     }
+    try {
+      const saved = localStorage.getItem(SKIPPED_STEPS_KEY)
+      if (saved) setSkippedSteps(new Set(JSON.parse(saved)))
+    } catch { /* ignore */ }
   }, [])
 
   // Close panel on outside click
@@ -154,7 +166,8 @@ export function OnboardingChecklist({ className, progress, isTrialing, defaultEx
   // Don't render if not trialing, no data, or dismissed
   if (!isTrialing || !progress || dismissed) return null
 
-  const completedCount = STEPS.filter((s) => progress[s.id]).length
+  const isStepDone = (s: ChecklistStep) => progress[s.id] || skippedSteps.has(s.id)
+  const completedCount = STEPS.filter(isStepDone).length
   const totalSteps = STEPS.length
   const progressPercent = (completedCount / totalSteps) * 100
 
@@ -162,13 +175,20 @@ export function OnboardingChecklist({ className, progress, isTrialing, defaultEx
   if (completedCount === totalSteps) return null
 
   // Find the first incomplete step (current focus)
-  const currentStepId = STEPS.find((s) => !progress[s.id])?.id
+  const currentStepId = STEPS.find((s) => !isStepDone(s))?.id
 
   const handleStepClick = (step: ChecklistStep) => {
-    if (!progress[step.id]) {
+    if (!isStepDone(step)) {
       router.push(step.href)
       setExpanded(false)
     }
+  }
+
+  const handleSkipStep = (stepId: string) => {
+    const next = new Set(skippedSteps)
+    next.add(stepId)
+    setSkippedSteps(next)
+    localStorage.setItem(SKIPPED_STEPS_KEY, JSON.stringify([...next]))
   }
 
   const handleDismiss = () => {
@@ -204,7 +224,7 @@ export function OnboardingChecklist({ className, progress, isTrialing, defaultEx
               key={step.id}
               className={cn(
                 'w-1.5 h-1.5 rounded-full transition-colors',
-                progress[step.id]
+                isStepDone(step)
                   ? 'bg-green-500'
                   : expanded
                     ? 'bg-primary-foreground/30'
@@ -266,7 +286,8 @@ export function OnboardingChecklist({ className, progress, isTrialing, defaultEx
             {/* Steps list */}
             <div className="p-3 space-y-0.5 max-h-[60vh] overflow-y-auto">
               {STEPS.map((step, index) => {
-                const isComplete = progress[step.id]
+                const isComplete = isStepDone(step)
+                const isSkipped = skippedSteps.has(step.id)
                 const isCurrent = step.id === currentStepId
                 const isCelebrating = celebratingStep === step.id
                 const Icon = step.icon
@@ -320,16 +341,23 @@ export function OnboardingChecklist({ className, progress, isTrialing, defaultEx
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className={cn(
-                            'text-sm',
-                            isComplete
-                              ? 'line-through text-muted-foreground'
-                              : isCurrent
-                                ? 'font-semibold text-primary'
-                                : 'font-medium',
-                          )}>
-                            {step.label}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className={cn(
+                              'text-sm',
+                              isComplete
+                                ? isSkipped ? 'text-muted-foreground' : 'line-through text-muted-foreground'
+                                : isCurrent
+                                  ? 'font-semibold text-primary'
+                                  : 'font-medium',
+                            )}>
+                              {step.label}
+                            </p>
+                            {isSkipped && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                                Passée
+                              </span>
+                            )}
+                          </div>
                           {isCurrent && !isComplete && (
                             <Button
                               size="sm"
@@ -365,6 +393,14 @@ export function OnboardingChecklist({ className, progress, isTrialing, defaultEx
                         <p className="text-xs text-muted-foreground/70 leading-relaxed">
                           {step.howItConnects}
                         </p>
+                        {step.optional && step.skipLabel && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleSkipStep(step.id) }}
+                            className="mt-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+                          >
+                            {step.skipLabel}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

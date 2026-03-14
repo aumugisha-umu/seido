@@ -15,6 +15,7 @@ import { Step4Confirmation } from "./steps/step-4-confirmation"
 import { getTypeLabel } from "@/components/interventions/intervention-type-icon"
 import { isValidEmail } from "@/lib/validation/patterns"
 import { GoogleMapsProvider } from "@/components/google-maps"
+import type { InterventionTypesData } from "@/lib/services/domain/intervention-types.server"
 
 // Types
 interface Company {
@@ -28,6 +29,7 @@ interface ContactFormData {
   contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'autre'
   personOrCompany: 'person' | 'company'
   specialty?: string
+  providerCategory?: string // Catégorie de prestataire (artisan, services, energie, etc.)
   customRoleDescription?: string // Description personnalisée pour le rôle "autre"
 
   // Step 2: Informations société (si company)
@@ -61,10 +63,11 @@ interface ContactFormData {
   hasAuthAccount?: boolean
 
   // Liaison à une entité (optionnel)
-  linkedEntityType?: 'building' | 'lot' | 'contract' | null
+  linkedEntityType?: 'building' | 'lot' | 'contract' | 'supplier_contract' | null
   linkedBuildingId?: string | null
   linkedLotId?: string | null
   linkedContractId?: string | null
+  linkedSupplierContractId?: string | null
 }
 
 interface Building {
@@ -101,6 +104,7 @@ interface ContactCreationClientProps {
   initialBuildings: Building[]
   initialLots: Lot[]
   initialContracts: Contract[]
+  initialInterventionTypes?: InterventionTypesData | null
   // Redirect parameters when coming from another form (e.g., building creation)
   prefilledType?: string | null
   sessionKey?: string | null
@@ -113,6 +117,7 @@ export function ContactCreationClient({
   initialBuildings,
   initialLots,
   initialContracts,
+  initialInterventionTypes,
   prefilledType,
   sessionKey,
   returnUrl
@@ -178,8 +183,8 @@ export function ContactCreationClient({
       case 1: // Type de contact
         if (!formData.contactType) errors.push("Sélectionnez un type de contact")
         if (!formData.personOrCompany) errors.push("Sélectionnez Personne ou Société")
-        if (formData.contactType === 'prestataire' && !formData.specialty) {
-          errors.push("Sélectionnez une spécialité pour le prestataire")
+        if (formData.contactType === 'prestataire' && formData.providerCategory === 'artisan' && !formData.specialty) {
+          errors.push("Sélectionnez une spécialité pour l'artisan")
         }
         if (formData.contactType === 'autre' && !formData.customRoleDescription?.trim()) {
           errors.push("Précisez le type de contact")
@@ -347,6 +352,7 @@ export function ContactCreationClient({
         role: formData.contactType, // Envoie directement 'prestataire', 'locataire', etc.
         contactType: formData.personOrCompany,
         speciality: formData.specialty,
+        providerCategory: formData.providerCategory, // Catégorie explicite (artisan, services, etc.)
         customRoleDescription: formData.customRoleDescription, // Description pour le rôle "autre"
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -382,6 +388,7 @@ export function ContactCreationClient({
         payload.linkedBuildingId = formData.linkedBuildingId
         payload.linkedLotId = formData.linkedLotId
         payload.linkedContractId = formData.linkedContractId
+        payload.linkedSupplierContractId = formData.linkedSupplierContractId
       }
 
       const response = await fetch('/api/invite-user', {
@@ -493,19 +500,22 @@ export function ContactCreationClient({
       />
 
       {/* Contenu principal (scrollable) */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pt-4 pb-20">
-        <div className="content-max-width">
+      <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pt-4 pb-4">
+        <div className="content-max-width flex-1 flex flex-col">
           {/* Step content will be rendered here */}
-          <div className="bg-card rounded-lg border border-border shadow-sm p-6 transition-all duration-500">
+          <div className="bg-card rounded-lg border border-border shadow-sm p-6 transition-all duration-500 flex-1">
             {currentStep === 1 && (
               <Step1Type
                 contactType={formData.contactType}
                 personOrCompany={formData.personOrCompany}
                 specialty={formData.specialty}
+                providerCategory={formData.providerCategory}
                 customRoleDescription={formData.customRoleDescription}
+                initialInterventionTypes={initialInterventionTypes}
                 onContactTypeChange={(value) => handleInputChange('contactType', value)}
                 onPersonOrCompanyChange={(value) => handleInputChange('personOrCompany', value)}
                 onSpecialtyChange={(value) => handleInputChange('specialty', value)}
+                onProviderCategoryChange={(value) => handleInputChange('providerCategory', value)}
                 onCustomRoleDescriptionChange={(value) => handleInputChange('customRoleDescription', value)}
               />
             )}
@@ -567,6 +577,7 @@ export function ContactCreationClient({
                 linkedBuildingId={formData.linkedBuildingId}
                 linkedLotId={formData.linkedLotId}
                 linkedContractId={formData.linkedContractId}
+                linkedSupplierContractId={formData.linkedSupplierContractId}
               />
             )}
 
@@ -599,6 +610,7 @@ export function ContactCreationClient({
                 linkedBuildingId={formData.linkedBuildingId}
                 linkedLotId={formData.linkedLotId}
                 linkedContractId={formData.linkedContractId}
+                linkedSupplierContractId={formData.linkedSupplierContractId}
                 buildings={initialBuildings}
                 lots={initialLots}
                 contracts={initialContracts}
@@ -609,7 +621,7 @@ export function ContactCreationClient({
       </div>
 
       {/* Footer avec navigation */}
-      <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border px-5 sm:px-6 lg:px-10 py-4">
+      <div className="sticky bottom-0 z-30 bg-white dark:bg-card border-t border-border px-5 sm:px-6 lg:px-10 py-4">
         <div className={`flex flex-col sm:flex-row gap-2 content-max-width ${currentStep === 1 ? 'justify-end' : 'justify-between'}`}>
           {/* Bouton Retour - Affiché seulement à partir de step 2 */}
           {currentStep > 1 && (

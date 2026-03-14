@@ -4978,7 +4978,14 @@ export type Database = {
         | "citerne_mazout"
         | "inventaire_amiante"
         | "audit_energetique"
-      provider_category: "prestataire" | "autre"
+      provider_category:
+        | "prestataire"
+        | "autre"
+        | "artisan"
+        | "services"
+        | "energie"
+        | "administration"
+        | "juridique"
       response_type: "accepted" | "rejected" | "pending"
       subscription_status:
         | "trialing"
@@ -5322,7 +5329,15 @@ export const Constants = {
         "inventaire_amiante",
         "audit_energetique",
       ],
-      provider_category: ["prestataire", "autre"],
+      provider_category: [
+        "prestataire",
+        "autre",
+        "artisan",
+        "services",
+        "energie",
+        "administration",
+        "juridique",
+      ],
       response_type: ["accepted", "rejected", "pending"],
       subscription_status: [
         "trialing",

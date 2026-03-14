@@ -32,7 +32,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarMenuAction,
-  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { TeamSelector, TeamSelectorCompact } from "@/components/team-selector"
@@ -236,7 +235,7 @@ export default function GestionnaireSidebar({
   }
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border">
+    <Sidebar collapsible="icon">
       {/* Header: Logo + Toggle + Team selector */}
       <SidebarHeader className={cn("pb-2", isCollapsed ? "p-2" : "p-4")}>
         <div className={cn(
@@ -315,8 +314,7 @@ export default function GestionnaireSidebar({
         <SubscriptionSidebarCard />
 
         {/* Secondary navigation */}
-        <SidebarSeparator />
-        <SidebarGroup>
+        <SidebarGroup className="pt-1">
           <SidebarGroupContent>
             <SidebarMenu>
               {secondaryNavItems.map(renderNavItem)}
@@ -326,8 +324,7 @@ export default function GestionnaireSidebar({
       </SidebarContent>
 
       {/* Footer: User profile */}
-      <SidebarSeparator />
-      <SidebarFooter className="p-2">
+      <SidebarFooter className="p-2 pt-3">
         <div className={cn(
           "flex items-center gap-2",
           isCollapsed && "flex-col"

@@ -1,3 +1,17 @@
+import {
+  Wrench,
+  Sparkles,
+  Zap,
+  Shield,
+  Building,
+  Scale,
+  Stamp,
+  Users,
+  Home,
+  UserCog,
+  CircleDot,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import type { RoleConfig, CategoryOption } from './types'
 
 /**
@@ -10,12 +24,38 @@ export const USER_ROLES: RoleConfig[] = [
 ]
 
 /**
- * Provider categories for prestataires
+ * Provider categories for prestataires — matches provider_category enum in DB
  */
 export const PROVIDER_CATEGORIES: CategoryOption[] = [
-  { value: "prestataire", label: "Prestataire" },
-  { value: "autre", label: "Autre" }
+  { value: "artisan", label: "Artisan" },
+  { value: "services", label: "Services" },
+  { value: "energie", label: "Énergie & Fluides" },
+  { value: "assurance", label: "Assurance" },
+  { value: "administration", label: "Administration" },
+  { value: "juridique", label: "Juridique" },
+  { value: "notaire", label: "Notaire" },
+  { value: "syndic", label: "Syndic" },
+  { value: "proprietaire", label: "Propriétaire" },
+  { value: "prestataire", label: "Prestataire (général)" },
+  { value: "autre", label: "Autre" },
 ]
+
+/**
+ * Icon mapping for provider categories
+ */
+export const PROVIDER_CATEGORY_ICONS: Record<string, LucideIcon> = {
+  artisan: Wrench,
+  services: Sparkles,
+  energie: Zap,
+  assurance: Shield,
+  administration: Building,
+  juridique: Scale,
+  notaire: Stamp,
+  syndic: Users,
+  proprietaire: Home,
+  prestataire: UserCog,
+  autre: CircleDot,
+}
 
 /**
  * Specialities for prestataires
@@ -43,6 +83,13 @@ export const getRoleConfig = (roleValue: string): RoleConfig => {
  */
 export const getProviderCategoryLabel = (categoryValue: string): string => {
   return PROVIDER_CATEGORIES.find(c => c.value === categoryValue)?.label || categoryValue
+}
+
+/**
+ * Get provider category icon by value
+ */
+export const getProviderCategoryIcon = (categoryValue: string): LucideIcon => {
+  return PROVIDER_CATEGORY_ICONS[categoryValue] || CircleDot
 }
 
 /**

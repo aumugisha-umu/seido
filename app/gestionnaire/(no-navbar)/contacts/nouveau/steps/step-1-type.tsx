@@ -2,17 +2,22 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { User, Building2, Tag, Wrench, Users } from "lucide-react"
+import { User, Building2, Tag, Wrench, Users, Layers } from "lucide-react"
 import { InterventionTypeCombobox } from "@/components/intervention/intervention-type-combobox"
+import { PROVIDER_CATEGORIES, PROVIDER_CATEGORY_ICONS } from "@/components/contact-details/constants"
+import type { InterventionTypesData } from "@/lib/services/domain/intervention-types.server"
 
 interface Step1TypeProps {
   contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'autre'
   personOrCompany: 'person' | 'company'
   specialty?: string
+  providerCategory?: string
   customRoleDescription?: string
+  initialInterventionTypes?: InterventionTypesData | null
   onContactTypeChange: (value: 'locataire' | 'prestataire' | 'gestionnaire' | 'autre') => void
   onPersonOrCompanyChange: (value: 'person' | 'company') => void
   onSpecialtyChange: (value: string) => void
+  onProviderCategoryChange: (value: string) => void
   onCustomRoleDescriptionChange: (value: string) => void
 }
 
@@ -20,10 +25,13 @@ export function Step1Type({
   contactType,
   personOrCompany,
   specialty,
+  providerCategory,
   customRoleDescription,
+  initialInterventionTypes,
   onContactTypeChange,
   onPersonOrCompanyChange,
   onSpecialtyChange,
+  onProviderCategoryChange,
   onCustomRoleDescriptionChange
 }: Step1TypeProps) {
   return (
@@ -36,8 +44,8 @@ export function Step1Type({
         </p>
       </div>
 
-      {/* Type de contact et Spécialité sur la même ligne */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Type de contact + prestataire fields on same row */}
+      <div className={`grid grid-cols-1 gap-4 ${contactType === 'prestataire' && providerCategory === 'artisan' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
         {/* Catégorie de contact */}
         <div className="space-y-3">
           <Label htmlFor="contact-type" icon={Tag} required>
@@ -56,10 +64,43 @@ export function Step1Type({
           </Select>
         </div>
 
-        {/* Spécialité (si Prestataire) */}
+        {/* Catégorie de prestataire (si Prestataire) */}
         {contactType === 'prestataire' && (
           <div className="space-y-3">
-            <Label htmlFor="specialty" icon={Wrench} required>
+            <Label htmlFor="provider-category" icon={Layers}>
+              Type de prestataire
+            </Label>
+            <Select value={providerCategory || ''} onValueChange={(value) => {
+              onProviderCategoryChange(value)
+              // Clear specialty when switching away from artisan
+              if (value !== 'artisan' && specialty) {
+                onSpecialtyChange('')
+              }
+            }}>
+              <SelectTrigger id="provider-category" className="w-full">
+                <SelectValue placeholder="Sélectionnez un type" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROVIDER_CATEGORIES.map((cat) => {
+                  const Icon = PROVIDER_CATEGORY_ICONS[cat.value]
+                  return (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      <span className="flex items-center gap-2">
+                        {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+                        {cat.label}
+                      </span>
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Spécialité (si Prestataire + Artisan) */}
+        {contactType === 'prestataire' && providerCategory === 'artisan' && (
+          <div className="space-y-3">
+            <Label htmlFor="specialty" icon={Wrench}>
               Spécialité
             </Label>
             <InterventionTypeCombobox
@@ -67,6 +108,8 @@ export function Step1Type({
               onValueChange={onSpecialtyChange}
               placeholder="Sélectionnez une spécialité"
               categoryFilter="bien"
+              initialData={initialInterventionTypes}
+              showCategoryHeaders={false}
             />
           </div>
         )}

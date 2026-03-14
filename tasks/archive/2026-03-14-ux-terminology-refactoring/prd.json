@@ -1,0 +1,93 @@
+{
+  "project": "SEIDO",
+  "featureName": "UX Terminology Refactoring",
+  "branchName": "preview",
+  "description": "Update intervention category labels, add Rappel category, expand provider_category enum with richer types",
+  "createdAt": "2026-03-14",
+  "prdSource": "docs/plans/2026-03-14-ux-terminology-design.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "DB Migration — category labels + rappel + provider enum",
+      "description": "As a developer, I want a single migration that: (1) updates intervention_type_categories labels, (2) adds rappel category + 6 types, (3) expands provider_category enum with 5 new values",
+      "acceptanceCriteria": [
+        "intervention_type_categories labels updated: bien→Interventions, bail→Gestion locative, locataire→Demandes",
+        "New category 'rappel' with label 'Rappels' and sort_order 4",
+        "6 rappel types inserted with correct category_id",
+        "provider_category enum expanded with: artisan, services, energie, administration, juridique",
+        "Migration applies cleanly with supabase db push --linked"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Migration 20260314100000 applied. Types regenerated."
+    },
+    {
+      "id": "US-002",
+      "title": "Regenerate types + intervention-type-combobox rappel support",
+      "description": "As a gestionnaire, I want to see the Rappels category in the intervention type selector with its own color",
+      "acceptanceCriteria": [
+        "database.types.ts regenerated with new enum values",
+        "CategoryCode type includes 'rappel'",
+        "CATEGORY_COLORS and CATEGORY_TEXT_COLORS include rappel entry",
+        "categoryFilter JSDoc updated to include rappel",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Violet color for rappel category."
+    },
+    {
+      "id": "US-003",
+      "title": "Provider category constants — labels + icons",
+      "description": "As a developer, I want a centralized provider category config with labels and icons for all 11 values",
+      "acceptanceCriteria": [
+        "PROVIDER_CATEGORIES in contact-details/constants.ts expanded to all 11 values with labels",
+        "New PROVIDER_CATEGORY_ICONS mapping (value → Lucide icon name) exported",
+        "getProviderCategoryLabel works for all new values",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "11 categories with Lucide icons. getProviderCategoryIcon() helper exported."
+    },
+    {
+      "id": "US-004",
+      "title": "Contact creation form — provider_category selector",
+      "description": "As a gestionnaire, when creating a prestataire contact, I want to select from the full list of provider categories with icons",
+      "acceptanceCriteria": [
+        "Contact creation wizard shows all 11 provider categories when role=prestataire",
+        "Each option displays icon + label",
+        "Selected category saved correctly to DB",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "New selector in step-1-type.tsx. providerCategory flows through ContactFormData → payload → API. Service uses explicit value with fallback to mapping."
+    },
+    {
+      "id": "US-005",
+      "title": "Contact table + detail — display provider category badge with icon",
+      "description": "As a gestionnaire, I want to see the provider category as a badge with icon in the contact list and detail view",
+      "acceptanceCriteria": [
+        "Contact info card displays provider_category badge with icon",
+        "Contact table config shows provider_category column with icon+label",
+        "All 11 categories display correctly",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Badge with icon in contact-info-card.tsx + new 'Catégorie' column in contacts table."
+    }
+  ]
+}

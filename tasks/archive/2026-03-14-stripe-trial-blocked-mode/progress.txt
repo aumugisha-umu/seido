@@ -1,0 +1,61 @@
+# Progress Log — Stripe Trial Payment Collection & Blocked Mode
+# Started: 2026-03-13
+# Stories: 11/11 complete
+---
+
+## 2026-03-13 — US-001: DB Migration
+- Implemented: Added payment_method_added BOOLEAN DEFAULT FALSE to subscriptions table
+- Files: supabase/migrations/20260313100000_add_payment_method_added.sql, lib/database.types.ts
+- Learnings: Standard migration + types regen workflow
+
+## 2026-03-13 — US-002: Stripe Checkout with trial_end
+- Implemented: createCheckoutSession passes trial_end, verifyCheckoutSession sets payment_method_added, handles no_payment_required
+- Files: lib/services/domain/subscription.service.ts, app/actions/subscription-actions.ts
+- Learnings: Trial checkouts return payment_status 'no_payment_required' not 'paid' (#138)
+
+## 2026-03-13 — US-003: Webhook handler update
+- Implemented: handleSubscriptionCreated/Updated set payment_method_added via default_payment_method check
+- Files: lib/services/domain/stripe-webhook.handler.ts
+- Learnings: default_payment_method on Stripe subscription object indicates payment method presence
+
+## 2026-03-13 — US-004: Trial Banner enriched
+- Implemented: 3-tier urgency banners (blue J-7/amber J-3/red J-1) + green reassurance when payment added
+- Files: components/billing/trial-banner.tsx, components/billing/subscription-banners.tsx
+- Learnings: Tiered dismissibility: localStorage 24h / sessionStorage / non-dismissible
+
+## 2026-03-13 — US-005: Read-Only Banner redesign
+- Implemented: 3 role variants — gestionnaire red CTA, locataire/prestataire neutral gray with support links
+- Files: components/billing/read-only-banner.tsx
+
+## 2026-03-13 — US-006: Blocked mode on lists
+- Implemented: BlockedListOverlay wrapper on 3 list pages, detail page redirects, disabled create buttons
+- Files: components/billing/blocked-list-overlay.tsx, app/gestionnaire/(with-navbar)/*-page-client.tsx, detail pages
+
+## 2026-03-13 — US-007: CRON and email updates
+- Implemented: payment_method_added filter on both CRONs, 0 EUR email CTAs, export link
+- Files: app/api/cron/trial-*/route.ts, emails/templates/billing/*.tsx
+
+## 2026-03-13 — US-008: Login modal J-2
+- Implemented: TrialUpgradeModal with sessionStorage dismiss, skipped if payment_method_added
+- Files: components/billing/trial-upgrade-modal.tsx, components/dashboards/manager/manager-dashboard-v2.tsx
+
+## 2026-03-13 — US-009: Billing page badge
+- Implemented: Green badge when trialing + payment_method_added, shows first payment date
+- Files: app/gestionnaire/(with-navbar)/settings/billing/billing-page-client.tsx
+
+## 2026-03-14 — US-010: Notification blocking
+- Implemented: isTeamSubscriptionBlocked helper, checks in notification-actions + conversation-notification-actions
+- Files: lib/subscription-guard.ts, app/actions/notification-actions.ts, app/actions/conversation-notification-actions.ts
+- Learnings: 'use server' helpers can't cross-import — extract to lib/ (#141)
+
+## 2026-03-14 — US-011: Locataire/Prestataire blocked
+- Implemented: Layout banners for both roles, detail page guards, prestataire in-progress exception
+- Files: app/locataire/layout.tsx, app/prestataire/layout.tsx, detail pages for both roles
+- Learnings: Define explicit exception statuses (IN_PROGRESS_STATUSES) for role-specific exemptions
+
+## 2026-03-14 — Simplify review
+- Consolidated: isTeamNotificationsBlocked → isTeamSubscriptionBlocked (3→1 copy)
+- Consolidated: getCachedSubscriptionInfo → lib/subscription-cache.ts (3→1 copy)
+- Fixed: BLOCKED_STATUSES missing 'paused' — semantic bug (#139)
+- Fixed: mapHeight prop ignored in address-fields-with-map.tsx
+- Fixed: Double createServiceRoleSupabaseClient in verifyCheckoutSession

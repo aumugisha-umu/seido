@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(python3 -c \":*)",
-      "Bash(\"C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt\":*)"
-    ]
-  }
-}

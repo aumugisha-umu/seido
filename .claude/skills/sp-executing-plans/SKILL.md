@@ -36,6 +36,8 @@ When batch complete:
 - Show verification output
 - Say: "Ready for feedback."
 
+After reporting batch results, run sp-quality-gate on all changed files before proceeding to next batch.
+
 ### Step 4: Continue
 Based on feedback:
 - Apply changes if needed

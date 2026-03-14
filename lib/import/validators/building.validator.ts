@@ -15,6 +15,7 @@ import {
   VALIDATION_CONSTRAINTS,
   SHEET_NAMES,
 } from '../constants';
+import { mapZodErrorToCode, normalizeCountry } from './utils';
 
 // ============================================================================
 // Zod Schema
@@ -167,56 +168,3 @@ export function validateBuildingRows(
   return { data: validData, errors: allErrors };
 }
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Normalize country value
- */
-function normalizeCountry(value: unknown): string {
-  if (!value) return 'france';
-
-  const str = String(value).toLowerCase().trim();
-
-  // Handle common variations
-  const mappings: Record<string, string> = {
-    'france': 'france',
-    'fr': 'france',
-    'belgique': 'belgique',
-    'be': 'belgique',
-    'belgium': 'belgique',
-    'suisse': 'suisse',
-    'ch': 'suisse',
-    'switzerland': 'suisse',
-    'luxembourg': 'luxembourg',
-    'lu': 'luxembourg',
-    'allemagne': 'allemagne',
-    'de': 'allemagne',
-    'germany': 'allemagne',
-    'pays-bas': 'pays-bas',
-    'nl': 'pays-bas',
-    'netherlands': 'pays-bas',
-  };
-
-  return mappings[str] || 'autre';
-}
-
-/**
- * Map Zod error code to import error code
- */
-function mapZodErrorToCode(
-  zodCode: z.ZodIssueCode
-): ImportRowError['code'] {
-  switch (zodCode) {
-    case 'too_small':
-    case 'too_big':
-      return 'REQUIRED_FIELD';
-    case 'invalid_type':
-      return 'INVALID_FORMAT';
-    case 'invalid_enum_value':
-      return 'INVALID_ENUM';
-    default:
-      return 'UNKNOWN';
-  }
-}

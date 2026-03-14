@@ -117,6 +117,7 @@ redirect('/gestionnaire/xxx')
 | Refactoring majeur | `sp-writing-plans` |
 | Optimisation performance | `sp-brainstorming` + mesures |
 | Bug decouvert | `sp-systematic-debugging` |
+| Code cleanup | `sp-simplify` |
 | Avant commit | `sp-verification-before-completion` |
 
 ### Workflow Refactoring
@@ -131,6 +132,8 @@ sp-test-driven-development → Tests AVANT refactoring
 [Refactoring incrementiel]
     ↓
 sp-verification-before-completion → Pas de regression
+    ↓
+[Post-refactoring] → sp-simplify → Validate no new duplicates/inefficiencies
 ```
 
 ---

@@ -5,7 +5,7 @@
  * Manages the state and flow of the import wizard
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type {
   ParseResult,
   ValidationResult,
@@ -129,6 +129,14 @@ const initialState: ImportWizardState = {
 
 export function useImportWizard(): UseImportWizardReturn {
   const [state, setState] = useState<ImportWizardState>(initialState);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup SSE stream on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   // ---- Navigation ----
 
@@ -273,6 +281,11 @@ export function useImportWizard(): UseImportWizardReturn {
     }));
 
     try {
+      // Abort any previous stream
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
       // Use streaming API for real-time progress updates
       const response = await fetch('/api/import/execute-stream', {
         method: 'POST',
@@ -286,6 +299,7 @@ export function useImportWizard(): UseImportWizardReturn {
             errorMode: 'all_or_nothing',
           },
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -324,31 +338,35 @@ export function useImportWizard(): UseImportWizardReturn {
             eventData = line.slice(6);
 
             if (eventType && eventData) {
+              let parsedData: Record<string, unknown>;
               try {
-                const parsedData = JSON.parse(eventData);
+                parsedData = JSON.parse(eventData);
+              } catch {
+                // Skip invalid JSON silently
+                eventType = '';
+                eventData = '';
+                continue;
+              }
 
-                if (eventType === 'progress') {
-                  // Update progress state
-                  const progressEvent = parsedData as ImportProgressEvent;
-                  setState((prev) => ({
-                    ...prev,
-                    importProgress: {
-                      phase: progressEvent.phase,
-                      phaseIndex: progressEvent.phaseIndex,
-                      totalPhases: progressEvent.totalPhases,
-                      phaseName: progressEvent.phaseName,
-                      totalProgress: progressEvent.totalProgress,
-                      isComplete: progressEvent.isComplete,
-                    },
-                  }));
-                } else if (eventType === 'result') {
-                  finalResult = parsedData as ImportResult;
-                } else if (eventType === 'error') {
-                  throw new Error(parsedData.error || 'Erreur d\'import');
-                }
-              } catch (parseError) {
-                // Skip invalid JSON
-                console.warn('Failed to parse SSE event:', parseError);
+              if (eventType === 'progress') {
+                // Update progress state
+                const progressEvent = parsedData as unknown as ImportProgressEvent;
+                setState((prev) => ({
+                  ...prev,
+                  importProgress: {
+                    phase: progressEvent.phase,
+                    phaseIndex: progressEvent.phaseIndex,
+                    totalPhases: progressEvent.totalPhases,
+                    phaseName: progressEvent.phaseName,
+                    totalProgress: progressEvent.totalProgress,
+                    isComplete: progressEvent.isComplete,
+                  },
+                }));
+              } else if (eventType === 'result') {
+                finalResult = parsedData as unknown as ImportResult;
+              } else if (eventType === 'error') {
+                // Server-sent error — propagate immediately
+                throw new Error((parsedData.error as string) || 'Erreur d\'import');
               }
 
               eventType = '';
@@ -372,6 +390,11 @@ export function useImportWizard(): UseImportWizardReturn {
       }
 
     } catch (error) {
+      // Ignore AbortError (user navigated away or component unmounted)
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+
       setState((prev) => ({
         ...prev,
         isLoading: false,
@@ -379,6 +402,8 @@ export function useImportWizard(): UseImportWizardReturn {
         step: 'result',
         importProgress: null,
       }));
+    } finally {
+      abortControllerRef.current = null;
     }
   }, [state.validationResult?.data]);
 

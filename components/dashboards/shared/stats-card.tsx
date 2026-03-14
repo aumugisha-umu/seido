@@ -170,7 +170,7 @@ export const StatsCard = memo(function StatsCard({
                         </span>
                         {sublabel && (
                             <span className={cn("stats-card__sublabel text-xs font-medium", styles.sublabel)}>
-                                {typeof sublabel === 'string' ? sublabel : sublabel}
+                                {sublabel}
                             </span>
                         )}
                     </div>

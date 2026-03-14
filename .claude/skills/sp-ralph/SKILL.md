@@ -231,8 +231,9 @@ Files changed: [list]
 
 Everything is local — no commits made.
 → Type git* to commit + push
-→ Type /compound to capture learnings
 ```
+
+**Auto-invoke sp-compound** after presenting the final report — do NOT ask "Want to compound?", just proceed automatically to capture learnings.
 
 ---
 

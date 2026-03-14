@@ -222,3 +222,6 @@ Skip compounding for:
 - Think "next agent" — write for someone who wasn't here during implementation
 - Quality > Quantity — 1 great learning beats 5 obvious ones
 - The compound step is what makes the NEXT feature faster — don't skip it
+
+### Auto-Sync Memory
+After updating AGENTS.md and progress.txt, automatically invoke `/sync-memory` to keep memory-bank in sync.

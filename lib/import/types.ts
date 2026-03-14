@@ -290,7 +290,6 @@ export interface ImportOptions {
 // ============================================================================
 
 export type ImportPhase =
-  | 'geocoding'    // Phase 0: Geocoding all addresses (buildings, independent lots, companies)
   | 'companies'
   | 'contacts'
   | 'buildings'
@@ -300,8 +299,8 @@ export type ImportPhase =
 
 export interface ImportProgressEvent {
   phase: ImportPhase;
-  phaseIndex: number;        // 0-5 for the 6 phases, 6 for completed
-  totalPhases: number;       // Always 6 (including geocoding)
+  phaseIndex: number;        // 0-4 for the 5 phases, 5 for completed
+  totalPhases: number;       // Always 5 (geocoding is deferred via after())
   phaseName: string;         // French label for display
   phaseCount: number;        // Items in current phase
   phaseCreated: number;      // Created in current phase
@@ -332,6 +331,7 @@ export interface ImportResult {
   errors: ImportRowError[];
   summary: ImportSummary;
   createdContacts?: CreatedContactInfo[];
+  addressIdsToGeocode?: string[];  // Address IDs to geocode in background via after()
 }
 
 export interface ImportSummary {
@@ -356,15 +356,6 @@ export interface TemplateConfig {
   exampleRows: (string | number)[][];
   columnWidths: number[];
   requiredColumns: string[];
-}
-
-export interface ColumnMapping {
-  excelHeader: string;
-  dbField: string;
-  required: boolean;
-  type: 'string' | 'number' | 'date' | 'enum';
-  enumValues?: string[];
-  transform?: (value: unknown) => unknown;
 }
 
 // ============================================================================

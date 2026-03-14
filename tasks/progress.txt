@@ -1,27 +1,38 @@
-# Progress Log — Microsoft Clarity Integration (replace Contentsquare)
+# Progress Log — Import Review + Simplify + Deferred Geocoding
 # Started: 2026-03-14
-# Stories: 4/4 complete
+# Stories: 3/3 complete ✅
 ---
 
-## 2026-03-14 — US-001: Install @microsoft/clarity + env variables
-- Installed: @microsoft/clarity v1.0.2 (0 deps, includes TypeScript defs)
-- Files: .env.local, .env.example, package.json, package-lock.json
-- Learnings: NPM package API uses camelCase (setTag, consentV2) vs inline script lowercase
+## 2026-03-14 — US-001: Bug fixes (7 bugs)
+- Auth wrapper: page.tsx → Server Component + import-page-client.tsx
+- Status bug: `'completed' : 'completed'` → `'completed' : 'failed'` (import.service.ts:685)
+- SSE error handling: re-throw intentional errors, skip JSON parse errors only
+- AbortController: useRef + useEffect cleanup on unmount (use-import-wizard.ts)
+- setMonth overflow: explicit year/month/day arithmetic with day clamping (import.service.ts:1487)
+- Phase index offset: UI shows 5 phases but server sends 6-phase index → subtract 1 (import-step-progress.tsx)
+- Activity log: b.reference→removed, l.building_reference→building_name, c.tenant_email→tenant_emails
+- Files: page.tsx, import-page-client.tsx (new), use-import-wizard.ts, import.service.ts, import-step-progress.tsx
+- Learnings: JS setMonth() overflow is insidious — always use explicit arithmetic for month addition
 
-## 2026-03-14 — US-002: CSP headers update
-- Replaced: contentsquare.net/com → *.clarity.ms in script-src, connect-src, img-src
-- Added: c.bing.com to connect-src (Clarity data collection)
-- Files: next.config.js (both enforced CSP + report-only CSP)
-- Learnings: Clarity uses multiple subdomains (a-z.clarity.ms) — wildcard *.clarity.ms is mandatory
+## 2026-03-14 — US-002: Simplify
+- Created validators/utils.ts: extracted mapZodErrorToCode (was in 5 files), normalizeCountry (2 files), normalizePhone (2 files)
+- Updated all 5 validators to import from shared utils
+- Removed 5 unused COLUMN_MAPPING exports from constants.ts (~150 lines)
+- Deleted dead /api/import/execute/ route (replaced by /execute-stream/ SSE route)
+- Batched building+lot N+1 queries in validateAgainstDatabase with Promise.all
+- Demo data kept in constants.ts (template-generator.ts imports it, no gain from moving)
+- Files: validators/utils.ts (new), building/lot/contact/contract/company.validator.ts, constants.ts, import.service.ts
+- Files deleted: app/api/import/execute/route.ts
+- Learnings: Column mappings were a premature abstraction — validators use Zod schemas directly, making the mappings dead code
 
-## 2026-03-14 — US-003: Rewrite analytics hooks
-- Rewrote: analytics-provider.tsx (Clarity.init + ConsentV2 with GDPR)
-- Rewrote: use-analytics-identify.ts (Clarity.identify + setTag for 3 custom tags)
-- Deleted: use-analytics-tracking.ts (Clarity handles SPA tracking automatically via pushState interception)
-- Tags: user_role, subscription_status, subscription_plan
-- Learnings: ConsentV2 requires { ad_Storage, analytics_Storage } with capital S — inconsistent casing
-
-## 2026-03-14 — US-004: Cleanup Contentsquare
-- Removed: <Script src="https://t.contentsquare.net/uxa/b3cbc84e830fe.js"> from layout.tsx
-- Removed: unused next/script import
-- Files: app/layout.tsx
+## 2026-03-14 — US-003: Deferred geocoding via after()
+- Removed Phase 0 geocoding from synchronous import pipeline (~70 lines deleted from import.service.ts)
+- All createAddress calls now pass null for geocode data — addresses created without coordinates
+- Import returns addressIdsToGeocode[] collected from importCompanies, importBuildings, importLots
+- SSE route uses after() to trigger geocodePendingAddresses() post-response (execute-stream/route.ts)
+- Added geocodePendingAddresses() to AddressService: batch 10 parallel, 250ms delay, rate-limited
+- Updated ImportPhase type: removed 'geocoding' from union
+- Phase indices shifted: companies=0, contacts=1, buildings=2, lots=3, contracts=4
+- Progress UI updated to 5 phases (direct mapping, no offset needed)
+- Files: import.service.ts, types.ts, execute-stream/route.ts, address.service.ts, import-step-progress.tsx
+- Learnings: next/server after() is perfect for non-blocking post-response work; Google Geocoding rate limit = 50/sec, we use 40/sec (10 parallel × 4 batches/sec)

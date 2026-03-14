@@ -132,6 +132,14 @@ revalidatePath('/gestionnaire/biens')
 - ❌ Manual auth → Use `getServerAuthContext()`
 - ❌ useCreationSuccess → Use redirect() or toast+router.push()
 
+## AGENTS.md Key Learnings for Frontend
+
+Always check AGENTS.md before implementation. Key frontend learnings include:
+- Radix ScrollArea breaks truncate — use `overflow-y-auto` instead
+- Hook declaration order matters (TDZ crash if useState after dependent hooks)
+- SSR hydration gap — always poll for specific text, not instant snapshots
+- Learning numbers change; grep AGENTS.md for your specific domain
+
 ## Commands
 
 ```bash

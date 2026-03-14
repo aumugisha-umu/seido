@@ -54,8 +54,12 @@ model: opus
 ## Authentication Pattern
 
 ```typescript
-import { createServerSupabaseClient } from '@/lib/services'
+// Server Actions / Server Components → ALWAYS use getServerAuthContext()
+import { getServerAuthContext } from '@/lib/server-context'
+const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
 
+// API Routes (app/api/) → createServerSupabaseClient() is acceptable
+import { createServerSupabaseClient } from '@/lib/services'
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -106,19 +110,20 @@ if (!result.success) {
 }
 ```
 
-## Intervention Status Transitions
+## Intervention Status Transitions (9 statuts)
 
 ```
 demande → approuvee | rejetee
-approuvee → demande_de_devis
-demande_de_devis → planification
+approuvee → planification
 planification → planifiee
-planifiee → en_cours
-en_cours → cloturee_par_prestataire
+planifiee → cloturee_par_prestataire
 cloturee_par_prestataire → cloturee_par_locataire
 cloturee_par_locataire → cloturee_par_gestionnaire
 * → annulee (any can be cancelled)
 ```
+
+> Note: `demande_de_devis` et `en_cours` ont ete SUPPRIMES.
+> Les devis sont geres via `requires_quote` + `intervention_quotes`.
 
 ## Performance Targets
 
@@ -136,6 +141,7 @@ cloturee_par_locataire → cloturee_par_gestionnaire
 - ❌ Missing validation → Validate with Zod
 - ❌ Inconsistent response format → Use standard format
 - ❌ Ignoring generated types → Use `lib/database.types.ts`
+- ❌ Missing AGENTS.md check → Read relevant learnings before designing
 
 ## Skills Integration
 

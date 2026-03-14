@@ -64,7 +64,7 @@ interface PendingActionsSectionProps {
 // ============================================================================
 
 const defaultTitles: Record<UserRole, string> = {
-  gestionnaire: "Interventions à traiter  ",
+  gestionnaire: "Interventions à traiter",
   prestataire: "Interventions à traiter",
   locataire: "Interventions à traiter"
 }

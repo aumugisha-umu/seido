@@ -15,6 +15,7 @@ import {
   VALIDATION_CONSTRAINTS,
   SHEET_NAMES,
 } from '../constants';
+import { mapZodErrorToCode } from './utils';
 
 // ============================================================================
 // Zod Schema
@@ -379,23 +380,3 @@ function normalizeContractType(value: unknown): string {
   return mappings[str] || 'bail_habitation';
 }
 
-/**
- * Map Zod error code to import error code
- */
-function mapZodErrorToCode(
-  zodCode: z.ZodIssueCode
-): ImportRowError['code'] {
-  switch (zodCode) {
-    case 'too_small':
-    case 'too_big':
-      return 'REQUIRED_FIELD';
-    case 'invalid_type':
-      return 'INVALID_FORMAT';
-    case 'invalid_enum_value':
-      return 'INVALID_ENUM';
-    case 'invalid_string':
-      return 'INVALID_FORMAT';
-    default:
-      return 'UNKNOWN';
-  }
-}

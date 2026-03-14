@@ -177,9 +177,6 @@ export const InterventionCard = memo(function InterventionCard({
     }
   }, [userRole, intervention.id])
 
-  // For backwards compatibility, keep getInterventionUrl as a function
-  const getInterventionUrl = useCallback(() => interventionUrl, [interventionUrl])
-
   // ✅ Prefetch on hover - page loads instantly when user clicks
   const { onMouseEnter: prefetchOnEnter, onMouseLeave: prefetchOnLeave } = usePrefetch(interventionUrl)
 
@@ -269,13 +266,15 @@ export const InterventionCard = memo(function InterventionCard({
       router.push(action.href)
     } else {
       // Fallback to detail page
-      router.push(getInterventionUrl())
+      router.push(interventionUrl)
     }
-  }, [handleApiAction, router, getInterventionUrl, onOpenProgrammingModal, intervention])
+  }, [handleApiAction, router, interventionUrl, onOpenProgrammingModal, intervention])
 
-  // Check if user prefers reduced motion
-  const prefersReducedMotion = typeof window !== 'undefined' &&
+  // Check if user prefers reduced motion (memoized — matchMedia is a DOM API call)
+  const prefersReducedMotion = useMemo(() =>
+    typeof window !== 'undefined' &&
     window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  , [])
 
   return (
     <div
@@ -311,7 +310,7 @@ export const InterventionCard = memo(function InterventionCard({
 
         {/* Title + Badges container */}
         <div className="flex-1 min-w-0">
-          <Link href={getInterventionUrl()} className="block">
+          <Link href={interventionUrl} className="block">
             <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-pointer">
               {intervention.title}
             </h3>
@@ -358,7 +357,7 @@ export const InterventionCard = memo(function InterventionCard({
           className="flex-shrink-0 h-9 w-9 border-border/60 bg-muted/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-accent"
           title="Voir les détails"
         >
-          <Link href={getInterventionUrl()}>
+          <Link href={interventionUrl}>
             <Eye className="h-5 w-5" aria-hidden="true" />
             <span className="sr-only">Voir les détails</span>
           </Link>

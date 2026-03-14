@@ -41,9 +41,21 @@ import type { UnreadThread } from "@/lib/services/repositories/conversation-repo
 // Type for intervention row from Supabase (used in realtime callback)
 type DbIntervention = Database['public']['Tables']['interventions']['Row']
 
+const closedStatuses = ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']
+
+interface DashboardStats {
+    buildingsCount: number
+    lotsCount: number
+    occupiedLotsCount: number
+    occupancyRate: number
+    interventionsCount: number
+    buildingLotsCount?: number
+    independentLotsCount?: number
+}
+
 interface ManagerDashboardProps {
-    stats: any
-    contactStats: any
+    stats: DashboardStats
+    tenantCount: number
     contractStats: ContractStats
     interventions: any[]
     pendingCount: number
@@ -53,7 +65,7 @@ interface ManagerDashboardProps {
     unreadThreadsTotalCount?: number
 }
 
-export function ManagerDashboardV2({ stats, contactStats, contractStats, interventions: initialInterventions, pendingCount, onboardingProgress, isTrialing, unreadThreads, unreadThreadsTotalCount }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, onboardingProgress, isTrialing, unreadThreads, unreadThreadsTotalCount }: ManagerDashboardProps) {
     const router = useRouter()
     // Local state for interventions (enables realtime updates)
     const [interventions, setInterventions] = useState(initialInterventions)
@@ -62,12 +74,9 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     const { daysLeftTrial, status: subscriptionStatus } = useSubscription()
     const { onInterventionClosed, checkQuotaWarning } = useStrategicNotification({
         daysLeftTrial,
-        lotCount: stats.lotsCount ?? 0,
+        lotCount: stats.lotsCount,
         freeTierLimit: FREE_TIER_LIMIT,
     })
-
-    // Calculate tenant count from contactStats
-    const tenantCount = contactStats?.contactsByType?.locataire?.total || 0
 
     // Calculate active and completed intervention counts
     // ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote
@@ -93,7 +102,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     const navigateToContracts = useCallback(() => router.push('/gestionnaire/biens/contrats'), [router])
 
     // Realtime updates for interventions
-    const closedStatuses = ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']
     useRealtimeInterventions({
         interventionCallbacks: {
             onUpdate: useCallback((updatedIntervention: DbIntervention) => {
@@ -299,7 +307,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                 daysLeft={daysLeftTrial}
                 paymentMethodAdded={subscriptionStatus?.payment_method_added ?? false}
                 trialEndDate={subscriptionStatus?.trial_end ?? null}
-                lotCount={stats.lotsCount ?? 0}
+                lotCount={stats.lotsCount}
                 interventionCount={activeInterventionsCount + completedInterventionsCount}
             />
         </div>

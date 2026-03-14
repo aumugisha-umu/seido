@@ -64,6 +64,14 @@ git diff --name-only
 git status --short
 ```
 
+### Step 2.5: Simplify Quick-Scan (Active Duplicate Detection)
+
+For each **new function/export** in changed files:
+1. Grep `lib/utils/`, `lib/constants/`, `components/ui/`, and adjacent files for similar names/signatures
+2. Flag any duplicate as BLOCKER (Lens 3 "Code reuse" — but caught here via active search, not passive review)
+
+This is NOT a full `/simplify` audit — it's a targeted grep for the highest-value check. Full `/simplify` remains available for deep reviews.
+
 ### Step 3: 4-Lens Review
 
 For each changed file, apply all 4 lenses:
@@ -159,6 +167,21 @@ For each changed file, apply all 4 lenses:
 
 **Recommendation:** [APPROVED ✅ | FIX BLOCKERS ❌]
 ```
+
+### Step 4.5: Knowledge Capture Check
+
+After all blockers/warnings are resolved and before committing, review the work for learnings to persist:
+
+| Question | If YES → Action |
+|----------|-----------------|
+| Did we discover a non-obvious pitfall or pattern? | → **Compound:** Add learning to `AGENTS.md` via `sp-compound` |
+| Did we learn something about the user, project, or external reference? | → **Memory Bank:** Save to `.claude/projects/.../memory/` (user, project, feedback, or reference type) |
+| Did this work reveal a missing or wrong instruction in CLAUDE.md? | → **CLAUDE.md:** Update the relevant section |
+| Did an agent or skill behave incorrectly or miss something important? | → **Agent/Skill:** Update the `.claude/agents/*.md` or `.claude/skills/*/SKILL.md` file |
+| Did we establish a new reusable pattern (code or process)? | → **systemPatterns.md:** Add to memory-bank patterns |
+
+**If nothing to persist** — skip silently and proceed to commit.
+**If learnings found** — apply them NOW (before commit), so the commit includes both the feature AND the knowledge updates.
 
 ### Step 5: User Decision
 

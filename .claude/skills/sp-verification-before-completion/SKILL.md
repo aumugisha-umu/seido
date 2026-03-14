@@ -68,3 +68,16 @@ BEFORE claiming any status:
 Run the command. Read the output. THEN claim the result.
 
 This is non-negotiable.
+
+## Post-Verification
+
+After successful verification, before committing:
+
+1. **Knowledge Capture:** Review work for persistable learnings:
+   - New pitfall/pattern discovered? → `sp-compound` (AGENTS.md)
+   - User/project/reference insight? → Memory Bank (`.claude/projects/.../memory/`)
+   - CLAUDE.md instruction missing or wrong? → Update CLAUDE.md
+   - Agent/skill behaved incorrectly? → Update the relevant `.claude/agents/` or `.claude/skills/` file
+   - If nothing to persist → skip silently
+
+2. **Suggest:** "Run /compound to capture learnings from this work."

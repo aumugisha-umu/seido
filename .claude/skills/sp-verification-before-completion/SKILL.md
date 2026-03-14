@@ -29,10 +29,11 @@ BEFORE claiming any status:
 1. IDENTIFY: What command proves this claim?
 2. RUN: Execute the FULL command (fresh, complete)
 3. READ: Full output, check exit code, count failures
-4. VERIFY: Does output confirm the claim?
+4. CRAFTSMANSHIP: Run Code Craftsmanship Standards checklist against changed files
+5. VERIFY: Does output confirm the claim?
    - If NO: State actual status with evidence
    - If YES: State claim WITH evidence
-5. ONLY THEN: Make the claim
+6. ONLY THEN: Make the claim
 ```
 
 ## Common Failures

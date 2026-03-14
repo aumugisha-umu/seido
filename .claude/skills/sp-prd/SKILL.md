@@ -191,6 +191,7 @@ When generating PRDs for SEIDO, always consider:
 4. **Mobile-first:** Prestataire = 75% mobile
 5. **Repository pattern:** Data access through repositories only
 6. **Server Components:** Default to server, minimize 'use client'
+7. **Reuse awareness:** Check if existing components/services can be reused before specifying new ones
 
 ## Remember
 

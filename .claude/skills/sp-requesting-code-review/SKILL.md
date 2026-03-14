@@ -35,6 +35,7 @@ HEAD_SHA=$(git rev-parse HEAD)
 - `{BASE_SHA}` - Starting commit
 - `{HEAD_SHA}` - Ending commit
 - `{DESCRIPTION}` - Brief summary
+- Also check: Code Craftsmanship Standards from CLAUDE.md (reuse, quality guardrails, efficiency)
 
 **3. Act on feedback:**
 - Fix Critical issues immediately

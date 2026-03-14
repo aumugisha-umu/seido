@@ -21,6 +21,7 @@ Start by understanding the current project context, then ask questions one at a 
 - Focus on understanding: purpose, constraints, success criteria
 
 **Exploring approaches:**
+- Search existing codebase for similar patterns/utilities that could be reused or extended
 - Propose 2-3 different approaches with trade-offs
 - Present options conversationally with your recommendation and reasoning
 - Lead with your recommended option and explain why

@@ -160,6 +160,7 @@ Acceptance Criteria:
 3. Check `systemPatterns.md` for patterns
 
 #### 5c. Implement
+- **BEFORE writing:** Apply "Code Craftsmanship Standards > Before Writing Code" — search for existing utilities/components to reuse
 - **Logic stories:** TDD — write failing test → implement → pass
 - **UI stories:** Implement component → typecheck
 - **Schema stories:** Migration → `npm run supabase:types`
@@ -214,6 +215,7 @@ npm test             # All tests
 ```
 
 Review changed files through 4 lenses (Security, Performance, Patterns, Tests).
+Apply "Code Craftsmanship Standards > After Writing Code" checklist to ALL changed files.
 If blockers → fix → re-run. Loop until zero blockers.
 
 ### Step 7: Final Report
@@ -243,3 +245,6 @@ Everything is local — no commits made.
 - [ ] Separate queries + Promise.all for RLS nested relations
 - [ ] Mobile-first for prestataire views
 - [ ] Server Components default, minimize 'use client'
+- [ ] No duplicate utils (grep before creating new functions)
+- [ ] No N+1 queries / missed parallelism (Promise.all for independent ops)
+- [ ] No `any` types, `console.log`, or inline styles

@@ -24,9 +24,11 @@ Load plan, review critically, execute tasks in batches, report for review betwee
 
 For each task:
 1. Mark as in_progress
-2. Follow each step exactly
-3. Run verifications as specified
-4. Mark as completed
+2. Before implementing: reuse search (Code Craftsmanship Standards > Before Writing Code)
+3. Follow each step exactly
+4. After implementing: efficiency self-check (Code Craftsmanship Standards > After Writing Code)
+5. Run verifications as specified
+6. Mark as completed
 
 ### Step 3: Report
 When batch complete:

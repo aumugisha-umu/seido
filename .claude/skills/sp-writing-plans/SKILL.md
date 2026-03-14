@@ -81,6 +81,8 @@ If a PRD exists, reference it:
 
 ## Bite-Sized Task Granularity
 
+**Step 0 per task: Reuse search** — search codebase for existing utilities/components that overlap with this task before specifying new code.
+
 Each step is one action (2-5 minutes):
 - "Write the failing test" - step
 - "Run it to make sure it fails" - step

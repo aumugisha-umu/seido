@@ -5,6 +5,9 @@ description: Review changed code for reuse, quality, and efficiency, then fix an
 
 # Simplify: Code Review and Cleanup
 
+> **Note:** Core craftsmanship checks are now embedded in upstream skills (ralph, tdd, quality-gate) via "Code Craftsmanship Standards" in CLAUDE.md.
+> This skill remains useful for: targeted deep reviews, full-app audits, and catching edge cases.
+
 Review code for reuse, quality, and efficiency. Fix any issues found.
 
 ## Phase 1: Determine Scope

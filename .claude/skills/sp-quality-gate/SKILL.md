@@ -85,10 +85,15 @@ For each changed file, apply all 4 lenses:
 | Check | SEIDO-Specific | Severity |
 |-------|----------------|----------|
 | N+1 queries | Lists must batch with Promise.all (Learning #008) | WARNING |
+| Missed parallelism | Independent async ops must use Promise.all | WARNING |
+| TOCTOU anti-pattern | Operate directly, handle errors (no check-then-act) | WARNING |
+| Redundant DB queries | Same data fetched twice in same request | WARNING |
+| Overly broad queries | Loading all when filtering for one | WARNING |
 | Separate queries pattern | Nested relations with RLS (Learning #004) | WARNING |
 | Pagination | Large datasets must be paginated | WARNING |
 | Client bundle | Minimize 'use client' directives | WARNING |
 | Image optimization | Next/Image for all images | INFO |
+| Memory leaks | Event listeners / subscriptions not cleaned up on unmount | WARNING |
 | Realtime channels | Single RealtimeProvider, no duplicate channels | WARNING |
 
 #### Lens 3: Patterns (VETO on critical)
@@ -96,6 +101,12 @@ For each changed file, apply all 4 lenses:
 | Check | SEIDO-Specific | Severity |
 |-------|----------------|----------|
 | Repository Pattern | No direct Supabase calls in components | BLOCKER |
+| Code reuse | New function duplicates existing utility (grep first!) | BLOCKER |
+| Redundant state | State derived from existing state — compute instead | WARNING |
+| Parameter sprawl | Adding params instead of generalizing | WARNING |
+| Copy-paste variation | Near-duplicate code blocks — extract shared abstraction | WARNING |
+| Stringly-typed code | Raw strings where constants/enums exist | WARNING |
+| `any` / `console.log` | Must be properly typed; remove debug logging | BLOCKER |
 | Server Components default | 'use client' only when necessary | WARNING |
 | Module Facade | Files > 500 lines must be split | BLOCKER |
 | Naming conventions | kebab-case files, handleX events, const functions | WARNING |
@@ -202,6 +213,11 @@ These are the most common issues caught by the quality gate in SEIDO:
 5. **Missing notification integration** for workflow changes — Patterns WARNING
 6. **Push notification URLs without role prefix** — Patterns WARNING
 7. **'use client' on pages that could be Server Components** — Patterns WARNING
+8. **Duplicate utility function** created when one already exists — Patterns BLOCKER
+9. **Missed `Promise.all`** for independent async operations — Performance WARNING
+10. **`any` types or `console.log`** left in production code — Patterns BLOCKER
+11. **Redundant DB query** (same data fetched twice in same handler) — Performance WARNING
+12. **Inline styles or hardcoded colors** instead of Tailwind/CSS variables — Patterns WARNING
 
 ## Remember
 

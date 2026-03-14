@@ -13,7 +13,6 @@
  * | Type Contact   | Building | Lot | Contract |
  * |----------------|----------|-----|----------|
  * | gestionnaire   |    ✅    | ✅  |    ✅    |
- * | proprietaire   |    ✅    | ✅  |    ✅    |
  * | locataire      |    ❌    | ✅  |    ✅    |
  * | prestataire    |    ✅    | ✅  |    ❌    |
  * | autre          |    ✅    | ✅  |    ✅    |

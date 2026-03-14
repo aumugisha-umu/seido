@@ -106,7 +106,8 @@ export class StripeWebhookHandler {
       return { status: 400, message: 'Missing team_id in checkout session metadata' }
     }
 
-    if (session.payment_status !== 'paid') {
+    // 'paid' = normal checkout, 'no_payment_required' = trial with 0 EUR
+    if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
       return { status: 200, message: 'Checkout payment not yet completed' }
     }
 
@@ -190,6 +191,9 @@ export class StripeWebhookHandler {
 
     const status = SubscriptionService.mapStripeStatus(subscription.status)
 
+    // If subscription has a default payment method, mark it
+    const hasPaymentMethod = !!subscription.default_payment_method
+
     await this.subRepo.upsertByTeamId(teamId, {
       team_id: teamId,
       stripe_subscription_id: subscription.id,
@@ -204,6 +208,7 @@ export class StripeWebhookHandler {
         ? new Date(subscription.current_period_end * 1000).toISOString()
         : null,
       cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+      ...(hasPaymentMethod ? { payment_method_added: true } : {}),
     })
 
     return { status: 200, message: 'Subscription created processed' }
@@ -238,6 +243,9 @@ export class StripeWebhookHandler {
     const quantity = item?.quantity ?? 0
     const status = SubscriptionService.mapStripeStatus(subscription.status)
 
+    // If subscription has a default payment method, mark it
+    const hasPaymentMethod = !!subscription.default_payment_method
+
     await this.subRepo.upsertByTeamId(targetTeamId, {
       team_id: targetTeamId,
       stripe_subscription_id: subscription.id,
@@ -258,6 +266,7 @@ export class StripeWebhookHandler {
       canceled_at: subscription.canceled_at
         ? new Date(subscription.canceled_at * 1000).toISOString()
         : null,
+      ...(hasPaymentMethod ? { payment_method_added: true } : {}),
     })
 
     return { status: 200, message: 'Subscription updated processed' }

@@ -23,12 +23,10 @@ interface LotContactsGridPreviewProps {
   managers?: Contact[]
   tenants: Contact[]
   providers: Contact[]
-  owners: Contact[]
   others: Contact[]
   buildingManagers?: Contact[]
   buildingTenants?: Contact[]
   buildingProviders?: Contact[]
-  buildingOwners?: Contact[]
   buildingOthers?: Contact[]
   lotContactIds: Record<string, string> // Maps user_id to lot_contact_id
   teamId: string
@@ -54,12 +52,10 @@ export function LotContactsGridPreview({
   managers = [],
   tenants,
   providers,
-  owners,
   others,
   buildingManagers = [],
   buildingTenants = [],
   buildingProviders = [],
-  buildingOwners = [],
   buildingOthers = [],
   lotContactIds,
   teamId,
@@ -80,7 +76,7 @@ export function LotContactsGridPreview({
 
   // Handle contact removal
   const handleRemoveContact = (contact: Contact) => {
-    const contactType = contact.type === 'provider' ? 'prestataire' : contact.type === 'owner' ? 'proprietaire' : contact.type === 'tenant' ? 'locataire' : contact.type === 'manager' ? 'gestionnaire' : 'autre'
+    const contactType = contact.type === 'provider' ? 'prestataire' : contact.type === 'tenant' ? 'locataire' : contact.type === 'manager' ? 'gestionnaire' : 'autre'
     setDeleteModal({
       isOpen: true,
       contact,
@@ -120,7 +116,6 @@ export function LotContactsGridPreview({
       'gestionnaires': 'manager',
       'locataires': 'tenant',
       'prestataires': 'provider',
-      'propriétaires': 'owner',
       'autres contacts': 'other'
     }
 
@@ -173,7 +168,6 @@ export function LotContactsGridPreview({
       manager: buildingManagers,
       tenant: buildingTenants,
       provider: buildingProviders,
-      owner: buildingOwners,
       other: buildingOthers
     }
   }
@@ -185,14 +179,13 @@ export function LotContactsGridPreview({
         manager: managers,
         tenant: tenants,
         provider: providers,
-        owner: owners,
         other: others
       }
     }
   }
 
   // Determine grid columns based on hideTenants
-  const gridCols = hideTenants ? 'lg:grid-cols-4' : 'lg:grid-cols-5'
+  const gridCols = hideTenants ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
 
   return (
     <>
@@ -239,20 +232,6 @@ export function LotContactsGridPreview({
             if (contact) handleRemoveContact(contact)
           }}
           inheritedContacts={buildingProviders}
-          showInheritedSummary={true}
-        />
-
-        {/* Owners Section */}
-        <ContactSection
-          sectionType="owners"
-          contacts={owners}
-          readOnly={false}
-          onAddContact={() => handleAddContact('propriétaires')}
-          onRemoveContact={(id) => {
-            const contact = owners.find(c => c.id === id)
-            if (contact) handleRemoveContact(contact)
-          }}
-          inheritedContacts={buildingOwners}
           showInheritedSummary={true}
         />
 

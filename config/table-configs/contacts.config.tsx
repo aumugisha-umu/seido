@@ -72,13 +72,11 @@ export const getContactTypeLabel = (role?: string) => {
     const types: Record<string, string> = {
         // English values (expected)
         'tenant': 'Locataire',
-        'owner': 'Propriétaire',
         'provider': 'Prestataire',
         'manager': 'Gestionnaire',
         'other': 'Autre',
         // French values (fallback for legacy data)
         'locataire': 'Locataire',
-        'proprietaire': 'Propriétaire',
         'prestataire': 'Prestataire',
         'gestionnaire': 'Gestionnaire',
         'autre': 'Autre'
@@ -90,13 +88,11 @@ export const getContactTypeBadgeStyle = (role?: string) => {
     const styles: Record<string, string> = {
         // English values (expected)
         'tenant': 'bg-blue-100 text-blue-800',
-        'owner': 'bg-amber-100 text-amber-800',
         'provider': 'bg-green-100 text-green-800',
         'manager': 'bg-purple-100 text-purple-800',
         'other': 'bg-gray-100 text-gray-600',
         // French values (fallback for legacy data)
         'locataire': 'bg-blue-100 text-blue-800',
-        'proprietaire': 'bg-amber-100 text-amber-800',
         'prestataire': 'bg-green-100 text-green-800',
         'gestionnaire': 'bg-purple-100 text-purple-800',
         'autre': 'bg-gray-100 text-gray-600'
@@ -268,7 +264,6 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
             options: [
                 { value: 'all', label: 'Tous' },
                 { value: 'locataire', label: 'Locataire' },
-                { value: 'proprietaire', label: 'Propriétaire' },
                 { value: 'prestataire', label: 'Prestataire' },
                 { value: 'gestionnaire', label: 'Gestionnaire' }
             ],

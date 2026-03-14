@@ -8,6 +8,7 @@ import { getInterventionAction } from '@/app/actions/intervention-actions'
 import { getServerAuthContext } from '@/lib/server-context'
 import { createServiceRoleSupabaseClient } from '@/lib/services'
 import { LocataireInterventionDetailClient } from './components/intervention-detail-client'
+import { isTeamSubscriptionBlocked } from '@/lib/subscription-guard'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -18,8 +19,12 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
   const { id } = resolvedParams
 
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  // Remplace ~18 lignes d'auth manuelle (getUser + role check)
   const { profile: userData, supabase } = await getServerAuthContext('locataire')
+
+  // Block access if team subscription is blocked
+  if (await isTeamSubscriptionBlocked(userData.team_id)) {
+    redirect('/locataire/dashboard')
+  }
 
   // Load intervention data
   const result = await getInterventionAction(id)

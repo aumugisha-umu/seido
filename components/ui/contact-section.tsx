@@ -9,7 +9,6 @@ import {
   Plus,
   X,
   Wrench,
-  Home,
   UserCircle,
   UserRound,
   LucideIcon,
@@ -45,7 +44,7 @@ export interface BaseContact {
  * ✅ Responsive design
  */
 
-type ContactSectionType = 'managers' | 'tenants' | 'providers' | 'owners' | 'others' | 'guarantors'
+type ContactSectionType = 'managers' | 'tenants' | 'providers' | 'others' | 'guarantors'
 
 interface ContactSectionConfig {
   icon: LucideIcon
@@ -127,26 +126,6 @@ const SECTION_CONFIGS: Record<ContactSectionType, ContactSectionConfig> = {
       buttonBorder: "border-green-300",
       buttonText: "text-green-700",
       buttonHover: "hover:bg-green-50"
-    }
-  },
-  owners: {
-    icon: Home,
-    label: "Propriétaires",
-    addButtonLabel: "Ajouter propriétaire",
-    emptyMessage: "Aucun propriétaire",
-    colorScheme: {
-      header: "bg-orange-50",
-      headerHover: "hover:bg-orange-100",
-      iconColor: "text-orange-600",
-      textColor: "text-orange-900",
-      badgeBg: "bg-orange-600",
-      itemBg: "bg-orange-50/50",
-      itemBorder: "border-orange-100",
-      avatarBg: "bg-orange-200",
-      avatarIcon: "text-orange-700",
-      buttonBorder: "border-orange-300",
-      buttonText: "text-orange-700",
-      buttonHover: "hover:bg-orange-50"
     }
   },
   others: {

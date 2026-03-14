@@ -276,23 +276,23 @@ export async function AsyncDashboardContent({
     isTrialing = sub?.[0]?.status === 'trialing'
 
     if (isTrialing) {
-      const [obLots, obTenants, obProviders, obContracts, obInterventions, obClosed] = await Promise.all([
+      const [obLots, obContacts, obContracts, obInterventions, obClosed, obEmails] = await Promise.all([
         supabase.from('lots').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
-        supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId).eq('role', 'locataire'),
-        supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId).eq('role', 'prestataire'),
+        supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
         supabase.from('contracts').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
         supabase.from('interventions').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
         supabase.from('interventions').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId)
           .in('status', ['cloturee_par_gestionnaire', 'cloturee_par_prestataire', 'cloturee_par_locataire']),
+        supabase.from('team_email_connections').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId).eq('is_active', true),
       ])
 
       onboardingProgress = {
         hasLot: (obLots.count ?? 0) > 0,
-        hasAddedTenant: (obTenants.count ?? 0) > 0,
-        hasInvitedProvider: (obProviders.count ?? 0) > 0,
+        hasContact: (obContacts.count ?? 0) > 1,
         hasContract: (obContracts.count ?? 0) > 0,
         hasIntervention: (obInterventions.count ?? 0) > 0,
         hasClosedIntervention: (obClosed.count ?? 0) > 0,
+        hasEmail: (obEmails.count ?? 0) > 0,
       }
     }
   } catch (error) {

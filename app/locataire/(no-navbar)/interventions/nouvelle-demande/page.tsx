@@ -1,9 +1,16 @@
+import { redirect } from "next/navigation"
 import { getServerAuthContext } from "@/lib/server-context"
 import { createServerTenantService } from "@/lib/services/domain/tenant.service"
+import { isTeamSubscriptionBlocked } from "@/lib/subscription-guard"
 import NouvelleDemandePage from "./nouvelle-demande-client"
 
 export default async function NouvelleDemandServerPage() {
   const { profile } = await getServerAuthContext('locataire')
+
+  // Block new requests if team subscription is blocked
+  if (await isTeamSubscriptionBlocked(profile.team_id)) {
+    redirect('/locataire/dashboard')
+  }
 
   // Fetch tenant lots server-side
   const tenantService = await createServerTenantService()

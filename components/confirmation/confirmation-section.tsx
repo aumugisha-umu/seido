@@ -6,12 +6,13 @@ interface ConfirmationSectionProps {
   icon?: React.ReactNode
   children: React.ReactNode
   compact?: boolean
+  card?: boolean
   className?: string
 }
 
-export function ConfirmationSection({ title, icon, children, compact, className }: ConfirmationSectionProps) {
+export function ConfirmationSection({ title, icon, children, compact, card, className }: ConfirmationSectionProps) {
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-3", card && "rounded-xl border bg-card p-5", className)}>
       <div className="flex items-center gap-2">
         {icon && <span className="text-muted-foreground shrink-0">{icon}</span>}
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{title}</h3>

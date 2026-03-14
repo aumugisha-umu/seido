@@ -35,11 +35,12 @@ export async function GET(request: Request) {
     const now = new Date()
     let transitioned = 0
 
-    // Find all expired trials
+    // Find expired trials WITHOUT payment method (Stripe auto-converts those with payment)
     const { data: subs, error } = await supabase
       .from('subscriptions')
       .select('*, teams!inner(id, name)')
       .eq('status', 'trialing')
+      .eq('payment_method_added', false)
       .lt('trial_end', now.toISOString())
 
     if (error) {

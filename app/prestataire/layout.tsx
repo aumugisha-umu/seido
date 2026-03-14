@@ -4,6 +4,8 @@ import { PrestataireLayoutClient } from "./layout-client"
 import { FrillWidget } from "@/components/frill-widget"
 import { RealtimeWrapper } from "@/components/realtime-wrapper"
 import { PWABannerWrapper } from "@/components/pwa/pwa-banner-wrapper"
+import { SubscriptionBanners } from "@/components/billing/subscription-banners"
+import { getCachedSubscriptionInfo } from "@/lib/subscription-cache"
 
 /**
  * 🔐 PRESTATAIRE LAYOUT - ROOT LAYOUT (Architecture Next.js 15 + Route Groups)
@@ -26,9 +28,23 @@ export default async function PrestataireLayout({
 }) {
   const { profile } = await getServerAuthContext('prestataire')
 
+  // Fetch team subscription status (for blocked banner)
+  let subscriptionInfo = null
+  try {
+    subscriptionInfo = await getCachedSubscriptionInfo(profile.team_id)
+  } catch {
+    // Silently fail — banner just won't show
+  }
+
   return (
     <PWABannerWrapper>
       <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+        {/* Subscription blocked banner (neutral gray for prestataire) */}
+        {subscriptionInfo?.is_read_only && (
+          <div className="flex-shrink-0 z-50">
+            <SubscriptionBanners subscriptionInfo={subscriptionInfo} role="prestataire" />
+          </div>
+        )}
         {/* Contenu principal - DashboardHeader délégué aux Route Group layouts */}
         <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
           {/* 🔄 RealtimeWrapper centralise les subscriptions Supabase Realtime */}

@@ -8,44 +8,27 @@ import { PWABannerWrapper } from "@/components/pwa/pwa-banner-wrapper"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import GestionnaireSidebar from "@/components/gestionnaire-sidebar"
 import { SubscriptionBanners } from "@/components/billing/subscription-banners"
-import { SubscriptionService } from "@/lib/services/domain/subscription.service"
-import { SubscriptionRepository } from "@/lib/services/repositories/subscription.repository"
-import { StripeCustomerRepository } from "@/lib/services/repositories/stripe-customer.repository"
-import { getStripe } from "@/lib/stripe"
+import { getCachedSubscriptionInfo } from "@/lib/subscription-cache"
 import { unstable_cache } from "next/cache"
 import { createServiceRoleSupabaseClient } from "@/lib/services"
 
-// Cached count of active/trialing teams (social proof for trial banner)
-const getActiveTeamsCount = unstable_cache(
-  async () => {
-    try {
-      const adminClient = createServiceRoleSupabaseClient()
-      const { count } = await adminClient
-        .from('subscriptions')
-        .select('id', { count: 'exact', head: true })
-        .in('status', ['active', 'trialing'])
-      return count ?? 0
-    } catch {
-      return 0
-    }
-  },
-  ['active-teams-count'],
-  { revalidate: 3600 } // 1 hour cache
-)
-
-// Cached subscription info per team (15min TTL, invalidated by Stripe webhook)
-const getCachedSubscriptionInfo = (teamId: string) =>
+// Cached intervention count per team (for trial banner messaging)
+const getCachedInterventionCount = (teamId: string) =>
   unstable_cache(
     async () => {
-      const stripe = getStripe()
-      const serviceRoleClient = createServiceRoleSupabaseClient()
-      const subRepo = new SubscriptionRepository(serviceRoleClient)
-      const custRepo = new StripeCustomerRepository(serviceRoleClient)
-      const subService = new SubscriptionService(stripe, subRepo, custRepo)
-      return subService.getSubscriptionInfo(teamId, subRepo)
+      try {
+        const adminClient = createServiceRoleSupabaseClient()
+        const { count } = await adminClient
+          .from('interventions')
+          .select('id', { count: 'exact', head: true })
+          .eq('team_id', teamId)
+        return count ?? 0
+      } catch {
+        return 0
+      }
     },
-    ['subscription-info', teamId],
-    { revalidate: 900, tags: ['subscription'] } // 15 min + webhook invalidation
+    ['intervention-count', teamId],
+    { revalidate: 900 } // 15 min cache
   )()
 
 /**
@@ -75,16 +58,16 @@ export default async function GestionnaireLayout({
   const sidebarCookie = cookieStore.get("sidebar_state")?.value
   const defaultOpen = sidebarCookie !== "false"
 
-  // Fetch subscription info (cached 15min) + social proof count (cached 1h) in parallel
+  // Fetch subscription info + intervention count in parallel (both cached 15min)
   let subscriptionInfo = null
-  let activeTeamsCount = 0
+  let interventionCount = 0
   try {
-    const [subInfo, teamsCount] = await Promise.all([
+    const [subInfo, intCount] = await Promise.all([
       getCachedSubscriptionInfo(team.id),
-      getActiveTeamsCount(),
+      getCachedInterventionCount(team.id),
     ])
     subscriptionInfo = subInfo
-    activeTeamsCount = teamsCount
+    interventionCount = intCount
   } catch {
     // Silently fail — banners just won't show
   }
@@ -111,7 +94,7 @@ export default async function GestionnaireLayout({
           <div className="flex flex-col flex-1 min-w-0 h-full relative">
             <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
               <div className="pointer-events-auto">
-                <SubscriptionBanners subscriptionInfo={subscriptionInfo} role="gestionnaire" activeTeamsCount={activeTeamsCount} />
+                <SubscriptionBanners subscriptionInfo={subscriptionInfo} role="gestionnaire" interventionCount={interventionCount} />
               </div>
             </div>
             <RealtimeWrapper userId={profile.id} teamId={team?.id}>

@@ -99,12 +99,10 @@ export function CompanyDetailsClient({
     const getRoleLabel = (role: string | null | undefined) => {
         const roles: Record<string, string> = {
             'tenant': 'Locataire',
-            'owner': 'Propriétaire',
             'provider': 'Prestataire',
             'manager': 'Gestionnaire',
             'other': 'Autre',
             'locataire': 'Locataire',
-            'proprietaire': 'Propriétaire',
             'prestataire': 'Prestataire',
             'gestionnaire': 'Gestionnaire',
             'autre': 'Autre'

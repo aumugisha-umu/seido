@@ -106,7 +106,6 @@ export function BuildingContactsStepV3({
   lotDocUploads
 }: BuildingContactsStepV3Props) {
   const providers = buildingContacts['provider'] || []
-  const owners = buildingContacts['owner'] || []
   const others = buildingContacts['other'] || []
 
   // Contacts content (extracted to reuse with/without tabs)
@@ -119,7 +118,6 @@ export function BuildingContactsStepV3({
         onAddManager={openBuildingManagerModal}
         onRemoveManager={removeBuildingManager}
         providers={providers}
-        owners={owners}
         others={others}
         onAddContact={(contactType) => {
           contactSelectorRef.current?.openContactModal(contactType)
@@ -143,7 +141,6 @@ export function BuildingContactsStepV3({
               const lotNumber = lots.length - index
               const lotManagers = getAssignedManagers(lot.id)
               const lotProviders = getLotContactsByType(lot.id, 'provider')
-              const lotOwners = getLotContactsByType(lot.id, 'owner')
               const lotOthers = getLotContactsByType(lot.id, 'other')
 
               return (
@@ -161,7 +158,6 @@ export function BuildingContactsStepV3({
                     onAddLotManager={() => openManagerModal(lot.id)}
                     onRemoveLotManager={(managerId) => removeManagerFromLot(lot.id, managerId)}
                     providers={lotProviders}
-                    owners={lotOwners}
                     others={lotOthers}
                     onAddContact={(contactType) => {
                       contactSelectorRef.current?.openContactModal(contactType, lot.id)
@@ -171,7 +167,6 @@ export function BuildingContactsStepV3({
                     }}
                     buildingManagers={buildingManagers}
                     buildingProviders={providers}
-                    buildingOwners={owners}
                     buildingOthers={others}
                   />
                 </div>

@@ -28,8 +28,6 @@ export function ContactContractsCard({
         return 'bg-blue-50 text-blue-700 border-blue-200'
       case 'garant':
         return 'bg-purple-50 text-purple-700 border-purple-200'
-      case 'owner':
-        return 'bg-amber-50 text-amber-700 border-amber-200'
       default:
         return 'bg-gray-50 text-gray-700 border-gray-200'
     }
@@ -43,8 +41,6 @@ export function ContactContractsCard({
         return 'Co-locataire'
       case 'garant':
         return 'Garant'
-      case 'owner':
-        return 'Propriétaire'
       default:
         return role
     }

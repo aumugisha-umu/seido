@@ -7,7 +7,11 @@ import { notFound, redirect } from 'next/navigation'
 import { getServerAuthContext } from '@/lib/server-context'
 import { createServerInterventionRepository, createServiceRoleSupabaseClient } from '@/lib/services'
 import { PrestataireInterventionDetailClient } from './components/intervention-detail-client'
+import { isTeamSubscriptionBlocked } from '@/lib/subscription-guard'
 import { logger } from '@/lib/logger'
+
+// In-progress statuses: prestataire can still access these even when team is blocked
+const IN_PROGRESS_STATUSES = new Set(['planifiee', 'planification', 'approuvee'])
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -32,6 +36,7 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     .select('*, provider_instructions')
     .eq('intervention_id', id)
     .eq('user_id', userData.id)
+    .eq('role', 'prestataire')
     .single()
 
   if (!assignment) {
@@ -40,6 +45,25 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       userId: userData.id
     })
     redirect('/prestataire/dashboard')
+  }
+
+  // Phase 1b: Subscription block check (prestataire exception: in-progress interventions allowed)
+  const isBlocked = await isTeamSubscriptionBlocked(userData.team_id)
+  if (isBlocked) {
+    // Check intervention status — only allow in-progress
+    const { data: statusCheck } = await supabase
+      .from('interventions')
+      .select('status')
+      .eq('id', id)
+      .single()
+
+    if (!statusCheck || !IN_PROGRESS_STATUSES.has(statusCheck.status)) {
+      logger.info('🚫 [PRESTATAIRE-INTERVENTION] Blocked — team subscription inactive, intervention not in-progress', {
+        interventionId: id,
+        status: statusCheck?.status
+      })
+      redirect('/prestataire/dashboard')
+    }
   }
 
   // Phase 2: Parallelize meta queries + repo creation (all independent after gate)

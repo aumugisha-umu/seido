@@ -192,12 +192,11 @@ export function BuildingConfirmationStep({
 
   // Map building contacts from object to arrays
   const providers = buildingContacts["provider"] || []
-  const owners = buildingContacts["owner"] || []
   const others = buildingContacts["other"] || []
 
   // Compute summary metrics
   const fullAddress = `${buildingInfo.address}, ${buildingInfo.postalCode ? `${buildingInfo.postalCode} ` : ""}${buildingInfo.city}${buildingInfo.country ? `, ${buildingInfo.country}` : ""}`
-  const totalContacts = buildingManagers.length + providers.length + owners.length + others.length
+  const totalContacts = buildingManagers.length + providers.length + others.length
   const totalDocFiles = buildingDocSlots.reduce((acc, s) => acc + s.files.length, 0)
   const enabledInterventions = buildingInterventions.filter((i) => i.enabled && i.scheduledDate)
 
@@ -229,7 +228,7 @@ export function BuildingConfirmationStep({
       />
 
       {/* General Information */}
-      <ConfirmationSection title="Informations generales">
+      <ConfirmationSection title="Informations generales" card>
         <ConfirmationKeyValueGrid
           pairs={[
             {
@@ -249,26 +248,25 @@ export function BuildingConfirmationStep({
       </ConfirmationSection>
 
       {/* Building Contacts */}
-      <ConfirmationSection title="Contacts de l'immeuble">
+      <ConfirmationSection title="Contacts de l'immeuble" card>
         <ConfirmationContactGrid
           groups={[
             mapManagerGroup(buildingManagers),
             mapContactGroup("Prestataires", providers, "Aucun prestataire"),
-            mapContactGroup("Proprietaires", owners, "Aucun proprietaire"),
             mapContactGroup("Autres", others, "Aucun autre contact"),
           ]}
-          columns={4}
+          columns={3}
         />
       </ConfirmationSection>
 
       {/* Building Documents */}
-      <ConfirmationSection title="Documents de l'immeuble">
+      <ConfirmationSection title="Documents de l'immeuble" card>
         <ConfirmationDocumentList slots={mapDocSlots(buildingDocSlots)} />
       </ConfirmationSection>
 
       {/* Building Interventions */}
       {buildingInterventions.length > 0 && (
-        <ConfirmationSection title="Interventions de l'immeuble">
+        <ConfirmationSection title="Interventions de l'immeuble" card>
           <InterventionsSummary interventions={buildingInterventions} />
         </ConfirmationSection>
       )}
@@ -331,7 +329,6 @@ export function BuildingConfirmationStep({
               const lotManagers = getAssignedManagers(lot.id)
               const tenants = getLotContactsByType(lot.id, "tenant")
               const lotProviders = getLotContactsByType(lot.id, "provider")
-              const lotOwners = getLotContactsByType(lot.id, "owner")
               const lotOthers = getLotContactsByType(lot.id, "other")
               const lotDocs = lotDocSlots[lot.id] || []
               const lotIntv = lotInterventions[lot.id] || []
@@ -360,7 +357,7 @@ export function BuildingConfirmationStep({
                       <div className="pl-6 flex items-center gap-3 text-xs text-muted-foreground">
                         {lot.floor && <span>Etage {lot.floor}</span>}
                         {lot.doorNumber && <span>Porte {lot.doorNumber}</span>}
-                        <span>{lotManagers.length + tenants.length + lotProviders.length + lotOwners.length + lotOthers.length} contacts</span>
+                        <span>{lotManagers.length + tenants.length + lotProviders.length + lotOthers.length} contacts</span>
                       </div>
                     )}
 
@@ -381,10 +378,9 @@ export function BuildingConfirmationStep({
                             mapManagerGroup(lotManagers),
                             mapContactGroup("Locataires", tenants, "Aucun locataire"),
                             mapContactGroup("Prestataires", lotProviders, "Aucun prestataire"),
-                            mapContactGroup("Proprietaires", lotOwners, "Aucun proprietaire"),
                             mapContactGroup("Autres", lotOthers, "Aucun autre contact"),
                           ]}
-                          columns={5}
+                          columns={4}
                         />
 
                         {lotDocs.length > 0 && <ConfirmationDocumentList slots={mapDocSlots(lotDocs)} />}

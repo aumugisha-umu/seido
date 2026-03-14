@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger'
 import { useSubscription } from "@/hooks/use-subscription"
 import { UpgradeModal } from "@/components/billing/upgrade-modal"
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt"
+import { BlockedListOverlay } from "@/components/billing/blocked-list-overlay"
 import { getAccessibleLots } from "@/app/actions/subscription-actions"
 
 interface BiensPageClientProps {
@@ -187,14 +188,16 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
           <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Content wrapper avec padding */}
             <div className="flex-1 flex flex-col min-h-0 p-4">
-              <PatrimoineNavigator
-                buildings={buildings}
-                lots={lots}
-                loading={isRefreshing}
-                onRefresh={handleRefresh}
-                className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
-                lockedLotIds={lockedLotIds}
-              />
+              <BlockedListOverlay isBlocked={isReadOnly}>
+                <PatrimoineNavigator
+                  buildings={buildings}
+                  lots={lots}
+                  loading={isRefreshing}
+                  onRefresh={handleRefresh}
+                  className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
+                  lockedLotIds={lockedLotIds}
+                />
+              </BlockedListOverlay>
             </div>
           </div>
         </div>

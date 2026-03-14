@@ -1,0 +1,39 @@
+# Progress Log — Post-Audit Bug Fixes (Simplify Review)
+# Started: 2026-03-13
+# Stories: 11 total (30 bugs across P0-P2)
+# Source: /simplify cross-review findings
+---
+2026-03-13 | US-001 | PASS | Fixed 7 API routes: intervention_contacts → intervention_assignments
+  Files: work-completion/route.ts, create-provider-account/route.ts, quotes/route.ts, select-slot/route.ts, availabilities/route.ts, user-availability/route.ts, quotes/[id]/cancel/route.ts
+  Learning: Table rename left behind property access references (.intervention_contacts) even when query table was correct
+2026-03-13 | US-002 | PASS | Fixed search injection in lot.repository.ts + building.repository.ts
+  Files: lot.repository.ts (added sanitizeSearch import + usage), building.repository.ts (primary .or() path)
+  Learning: building.repository.ts fallback path was secure but primary path wasn't — asymmetric security
+2026-03-13 | US-003 | PASS | Added proprietaire to validateEnum in user.repository.ts (3 occurrences)
+  Files: user.repository.ts (lines 46, 176, 246)
+2026-03-13 | US-004 | PASS | Removed deprecated statuses demande_de_devis + en_cours
+  Files: intervention.repository.ts (validate + stats), intervention-schedule/route.ts
+2026-03-13 | US-005 | PASS | Fixed .single() without role filter
+  Files: prestataire/interventions/[id]/page.tsx (.eq('role','prestataire')), intervention-confirm-participation/route.ts (.limit(1).maybeSingle())
+  Learning: prestataire page knows the role → add filter; generic endpoint doesn't → use maybeSingle
+2026-03-13 | US-006 | PASS | Removed dead code: getPriorityColor (intervention-display.ts), ALLOWED_CHAT_MIME_TYPES (mime-types.ts)
+  Files: intervention-display.ts, mime-types.ts, use-chat-upload.ts
+---
+--- FULL APP REVIEW (14 additional bugs found) ---
+2026-03-13 | US-007 | PASS | CRITICAL: Fixed API routes writing deprecated status to DB
+  Files: generate-intervention-magic-links/route.ts (requires_quote:true instead of status change), quotes/[quoteId]/approve/route.ts, quotes/[quoteId]/reject/route.ts, intervention-cancel/route.ts
+  Learning: generate-intervention-magic-links was WRITING demande_de_devis to DB — most dangerous bug in the batch
+2026-03-13 | US-008 | PASS | Cleaned demande_de_devis from 4 service/utility files
+  Files: intervention-display.ts, notification.service.ts, email-notification/types.ts, stats.service.ts
+2026-03-13 | US-009 | PASS | Added sanitizeSearch to 3 more repositories
+  Files: company.repository.ts, address.repository.ts, building.repository.ts (findByCity)
+  Learning: sanitizeSearch needed everywhere .ilike() uses user input, not just search bars
+2026-03-13 | US-010 | PASS | Cleaned demande_de_devis from 11 UI components/hooks
+  Files: status-timeline.tsx, big-calendar-wrapper.tsx, integrated-quotes-card.tsx, seido-badge.config.ts, interventions-navigator.tsx, execution-tab.tsx, intervention-cancel-button.tsx, programming-modal-FINAL.tsx, intervention-modal-header.tsx, use-tenant-data.ts, use-prestataire-data.ts
+  Learning: Status checks in UI should use requires_quote flag, not status === 'demande_de_devis'
+2026-03-13 | US-011 | PASS | Cleaned demande_de_devis from mappers + API routes + tests
+  Files: intervention-mappers.ts, quotes/[quoteId]/route.ts, intervention-quote-validate/route.ts, intervention-mappers.test.ts
+  Learning: When removing a status, grep the ENTIRE codebase — initial review found 16 files but full review found 30+
+---
+2026-03-13 | VERIFY | npm run lint: PASS (pre-existing warnings only)
+2026-03-13 | VERIFY | Unit tests (intervention-mappers): 36/36 PASS

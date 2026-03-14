@@ -101,15 +101,13 @@ function ContactsBadge({ lotContacts }: ContactsBadgeProps) {
     locataire: lotContacts.filter(c => c.user?.role === 'locataire'),
     gestionnaire: lotContacts.filter(c => c.user?.role === 'gestionnaire'),
     prestataire: lotContacts.filter(c => c.user?.role === 'prestataire'),
-    proprietaire: lotContacts.filter(c => c.user?.role === 'proprietaire'),
-    autre: lotContacts.filter(c => !['locataire', 'gestionnaire', 'prestataire', 'proprietaire'].includes(c.user?.role || ''))
+    autre: lotContacts.filter(c => !['locataire', 'gestionnaire', 'prestataire'].includes(c.user?.role || ''))
   }
 
   const roleLabels: Record<string, { label: string; icon: any; color: string }> = {
     locataire: { label: 'Locataires', icon: Users, color: 'text-blue-700' },
     gestionnaire: { label: 'Gestionnaires', icon: Users, color: 'text-purple-700' },
     prestataire: { label: 'Prestataires', icon: Wrench, color: 'text-green-700' },
-    proprietaire: { label: 'Propriétaires', icon: Home, color: 'text-orange-700' },
     autre: { label: 'Autres', icon: UserCircle, color: 'text-gray-700' }
   }
 

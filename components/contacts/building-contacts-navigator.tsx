@@ -341,7 +341,6 @@ export function BuildingContactsNavigator({
 
     const types: Record<string, string> = {
       'tenant': 'Locataire',
-      'owner': 'Propriétaire',
       'provider': 'Prestataire',
       'manager': 'Gestionnaire',
       'other': 'Autre'
@@ -360,7 +359,6 @@ export function BuildingContactsNavigator({
 
     const styles: Record<string, string> = {
       'tenant': 'bg-blue-100 text-blue-800',
-      'owner': 'bg-emerald-100 text-emerald-800',
       'provider': 'bg-green-100 text-green-800',
       'manager': 'bg-purple-100 text-purple-800',
       'other': 'bg-gray-100 text-gray-600'
@@ -697,7 +695,6 @@ export function BuildingContactsNavigator({
             { value: "all", label: "Tous les rôles" },
             { value: "gestionnaire", label: "Gestionnaire" },
             { value: "locataire", label: "Locataire" },
-            { value: "proprietaire", label: "Propriétaire" },
             { value: "prestataire", label: "Prestataire" }
           ],
           defaultValue: "all"

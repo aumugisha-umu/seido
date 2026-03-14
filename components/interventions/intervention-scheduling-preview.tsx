@@ -103,7 +103,7 @@ export interface InterventionSchedulingPreviewProps {
   currentUserId?: string
 
   // Current user role for role-specific UI
-  currentUserRole?: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
+  currentUserRole?: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
 
   // Actions for participants and quotes
   onEditParticipants?: () => void

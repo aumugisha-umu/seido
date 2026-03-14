@@ -318,115 +318,117 @@ export function AddressFieldsWithMap({
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Google Autocomplete Search */}
-      {showAutocomplete && (
-        <div className="space-y-2">
-          <Label icon={Search}>
-            Recherche d&apos;adresse
-          </Label>
-          <AddressAutocompleteInput
-            onAddressSelect={handleAutocompleteSelect}
-            placeholder="Rechercher une adresse..."
-            disabled={disabled}
-          />
-        </div>
-      )}
-
-      {/* Manual Address Fields */}
-      <div className="grid gap-4">
-        {/* Street */}
-        <div className="space-y-2">
-          <Label htmlFor="address-street" icon={MapPin} required={required}>
-            Rue
-          </Label>
-          <Input
-            id="address-street"
-            value={street}
-            onChange={(e) => handleFieldChange('street', e.target.value)}
-            placeholder="Rue de la Paix 42"
-            disabled={disabled}
-            required={required}
-          />
-        </div>
-
-        {/* Postal Code and City */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Address fields + Map side by side on desktop */}
+      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+        {/* LEFT: Autocomplete + Manual Address Fields + geocoding status */}
+        <div className="flex-1 min-w-0 grid gap-4">
+          {/* Google Autocomplete Search */}
+          {showAutocomplete && (
+            <div className="space-y-2">
+              <Label icon={Search}>
+                Recherche d&apos;adresse
+              </Label>
+              <AddressAutocompleteInput
+                onAddressSelect={handleAutocompleteSelect}
+                placeholder="Rechercher une adresse..."
+                disabled={disabled}
+              />
+            </div>
+          )}
+          {/* Street */}
           <div className="space-y-2">
-            <Label htmlFor="address-postalCode" icon={Hash} required={required}>
-              Code postal
+            <Label htmlFor="address-street" icon={MapPin} required={required}>
+              Rue
             </Label>
             <Input
-              id="address-postalCode"
-              value={postalCode}
-              onChange={(e) => handleFieldChange('postalCode', e.target.value)}
-              placeholder="1000"
+              id="address-street"
+              value={street}
+              onChange={(e) => handleFieldChange('street', e.target.value)}
+              placeholder="Rue de la Paix 42"
               disabled={disabled}
               required={required}
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address-city" icon={Building2} required={required}>
-              Ville
-            </Label>
-            <Input
-              id="address-city"
-              value={city}
-              onChange={(e) => handleFieldChange('city', e.target.value)}
-              placeholder="Bruxelles"
-              disabled={disabled}
-              required={required}
-            />
+          {/* Postal Code and City */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="address-postalCode" icon={Hash} required={required}>
+                Code postal
+              </Label>
+              <Input
+                id="address-postalCode"
+                value={postalCode}
+                onChange={(e) => handleFieldChange('postalCode', e.target.value)}
+                placeholder="1000"
+                disabled={disabled}
+                required={required}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address-city" icon={Building2} required={required}>
+                Ville
+              </Label>
+              <Input
+                id="address-city"
+                value={city}
+                onChange={(e) => handleFieldChange('city', e.target.value)}
+                placeholder="Bruxelles"
+                disabled={disabled}
+                required={required}
+              />
+            </div>
           </div>
+
+          {/* Country */}
+          <div className="space-y-2">
+            <Label htmlFor="address-country" icon={Globe} required={required}>
+              Pays
+            </Label>
+            <Select
+              value={country}
+              onValueChange={(value) => handleFieldChange('country', value)}
+              disabled={disabled}
+            >
+              <SelectTrigger id="address-country" className="w-full">
+                <SelectValue placeholder="Sélectionner un pays" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Geocoding Status */}
+          {isGeocoding && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Recherche de l&apos;adresse sur la carte...</span>
+            </div>
+          )}
         </div>
 
-        {/* Country */}
-        <div className="space-y-2">
-          <Label htmlFor="address-country" icon={Globe} required={required}>
-            Pays
-          </Label>
-          <Select
-            value={country}
-            onValueChange={(value) => handleFieldChange('country', value)}
-            disabled={disabled}
-          >
-            <SelectTrigger id="address-country" className="w-full">
-              <SelectValue placeholder="Sélectionner un pays" />
-            </SelectTrigger>
-            <SelectContent>
-              {COUNTRIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {/* RIGHT: Map Preview — square on desktop */}
+        {showMap && hasValidCoords && (
+          <div className="lg:w-72 lg:flex-shrink-0 space-y-2">
+            <Label className="text-sm font-medium">
+              Aperçu sur la carte
+            </Label>
+            <GoogleMapPreview
+              latitude={coords.lat}
+              longitude={coords.lng}
+              address={formattedAddress}
+              height={mapHeight}
+              showOpenButton={true}
+            />
+          </div>
+        )}
       </div>
-
-      {/* Geocoding Status */}
-      {isGeocoding && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Recherche de l&apos;adresse sur la carte...</span>
-        </div>
-      )}
-
-      {/* Map Preview */}
-      {showMap && hasValidCoords && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">
-            Aperçu sur la carte
-          </Label>
-          <GoogleMapPreview
-            latitude={coords.lat}
-            longitude={coords.lng}
-            address={formattedAddress}
-            height={mapHeight}
-            showOpenButton={true}
-          />
-        </div>
-      )}
     </div>
   )
 }

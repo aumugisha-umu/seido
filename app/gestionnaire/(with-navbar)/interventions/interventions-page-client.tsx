@@ -29,6 +29,8 @@ import { InterventionCancellationManager } from "@/components/intervention/inter
 import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
 
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+import { BlockedListOverlay } from "@/components/billing/blocked-list-overlay"
+import { useSubscription } from "@/hooks/use-subscription"
 import { createBrowserSupabaseClient } from "@/lib/services"
 import type { Database } from '@/lib/database.types'
 import { toast } from "sonner"
@@ -59,6 +61,7 @@ export function InterventionsPageClient({
 }: InterventionsPageClientProps) {
   const router = useRouter()
   const { isPending: isNavigating, navigate } = useNavigationPending()
+  const { isReadOnly } = useSubscription()
 
   // ✅ État local initialisé avec les props (pas de hook de fetch)
   const [interventions, setInterventions] = useState(initialInterventions)
@@ -202,12 +205,20 @@ export function InterventionsPageClient({
       <InterventionCancellationProvider>
         <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
           <PageActions>
-            <Button className="flex items-center gap-2" onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")} isLoading={isNavigating} loadingText="Nouvelle intervention">
+            <Button
+              className="flex items-center gap-2"
+              disabled={isReadOnly}
+              title={isReadOnly ? 'Activez votre abonnement' : undefined}
+              onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
+              isLoading={isNavigating}
+              loadingText="Nouvelle intervention"
+            >
               <Plus className="h-4 w-4" />Nouvelle intervention
             </Button>
           </PageActions>
 
           {/* Interventions Navigator - Full height, ContentNavigator handles card styling */}
+          <BlockedListOverlay isBlocked={isReadOnly}>
           <InterventionsNavigator
             interventions={interventions}
             loading={loading}
@@ -233,6 +244,7 @@ export function InterventionsPageClient({
             onLoadMore={loadMore}
             isLoadingMore={isLoadingMore}
           />
+          </BlockedListOverlay>
         </div>
 
         {/* ⚡ Modals - Conditional Rendering (Phase 3.1 Optimization)

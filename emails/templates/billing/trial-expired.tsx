@@ -34,12 +34,12 @@ export const TrialExpiredEmail = ({
         {isReadOnly ? (
           <div className="bg-red-50 border-l-4 border-danger p-4 rounded mb-6">
             <Text className="text-gray-900 font-semibold text-sm m-0">
-              Compte en lecture seule
+              Vos biens sont bloques
             </Text>
             <Text className="text-gray-700 text-sm leading-relaxed mt-2 mb-0">
-              Vous gerez {lotCount} lots (plus de 2). Votre compte est passe en mode
-              lecture seule. Vous pouvez toujours consulter vos donnees, mais vous ne
-              pouvez plus creer d&apos;interventions ni modifier vos biens.
+              Vous gerez {lotCount} lots (plus de 2). Vos biens sont bloques et vous
+              ne recevez plus aucune notification de vos locataires. Pour retrouver
+              l&apos;acces complet, activez votre abonnement.
             </Text>
           </div>
         ) : (
@@ -66,7 +66,12 @@ export const TrialExpiredEmail = ({
         )}
 
         <Text className="text-gray-500 text-sm leading-relaxed text-center mt-4 mb-0">
-          Vos donnees ne seront jamais supprimees. Vous pouvez reactiver a tout moment.
+          Annulation en 1 clic - Sans engagement - Donnees preservees
+        </Text>
+
+        <Text className="text-gray-400 text-xs leading-relaxed text-center mt-3 mb-0">
+          Vous ne souhaitez pas continuer ? Contactez-nous a support@seido.be
+          pour demander un export de vos donnees.
         </Text>
       </Section>
 

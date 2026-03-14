@@ -35,7 +35,7 @@ interface InterventionCommentsCardProps {
   interventionId: string
   comments: Comment[]
   currentUserId: string
-  currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
+  currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
 }
 
 export function InterventionCommentsCard({

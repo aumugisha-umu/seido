@@ -76,7 +76,7 @@ export function SupplierConfirmationStep({
         ]}
       />
 
-      <ConfirmationSection title="Bien concerne">
+      <ConfirmationSection title="Bien concerne" card>
         <ConfirmationKeyValueGrid
           columns={2}
           pairs={[
@@ -91,7 +91,7 @@ export function SupplierConfirmationStep({
           key={contract.tempId}
           className="rounded-xl border bg-muted/20 p-4 space-y-4"
         >
-          <ConfirmationSection title={`Contrat ${index + 1}`} compact>
+          <ConfirmationSection title={`Contrat ${index + 1}`} compact card>
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" />

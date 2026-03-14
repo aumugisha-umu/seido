@@ -47,7 +47,7 @@ interface Contract {
 }
 
 interface Step4ConfirmationProps {
-  contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
+  contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'autre'
   personOrCompany: 'person' | 'company'
   specialty?: string
   companyMode: 'new' | 'existing'
@@ -118,7 +118,6 @@ export function Step4Confirmation({
       locataire: 'Locataire',
       prestataire: 'Prestataire',
       gestionnaire: 'Gestionnaire',
-      proprietaire: 'Propriétaire',
       autre: 'Autre'
     }
     return labels[contactType]
@@ -129,7 +128,6 @@ export function Step4Confirmation({
     const colors = {
       prestataire: 'green' as const,
       locataire: 'blue' as const,
-      proprietaire: 'amber' as const,
       gestionnaire: 'purple' as const,
       autre: 'primary' as const,
     }
@@ -235,7 +233,7 @@ export function Step4Confirmation({
       />
 
       {/* Section Société */}
-      <ConfirmationSection title="Société">
+      <ConfirmationSection title="Société" card>
         {personOrCompany === 'company' ? (
           <ConfirmationKeyValueGrid
             columns={1}
@@ -251,7 +249,7 @@ export function Step4Confirmation({
       </ConfirmationSection>
 
       {/* Section Contact */}
-      <ConfirmationSection title="Contact">
+      <ConfirmationSection title="Contact" card>
         <ConfirmationKeyValueGrid
           columns={2}
           pairs={[
@@ -272,7 +270,7 @@ export function Step4Confirmation({
       </ConfirmationSection>
 
       {/* Section Coordonnées */}
-      <ConfirmationSection title="Coordonnées">
+      <ConfirmationSection title="Coordonnées" card>
         <ConfirmationKeyValueGrid
           columns={2}
           pairs={[
@@ -284,7 +282,7 @@ export function Step4Confirmation({
       </ConfirmationSection>
 
       {/* Section Accès & Invitation */}
-      <ConfirmationSection title="Accès & invitation">
+      <ConfirmationSection title="Accès & invitation" card>
         <div className="space-y-3">
           {/* Statut principal */}
           <div className={`rounded-xl border p-4 ${inviteToApp ? 'bg-card border-blue-200 dark:border-blue-800 shadow-sm' : 'bg-card border-border'}`}>
@@ -363,7 +361,7 @@ export function Step4Confirmation({
       </ConfirmationSection>
 
       {/* Section Liaison entité */}
-      <ConfirmationSection title="Liaison entité">
+      <ConfirmationSection title="Liaison entité" card>
         {linkedEntityPairs ? (
           <ConfirmationKeyValueGrid columns={1} pairs={linkedEntityPairs} />
         ) : (

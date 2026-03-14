@@ -7,11 +7,13 @@
  * ✅ Dynamic SEO metadata via generateMetadata
  */
 
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getServerAuthContext } from '@/lib/server-context'
-import { createServerInterventionRepository, createServerSupabaseClient } from '@/lib/services'
+import { createServerInterventionRepository, createServerSupabaseClient, createServiceRoleSupabaseClient } from '@/lib/services'
 import { InterventionDetailClient } from './components/intervention-detail-client'
+import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
+import { SubscriptionRepository } from '@/lib/services/repositories/subscription.repository'
 import { logger } from '@/lib/logger'
 
 type PageProps = {
@@ -63,7 +65,21 @@ export default async function InterventionDetailPage({ params }: PageProps) {
   const { id } = await params
 
   // ✅ AUTH centralisée (comme Lots/Immeubles)
-  const { supabase, profile } = await getServerAuthContext('gestionnaire')
+  const { supabase, profile, team } = await getServerAuthContext('gestionnaire')
+
+  // Blocked mode: redirect to list when subscription is read_only
+  try {
+    const subService = createSubscriptionService(supabase)
+    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
+    const subInfo = await subService.getSubscriptionInfo(team.id, serviceRoleRepo)
+    if (subInfo?.is_read_only) {
+      redirect('/gestionnaire/interventions')
+    }
+  } catch (e) {
+    // redirect() throws a NEXT_REDIRECT — re-throw it
+    if (e instanceof Error && 'digest' in e) throw e
+    logger.warn('[INTERVENTION-PAGE] Subscription check failed, allowing access', { id })
+  }
 
   logger.info('🔧 [INTERVENTION-PAGE] Loading intervention', {
     interventionId: id,

@@ -246,7 +246,6 @@ export function BuildingContactsTab({
     buildingContacts.forEach(bc => {
       const contact = toContact(bc.user)
       const type = bc.user.role === 'gestionnaire' ? 'manager' :
-                   bc.user.role === 'proprietaire' ? 'owner' :
                    bc.user.role === 'prestataire' ? 'provider' : 'other'
 
       if (!formattedContacts[type]) formattedContacts[type] = []
@@ -269,8 +268,7 @@ export function BuildingContactsTab({
         const contact = toContact(lc.user)
         const type = lc.user.role === 'gestionnaire' ? 'manager' :
                      lc.user.role === 'locataire' ? 'tenant' :
-                     lc.user.role === 'prestataire' ? 'provider' :
-                     lc.user.role === 'proprietaire' ? 'owner' : 'other'
+                     lc.user.role === 'prestataire' ? 'provider' : 'other'
 
         if (!formattedContacts[type]) formattedContacts[type] = []
         formattedContacts[type].push(contact)
@@ -361,11 +359,9 @@ export function BuildingContactsTab({
   // Group building contacts by role
   const groupedBuildingContacts = {
     gestionnaires: buildingContacts.filter(c => c.user.role === 'gestionnaire'),
-    proprietaires: buildingContacts.filter(c => c.user.role === 'proprietaire'),
     prestataires: buildingContacts.filter(c => c.user.role === 'prestataire'),
     autres: buildingContacts.filter(c =>
       c.user.role !== 'gestionnaire' &&
-      c.user.role !== 'proprietaire' &&
       c.user.role !== 'prestataire' &&
       !c.user.provider_category
     )
@@ -376,11 +372,9 @@ export function BuildingContactsTab({
     return {
       locataires: lotContacts.filter(c => c.user.role === 'locataire'),
       prestataires: lotContacts.filter(c => c.user.role === 'prestataire'),
-      proprietaires: lotContacts.filter(c => c.user.role === 'proprietaire'),
       autres: lotContacts.filter(c =>
         c.user.role !== 'locataire' &&
-        c.user.role !== 'prestataire' &&
-        c.user.role !== 'proprietaire'
+        c.user.role !== 'prestataire'
       )
     }
   }
@@ -487,48 +481,6 @@ export function BuildingContactsTab({
                         </div>
                       </CardContent>
                     </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Propriétaires */}
-          {groupedBuildingContacts.proprietaires.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Home className="h-4 w-4 text-amber-600" />
-                <h4 className="font-semibold text-sm text-amber-900">
-                  Propriétaires ({groupedBuildingContacts.proprietaires.length})
-                </h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {groupedBuildingContacts.proprietaires.map((contact) => (
-                  <Card key={contact.id} className="border-amber-200">
-                    <CardContent className="p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2 min-w-0 flex-1">
-                          <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Home className="h-4 w-4 text-amber-600" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm truncate">{contact.user.name}</p>
-                            <p className="text-xs text-gray-600 truncate">{contact.user.email}</p>
-                            {contact.user.phone && (
-                              <p className="text-xs text-gray-500">{contact.user.phone}</p>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
-                          onClick={() => handleRemoveBuildingContact(contact.id, contact.user.name)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
                 ))}
               </div>
             </div>
@@ -697,16 +649,6 @@ export function BuildingContactsTab({
                             <Wrench className="h-3 w-3 text-green-600 flex-shrink-0" />
                             <span className="text-xs font-medium text-green-900">
                               {groupedContacts.prestataires.length} prestataire{groupedContacts.prestataires.length > 1 ? 's' : ''}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Propriétaires */}
-                        {groupedContacts.proprietaires.length > 0 && (
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Home className="h-3 w-3 text-amber-600 flex-shrink-0" />
-                            <span className="text-xs font-medium text-amber-900">
-                              {groupedContacts.proprietaires.length} propriétaire{groupedContacts.proprietaires.length > 1 ? 's' : ''}
                             </span>
                           </div>
                         )}

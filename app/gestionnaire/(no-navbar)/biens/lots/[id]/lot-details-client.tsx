@@ -51,7 +51,7 @@ interface LotContact {
   user_id: string
   lot_id: string
   building_id: string | null
-  type: 'tenant' | 'owner' | 'manager' | 'provider'
+  type: 'tenant' | 'manager' | 'provider'
   status: 'active'
   created_at: string
   updated_at: string
@@ -273,7 +273,6 @@ export default function LotDetailsClient({
     const managers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
     const tenants: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
     const providers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
-    const owners: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
     const others: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
 
     contacts.forEach((contact) => {
@@ -297,25 +296,21 @@ export default function LotDetailsClient({
         case 'prestataire':
           providers.push(transformedContact)
           break
-        case 'proprietaire':
-          owners.push(transformedContact)
-          break
         default:
           others.push(transformedContact)
       }
     })
 
-    return { managers, tenants, providers, owners, others }
+    return { managers, tenants, providers, others }
   }
 
-  const { managers, tenants, providers, owners, others } = transformContactsByRole()
+  const { managers, tenants, providers, others } = transformContactsByRole()
 
   // Transform building contacts by role for inheritance display
   const transformBuildingContactsByRole = () => {
     const buildingManagers: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
     const buildingTenants: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
     const buildingProviders: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
-    const buildingOwners: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
     const buildingOthers: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
 
     buildingContacts.forEach((contact) => {
@@ -340,18 +335,15 @@ export default function LotDetailsClient({
         case 'prestataire':
           buildingProviders.push(transformedContact)
           break
-        case 'proprietaire':
-          buildingOwners.push(transformedContact)
-          break
         default:
           buildingOthers.push(transformedContact)
       }
     })
 
-    return { buildingManagers, buildingTenants, buildingProviders, buildingOwners, buildingOthers }
+    return { buildingManagers, buildingTenants, buildingProviders, buildingOthers }
   }
 
-  const { buildingManagers, buildingTenants, buildingProviders, buildingOwners, buildingOthers } = transformBuildingContactsByRole()
+  const { buildingManagers, buildingTenants, buildingProviders, buildingOthers } = transformBuildingContactsByRole()
 
   // Extract contracts with their contacts (tenants and guarantors) grouped by contract
   const getContractsWithContacts = () => {
@@ -622,12 +614,10 @@ export default function LotDetailsClient({
                 managers={managers}
                 tenants={tenants}
                 providers={providers}
-                owners={owners}
                 others={others}
                 buildingManagers={buildingManagers}
                 buildingTenants={buildingTenants}
                 buildingProviders={buildingProviders}
-                buildingOwners={buildingOwners}
                 buildingOthers={buildingOthers}
                 lotContactIds={lotContactIds}
                 teamId={teamId}

@@ -105,7 +105,6 @@ interface LotData {
   assignedContacts: {
     tenant: { id: string; name: string; email: string; type: string }[]
     provider: { id: string; name: string; email: string; type: string }[]
-    owner: { id: string; name: string; email: string; type: string }[]
     other: { id: string; name: string; email: string; type: string }[]
   }
   
@@ -189,7 +188,6 @@ export default function LotCreationForm({
     assignedContacts: {
       tenant: [],
       provider: [],
-      owner: [],
       other: [],
     },
     assignedLotManagers: [],
@@ -236,13 +234,12 @@ export default function LotCreationForm({
   const [assignedManagersByLot, setAssignedManagersByLot] = useState<{
     [lotId: string]: UserType[]
   }>({})
-  // Format identique à la création d'immeuble: tenant, provider, owner, other
+  // Format identique à la création d'immeuble: tenant, provider, other
   const [buildingContacts, setBuildingContacts] = useState<{
     [type: string]: Contact[]
   }>({
     tenant: [],
     provider: [],
-    owner: [],
     other: [],
   })
 
@@ -323,7 +320,7 @@ export default function LotCreationForm({
     setExpandedLots(restoredState.expandedLots || {})
     setLotContactAssignments(restoredState.lotContactAssignments || {})
     setAssignedManagersByLot(restoredState.assignedManagersByLot || {})
-    setBuildingContacts(restoredState.buildingContacts || { tenant: [], provider: [], owner: [], other: [] })
+    setBuildingContacts(restoredState.buildingContacts || { tenant: [], provider: [], other: [] })
     setIndependentLots(restoredState.independentLots || [])
     setExpandedIndependentLots(restoredState.expandedIndependentLots || {})
     setSelectedManagerId(restoredState.selectedManagerId || '')
@@ -349,7 +346,6 @@ export default function LotCreationForm({
         'gestionnaire': 'other', 'manager': 'other',
         'locataire': 'tenant', 'tenant': 'tenant',
         'prestataire': 'provider', 'provider': 'provider',
-        'proprietaire': 'owner', 'owner': 'owner',
       }
       const category = typeMap[contactType || ''] || 'other'
 
@@ -569,7 +565,6 @@ export default function LotCreationForm({
         setBuildingContacts({
           tenant: [],
           provider: [],
-          owner: [],
           other: [],
         })
         setExistingBuildingLots([])
@@ -643,7 +638,7 @@ export default function LotCreationForm({
               auth_user_id: user.auth_user_id || null,
               email: user.email || '',
               name: user.name || user.email || 'Sans nom',
-              role: (user.role as 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire') || 'gestionnaire',
+              role: (user.role as 'admin' | 'gestionnaire' | 'prestataire' | 'locataire') || 'gestionnaire',
               phone: user.phone || null,
               provider_category: user.provider_category || null,
               speciality: user.speciality || null,
@@ -668,12 +663,11 @@ export default function LotCreationForm({
 
         logger.info('✅ [BUILDING-DATA] Building managers state updated via setBuildingManagers')
 
-        // ✅ Extract building contacts grouped by type (tenant, provider, owner, other)
+        // ✅ Extract building contacts grouped by type (tenant, provider, other)
         // Format identique à la création d'immeuble pour compatibilité
         const contacts: { [type: string]: Contact[] } = {
           tenant: [],
           provider: [],
-          owner: [],
           other: []
         }
 
@@ -705,8 +699,6 @@ export default function LotCreationForm({
             contacts.tenant.push(contact)
           } else if (role === 'prestataire') {
             contacts.provider.push(contact)
-          } else if (role === 'proprietaire') {
-            contacts.owner.push(contact)
           } else {
             contacts.other.push(contact)
           }
@@ -739,7 +731,6 @@ export default function LotCreationForm({
         setBuildingContacts({
           tenant: [],
           provider: [],
-          owner: [],
           other: [],
         })
         setExistingBuildingLots([])
@@ -2086,17 +2077,15 @@ export default function LotCreationForm({
       }
 
       const safeBuildingManagers = Array.isArray(buildingManagers) ? buildingManagers : []
-      const safeBuildingContacts = buildingContacts && typeof buildingContacts === 'object' 
+      const safeBuildingContacts = buildingContacts && typeof buildingContacts === 'object'
         ? {
             tenant: Array.isArray(buildingContacts.tenant) ? buildingContacts.tenant : [],
             provider: Array.isArray(buildingContacts.provider) ? buildingContacts.provider : [],
-            owner: Array.isArray(buildingContacts.owner) ? buildingContacts.owner : [],
             other: Array.isArray(buildingContacts.other) ? buildingContacts.other : [],
           }
         : {
             tenant: [],
             provider: [],
-            owner: [],
             other: [],
           }
 
@@ -2119,9 +2108,9 @@ export default function LotCreationForm({
                 handleBuildingContactRemove(contactId, contactType)
               }
             }}
-            allowedContactTypes={["tenant", "provider", "owner", "other"]}
+            allowedContactTypes={["tenant", "provider", "other"]}
           />
-          
+
           <BuildingContactsStepV3
             buildingInfo={{
               name: selectedBuilding?.name || "Immeuble",
@@ -2185,7 +2174,6 @@ export default function LotCreationForm({
           selectedContacts={{
             tenant: [],
             provider: [],
-            owner: [],
             other: []
           }}
           lotContactAssignments={lotContactAssignments}
@@ -2206,7 +2194,7 @@ export default function LotCreationForm({
               removeContactFromLot(context.lotId, contactType, contactId)
             }
           }}
-          allowedContactTypes={["tenant", "provider", "owner", "other"]}
+          allowedContactTypes={["tenant", "provider", "other"]}
         />
 
         <Tabs defaultValue="contacts" className="w-full">
@@ -2235,7 +2223,6 @@ export default function LotCreationForm({
                   const lotNumber = index + 1
                   const lotManagers = assignedManagersByLot[lot.id] || []
                   const providers = lotContactAssignments[lot.id]?.provider || []
-                  const owners = lotContactAssignments[lot.id]?.owner || []
                   const others = lotContactAssignments[lot.id]?.other || []
 
                   return (
@@ -2253,7 +2240,6 @@ export default function LotCreationForm({
                         onAddLotManager={() => openManagerModal(lot.id)}
                         onRemoveLotManager={(managerId) => removeManagerFromLot(lot.id, managerId)}
                         providers={providers}
-                        owners={owners}
                         others={others}
                         onAddContact={(contactType) => {
                           contactSelectorRef.current?.openContactModal(contactType, lot.id)
@@ -2263,7 +2249,6 @@ export default function LotCreationForm({
                         }}
                         buildingManagers={[]}
                         buildingProviders={[]}
-                        buildingOwners={[]}
                         buildingOthers={[]}
                         floor={lot.floor}
                         doorNumber={lot.doorNumber}
@@ -2399,9 +2384,8 @@ export default function LotCreationForm({
       const totalContacts = independentLots.reduce((sum, lot) => {
         const managers = assignedManagersByLot[lot.id]?.length || 0
         const providers = lotContactAssignments[lot.id]?.provider?.length || 0
-        const owners = lotContactAssignments[lot.id]?.owner?.length || 0
         const others = lotContactAssignments[lot.id]?.other?.length || 0
-        return sum + managers + providers + owners + others
+        return sum + managers + providers + others
       }, 0)
 
       const totalDocuments = independentLots.reduce((sum, lot) => {
@@ -2434,7 +2418,6 @@ export default function LotCreationForm({
           {independentLots.map((lot, index) => {
             const lotManagers = assignedManagersByLot[lot.id] || []
             const providers = lotContactAssignments[lot.id]?.provider || []
-            const owners = lotContactAssignments[lot.id]?.owner || []
             const others = lotContactAssignments[lot.id]?.other || []
             const categoryConfig = getLotCategoryConfig(lot.category)
             const address = `${lot.street}, ${lot.postalCode} ${lot.city}`
@@ -2507,15 +2490,6 @@ export default function LotCreationForm({
                           email: c.email || undefined,
                         })),
                         emptyLabel: "Aucun prestataire",
-                      },
-                      {
-                        type: "Proprietaires",
-                        contacts: owners.map((c: any) => ({
-                          id: c.id || c.user_id,
-                          name: c.name || c.email || 'Sans nom',
-                          email: c.email || undefined,
-                        })),
-                        emptyLabel: "Aucun proprietaire",
                       },
                       {
                         type: "Autres",

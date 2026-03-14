@@ -215,9 +215,6 @@ function normalizeRole(value: unknown): string | undefined {
     'provider': 'prestataire',
     'fournisseur': 'prestataire',
     'artisan': 'prestataire',
-    'proprietaire': 'proprietaire',
-    'propriétaire': 'proprietaire',
-    'owner': 'proprietaire',
   };
 
   return mappings[str];

@@ -233,7 +233,7 @@ interface InterventionDetailClientProps {
   initialParticipantsByThread?: Record<string, any[]>
   comments: Comment[]
   // Server-provided user info to prevent hydration mismatch
-  serverUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
+  serverUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
   serverUserId: string
   // Multi-provider mode data
   assignmentMode?: AssignmentMode
@@ -738,7 +738,7 @@ export function InterventionDetailClient({
     // Ajouter les étapes selon le statut actuel
     // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
     const statusOrder = [
-      'demande', 'approuvee', 'demande_de_devis', 'planification',
+      'demande', 'approuvee', 'planification',
       'planifiee', 'cloturee_par_prestataire',
       'cloturee_par_locataire', 'cloturee_par_gestionnaire'
     ]
@@ -748,14 +748,6 @@ export function InterventionDetailClient({
     if (currentIndex > 0) {
       events.push({
         status: 'approuvee',
-        date: intervention.updated_at || new Date().toISOString(),
-        authorRole: 'manager'
-      })
-    }
-
-    if (requireQuote && currentIndex >= statusOrder.indexOf('demande_de_devis')) {
-      events.push({
-        status: 'demande_de_devis',
         date: intervention.updated_at || new Date().toISOString(),
         authorRole: 'manager'
       })
@@ -1634,9 +1626,6 @@ export function InterventionDetailClient({
       case 'cloturee_par_prestataire':
       case 'cloturee_par_locataire':
         return true;
-
-      case 'demande_de_devis':
-        return quotes?.some(q => q.status === 'pending' || q.status === 'sent') ?? false;
 
       default:
         return false;

@@ -8,6 +8,7 @@ import {
   createServerSupabaseClient
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
+import { isTeamSubscriptionBlocked } from '@/lib/subscription-guard'
 import LotDetailsClient from '@/app/gestionnaire/(no-navbar)/biens/lots/[id]/lot-details-client'
 import { logger } from '@/lib/logger'
 
@@ -54,6 +55,11 @@ export default async function LocataireLotDetailsPage({
   // profile.id = DB user PK (used in contract_contacts.user_id)
   // user.id = Supabase Auth UUID (different!)
   const { profile, team, supabase } = await getServerAuthContext('locataire')
+
+  // Block access if team subscription is blocked
+  if (await isTeamSubscriptionBlocked(profile.team_id)) {
+    redirect('/locataire/dashboard')
+  }
 
   // Verify locataire has access to this lot via contract_contacts
   const { data: accessCheck } = await supabase

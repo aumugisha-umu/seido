@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Clock, AlertTriangle, Zap, Users } from 'lucide-react'
+import { X, Clock, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -12,7 +12,10 @@ import { cn } from '@/lib/utils'
 
 interface TrialBannerProps {
   daysLeft: number | null
-  activeTeamsCount?: number
+  paymentMethodAdded: boolean
+  trialEndDate: string | null // ISO string
+  lotCount?: number
+  interventionCount?: number
   className?: string
 }
 
@@ -20,131 +23,166 @@ interface TrialBannerProps {
 // Constants
 // =============================================================================
 
-const DISMISS_KEY = 'seido_trial_banner_dismissed_at'
-const DISMISS_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
+const DISMISS_KEY_LS = 'seido_trial_banner_dismissed_at' // localStorage — 24h
+const DISMISS_KEY_SS = 'seido_trial_banner_dismissed_session' // sessionStorage — once per session
 
 // =============================================================================
 // Helpers
 // =============================================================================
 
-function isDismissed(): boolean {
+function isDismissed(daysLeft: number): boolean {
   if (typeof window === 'undefined') return false
-  const dismissedAt = localStorage.getItem(DISMISS_KEY)
+
+  // J-1: non-dismissible
+  if (daysLeft <= 1) return false
+
+  // J-3 to J-2: session-only dismiss
+  if (daysLeft <= 3) {
+    return sessionStorage.getItem(DISMISS_KEY_SS) === 'true'
+  }
+
+  // J-7 to J-4: 24h dismiss via localStorage
+  const dismissedAt = localStorage.getItem(DISMISS_KEY_LS)
   if (!dismissedAt) return false
-  return Date.now() - Number(dismissedAt) < DISMISS_DURATION_MS
+  return Date.now() - Number(dismissedAt) < 24 * 60 * 60 * 1000
 }
 
-function getColorScheme(daysLeft: number) {
-  if (daysLeft <= 1) {
-    return {
-      bg: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800',
-      text: 'text-red-800 dark:text-red-300',
-      subtext: 'text-red-700 dark:text-red-400',
-      bar: 'bg-red-500',
-      barTrack: 'bg-red-200 dark:bg-red-900/50',
-      icon: AlertTriangle,
-    }
-  }
-  if (daysLeft <= 7) {
-    return {
-      bg: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800',
-      text: 'text-orange-800 dark:text-orange-300',
-      subtext: 'text-orange-700 dark:text-orange-400',
-      bar: 'bg-orange-500',
-      barTrack: 'bg-orange-200 dark:bg-orange-900/50',
-      icon: Clock,
-    }
-  }
-  return {
-    bg: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800',
-    text: 'text-blue-800 dark:text-blue-300',
-    subtext: 'text-blue-700 dark:text-blue-400',
-    bar: 'bg-blue-500',
-    barTrack: 'bg-blue-200 dark:bg-blue-900/50',
-    icon: Zap,
-  }
-}
-
-function getMessage(daysLeft: number): string {
-  if (daysLeft <= 0) return 'Votre essai gratuit est termin\u00e9. Souscrivez pour conserver vos donn\u00e9es.'
-  if (daysLeft === 1) return 'Dernier jour d\u2019essai ! Vos donn\u00e9es passeront en lecture seule demain.'
-  if (daysLeft <= 3) return `Plus que ${daysLeft} jours. Ne perdez pas l\u2019acc\u00e8s \u00e0 vos ${daysLeft > 1 ? 'donn\u00e9es' : 'interventions'}.`
-  if (daysLeft <= 7) return `${daysLeft} jours restants dans votre essai gratuit.`
-  return `${daysLeft} jours restants dans votre essai gratuit.`
+function formatDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
 }
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export function TrialBanner({ daysLeft, activeTeamsCount, className }: TrialBannerProps) {
+export function TrialBanner({
+  daysLeft,
+  paymentMethodAdded,
+  trialEndDate,
+  lotCount = 0,
+  interventionCount = 0,
+  className,
+}: TrialBannerProps) {
   const router = useRouter()
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    // Only show during last 7 days (or less)
     if (daysLeft == null || daysLeft > 7) return
-    if (isDismissed()) return
+    if (isDismissed(daysLeft)) return
     setVisible(true)
   }, [daysLeft])
 
   if (!visible || daysLeft == null) return null
 
-  const colors = getColorScheme(daysLeft)
-  const Icon = colors.icon
-  const progressPercent = Math.max(0, Math.min(100, ((30 - daysLeft) / 30) * 100))
+  // ── Payment method already added → green reassurance ──────────────
+  if (paymentMethodAdded) {
+    const endDateFormatted = trialEndDate ? formatDate(trialEndDate) : ''
+    return (
+      <div className={cn(
+        'relative flex items-center gap-3 p-3 rounded-lg border',
+        'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800',
+        className,
+      )}>
+        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300 flex-1">
+          Vous etes pret. Votre abonnement demarrera automatiquement le {endDateFormatted}. Aucun debit avant cette date.
+        </p>
+        <button
+          onClick={() => {
+            sessionStorage.setItem(DISMISS_KEY_SS, 'true')
+            setVisible(false)
+          }}
+          className="absolute top-1 right-1 p-1 rounded-full hover:bg-black/5 text-emerald-600 dark:text-emerald-400"
+          aria-label="Fermer"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+    )
+  }
+
+  // ── No payment method → urgency messaging ─────────────────────────
+  const endDateFormatted = trialEndDate ? formatDate(trialEndDate) : ''
+
+  let bgClass: string
+  let textClass: string
+  let subtextClass: string
+  let Icon: typeof Zap
+  let message: string
+  let ctaLabel: string
+  let canDismiss: boolean
+
+  if (daysLeft <= 1) {
+    // Red — last day
+    bgClass = 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+    textClass = 'text-red-800 dark:text-red-300'
+    subtextClass = 'text-red-600 dark:text-red-400'
+    Icon = AlertTriangle
+    message = `Dernier jour. Sans moyen de paiement, vos biens seront bloques et vous ne recevrez plus aucune notification.`
+    ctaLabel = 'Activer maintenant \u2014 0 EUR aujourd\u2019hui'
+    canDismiss = false
+  } else if (daysLeft <= 3) {
+    // Amber — 2-3 days
+    bgClass = 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+    textClass = 'text-amber-800 dark:text-amber-300'
+    subtextClass = 'text-amber-600 dark:text-amber-400'
+    Icon = Clock
+    message = `Plus que ${daysLeft} jours. Vos ${lotCount} lots et ${interventionCount} interventions seront bloques sans abonnement.`
+    ctaLabel = 'Continuer avec SEIDO \u2014 0 EUR aujourd\u2019hui'
+    canDismiss = true
+  } else {
+    // Blue — 4-7 days
+    bgClass = 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+    textClass = 'text-blue-800 dark:text-blue-300'
+    subtextClass = 'text-blue-600 dark:text-blue-400'
+    Icon = Zap
+    message = `Votre essai se termine le ${endDateFormatted}. Securisez votre acces \u2014 aucun debit avant la fin de l\u2019essai.`
+    ctaLabel = 'Ajouter mon moyen de paiement'
+    canDismiss = true
+  }
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()))
+    if (daysLeft <= 3) {
+      sessionStorage.setItem(DISMISS_KEY_SS, 'true')
+    } else {
+      localStorage.setItem(DISMISS_KEY_LS, String(Date.now()))
+    }
     setVisible(false)
   }
 
   return (
     <div className={cn(
       'relative flex items-center gap-3 p-3 rounded-lg border',
-      colors.bg,
+      bgClass,
       className,
     )}>
-      <Icon className={cn('h-5 w-5 flex-shrink-0', colors.text)} />
+      <Icon className={cn('h-5 w-5 flex-shrink-0', textClass)} />
 
       <div className="flex-1 min-w-0">
-        <p className={cn('text-sm font-medium', colors.text)}>
-          {getMessage(daysLeft)}
+        <p className={cn('text-sm font-medium', textClass)}>
+          {message}
         </p>
-
-        {/* Social proof — desktop only */}
-        {activeTeamsCount != null && activeTeamsCount > 0 && (
-          <p className={cn('hidden md:flex items-center gap-1 text-xs mt-0.5', colors.subtext)}>
-            <Users className="h-3 w-3" />
-            Rejoint par {activeTeamsCount}+ gestionnaires ce mois
-          </p>
-        )}
-
-        {/* Progress bar */}
-        <div className={cn('mt-2 h-1.5 rounded-full overflow-hidden', colors.barTrack)}>
-          <div
-            className={cn('h-full rounded-full transition-all duration-500', colors.bar)}
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-        <p className={cn('text-xs mt-1', colors.subtext)}>
-          {daysLeft > 0 ? `${daysLeft}/30 jours` : 'Essai expir\u00e9'}
+        <p className={cn('text-xs mt-0.5', subtextClass)}>
+          Annulation en 1 clic - Sans engagement
         </p>
       </div>
 
       <Button
         size="sm"
-        className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0"
+        className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0 whitespace-nowrap"
         onClick={() => router.push('/gestionnaire/settings/billing')}
       >
-        S&apos;abonner
+        {ctaLabel}
       </Button>
 
-      {/* Dismiss button (not shown on last day) */}
-      {daysLeft > 1 && (
+      {canDismiss && (
         <button
           onClick={handleDismiss}
-          className={cn('absolute top-1 right-1 p-1 rounded-full hover:bg-black/5', colors.subtext)}
+          className={cn('absolute top-1 right-1 p-1 rounded-full hover:bg-black/5', subtextClass)}
           aria-label="Fermer"
         >
           <X className="h-3 w-3" />

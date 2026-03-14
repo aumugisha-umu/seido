@@ -86,7 +86,6 @@ export interface BuildingContext {
   managers?: BaseContact[]
   tenants?: BaseContact[]
   providers?: BaseContact[]
-  owners?: BaseContact[]
   others?: BaseContact[]
 }
 
@@ -275,6 +274,5 @@ export interface TransformedContacts {
   managers: BaseContact[]
   tenants: BaseContact[]
   providers: BaseContact[]
-  owners: BaseContact[]
   others: BaseContact[]
 }

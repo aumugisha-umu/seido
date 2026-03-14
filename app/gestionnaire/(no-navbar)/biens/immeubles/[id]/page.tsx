@@ -1,5 +1,5 @@
 // Server Component - loads data server-side
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import {
   createServerBuildingService,
@@ -7,9 +7,12 @@ import {
   createServerInterventionService,
   createServerContractService,
   createServerSupabaseClient,
-  createServerSupplierContractService
+  createServerSupplierContractService,
+  createServiceRoleSupabaseClient,
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
+import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
+import { SubscriptionRepository } from '@/lib/services/repositories/subscription.repository'
 import BuildingDetailsClient from './building-details-client'
 import { logger } from '@/lib/logger'
 import { Skeleton } from "@/components/ui/skeleton"
@@ -102,7 +105,20 @@ export default async function BuildingDetailsPage({
 
   // 🚨 SECURITY FIX: Cette page n'avait AUCUNE authentification!
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { team } = await getServerAuthContext('gestionnaire')
+  const { team, supabase: authSupabase } = await getServerAuthContext('gestionnaire')
+
+  // Blocked mode: redirect to list when subscription is read_only
+  try {
+    const subService = createSubscriptionService(authSupabase)
+    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
+    const subInfo = await subService.getSubscriptionInfo(team.id, serviceRoleRepo)
+    if (subInfo?.is_read_only) {
+      redirect('/gestionnaire/biens')
+    }
+  } catch (e) {
+    if (e instanceof Error && 'digest' in e) throw e
+    logger.warn('[BUILDING-PAGE-SERVER] Subscription check failed, allowing access', { buildingId: id })
+  }
 
   logger.info('🏗️ [BUILDING-PAGE-SERVER] Loading building details', {
     buildingId: id,

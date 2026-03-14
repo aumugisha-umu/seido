@@ -25,7 +25,7 @@ interface Company {
 
 interface ContactFormData {
   // Step 1: Type de contact
-  contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
+  contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'autre'
   personOrCompany: 'person' | 'company'
   specialty?: string
   customRoleDescription?: string // Description personnalisée pour le rôle "autre"
@@ -144,13 +144,11 @@ export function ContactCreationClient({
       'tenant': 'locataire',
       'provider': 'prestataire',
       'manager': 'gestionnaire',
-      'owner': 'proprietaire',
       'other': 'autre',
       // Support direct des valeurs françaises aussi
       'locataire': 'locataire',
       'prestataire': 'prestataire',
       'gestionnaire': 'gestionnaire',
-      'proprietaire': 'proprietaire',
       'autre': 'autre'
     }
 

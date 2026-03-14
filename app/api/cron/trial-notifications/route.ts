@@ -50,10 +50,12 @@ export async function GET(request: Request) {
       logger.info({ window: window.days, targetDate: targetDate.toISOString() },
         `[CRON-TRIAL-NOTIF] Checking J-${window.days}`)
 
+      // Skip teams that already added a payment method — they'll auto-convert
       const { data: subs, error } = await supabase
         .from('subscriptions')
         .select('*, teams!inner(id, name)')
         .eq('status', 'trialing')
+        .eq('payment_method_added', false)
         .gt('trial_end', now.toISOString())
         .lte('trial_end', targetDate.toISOString())
         .is(window.flag, false)

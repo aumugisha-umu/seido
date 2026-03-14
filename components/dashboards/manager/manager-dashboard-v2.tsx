@@ -27,6 +27,7 @@ import { InterventionsNavigator } from "@/components/interventions/interventions
 import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { GestionnaireFAB } from "@/components/ui/fab"
 import { OnboardingChecklist } from "@/components/billing/onboarding-checklist"
+import { TrialUpgradeModal } from "@/components/billing/trial-upgrade-modal"
 import { useSubscription } from "@/hooks/use-subscription"
 import { useStrategicNotification } from "@/hooks/use-strategic-notification"
 import { FREE_TIER_LIMIT } from "@/lib/stripe"
@@ -58,7 +59,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     const [interventions, setInterventions] = useState(initialInterventions)
 
     // Strategic notification hook (upgrade prompts at positive moments)
-    const { daysLeftTrial } = useSubscription()
+    const { daysLeftTrial, status: subscriptionStatus } = useSubscription()
     const { onInterventionClosed, checkQuotaWarning } = useStrategicNotification({
         daysLeftTrial,
         lotCount: stats.lotsCount ?? 0,
@@ -291,6 +292,15 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                 onCreateBuilding={navigateToNewBuilding}
                 onCreateLot={navigateToNewLot}
                 onCreateContact={navigateToNewContact}
+            />
+
+            {/* Trial upgrade modal — shown once per session when <=2 days left */}
+            <TrialUpgradeModal
+                daysLeft={daysLeftTrial}
+                paymentMethodAdded={subscriptionStatus?.payment_method_added ?? false}
+                trialEndDate={subscriptionStatus?.trial_end ?? null}
+                lotCount={stats.lotsCount ?? 0}
+                interventionCount={activeInterventionsCount + completedInterventionsCount}
             />
         </div>
     )

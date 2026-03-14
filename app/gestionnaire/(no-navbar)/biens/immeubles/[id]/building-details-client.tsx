@@ -307,18 +307,8 @@ export default function BuildingDetailsClient({
       type: 'provider',
       speciality: bc.user.speciality || bc.user.provider_category
     }))
-  const owners = buildingContacts
-    .filter(bc => bc.user.role === 'proprietaire')
-    .map(bc => ({
-      id: bc.user.id,
-      name: bc.user.name,
-      email: bc.user.email,
-      phone: bc.user.phone,
-      company: bc.user.company,
-      type: 'owner'
-    }))
   const others = buildingContacts
-    .filter(bc => bc.user.role !== 'prestataire' && bc.user.role !== 'proprietaire' && bc.user.role !== 'locataire' && bc.user.role !== 'gestionnaire' && bc.user.role !== 'admin')
+    .filter(bc => bc.user.role !== 'prestataire' && bc.user.role !== 'locataire' && bc.user.role !== 'gestionnaire' && bc.user.role !== 'admin')
     .map(bc => ({
       id: bc.user.id,
       name: bc.user.name,
@@ -504,7 +494,6 @@ export default function BuildingDetailsClient({
                       buildingManagers={buildingManagers}
                       buildingTenants={buildingTenants}
                       buildingProviders={providers}
-                      buildingOwners={owners}
                       buildingOthers={others}
                       lockedLotIds={lockedLotIds}
                       initialExpandAll={false}
@@ -526,7 +515,6 @@ export default function BuildingDetailsClient({
                   buildingName={building.name}
                   buildingManagers={buildingManagers}
                   providers={providers as any}
-                  owners={owners as any}
                   teamId={teamId}
                   others={others as any}
                   buildingContactIds={buildingContactIds}
@@ -561,7 +549,6 @@ export default function BuildingDetailsClient({
                   buildingManagers={buildingManagers}
                   buildingTenants={buildingTenants}
                   buildingProviders={providers}
-                  buildingOwners={owners}
                   buildingOthers={others}
                   initialExpandedLotId={expandLotId}
                   lockedLotIds={lockedLotIds}

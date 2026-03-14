@@ -119,7 +119,6 @@ interface Contact {
 const contactTypes = [
   { key: "tenant", label: "Locataire", icon: User, color: "text-blue-600" },
   { key: "provider", label: "Prestataire", icon: Briefcase, color: "text-green-600" },
-  { key: "owner", label: "Propriétaire", icon: Shield, color: "text-amber-600" },
   { key: "other", label: "Autre", icon: MoreHorizontal, color: "text-gray-600" },
 ]
 
@@ -340,7 +339,6 @@ export default function NewImmeubleePage({
     const categoryMap: Record<string, string> = {
       'prestataire': 'provider',
       'locataire': 'tenant',
-      'proprietaire': 'owner',
       'gestionnaire': 'other',
       'autre': 'other'
     }

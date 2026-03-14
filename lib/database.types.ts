@@ -3133,6 +3133,7 @@ export type Database = {
           notification_j1_sent: boolean
           notification_j3_sent: boolean
           notification_j7_sent: boolean
+          payment_method_added: boolean
           price_id: string | null
           status: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id: string | null
@@ -3158,6 +3159,7 @@ export type Database = {
           notification_j1_sent?: boolean
           notification_j3_sent?: boolean
           notification_j7_sent?: boolean
+          payment_method_added?: boolean
           price_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
@@ -3183,6 +3185,7 @@ export type Database = {
           notification_j1_sent?: boolean
           notification_j3_sent?: boolean
           notification_j7_sent?: boolean
+          payment_method_added?: boolean
           price_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
@@ -3288,7 +3291,6 @@ export type Database = {
           notice_date: string | null
           notice_period: string | null
           reference: string
-          start_date: string | null
           status: string
           supplier_id: string | null
           team_id: string
@@ -3310,7 +3312,6 @@ export type Database = {
           notice_date?: string | null
           notice_period?: string | null
           reference: string
-          start_date?: string | null
           status?: string
           supplier_id?: string | null
           team_id: string
@@ -3332,7 +3333,6 @@ export type Database = {
           notice_date?: string | null
           notice_period?: string | null
           reference?: string
-          start_date?: string | null
           status?: string
           supplier_id?: string | null
           team_id?: string

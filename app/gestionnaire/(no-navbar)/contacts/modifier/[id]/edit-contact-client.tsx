@@ -25,7 +25,7 @@ interface Company {
 
 interface ContactFormData {
     // Step 1: Type de contact
-    contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
+    contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'autre'
     personOrCompany: 'person' | 'company'
     specialty?: string
 
@@ -81,7 +81,7 @@ export function EditContactClient({
     const normalizeContactType = (dbRole: string): ContactFormData['contactType'] => {
         // Les valeurs DB sont déjà en français, on les utilise directement
         // Fallback pour compatibilité avec d'éventuelles anciennes données
-        const validRoles: ContactFormData['contactType'][] = ['locataire', 'prestataire', 'gestionnaire', 'proprietaire', 'autre']
+        const validRoles: ContactFormData['contactType'][] = ['locataire', 'prestataire', 'gestionnaire', 'autre']
         if (validRoles.includes(dbRole as ContactFormData['contactType'])) {
             return dbRole as ContactFormData['contactType']
         }
@@ -90,7 +90,7 @@ export function EditContactClient({
             'tenant': 'locataire',
             'provider': 'prestataire',
             'manager': 'gestionnaire',
-            'owner': 'proprietaire',
+            'owner': 'autre',
             'other': 'autre'
         }
         return legacyMapping[dbRole] || 'autre'

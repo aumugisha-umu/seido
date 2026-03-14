@@ -6,11 +6,11 @@ import { User, Building2, Tag, Wrench, Users } from "lucide-react"
 import { InterventionTypeCombobox } from "@/components/intervention/intervention-type-combobox"
 
 interface Step1TypeProps {
-  contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
+  contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'autre'
   personOrCompany: 'person' | 'company'
   specialty?: string
   customRoleDescription?: string
-  onContactTypeChange: (value: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre') => void
+  onContactTypeChange: (value: 'locataire' | 'prestataire' | 'gestionnaire' | 'autre') => void
   onPersonOrCompanyChange: (value: 'person' | 'company') => void
   onSpecialtyChange: (value: string) => void
   onCustomRoleDescriptionChange: (value: string) => void
@@ -49,7 +49,6 @@ export function Step1Type({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="locataire">Locataire</SelectItem>
-              <SelectItem value="proprietaire">Propriétaire</SelectItem>
               <SelectItem value="gestionnaire">Gestionnaire</SelectItem>
               <SelectItem value="prestataire">Prestataire</SelectItem>
               <SelectItem value="autre">Autre</SelectItem>

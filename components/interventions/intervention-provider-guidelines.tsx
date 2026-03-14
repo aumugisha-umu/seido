@@ -15,7 +15,7 @@ import { updateProviderGuidelinesAction } from '@/app/actions/intervention-actio
 interface InterventionProviderGuidelinesProps {
   interventionId: string
   guidelines: string | null
-  currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
+  currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
   onUpdate?: () => void
 }
 

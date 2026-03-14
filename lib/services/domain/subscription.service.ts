@@ -25,6 +25,7 @@ export interface SubscriptionInfo {
   has_stripe_subscription: boolean
   days_left_trial: number | null
   billing_interval: 'month' | 'year' | null
+  payment_method_added: boolean
 }
 
 export interface UpgradePreview {
@@ -130,6 +131,7 @@ export class SubscriptionService {
       has_stripe_subscription: !!sub.stripe_subscription_id,
       days_left_trial: daysLeftTrial,
       billing_interval: billingInterval,
+      payment_method_added: sub.payment_method_added ?? false,
     }
   }
 
@@ -271,8 +273,9 @@ export class SubscriptionService {
     quantity: number
     successUrl: string
     cancelUrl: string
+    trialEnd?: number // Unix timestamp — Stripe collects payment method but charges 0 EUR until this date
   }): Promise<Stripe.Checkout.Session> {
-    const { teamId, customerId, quantity, successUrl, cancelUrl } = params
+    const { teamId, customerId, quantity, successUrl, cancelUrl, trialEnd } = params
     const priceId = params.priceId || STRIPE_PRICES.annual
 
     // Minimum 3 lots (since 1-2 is free tier)
@@ -282,6 +285,7 @@ export class SubscriptionService {
       customer: customerId,
       mode: 'subscription',
       allow_promotion_codes: true,
+      payment_method_collection: 'always',
       metadata: { team_id: teamId },
       line_items: [
         {
@@ -291,6 +295,7 @@ export class SubscriptionService {
       ],
       subscription_data: {
         metadata: { team_id: teamId },
+        ...(trialEnd ? { trial_end: trialEnd } : {}),
       },
       success_url: successUrl,
       cancel_url: cancelUrl,

@@ -409,11 +409,11 @@ export const BuildingInfoForm = ({
 
       <div>
         <Label htmlFor="description" icon={FileText}>
-          Description <span className="text-muted-foreground font-normal">(optionnel)</span>
+          Commentaire <span className="text-muted-foreground font-normal">(optionnel)</span>
         </Label>
         <Textarea
           id="description"
-          placeholder={`Ajoutez des informations supplémentaires sur votre ${entityType}...`}
+          placeholder={`Ajoutez un commentaire sur votre ${entityType}...`}
           value={buildingInfo.description || ""}
           onChange={(e) => setBuildingInfo({ ...buildingInfo, description: e.target.value })}
           className="mt-1 min-h-[100px] sm:min-h-[120px] text-sm sm:text-base"

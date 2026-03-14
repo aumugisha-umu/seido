@@ -15,7 +15,6 @@ interface ContactCardMobileProps {
 const ROLE_LABELS: Record<string, string> = {
   locataire: 'Locataire',
   prestataire: 'Prestataire',
-  proprietaire: 'Propriétaire',
   gestionnaire: 'Gestionnaire',
 }
 

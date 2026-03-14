@@ -3,7 +3,7 @@
 ## INTERDICTIONS (Never violate)
 
 1. **No git without `git*`:** NEVER run git add/commit/push unless user types `git*`
-2. **No build without ask:** NEVER run `npm run build` without explicit request. Use `npm run lint` or `npx tsc --noEmit [file]`
+2. **No build without ask:** NEVER run `npm run build` unless user explicitly asks. Use `npm run lint` or `npx tsc --noEmit [file]` for validation. **Exception:** `npm run build` is required during the `git*` quality-gate commit workflow (automated checks step)
 3. **No direct Supabase:** NEVER call Supabase directly in components — Repository Pattern only
 4. **No `any` / `console.log`:** NEVER leave `any` types or `console.log` in production code
 

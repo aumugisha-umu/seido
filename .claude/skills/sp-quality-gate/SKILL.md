@@ -36,11 +36,11 @@ When the user types "git*" (global CLAUDE.md trigger for auto-commit):
 
 ### Step 1: Automated Checks
 
-Run these checks in parallel:
+Run these checks:
 
 ```bash
-# TypeScript — ALWAYS required
-npx tsc --noEmit
+# Build — ALWAYS required (catches TS errors + build issues)
+npm run build
 
 # ESLint — ALWAYS required
 npm run lint

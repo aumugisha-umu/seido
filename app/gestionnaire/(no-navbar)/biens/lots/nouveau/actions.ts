@@ -299,6 +299,40 @@ export async function getBuildingWithRelations(buildingId: string): Promise<{
 }
 
 /**
+ * Server Action pour récupérer les documents existants d'un immeuble
+ */
+export async function getBuildingExistingDocuments(buildingId: string): Promise<{
+  success: boolean
+  documents?: Array<{
+    id: string
+    document_type: string
+    original_filename: string
+    uploaded_at: string
+  }>
+  error?: string
+}> {
+  try {
+    const supabase = await createServerActionSupabaseClient()
+    const { data, error } = await supabase
+      .from('property_documents')
+      .select('id, document_type, original_filename, uploaded_at')
+      .eq('building_id', buildingId)
+      .is('deleted_at', null)
+      .order('uploaded_at', { ascending: false })
+
+    if (error) {
+      logger.error('❌ [SERVER-ACTION] Error fetching building documents:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, documents: data || [] }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Unexpected error fetching building documents:', error)
+    return { success: false, error: 'Unknown error' }
+  }
+}
+
+/**
  * Server Action pour créer une adresse avec données de géocodage
  * Utilise le contexte de requête serveur pour accéder aux cookies (auth session)
  *

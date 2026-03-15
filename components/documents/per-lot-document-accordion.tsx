@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { DocumentChecklistGeneric } from "@/components/documents/document-checklist-generic"
@@ -14,6 +14,13 @@ interface LotInfo {
   category: string
 }
 
+interface ExistingDoc {
+  id: string
+  document_type: string
+  original_filename: string
+  uploaded_at: string
+}
+
 interface PerLotDocumentAccordionProps {
   lots: LotInfo[]
   lotDocUploads: { [lotId: string]: UsePropertyDocumentUploadReturn }
@@ -21,6 +28,16 @@ interface PerLotDocumentAccordionProps {
   buildingDocUpload?: UsePropertyDocumentUploadReturn
   /** Building name for the building-level checklist title */
   buildingName?: string
+  /** Existing building documents (read-only display) */
+  existingBuildingDocs?: ExistingDoc[]
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  'certificat_peb': 'Certificat PEB/EPC',
+  'entretien_chaudiere': 'Entretien chaudière',
+  'etat_des_lieux': 'État des lieux',
+  'controle_ascenseur': 'Contrôle ascenseur',
+  'autre': 'Autre document',
 }
 
 /**
@@ -34,7 +51,8 @@ export function PerLotDocumentAccordion({
   lots,
   lotDocUploads,
   buildingDocUpload,
-  buildingName
+  buildingName,
+  existingBuildingDocs
 }: PerLotDocumentAccordionProps) {
   // All lots expanded by default — undefined = open, explicit false = closed
   const [expandedLots, setExpandedLots] = useState<Record<string, boolean>>({})
@@ -45,6 +63,30 @@ export function PerLotDocumentAccordion({
 
   return (
     <div className="space-y-6">
+      {/* Existing building documents (read-only) */}
+      {existingBuildingDocs && existingBuildingDocs.length > 0 && (
+        <div className="rounded-lg border border-green-200 bg-green-50/50 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <h4 className="text-sm font-semibold text-green-800">
+              Documents existants — {buildingName || 'Immeuble'}
+            </h4>
+            <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+              {existingBuildingDocs.length} fichier{existingBuildingDocs.length > 1 ? 's' : ''}
+            </Badge>
+          </div>
+          <div className="space-y-1">
+            {existingBuildingDocs.map((doc) => (
+              <div key={doc.id} className="flex items-center gap-2 text-sm text-green-700 pl-6">
+                <span className="font-medium">{DOC_TYPE_LABELS[doc.document_type] || doc.document_type}</span>
+                <span className="text-green-500">·</span>
+                <span className="text-green-600 truncate">{doc.original_filename}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Building-level documents (optional) */}
       {buildingDocUpload && (
         <DocumentChecklistGeneric

@@ -156,6 +156,11 @@ export const STATUS_LABELS_FR: Partial<Record<InterventionStatus, string>> = {
   contestee: "Contestée"
 }
 
+/**
+ * How an intervention was created
+ */
+export type InterventionCreationSource = 'manual' | 'wizard' | 'tenant'
+
 export interface Intervention {
   id: string
   lot_id?: string | null

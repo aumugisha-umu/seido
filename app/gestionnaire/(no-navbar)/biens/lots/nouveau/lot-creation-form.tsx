@@ -27,7 +27,7 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 import { createLotService, createContactInvitationService } from "@/lib/services"
 import type { Team, User as UserType, Contact } from "@/lib/services/core/service-types"
 import { toast } from "sonner"
-import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction } from "./actions"
+import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction, getBuildingExistingDocuments } from "./actions"
 
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -120,6 +120,7 @@ interface LotCreationFormProps {
   initialTeamManagers: TeamManager[]
   initialCategoryCounts: Record<string, number>
   prefillBuildingId: string | null
+  initialHasBuildings: boolean
 }
 
 export default function LotCreationForm({
@@ -129,12 +130,13 @@ export default function LotCreationForm({
   initialTeamManagers,
   initialCategoryCounts,
   prefillBuildingId,
+  initialHasBuildings,
 }: LotCreationFormProps) {
   const router = useRouter()
   const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const { data: managerData } = useManagerStats()
-  const hasBuildings = (managerData?.buildings?.length ?? 0) > 0
+  const hasBuildings = managerData ? (managerData.buildings?.length ?? 0) > 0 : initialHasBuildings
   const [currentStep, setCurrentStepState] = useState(1)
   const [maxStepReached, setMaxStepReached] = useState(1)
 
@@ -294,6 +296,12 @@ export default function LotCreationForm({
     category: LotCategory
   }>>([])
   const [isLoadingBuildingData, setIsLoadingBuildingData] = useState(false)
+  const [existingBuildingDocs, setExistingBuildingDocs] = useState<Array<{
+    id: string
+    document_type: string
+    original_filename: string
+    uploaded_at: string
+  }>>([])
 
   // Form persistence for contact creation redirect
   const formState = {
@@ -459,8 +467,7 @@ export default function LotCreationForm({
   useEffect(() => {
     if (currentStep === 2 &&
         lotData.buildingAssociation === "existing" &&
-        lots.length === 0 &&
-        categoryCountsByTeam && Object.keys(categoryCountsByTeam).length > 0) {
+        lots.length === 0) {
 
       logger.info("🏠 [MULTI-LOT] Auto-initializing first lot...")
 
@@ -570,6 +577,7 @@ export default function LotCreationForm({
           other: [],
         })
         setExistingBuildingLots([])
+        setExistingBuildingDocs([])
         return
       }
 
@@ -725,6 +733,12 @@ export default function LotCreationForm({
         })
 
         setExistingBuildingLots(normalizedExistingLots)
+
+        // ✅ Fetch existing building documents
+        const docsResult = await getBuildingExistingDocuments(lotData.selectedBuilding!)
+        if (docsResult.success && docsResult.documents) {
+          setExistingBuildingDocs(docsResult.documents)
+        }
       } catch (error) {
         logger.error("❌ [LOT-CREATION] Error loading building data:", error)
         toast.error("Erreur de chargement", { description: "Impossible de charger les données de l'immeuble. Veuillez réessayer." })
@@ -736,6 +750,7 @@ export default function LotCreationForm({
           other: [],
         })
         setExistingBuildingLots([])
+        setExistingBuildingDocs([])
       } finally {
         setIsLoadingBuildingData(false)
       }
@@ -1215,7 +1230,7 @@ export default function LotCreationForm({
           })
         })
       )
-      const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length
+      const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as any)?.success).length
       logger.info({ successCount, total: results.length, lotId }, 'Lot interventions created')
     } catch (err) {
       logger.error('⚠️ Intervention creation failed (lot created successfully):', err)
@@ -1258,7 +1273,7 @@ export default function LotCreationForm({
             const result = await createLotAction(lotDataToCreate)
 
             if (!result.success || !result.data) {
-              logger.error(`❌ Failed to create lot ${lot.reference}:`, result.error)
+              logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
               return null
             }
 
@@ -1440,7 +1455,7 @@ export default function LotCreationForm({
             const result = await createLotAction(lotDataToCreate)
 
             if (!result.success || !result.data) {
-              logger.error(`❌ Failed to create lot ${lot.reference}:`, result.error)
+              logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
               return null
             }
 
@@ -1881,6 +1896,11 @@ export default function LotCreationForm({
           expandedLots={expandedLots}
           buildingReference={selectedBuilding?.name || "Immeuble sélectionné"}
           buildingAddress={selectedBuilding?.address_record?.street || ""}
+          buildingPostalCode={selectedBuilding?.address_record?.postal_code || ""}
+          buildingCity={selectedBuilding?.address_record?.city || ""}
+          buildingCountry={selectedBuilding?.address_record?.country || ""}
+          existingLotsCount={existingBuildingLots.length}
+          existingLots={existingBuildingLots}
           onAddLot={addLot}
           onUpdateLot={updateLot}
           onDuplicateLot={duplicateLot}
@@ -2153,6 +2173,7 @@ export default function LotCreationForm({
             toggleLotExpansion={toggleLotExpansion}
             buildingDocUpload={lotDocUpload}
             lotDocUploads={lotDocUploads}
+            existingBuildingDocs={existingBuildingDocs}
           />
         </>
       )
@@ -2203,7 +2224,7 @@ export default function LotCreationForm({
         />
 
         <Tabs defaultValue="contacts" className="w-full">
-          <div className="sticky top-16 z-20 bg-background py-2">
+          <div className="py-2">
             <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto bg-slate-100 border border-slate-200 p-1 rounded-xl shadow-sm">
               <TabsTrigger
                 value="contacts"
@@ -2381,6 +2402,10 @@ export default function LotCreationForm({
           existingLots={existingBuildingLots}
           lotContactAssignments={lotContactAssignments}
           assignedManagers={assignedManagersByLot}
+          buildingDocSlots={lotDocUpload.slots}
+          lotDocSlots={Object.fromEntries(
+            Object.entries(lotDocUploads).map(([lotId, upload]) => [lotId, upload.slots])
+          )}
         />
       )
     }

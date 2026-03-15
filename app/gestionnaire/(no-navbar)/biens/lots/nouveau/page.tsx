@@ -45,13 +45,15 @@ export default async function NewLotPage({
     createServerLotService(),
   ])
 
-  const [membersResult, categoryCountsResult] = await Promise.all([
+  const [membersResult, categoryCountsResult, buildingCountResult] = await Promise.all([
     teamService.getTeamMembers(team.id),
     lotService.getLotStatsByCategory(team.id).catch(() => ({ data: {} as Record<string, number> })),
+    supabase.from('buildings').select('*', { count: 'exact', head: true }).eq('team_id', team.id).is('deleted_at', null),
   ])
 
   const teamMembers = membersResult?.data || []
   const categoryCountsByTeam: Record<string, number> = categoryCountsResult?.data || {}
+  const initialHasBuildings = (buildingCountResult.count ?? 0) > 0
 
   // Filter for managers only - Use member.role (team role) not member.user.role (global user role)
   const teamManagers = teamMembers.filter(
@@ -84,6 +86,7 @@ export default async function NewLotPage({
       initialTeamManagers={teamManagers}
       initialCategoryCounts={categoryCountsByTeam}
       prefillBuildingId={params.buildingId || null}
+      initialHasBuildings={initialHasBuildings}
     />
   )
 }

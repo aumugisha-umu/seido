@@ -259,6 +259,7 @@ async function createReminderInterventions(
         created_by: userId,
         scheduled_date: contract.notice_date + 'T09:00:00.000Z',
         scheduling_method: 'direct',
+        creation_source: 'wizard',
       })
     }
 

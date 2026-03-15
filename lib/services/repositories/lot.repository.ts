@@ -673,13 +673,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     try {
       // ✅ PERF: Use DB-level grouping via RPC or multiple head:true queries
       // Supabase JS doesn't support GROUP BY directly, so we use head:true per category
-      const categories = ['habitation', 'commerce', 'bureau', 'parking', 'cave', 'autre']
+      const categories = ['appartement', 'maison', 'garage', 'local_commercial', 'autre']
 
       const countPromises = categories.map(async (category) => {
         const { count, error } = await this.supabase
           .from(this.tableName)
-          .select('id, buildings!inner(team_id)', { count: 'exact', head: true })
-          .eq('buildings.team_id', teamId)
+          .select('id', { count: 'exact', head: true })
+          .eq('team_id', teamId)
+          .is('deleted_at', null)
           .eq('category', category)
 
         return { category, count: error ? 0 : (count ?? 0) }

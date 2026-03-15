@@ -159,7 +159,8 @@ export async function POST(request: NextRequest) {
       team_id: teamId,
       status: 'demande' as Database['public']['Enums']['intervention_status'],
       // ✅ FIX 2025-12-24: Ajout created_by pour exclure le créateur des notifications email
-      created_by: user.id
+      created_by: user.id,
+      creation_source: 'tenant'
     }
 
     logger.info({ interventionData }, "📝 Creating intervention (step 1/3: INSERT only)")

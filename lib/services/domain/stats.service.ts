@@ -586,7 +586,7 @@ export class StatsService {
         // 2. Buildings for this team
         this.repository.supabase
           .from('buildings')
-          .select('id, name, created_at, address_record:address_id(*)')
+          .select('id, name, created_at, address_record:address_id(*), lots!lots_building_id_fkey(id, reference, category, floor, apartment_number)')
           .eq('team_id', teamId)
           .order('created_at', { ascending: false }),
 

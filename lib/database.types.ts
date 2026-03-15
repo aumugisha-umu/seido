@@ -2397,6 +2397,7 @@ export type Database = {
           contract_id: string | null
           created_at: string
           created_by: string | null
+          creation_source: string | null
           deleted_at: string | null
           deleted_by: string | null
           description: string
@@ -2432,6 +2433,7 @@ export type Database = {
           contract_id?: string | null
           created_at?: string
           created_by?: string | null
+          creation_source?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description: string
@@ -2467,6 +2469,7 @@ export type Database = {
           contract_id?: string | null
           created_at?: string
           created_by?: string | null
+          creation_source?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string

@@ -72,6 +72,8 @@ interface BuildingContactsStepV3Props {
   buildingDocUpload?: UsePropertyDocumentUploadReturn
   /** Optional: per-lot document upload hooks (map of lotId → hook return) */
   lotDocUploads?: { [lotId: string]: UsePropertyDocumentUploadReturn }
+  /** Existing building documents (read-only display) */
+  existingBuildingDocs?: Array<{ id: string; document_type: string; original_filename: string; uploaded_at: string }>
 }
 
 /**
@@ -103,7 +105,8 @@ export function BuildingContactsStepV3({
   removeBuildingManager,
   toggleLotExpansion,
   buildingDocUpload,
-  lotDocUploads
+  lotDocUploads,
+  existingBuildingDocs
 }: BuildingContactsStepV3Props) {
   const providers = buildingContacts['provider'] || []
   const others = buildingContacts['other'] || []
@@ -185,6 +188,7 @@ export function BuildingContactsStepV3({
       lotDocUploads={lotDocUploads || {}}
       buildingDocUpload={buildingDocUpload}
       buildingName={buildingInfo.name || 'Immeuble'}
+      existingBuildingDocs={existingBuildingDocs}
     />
   ) : null
 
@@ -197,7 +201,7 @@ export function BuildingContactsStepV3({
   return (
     <div className="space-y-4">
       <Tabs defaultValue="contacts" className="w-full">
-        <div className="sticky top-16 z-20 bg-background py-2">
+        <div className="py-2">
           <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto bg-slate-100 border border-slate-200 p-1 rounded-xl shadow-sm">
             <TabsTrigger
               value="contacts"

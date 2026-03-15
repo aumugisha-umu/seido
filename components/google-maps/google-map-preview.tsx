@@ -155,7 +155,7 @@ export function GoogleMapPreview({
 
   return (
     <div className={cn('space-y-2 flex flex-col', className)}>
-      <div style={{ width: '100%', minHeight: height }} className="rounded-lg overflow-hidden border bg-muted flex-1">
+      <div style={{ width: '100%', height }} className="rounded-lg overflow-hidden border bg-muted">
         <Map
           style={{ width: '100%', height: '100%' }}
           center={position}

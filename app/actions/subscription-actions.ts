@@ -448,11 +448,12 @@ export async function getOnboardingProgress(): Promise<ActionResult<OnboardingPr
         .from('contracts')
         .select('id', { count: 'exact', head: true })
         .eq('team_id', team.id),
-      // 4. Has at least one intervention
+      // 4. Has at least one manually-created intervention by gestionnaire
       supabase
         .from('interventions')
         .select('id', { count: 'exact', head: true })
-        .eq('team_id', team.id),
+        .eq('team_id', team.id)
+        .eq('creation_source', 'manual'),
       // 5. Has closed at least one intervention
       supabase
         .from('interventions')

@@ -3,7 +3,7 @@
 import React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Building, TrendingUp } from "lucide-react"
+import { Plus, Building, TrendingUp, ChevronDown, ChevronUp } from "lucide-react"
 import { LotInputCardV2 } from "@/components/ui/lot-input-card-v2"
 import { LotCategory } from "@/lib/lot-types"
 import { BuildingInfoCard } from "@/components/ui/building-info-card"
@@ -25,6 +25,14 @@ interface BuildingLotsStepV2Props {
   buildingPostalCode: string
   buildingCity: string
   buildingCountry: string
+  existingLotsCount?: number
+  existingLots?: Array<{
+    id: string
+    reference: string
+    floor: string
+    door_number: string
+    category: LotCategory
+  }>
   onAddLot: () => void
   onUpdateLot: (id: string, field: keyof Lot, value: string) => void
   onDuplicateLot: (id: string) => void
@@ -66,6 +74,14 @@ interface BuildingLotsStepV2Props {
  * - Gestionnaires créant 3-10 lots en série
  * - Vue d'ensemble rapide (plusieurs lots visibles simultanément)
  */
+const LOT_CATEGORY_LABELS: Record<string, string> = {
+  'appartement': 'Appartement',
+  'maison': 'Maison',
+  'garage': 'Garage',
+  'local_commercial': 'Local commercial',
+  'autre': 'Autre'
+}
+
 export function BuildingLotsStepV2({
   lots,
   expandedLots,
@@ -74,6 +90,8 @@ export function BuildingLotsStepV2({
   buildingPostalCode,
   buildingCity,
   buildingCountry,
+  existingLotsCount,
+  existingLots,
   onAddLot,
   onUpdateLot,
   onDuplicateLot,
@@ -81,6 +99,8 @@ export function BuildingLotsStepV2({
   onToggleLotExpansion,
   disableAddLot,
 }: BuildingLotsStepV2Props) {
+  const [showExistingLots, setShowExistingLots] = React.useState(false)
+
   return (
     <div className="space-y-3 @container">
       {/* Building Info Card - Inline Compact */}
@@ -90,11 +110,59 @@ export function BuildingLotsStepV2({
         postalCode={buildingPostalCode}
         city={buildingCity}
         country={buildingCountry}
+        existingLotsCount={existingLotsCount}
         onAddLot={onAddLot}
         disableAddLot={disableAddLot}
       />
 
-      {/* Lots Grid - Ultra Compact */}
+      {/* Existing Lots - Read-only collapsible */}
+      {existingLots && existingLots.length > 0 && (
+        <Card className="border-dashed border-gray-200 bg-gray-50/50">
+          <CardContent className="py-3 px-4">
+            <button
+              onClick={() => setShowExistingLots(!showExistingLots)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <span className="text-sm font-medium text-gray-600">
+                {existingLots.length} lot{existingLots.length > 1 ? "s" : ""} existant{existingLots.length > 1 ? "s" : ""} dans cet immeuble
+              </span>
+              {showExistingLots ? (
+                <ChevronUp className="h-4 w-4 text-gray-400" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              )}
+            </button>
+            {showExistingLots && (
+              <div className="mt-3 space-y-1.5">
+                {existingLots.map((lot) => (
+                  <div
+                    key={lot.id}
+                    className="flex items-center gap-3 rounded-md bg-white px-3 py-2 text-sm border border-gray-100"
+                  >
+                    <span className="font-medium text-gray-700">{lot.reference || "Sans référence"}</span>
+                    <span className="text-gray-400">·</span>
+                    <span className="text-gray-500">{LOT_CATEGORY_LABELS[lot.category] || lot.category}</span>
+                    {lot.floor && (
+                      <>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-gray-500">Ét. {lot.floor}</span>
+                      </>
+                    )}
+                    {lot.door_number && (
+                      <>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-gray-500">Porte {lot.door_number}</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* New Lots Grid - Ultra Compact */}
       {lots.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">

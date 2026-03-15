@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createBrowserSupabaseClient, createInterventionService } from '@/lib/services'
 import { logger } from '@/lib/logger'
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 import type { Intervention } from '@/lib/services/core/service-types'
 
 interface UseInterventionsReturn {
@@ -101,6 +102,19 @@ export function useInterventions(): UseInterventionsReturn {
       mountedRef.current = false
     }
   }, [])
+
+  // Auto-refetch on invalidation broadcast
+  const realtime = useRealtimeOptional()
+
+  useEffect(() => {
+    if (!realtime?.onInvalidation) return
+    return realtime.onInvalidation(['interventions'], () => {
+      logger.info('🔄 [useInterventions] Auto-refetch triggered by invalidation')
+      lastFetchTimeRef.current = 0
+      loadingRef.current = false
+      loadInterventions(true)
+    })
+  }, [realtime, loadInterventions])
 
   // ✅ OPTIMISÉ: Refetch sans vider les données (meilleure UX)
   const refetch = useCallback(() => {

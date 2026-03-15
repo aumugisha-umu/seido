@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-03-14
-**Total Learnings:** 141
+**Total Learnings:** 142
 
 ---
 
@@ -1018,6 +1018,13 @@
 **Example:** `lib/subscription-guard.ts:isTeamSubscriptionBlocked()` — imported by `notification-actions.ts`, `conversation-notification-actions.ts`, and page Server Components
 **When to Use:** Whenever you need a helper function in 2+ server action files — move it to `lib/` immediately
 **Added:** 2026-03-14 | **Source:** Simplify review — triple duplication of subscription blocking helper
+
+#### Learning #142: Debounce event dispatch per-batch, not per-entity — avoids N+1 callback storms
+**Problem:** Data invalidation broadcast sends entity arrays like `['buildings', 'lots', 'stats']`. Initial implementation debounced per entity type (one timer per entity), meaning a handler subscribed to `['buildings', 'lots', 'contacts', 'interventions', 'stats']` would fire 3 separate refetches from a single broadcast — once per matched entity after its 500ms timer.
+**Solution:** Collect all pending entities in a `Set` during the debounce window (single 500ms timer). When the timer fires, iterate handlers once and call each handler at most once if ANY of its entities are in the pending set.
+**Example:** `contexts/realtime-context.tsx` — `pendingEntitiesRef` + single `debounceTimerRef` instead of `Map<DataEntity, Timeout>`
+**When to Use:** Any pub/sub system with multi-topic subscriptions and debouncing — always debounce the dispatch batch, not individual topics
+**Added:** 2026-03-15 | **Source:** Simplify /efficiency review — N+1 callback bug in data invalidation
 
 ---
 

@@ -109,6 +109,9 @@ import { useActivityLogs } from '@/hooks/use-activity-logs'
 // Activity tab (shared)
 import { ActivityTab } from '@/components/interventions/activity-tab'
 
+// Realtime invalidation
+import { useRealtimeOptional } from '@/contexts/realtime-context'
+
 // Contact selector
 import { ContactSelector, type ContactSelectorRef } from '@/components/contact-selector'
 
@@ -292,6 +295,7 @@ export function InterventionDetailClient({
   interventionAddress
 }: InterventionDetailClientProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const { currentUserTeam } = useTeamStatus()
@@ -502,6 +506,7 @@ export function InterventionDetailClient({
   // Callback after confirmation/rejection
   const handleConfirmationResponse = () => {
     // Refresh the page to get updated data
+    realtime?.broadcastInvalidation(['interventions', 'stats'])
     router.refresh()
   }
 
@@ -832,7 +837,10 @@ export function InterventionDetailClient({
     modalProviderInstructions,
     confirmationRequired,
     requiresConfirmation,
-    () => router.refresh(),
+    () => {
+      realtime?.broadcastInvalidation(['interventions', 'stats'])
+      router.refresh()
+    },
   )
 
   // Reset participant selection and pre-fill scheduling state when programming modal opens
@@ -889,6 +897,7 @@ export function InterventionDetailClient({
   // Handle refresh - défini avant approvalHook pour pouvoir être passé en callback
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true)
+    realtime?.broadcastInvalidation(['interventions', 'stats'])
     router.refresh()
     setTimeout(() => setIsRefreshing(false), 1000)
   }, [router])
@@ -1256,6 +1265,7 @@ export function InterventionDetailClient({
         toast('Contact créé et assigné', { description: 'Le nouveau contact a été créé et assigné avec succès' })
         // Clean URL params and refresh
         router.replace(`/gestionnaire/interventions/${intervention.id}`)
+        realtime?.broadcastInvalidation(['interventions', 'stats'])
         router.refresh()
       } else {
         toast.error('Erreur d\'assignation', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
@@ -1468,6 +1478,7 @@ export function InterventionDetailClient({
 
       if (result.success) {
         toast('Commentaire ajouté', { description: 'Votre commentaire a été enregistré' })
+        realtime?.broadcastInvalidation(['interventions', 'stats'])
         router.refresh()
       } else {
         toast.error('Erreur', { description: result.error || 'Impossible d\'ajouter le commentaire' })
@@ -2329,6 +2340,7 @@ export function InterventionDetailClient({
           onOpenChange={setIsDocumentUploadOpen}
           onUploadComplete={() => {
             setIsDocumentUploadOpen(false)
+            realtime?.broadcastInvalidation(['interventions', 'stats'])
             router.refresh()
           }}
         />

@@ -86,6 +86,9 @@ import {
   hasRejected
 } from '@/lib/utils/intervention-permissions'
 
+// Realtime invalidation
+import { useRealtimeOptional } from '@/contexts/realtime-context'
+
 // Types
 import type { Database } from '@/lib/database.types'
 
@@ -181,6 +184,7 @@ export function PrestataireInterventionDetailClient({
   initialParticipantsByThread
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const [autoOpenComplete, setAutoOpenComplete] = useState(false)
 
@@ -391,6 +395,7 @@ export function PrestataireInterventionDetailClient({
 
   // Callback after confirmation/rejection
   const handleConfirmationResponse = () => {
+    realtime?.broadcastInvalidation(['interventions'])
     router.refresh()
   }
 
@@ -549,6 +554,7 @@ export function PrestataireInterventionDetailClient({
 
   const handleRefresh = async () => {
     setRefreshing(true)
+    realtime?.broadcastInvalidation(['interventions'])
     router.refresh()
     setTimeout(() => setRefreshing(false), 1000)
   }

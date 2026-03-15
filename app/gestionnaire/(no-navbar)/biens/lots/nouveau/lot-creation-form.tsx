@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
+import { useRealtimeOptional } from "@/contexts/realtime-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -130,6 +131,7 @@ export default function LotCreationForm({
   prefillBuildingId,
 }: LotCreationFormProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const { data: managerData } = useManagerStats()
   const hasBuildings = (managerData?.buildings?.length ?? 0) > 0
@@ -1344,6 +1346,7 @@ export default function LotCreationForm({
 
         // Succès - Rediriger vers la page de l'immeuble (navigation immédiate)
         toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's créés' : ' créé'} avec succès`, { description: `Les lots ont été créés et assignés à l'immeuble.` })
+        realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
         router.push(`/gestionnaire/biens/immeubles/${lotData.selectedBuilding}`)
 
         return
@@ -1525,6 +1528,7 @@ export default function LotCreationForm({
 
         // Succès - Rediriger vers la page des biens (navigation immédiate)
         toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
+        realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
         router.push(`/gestionnaire/biens/lots/${successfulCreations[0].createdLot.id}`)
 
         return
@@ -1662,6 +1666,7 @@ export default function LotCreationForm({
 
       // Succès - Rediriger vers la page des biens (navigation immédiate)
       toast.success("Lot créé avec succès", { description: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.` })
+      realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
       router.push(`/gestionnaire/biens/lots/${createdLot.id}`)
 
     } catch (error) {
@@ -2198,22 +2203,24 @@ export default function LotCreationForm({
         />
 
         <Tabs defaultValue="contacts" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto bg-slate-100 border border-slate-200 p-1 rounded-xl">
-            <TabsTrigger
-              value="contacts"
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              <Users className="w-4 h-4" />
-              <span>Contacts</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="documents"
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-            >
-              <Paperclip className="w-4 h-4" />
-              <span>Documents</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="sticky top-16 z-20 bg-background py-2">
+            <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto bg-slate-100 border border-slate-200 p-1 rounded-xl shadow-sm">
+              <TabsTrigger
+                value="contacts"
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              >
+                <Users className="w-4 h-4" />
+                <span>Contacts</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="documents"
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              >
+                <Paperclip className="w-4 h-4" />
+                <span>Documents</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="contacts" className="mt-4">
             <div className="space-y-3 @container">

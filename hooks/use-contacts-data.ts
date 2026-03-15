@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
 import { createBrowserSupabaseClient, createTeamService } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 import type { Database } from '@/lib/database.types'
 
 // ✅ Types pour les données de contacts
@@ -249,6 +250,21 @@ export function useContactsData() {
       mountedRef.current = false
     }
   }, [])
+
+  // Auto-refetch on invalidation broadcast
+  const realtime = useRealtimeOptional()
+
+  useEffect(() => {
+    if (!realtime?.onInvalidation) return
+    return realtime.onInvalidation(['contacts'], () => {
+      if (user?.id) {
+        logger.info('🔄 [CONTACTS-DATA] Auto-refetch triggered by invalidation')
+        lastUserIdRef.current = null
+        loadingRef.current = false
+        fetchContactsData(user.id, true)
+      }
+    })
+  }, [realtime, user?.id, fetchContactsData])
 
   // ✅ OPTIMISÉ: Refetch sans vider les données (meilleure UX)
   const refetch = useCallback(() => {

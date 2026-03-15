@@ -165,6 +165,6 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Claude Code ecosystem optimization + import wizard fixes*
 
 ## Files Recently Modified
-### 2026-03-15 07:57:22 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/auto-memory/last-sync`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
+### 2026-03-15 17:04:42 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/contexts/realtime-context.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-manager-stats.ts`

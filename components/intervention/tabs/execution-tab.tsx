@@ -22,6 +22,7 @@ import {
   acceptTimeSlotAction,
   withdrawResponseAction
 } from '@/app/actions/intervention-actions'
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 import { getActionStyling } from '@/lib/intervention-action-styles'
 import type { Database } from '@/lib/database.types'
 import type { InterventionAction } from '@/lib/intervention-actions-service'
@@ -61,6 +62,7 @@ export function ExecutionTab({
   userRole
 }: ExecutionTabProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const [selecting, setSelecting] = useState<string | null>(null)
   const [accepting, setAccepting] = useState<string | null>(null)
   const [withdrawing, setWithdrawing] = useState<string | null>(null)
@@ -151,6 +153,7 @@ export function ExecutionTab({
       const result = await selectTimeSlotAction(interventionId, slotId)
       if (result.success) {
         toast.success('Créneau sélectionné avec succès')
+        realtime?.broadcastInvalidation(['interventions'])
         router.refresh()
       } else {
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la sélection du créneau'))
@@ -171,6 +174,7 @@ export function ExecutionTab({
 
       if (result.success) {
         toast.success('Créneau accepté')
+        realtime?.broadcastInvalidation(['interventions'])
         router.refresh()
       } else {
         console.error('❌ [ExecutionTab] Failed to accept slot:', result.error)
@@ -195,6 +199,7 @@ export function ExecutionTab({
       const result = await withdrawResponseAction(slotId, interventionId)
       if (result.success) {
         toast.success('Réponse retirée')
+        realtime?.broadcastInvalidation(['interventions'])
         router.refresh()
       } else {
         toast.error(formatErrorMessage(result.error, 'Erreur lors du retrait de la réponse'))

@@ -66,6 +66,7 @@ import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import { ContractExpiryBanner } from '@/components/contracts/contract-expiry-banner'
 import { ContractExpiryActions } from '@/components/contracts/contract-expiry-actions'
 import { getExpiryInfo } from '@/lib/utils/lease-expiry'
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 import { logger } from '@/lib/logger'
 import type {
   ContractWithRelations,
@@ -85,6 +86,7 @@ export default function ContractDetailsClient({
   teamId
 }: ContractDetailsClientProps & { documents: ContractDocument[]; interventions?: any[] }) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -115,6 +117,7 @@ export default function ContractDetailsClient({
       const result = await activateContract(contract.id)
       if (result.success) {
         toast.success('Contrat activé avec succès')
+        realtime?.broadcastInvalidation(['contracts', 'stats'])
         router.refresh()
       } else {
         toast.error(result.error || 'Erreur lors de l\'activation')
@@ -134,6 +137,7 @@ export default function ContractDetailsClient({
       if (result.success) {
         toast.success('Contrat résilié avec succès')
         setTerminateDialogOpen(false)
+        realtime?.broadcastInvalidation(['contracts', 'stats'])
         router.refresh()
       } else {
         toast.error(result.error || 'Erreur lors de la résiliation')
@@ -152,6 +156,7 @@ export default function ContractDetailsClient({
       const result = await deleteContract(contract.id)
       if (result.success) {
         toast.success('Contrat supprimé avec succès')
+        realtime?.broadcastInvalidation(['contracts', 'stats'])
         router.push('/gestionnaire/contrats')
       } else {
         toast.error(result.error || 'Erreur lors de la suppression')

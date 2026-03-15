@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useRealtimeOptional } from "@/contexts/realtime-context"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { contactSteps } from "@/lib/step-configurations"
 import { Button } from "@/components/ui/button"
@@ -123,6 +124,7 @@ export function ContactCreationClient({
   returnUrl
 }: ContactCreationClientProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const [currentStep, setCurrentStepState] = useState(1)
   const [maxStepReached, setMaxStepReached] = useState(1)
   const [isCreating, setIsCreating] = useState(false)
@@ -408,6 +410,7 @@ export function ContactCreationClient({
 
       logger.info("✅ [CREATE-CONTACT] Contact created successfully", { newContactId, result })
       toast.success(getSuccessMessage())
+      realtime?.broadcastInvalidation(['contacts', 'stats'])
 
       // Redirection: Retour au formulaire d'origine si returnUrl fourni, sinon liste des contacts
       if (returnUrl && sessionKey) {

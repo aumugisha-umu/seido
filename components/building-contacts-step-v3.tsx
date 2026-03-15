@@ -197,27 +197,29 @@ export function BuildingContactsStepV3({
   return (
     <div className="space-y-4">
       <Tabs defaultValue="contacts" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto bg-slate-100 border border-slate-200 p-1 rounded-xl">
-          <TabsTrigger
-            value="contacts"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-          >
-            <Users className="w-4 h-4" />
-            <span>Contacts</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="documents"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
-          >
-            <Paperclip className="w-4 h-4" />
-            <span>Documents</span>
-            {buildingDocUpload.hasFiles && (
-              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 ml-1">
-                {buildingDocUpload.progress.percentage}%
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        <div className="sticky top-16 z-20 bg-background py-2">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto bg-slate-100 border border-slate-200 p-1 rounded-xl shadow-sm">
+            <TabsTrigger
+              value="contacts"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              <Users className="w-4 h-4" />
+              <span>Contacts</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="documents"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              <Paperclip className="w-4 h-4" />
+              <span>Documents</span>
+              {buildingDocUpload.hasFiles && (
+                <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 ml-1">
+                  {buildingDocUpload.progress.percentage}%
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="contacts" className="mt-4">
           {contactsContent}

@@ -6,9 +6,11 @@
  * ✅ Server Action integration
  */
 
+import { useEffect } from 'react'
 import useSWR from 'swr/immutable'
 import { getTeamContactsAction } from '@/app/actions/contacts'
 import { logger } from '@/lib/logger'
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 
 /**
  * Hook to fetch and cache team contacts
@@ -32,7 +34,7 @@ import { logger } from '@/lib/logger'
  * ```
  */
 export function useTeamContacts(teamId?: string) {
-  return useSWR(
+  const result = useSWR(
     // Key: null if no teamId (skip fetch), array for cache key
     teamId ? ['team-contacts', teamId] : null,
 
@@ -41,15 +43,15 @@ export function useTeamContacts(teamId?: string) {
       if (!teamId) return { success: false, data: [], error: 'No team ID provided' }
 
       logger.info('[USE-TEAM-CONTACTS] Fetching contacts for team:', teamId)
-      const result = await getTeamContactsAction(teamId)
+      const fetchResult = await getTeamContactsAction(teamId)
 
-      if (!result.success) {
-        logger.error('[USE-TEAM-CONTACTS] Error:', result.error)
-        throw new Error(result.error || 'Failed to fetch contacts')
+      if (!fetchResult.success) {
+        logger.error('[USE-TEAM-CONTACTS] Error:', fetchResult.error)
+        throw new Error(fetchResult.error || 'Failed to fetch contacts')
       }
 
-      logger.info(`[USE-TEAM-CONTACTS] Successfully fetched ${result.data.length} contacts (${result.loadTime}ms)`)
-      return result.data
+      logger.info(`[USE-TEAM-CONTACTS] Successfully fetched ${fetchResult.data.length} contacts (${fetchResult.loadTime}ms)`)
+      return fetchResult.data
     },
 
     // SWR Config
@@ -87,6 +89,20 @@ export function useTeamContacts(teamId?: string) {
       }
     }
   )
+
+  // Auto-revalidate on invalidation broadcast
+  const realtime = useRealtimeOptional()
+  const { mutate } = result
+
+  useEffect(() => {
+    if (!realtime?.onInvalidation) return
+    return realtime.onInvalidation(['contacts'], () => {
+      logger.info('[USE-TEAM-CONTACTS] Auto-revalidate triggered by invalidation')
+      mutate()
+    })
+  }, [realtime, mutate])
+
+  return result
 }
 
 /**

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from "react"
+import { useRealtimeOptional } from "@/contexts/realtime-context"
 import type { User, Team, Contact } from "@/lib/services/core/service-types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -156,6 +157,7 @@ export default function NewImmeubleePage({
   initialCategoryCounts
 }: NewImmeublePageProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const { data: managerData } = useManagerStats()
 
@@ -973,6 +975,7 @@ export default function NewImmeubleePage({
       toast.success("Immeuble créé avec succès", {
         description: `L'immeuble "${result.data.building.name}" a été créé avec ${result.data.lots.length} lot(s).`
       })
+      realtime?.broadcastInvalidation(['buildings', 'lots', 'stats'])
       router.push(`/gestionnaire/biens/immeubles/${result.data.building.id}`)
 
     } catch (err) {
@@ -1329,8 +1332,8 @@ export default function NewImmeubleePage({
                 {isCreating && currentStep === 5 && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {currentStep === 1 && "Continuer vers les lots"}
                 {currentStep === 2 && "Continuer vers les contacts"}
-                {currentStep === 3 && "Planifier les interventions"}
-                {currentStep === 4 && "Voir la confirmation"}
+                {currentStep === 3 && "Continuer vers les interventions"}
+                {currentStep === 4 && "Continuer vers la confirmation"}
                 {currentStep === 5 && (isCreating ? "Création en cours..." : "Confirmer la création")}
                 {currentStep < 5 && <ChevronDown className="w-4 h-4 ml-2 rotate-[-90deg]" />}
               </Button>

@@ -56,6 +56,9 @@ import { InterventionActionPanelHeader } from '@/components/intervention/interve
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
 import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
 
+// Realtime invalidation
+import { useRealtimeOptional } from '@/contexts/realtime-context'
+
 // Hooks
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 import { useAutoExecuteAction } from '@/hooks/use-auto-execute-action'
@@ -134,11 +137,15 @@ export function LocataireInterventionDetailClient({
   initialParticipantsByThread
 }: LocataireInterventionDetailClientProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const planning = useInterventionPlanning(
     undefined, undefined, undefined, undefined, undefined,
     undefined, undefined, undefined, undefined,
-    () => router.refresh(),
+    () => {
+      realtime?.broadcastInvalidation(['interventions'])
+      router.refresh()
+    },
   )
   // Deep-link support: ?tab=conversations&thread=group
   const initialTab = searchParams.get('tab')
@@ -176,6 +183,7 @@ export function LocataireInterventionDetailClient({
         if (!result.success) {
           throw new Error(result.error || 'Erreur lors de la sélection du créneau')
         }
+        realtime?.broadcastInvalidation(['interventions'])
         router.refresh()
       },
       // Locataire rejects a time slot
@@ -215,6 +223,7 @@ export function LocataireInterventionDetailClient({
           if (!result.success) {
             throw new Error(result.error || 'Erreur lors de la validation')
           }
+          realtime?.broadcastInvalidation(['interventions'])
           router.refresh()
         } else if (type === 'contest') {
           // Contest requires opening a modal or navigating to a form
@@ -326,6 +335,7 @@ export function LocataireInterventionDetailClient({
 
   // Callback after confirmation/rejection
   const handleConfirmationResponse = () => {
+    realtime?.broadcastInvalidation(['interventions'])
     router.refresh()
   }
 
@@ -478,6 +488,7 @@ export function LocataireInterventionDetailClient({
       const result = await selectTimeSlotAction(intervention.id, slotId)
       if (result.success) {
         toast.success('Créneau sélectionné avec succès')
+        realtime?.broadcastInvalidation(['interventions'])
         router.refresh()
       } else {
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la sélection du créneau'))
@@ -556,6 +567,7 @@ export function LocataireInterventionDetailClient({
       const result = await validateByTenantAction(intervention.id, satisfaction)
       if (result.success) {
         toast.success('Travaux validés avec succès')
+        realtime?.broadcastInvalidation(['interventions'])
         router.refresh()
       } else {
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la validation des travaux'))
@@ -571,6 +583,7 @@ export function LocataireInterventionDetailClient({
 
   // Handle action completion from action panel
   const handleActionComplete = () => {
+    realtime?.broadcastInvalidation(['interventions'])
     router.refresh()
   }
 

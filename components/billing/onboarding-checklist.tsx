@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   Home,
   Mail,
@@ -129,6 +129,7 @@ const STEPS: ChecklistStep[] = [
 
 export function OnboardingChecklist({ className, progress: progressProp, isTrialing: isTrialingProp, defaultExpanded }: OnboardingChecklistProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const [expanded, setExpanded] = useState(defaultExpanded ?? false)
   const [dismissed, setDismissed] = useState(false)
   const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set())
@@ -163,6 +164,15 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
       if (saved) setSkippedSteps(new Set(JSON.parse(saved)))
     } catch { /* ignore */ }
   }, [])
+
+  // Auto-expand on dashboard until user has at least 1 lot + 1 contact
+  useEffect(() => {
+    if (!progress) return
+    if (pathname !== '/gestionnaire/dashboard') return
+    if (!progress.hasLot || !progress.hasContact) {
+      setExpanded(true)
+    }
+  }, [progress, pathname])
 
   // Close panel on outside click
   useEffect(() => {

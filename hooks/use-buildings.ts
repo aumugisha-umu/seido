@@ -8,6 +8,7 @@ import {
   createLotService
 } from "@/lib/services"
 import { logger } from '@/lib/logger'
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 
 // Address record from centralized addresses table
 export interface AddressRecord {
@@ -233,6 +234,21 @@ export function useBuildings() {
       mountedRef.current = false
     }
   }, [])
+
+  // Auto-refetch on invalidation broadcast
+  const realtime = useRealtimeOptional()
+
+  useEffect(() => {
+    if (!realtime?.onInvalidation) return
+    return realtime.onInvalidation(['buildings', 'lots'], () => {
+      if (user?.id) {
+        logger.info('🔄 [BUILDINGS] Auto-refetch triggered by invalidation')
+        lastUserIdRef.current = null
+        loadingRef.current = false
+        fetchBuildings(user.id, true)
+      }
+    })
+  }, [realtime, user?.id, fetchBuildings])
 
   // Refetch manuel
   const refetch = useCallback(() => {

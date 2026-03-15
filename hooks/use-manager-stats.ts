@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useAuth } from "./use-auth"
 import { createStatsService } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 export interface ManagerStats {
   buildingsCount: number
   lotsCount: number
@@ -140,6 +141,21 @@ export function useManagerStats() {
       mountedRef.current = false
     }
   }, [])
+
+  // Auto-refetch on invalidation broadcast
+  const realtime = useRealtimeOptional()
+
+  useEffect(() => {
+    if (!realtime?.onInvalidation) return
+    return realtime.onInvalidation(['buildings', 'lots', 'contacts', 'interventions', 'stats'], () => {
+      if (user?.id) {
+        logger.info('🔄 [MANAGER-STATS] Auto-refetch triggered by invalidation')
+        lastUserIdRef.current = null
+        loadingRef.current = false
+        fetchStats(user.id, true)
+      }
+    })
+  }, [realtime, user?.id, fetchStats])
 
   // ✅ SIMPLIFIÉ: Refetch direct sans couche de cache
   const refetch = useCallback(() => {
@@ -301,6 +317,21 @@ export function useContactStats() {
       mountedRef.current = false
     }
   }, [])
+
+  // Auto-refetch on invalidation broadcast
+  const realtime = useRealtimeOptional()
+
+  useEffect(() => {
+    if (!realtime?.onInvalidation) return
+    return realtime.onInvalidation(['contacts'], () => {
+      if (user?.id) {
+        logger.info('🔄 [CONTACT-STATS] Auto-refetch triggered by invalidation')
+        lastUserIdRef.current = null
+        loadingRef.current = false
+        fetchContactStats(user.id, true)
+      }
+    })
+  }, [realtime, user?.id, fetchContactStats])
 
   // ✅ SIMPLIFIÉ: Refetch direct sans couche de cache
   const refetch = useCallback(() => {

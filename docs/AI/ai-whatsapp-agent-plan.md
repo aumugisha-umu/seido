@@ -354,25 +354,25 @@ DEV_WHATSAPP_PHONE_NUMBER=+32XXXXXXXX             # Numero affiche
 > Ordre recommande : suivre de haut en bas. Les items marques ⏳ sont en attente.
 
 **--- 1. Business Manager (faire en premier — bloquant) ---**
-- [ ] Meta Business Manager "Seido" cree sur business.facebook.com
-- [ ] **Informations entreprise remplies** (nom, adresse, tel, site, email)
+- [x] Meta Business Manager "Seido" cree sur business.facebook.com
+- [x] **Informations entreprise remplies** (nom, adresse, tel, site, email)
       → Sans ca, ajout numero WhatsApp echoue ("Impossible de terminer la configuration")
 - [ ] Verification entreprise soumise (documents BCE + preuve adresse)
       → ⏳ 1-2 jours ouvrables. Continuer la config pendant l'attente.
 
 **--- 2. App Developer + WABA ---**
-- [ ] App creee sur developers.facebook.com (type Business, produit WhatsApp)
-- [ ] App associee au Business Manager "Seido"
-- [ ] WABA cree (via l'assistant "Demarrage rapide" / "Configuration de l'API")
-- [ ] **App Secret** note (Parametres app → Base → "Afficher")
-- [ ] **ID du compte WhatsApp Business** note (visible sur page "Configuration de l'API")
+- [x] App creee sur developers.facebook.com (type Business, produit WhatsApp)
+- [x] App associee au Business Manager "Seido"
+- [x] WABA cree (via l'assistant "Demarrage rapide" / "Configuration de l'API")
+- [x] **App Secret** note (Parametres app → Base → "Afficher")
+- [x] **ID du compte WhatsApp Business** note (visible sur page "Configuration de l'API")
 
 **--- 3. System User Token (permanent) ---**
-- [ ] System User `seido-whatsapp-bot` cree (Business Manager → Utilisateurs systeme)
-- [ ] **App liee au System User** (Comptes → Applications → Ajouter des personnes → Controle total)
+- [x] System User `seido-whatsapp-bot` cree (Business Manager → Utilisateurs systeme)
+- [x] **App liee au System User** (Comptes → Applications → Ajouter des personnes → Controle total)
       → Sans ca, "Aucune autorisation disponible" lors de la generation du token
-- [ ] Token permanent genere avec permissions `whatsapp_business_management` + `whatsapp_business_messaging`
-- [ ] Token copie et stocke de maniere securisee
+- [x] Token permanent genere avec permissions `whatsapp_business_management` + `whatsapp_business_messaging`
+- [x] Token copie et stocke de maniere securisee
 
 **--- 4. Numero reel (+32) ---**
 - [ ] Numero Telnyx +32 2 601 07 84 existant (deja achete)
@@ -382,15 +382,15 @@ DEV_WHATSAPP_PHONE_NUMBER=+32XXXXXXXX             # Numero affiche
 - [ ] "ID du numero de telephone" du numero reel note
 
 **--- 5. Webhook ---**
-- [ ] Endpoint `/api/webhooks/whatsapp` deploye (ou ngrok en dev)
-- [ ] Webhook configure dans Meta (page "Configuration", PAS "Configuration de l'API")
-- [ ] Verification GET reussie (hub.challenge retourne)
+- [x] Endpoint `/api/webhooks/whatsapp` deploye (ou ngrok en dev)
+- [x] Webhook configure dans Meta (page "Configuration", PAS "Configuration de l'API")
+- [x] Verification GET reussie (hub.challenge retourne)
 - [ ] Champ `messages` souscrit
 - [ ] **TEST** : envoyer un message WhatsApp au numero → POST recu dans les logs
 
 **--- 6. API keys & env ---**
 - [ ] Compte Anthropic cree + API key `seido-whatsapp-agent`
-- [ ] Toutes les variables dans `.env.local` :
+- [x] Toutes les variables dans `.env.local` :
       ```
       ANTHROPIC_API_KEY, META_WHATSAPP_ACCESS_TOKEN, META_WHATSAPP_BUSINESS_ID,
       META_WHATSAPP_APP_SECRET, META_WHATSAPP_VERIFY_TOKEN,

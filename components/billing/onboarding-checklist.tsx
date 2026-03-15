@@ -19,6 +19,8 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useSubscription } from '@/hooks/use-subscription'
+import { getOnboardingProgress } from '@/app/actions/subscription-actions'
 import type { OnboardingProgress } from '@/app/actions/subscription-actions'
 
 // =============================================================================
@@ -27,7 +29,9 @@ import type { OnboardingProgress } from '@/app/actions/subscription-actions'
 
 interface OnboardingChecklistProps {
   className?: string
+  /** Pass progress to skip client-side fetch (used on dashboard with SSR data) */
   progress?: OnboardingProgress | null
+  /** Pass isTrialing to skip useSubscription hook (used on dashboard with SSR data) */
   isTrialing?: boolean
   /** Open the panel automatically on first render */
   defaultExpanded?: boolean
@@ -123,13 +127,32 @@ const STEPS: ChecklistStep[] = [
 // Component
 // =============================================================================
 
-export function OnboardingChecklist({ className, progress, isTrialing, defaultExpanded }: OnboardingChecklistProps) {
+export function OnboardingChecklist({ className, progress: progressProp, isTrialing: isTrialingProp, defaultExpanded }: OnboardingChecklistProps) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(defaultExpanded ?? false)
   const [dismissed, setDismissed] = useState(false)
   const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set())
   const [celebratingStep, setCelebratingStep] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  // Self-fetch mode: when no props provided, fetch client-side
+  const { status: subscriptionStatus } = useSubscription()
+  const [fetchedProgress, setFetchedProgress] = useState<OnboardingProgress | null>(null)
+
+  const isTrialing = isTrialingProp ?? (subscriptionStatus?.status === 'trialing')
+  const progress = progressProp ?? fetchedProgress
+
+  // Auto-fetch onboarding progress when not provided via props
+  useEffect(() => {
+    if (progressProp !== undefined) return // Props provided, skip fetch
+    if (!isTrialing) return // Not trialing, no need to fetch
+
+    getOnboardingProgress().then(result => {
+      if (result.success && result.data) {
+        setFetchedProgress(result.data)
+      }
+    }).catch(() => { /* fail silent — component returns null without data */ })
+  }, [progressProp, isTrialing])
 
   useEffect(() => {
     if (sessionStorage.getItem(DISMISS_KEY) === 'true') {

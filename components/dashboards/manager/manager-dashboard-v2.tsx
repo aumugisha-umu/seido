@@ -26,7 +26,6 @@ import { UnreadMessagesSection } from "@/components/dashboards/shared/unread-mes
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { GestionnaireFAB } from "@/components/ui/fab"
-import { OnboardingChecklist } from "@/components/billing/onboarding-checklist"
 import { TrialUpgradeModal } from "@/components/billing/trial-upgrade-modal"
 import { useSubscription } from "@/hooks/use-subscription"
 import { useStrategicNotification } from "@/hooks/use-strategic-notification"
@@ -35,7 +34,6 @@ import { PageActions } from "@/components/page-actions"
 
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
-import type { OnboardingProgress } from "@/app/actions/subscription-actions"
 import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 
 // Type for intervention row from Supabase (used in realtime callback)
@@ -59,13 +57,11 @@ interface ManagerDashboardProps {
     contractStats: ContractStats
     interventions: any[]
     pendingCount: number
-    onboardingProgress?: OnboardingProgress | null
-    isTrialing?: boolean
     unreadThreads?: UnreadThread[]
     unreadThreadsTotalCount?: number
 }
 
-export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, onboardingProgress, isTrialing, unreadThreads, unreadThreadsTotalCount }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount }: ManagerDashboardProps) {
     const router = useRouter()
     // Local state for interventions (enables realtime updates)
     const [interventions, setInterventions] = useState(initialInterventions)
@@ -162,8 +158,6 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
             <div className="dashboard__container pb-24 lg:pb-6 flex flex-col">
                 {/* Header Actions (rendered in topbar via portal) */}
                 <PageActions>
-                    {/* Onboarding pill — sits left/center in topbar, buttons stay right */}
-                    <OnboardingChecklist className="mr-auto" progress={onboardingProgress} isTrialing={isTrialing ?? false} defaultExpanded />
                     <Button
                         variant="outline"
                         onClick={navigateToImport}

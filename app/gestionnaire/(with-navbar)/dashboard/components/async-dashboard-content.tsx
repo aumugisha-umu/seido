@@ -21,8 +21,6 @@ import { logger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
 import { loadMultiTeamData, createTeamNameMap } from "@/lib/multi-team-helpers"
 import { ManagerDashboardV2 } from "@/components/dashboards/manager/manager-dashboard-v2"
-import type { OnboardingProgress } from "@/app/actions/subscription-actions"
-import { getSubscriptionStatus, getOnboardingProgress } from "@/app/actions/subscription-actions"
 
 // ✅ PERF: React cache() deduplicates service creation within a single request render tree.
 // If the layout or other server components call the same factories, they reuse this instance.
@@ -246,26 +244,7 @@ export async function AsyncDashboardContent({
     logger.error('❌ [ASYNC-DASHBOARD] Error loading data', { error })
   }
 
-  // Onboarding: reuse existing server actions (proven to work via sidebar)
-  let onboardingProgress: OnboardingProgress | null = null
-  let isTrialing = false
-
-  try {
-    const [subResult, progressResult] = await Promise.all([
-      getSubscriptionStatus(),
-      getOnboardingProgress(),
-    ])
-
-    if (subResult.success && subResult.data) {
-      isTrialing = subResult.data.status === 'trialing'
-    }
-
-    if (isTrialing && progressResult.success && progressResult.data) {
-      onboardingProgress = progressResult.data
-    }
-  } catch (error) {
-    logger.warn('[ASYNC-DASHBOARD] Onboarding check failed, skipping', { error })
-  }
+  // Onboarding checklist is now handled by GestionnaireTopbar (self-contained)
 
   // Fetch unread conversation threads for dashboard (separate try/catch to not break dashboard)
   let unreadThreads: Awaited<ReturnType<ConversationRepository['getUnreadThreadsForDashboard']>>['data'] = { threads: [], totalCount: 0 }
@@ -286,8 +265,6 @@ export async function AsyncDashboardContent({
       contractStats={contractStats}
       interventions={allInterventions}
       pendingCount={pendingActionsCount}
-      onboardingProgress={onboardingProgress}
-      isTrialing={isTrialing}
       unreadThreads={unreadThreads?.threads}
       unreadThreadsTotalCount={unreadThreads?.totalCount}
     />

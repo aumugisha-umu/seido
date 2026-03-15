@@ -12,6 +12,7 @@ import { useSidebar } from "@/components/ui/sidebar"
 import { TeamSelector } from "@/components/team-selector"
 import { useCurrentTeam } from "@/hooks/use-current-team"
 import { cn } from "@/lib/utils"
+import { OnboardingChecklist } from "@/components/billing/onboarding-checklist"
 import type { Team } from "@/lib/services/core/service-types"
 
 /**
@@ -122,6 +123,9 @@ export default function GestionnaireTopbar({
           {pageTitle}
         </h1>
       </div>
+
+      {/* Onboarding checklist — self-contained, renders null when not trialing */}
+      <OnboardingChecklist />
 
       {/* Center: page-specific actions injected via PageActions portal */}
       <div

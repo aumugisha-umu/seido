@@ -319,7 +319,7 @@ export function AddressFieldsWithMap({
   return (
     <div className={cn('space-y-4', className)}>
       {/* Address fields + Map side by side on desktop */}
-      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-stretch gap-4">
         {/* LEFT: Autocomplete + Manual Address Fields + geocoding status */}
         <div className="flex-1 min-w-0 grid gap-4">
           {/* Google Autocomplete Search */}
@@ -413,9 +413,9 @@ export function AddressFieldsWithMap({
           )}
         </div>
 
-        {/* RIGHT: Map Preview — square on desktop */}
+        {/* RIGHT: Map Preview — stretches to match address fields height on desktop */}
         {showMap && hasValidCoords && (
-          <div className="lg:w-72 lg:flex-shrink-0 space-y-2">
+          <div className="lg:w-72 lg:flex-shrink-0 flex flex-col space-y-2">
             <Label className="text-sm font-medium">
               Aperçu sur la carte
             </Label>
@@ -424,6 +424,7 @@ export function AddressFieldsWithMap({
               longitude={coords.lng}
               address={formattedAddress}
               height={mapHeight}
+              className="flex-1"
               showOpenButton={true}
             />
           </div>

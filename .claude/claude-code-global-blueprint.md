@@ -1,6 +1,139 @@
 # Claude Code Global Blueprint
 
-> **Purpose:** Reference document to replicate the full `.claude/` ecosystem at global level (`~/.claude/`) and specialize per project. Built from the SEIDO project's battle-tested setup.
+> **Purpose:** Reference document to replicate the full `.claude/` ecosystem at global level (`~/.claude/`) and specialize per project. Built from the SEIDO project's battle-tested setup for a **SaaS B2B multi-role real estate management platform**.
+
+---
+
+## 0. Agent & Skill Catalog — Quick Reference
+
+> This section describes every agent and skill in the ecosystem, their purpose, and when to use them. Use it to understand what's available before setting up a new project.
+
+### 0.1 Agents (15 total)
+
+Agents are role-based specialists dispatched via the `Agent` tool. Each inherits common patterns from `_base-template.md`.
+
+#### Core Development Agents
+
+| Agent | Description | When to Use |
+|-------|-------------|-------------|
+| **backend-developer** | Senior backend dev — APIs, DB, auth, business logic, server perf. Knows 31 services, 21 repositories, 10 RLS helpers, 16 notification actions. | Building APIs, designing databases, implementing auth, handling business logic, optimizing server performance |
+| **frontend-developer** | Senior frontend dev — UI components, real-time hooks, performance (LCP/INP/CLS), accessibility. Knows 58 hooks, 369 components, Tailwind v4 + OKLCH. | Creating web interfaces, complex UI components, optimizing frontend perf, ensuring WCAG 2.1 AA |
+| **API-designer** | API architect — endpoint design, Zod validation, multi-role access patterns, REST standards. | Designing new APIs, refactoring existing endpoints, implementing API standards, creating API docs |
+| **database-analyzer** | DB schema auditor — PostgreSQL/Supabase schema coherence, RLS policies, triggers, indexes, soft delete patterns. | Audit schema BEFORE any DB modification. Validates triggers, RLS, denormalization, views. |
+| **tester** | Testing expert — unit (Vitest), integration, E2E (Puppeteer + Vitest), API testing, role-based security, perf validation. Coverage target 80%. | Writing tests (TDD), E2E multi-role workflows, RLS policy validation, performance testing |
+
+#### Design & Research Agents
+
+| Agent | Description | When to Use |
+|-------|-------------|-------------|
+| **ui-designer** | Senior UX/UI designer SaaS B2B — 3-phase methodology (Research → ASCII proposal → Execution). Mobile-first, Nielsen heuristics, persona-driven. | Creating interfaces, design system decisions, accessibility compliance. Always proposes ASCII mockup before code. |
+| **researcher** | UX/UI Researcher — user research, competitive analysis (Airbnb, Linear, Revolut), persona validation tests. | Qualitative user research, competitive analysis, design recommendations based on persona data |
+
+#### Quality & Maintenance Agents
+
+| Agent | Description | When to Use |
+|-------|-------------|-------------|
+| **refactoring-agent** | Refactoring specialist — migration to shadcn/ui, extract to Service Layer, real-time v2 hooks, type safety. Quality targets: cyclomatic < 10, duplication < 15%. | Performance improvement, security hardening, UX improvement, code quality improvement |
+| **memory-synchronizer** | Documentation sync — audits real metrics vs documented (components, hooks, repos, services, routes). | Post-feature sync, documentation drift detection, memory bank maintenance |
+| **ultrathink-orchestrator** | Strategic orchestrator for complex problems — 6-phase Ultrathink methodology (Think Different → Simplify Ruthlessly). Auto-escalation target. | Multi-domain problems (frontend+backend+DB), architectural decisions (>10 files), after 3 failed attempts, conceptual blockers |
+
+#### SEO & Content Agents
+
+| Agent | Description | When to Use |
+|-------|-------------|-------------|
+| **seo-strategist** | SEO architect & competitive analyst — audit technique, keywords by persona, schema markup, E-E-A-T, hreflang FR/EN/NL, GEO optimization. Tracks 7 competitors. | Competitive analysis, SEO briefs, content strategy, keyword research, technical SEO audit |
+| **seo-copywriter** | Conversion copywriter — persuasive SEO-optimized copy for marketing site AND app. 5 frameworks (PAS, AIDA, BAB), tone per persona, CRO data-driven. | Headlines, CTAs, microcopy, notifications, emails, landing pages, blog posts, pricing pages |
+| **seo-reviewer** | Content quality gate — Seven Sweeps + Radix 5-competences + persona-fit + SEO/GEO compliance. Score 0-100, threshold >=75 for publication. | Content validation before publication, copy review, SEO compliance audit, persona-fit check |
+
+#### Domain-Specific Agent
+
+| Agent | Description | When to Use |
+|-------|-------------|-------------|
+| **seido-debugger** | SEIDO-specific debugger — multi-role permissions, intervention workflows (9 statuts), notification delivery, dashboard data, auth, email (IMAP/Resend/Gmail OAuth). | Debug RLS/permissions, intervention workflow stuck, email system issues, real-time connection problems |
+
+#### Template
+
+| Agent | Description | When to Use |
+|-------|-------------|-------------|
+| **_base-template** | Common config inherited by all agents — Memory Bank refs, auth patterns, repository pattern, skills integration, compound engineering. | Never used directly. Provides shared context to all other agents. |
+
+---
+
+### 0.2 Skills (23 total)
+
+Skills are reusable methodologies invoked via the `Skill` tool. They enforce discipline and prevent common mistakes.
+
+#### A. Process Skills — Core Methodology (6)
+
+| Skill | Description | Trigger |
+|-------|-------------|---------|
+| **sp-brainstorming** | Collaborative design dialogue — one question at a time, 2-3 approaches, validate incrementally. Saves design to `docs/plans/`. | BEFORE any creative work: new features, new components, modifying behavior. "Let's build...", "I want to add..." |
+| **sp-writing-plans** | Write implementation plans with bite-sized TDD tasks (2-5 min each), exact file paths, complete code, verification commands. | Have spec/requirements for a multi-step task, before touching code. Saves to `docs/plans/`. |
+| **sp-executing-plans** | Load plan, execute in batches of 3 tasks, quality-gate between batches, report at checkpoints. | Have a written plan to execute in a SEPARATE session with review checkpoints. |
+| **sp-test-driven-development** | RED → GREEN → REFACTOR. Failing test first, reuse search, minimal implementation, then refactor. Iron Law: no production code without failing test. | When implementing ANY feature or bugfix, before writing implementation code. |
+| **sp-systematic-debugging** | 4-phase root cause investigation: Observe → Hypothesize → Test → Fix. No symptom fixes. Iron Law: no fixes without root cause investigation. | ANY bug, test failure, unexpected behavior. "Ca ne marche pas...", "Erreur...", build failure. |
+| **sp-verification-before-completion** | Evidence before claims — run verification, read output, THEN claim result. Post-verification knowledge capture. | About to claim work is complete/fixed/passing, before commits or PRs. |
+
+#### B. Orchestration Skills (5)
+
+| Skill | Description | Trigger |
+|-------|-------------|---------|
+| **sp-ralph** | Full feature orchestrator: PRD → stories → TDD implementation → quality gate. Zero commits until user validates. Single entry point for non-trivial features. | "ralph", "nouvelle feature", "implement this", "let's build". Calls sp-prd internally. |
+| **sp-prd** | Generate structured PRDs with user stories, acceptance criteria, sizing (XS/S/M). Collaborative brainstorming (5-8 questions). | "create a prd", "plan this feature". Also called internally by sp-ralph. |
+| **sp-orchestration** | Skill routing trigger matrix + orchestration chains + compound methodology. Decision guide for which skill to invoke. | When Claude needs to decide which skill(s) to invoke for a given request. |
+| **sp-subagent-driven-development** | Execute plan via per-task subagents with two-stage review (spec + code quality) after each. Sequential, same session. | Have implementation plan with mostly independent tasks, staying in current session. |
+| **sp-dispatching-parallel-agents** | Full worktree lifecycle: analyze parallelizability → branch from current → dispatch isolated agents → simplify → merge → cleanup. | 3+ independent tasks OR 2+ tasks touching different file domains. True parallel execution. |
+
+#### C. Quality Skills (5)
+
+| Skill | Description | Trigger |
+|-------|-------------|---------|
+| **sp-quality-gate** | 4-lens pre-commit review (Security, Performance, Patterns, Tests) + Simplify Quick-Scan + Knowledge Capture. Automated checks first (build, lint, test). | Before commits, when user types "git*", "quality check", "review my code". |
+| **sp-simplify** | 3-agent parallel code review (Reuse + Quality + Efficiency). Finds duplicate functions, redundant state, N+1 queries, missed concurrency. | Deep code review, full-app audit, post-implementation cleanup. |
+| **sp-requesting-code-review** | Dispatch code-reviewer subagent with structured context (SHAs, plan, description). | After completing tasks, before merge/PR, after major feature implementation. |
+| **sp-receiving-code-review** | Technical evaluation of review feedback — verify before implementing. Push back when feedback breaks functionality or violates YAGNI. | Receiving code review feedback, especially if unclear or technically questionable. |
+| **sp-compound** | Post-feature learning capture: updates AGENTS.md (learnings), progress.txt (log), creates retrospective doc. Auto-syncs memory bank. | "feature done", "ready to merge", after fixing complex bug (>1h), after major refactoring. |
+
+#### D. Lifecycle Skills (3)
+
+| Skill | Description | Trigger |
+|-------|-------------|---------|
+| **sp-finishing-a-development-branch** | Branch completion — presents 4 options (merge locally, push/PR, keep, discard). Verifies tests first. | Implementation complete, all tests pass, ready to integrate. |
+| **sp-using-git-worktrees** | Create isolated git worktrees with smart directory selection, .gitignore safety, baseline test verification. | Starting feature work needing isolation, before executing implementation plans. |
+| **sp-writing-skills** | Meta-skill for creating/editing skills using TDD applied to process docs. RED (pressure test) → GREEN (write skill) → REFACTOR (bulletproof). | Creating new skills, editing existing skills, verifying skills work before deployment. |
+
+#### E. Domain-Specific Skills (4 — project-level only)
+
+| Skill | Description | Trigger |
+|-------|-------------|---------|
+| **sp-a11y** | WCAG 2.1 AA accessibility audit — Perceivable, Operable, Understandable, Robust. Role-specific checks (gestionnaire/prestataire/locataire). | Creating UI components, before releases, when accessibility is mentioned. |
+| **sp-analytics** | Event tracking design (Microsoft Clarity), funnel instrumentation, KPI measurement (MRR, churn, NPS). Privacy-compliant. | Adding analytics, measuring features, designing experiments. |
+| **sp-monitoring** | Error budgets, Core Web Vitals (LCP/INP/CLS/TTFB), alerting thresholds, Supabase dashboard monitoring. | Setting up monitoring, investigating production issues, checking application health. |
+| **sp-release** | Pre-deployment checklist (code, DB, env, features, changelog) + deployment process (Vercel) + rollback plan + post-deploy smoke test. | Before any production deployment. "deploy", "release", "ship it". |
+
+---
+
+### 0.3 Orchestration Chains — How They Work Together
+
+```
+NEW FEATURE (recommended):
+  sp-ralph → sp-prd (internal) → stories → sp-tdd (per story) → sp-quality-gate → sp-compound
+
+BUG FIX:
+  sp-systematic-debugging → sp-tdd (failing test) → fix → sp-quality-gate → sp-verification → sp-compound
+
+MULTI-DOMAIN (parallel):
+  sp-ralph → sp-dispatching-parallel-agents → agents use sp-tdd → sp-quality-gate → sp-compound
+
+PRE-COMMIT:
+  sp-quality-gate → fix blockers → knowledge capture → git add/commit/push
+
+SEO CONTENT:
+  seo-strategist (brief) → seo-copywriter (write) → seo-reviewer (score ≥75) → publish
+
+DEPLOYMENT:
+  sp-release (pre-checks) → deploy → sp-monitoring (post-deploy)
+```
 
 ---
 

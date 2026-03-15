@@ -341,7 +341,6 @@ export function IndependentLotInputCardV2({
               onGeocodeResult={handleGeocodeResult}
               showAutocomplete={showGoogleMaps}
               showMap={showGoogleMaps}
-              mapHeight={150}
               required={true}
             />
           </div>

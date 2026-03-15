@@ -36,3 +36,15 @@
 - Progress UI updated to 5 phases (direct mapping, no offset needed)
 - Files: import.service.ts, types.ts, execute-stream/route.ts, address.service.ts, import-step-progress.tsx
 - Learnings: next/server after() is perfect for non-blocking post-response work; Google Geocoding rate limit = 50/sec, we use 40/sec (10 parallel × 4 batches/sec)
+
+## 2026-03-15 18:00 — Data Invalidation Broadcast + UX Improvements
+- Implemented: Supabase Broadcast-based data invalidation system for cross-team real-time cache sync
+- Architecture: Team channel `seido-team:{teamId}` with batch-debounced dispatch (500ms window)
+- Entity types: buildings, lots, contacts, interventions, contracts, stats
+- 5 hooks wired: use-buildings, use-manager-stats, use-team-contacts, use-contacts-data, use-interventions
+- 12+ mutation sites emit invalidation: creation forms + status change flows (all 3 roles)
+- UX: onboarding checklist auto-expand until 1 lot + 1 contact; sticky tabs in creation wizards
+- Files: lib/data-invalidation.ts (new), contexts/realtime-context.tsx, 5 hooks, 10+ mutation components
+- Bug caught by /simplify: N+1 debounce (per-entity timers → batch Set + single timer)
+- Learnings #142-144: batch debounce, broadcast vs postgres_changes, per-user vs per-team channels
+- Remaining: Task 10 (remove 68 dead revalidatePath/revalidateTag calls) deferred

@@ -40,3 +40,4 @@ globs:
 | Blog Hub/Cluster | 23 articles, hub-cluster architecture in frontmatter |
 | Intervention Planner | `components/contract/intervention-planner-step.tsx` (shared reusable) |
 | Supplier Contracts | `supplier_contracts` table, `supplier-contract.repository.ts`, `supplier-contract-card.tsx` |
+| Data Invalidation Broadcast | `lib/data-invalidation.ts`, `contexts/realtime-context.tsx`, 5 hooks, 12+ mutation sites |

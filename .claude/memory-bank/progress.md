@@ -84,6 +84,25 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-15 - Data Invalidation Broadcast + UX Improvements
+
+**Session: Cross-team real-time cache sync via Supabase Broadcast + onboarding UX**
+
+| Change | Description |
+|--------|-------------|
+| **Data invalidation system** | `lib/data-invalidation.ts` (types) + team broadcast channel in `realtime-context.tsx` |
+| **5 hooks wired** | use-buildings, use-manager-stats, use-team-contacts, use-contacts-data, use-interventions auto-refetch on invalidation |
+| **12+ mutation sites** | Building/lot/contact/intervention/contract creation + status changes broadcast invalidation |
+| **Batch debounce** | Single 500ms timer collects entities in Set, dispatches once per handler (fixed N+1 bug) |
+| **Onboarding auto-expand** | Checklist auto-expands on dashboard until user has 1 lot + 1 contact |
+| **Sticky tabs** | Contacts/Documents tabs float on scroll in building + lot creation wizards |
+
+**Fichiers cles modifies:** lib/data-invalidation.ts, contexts/realtime-context.tsx, 5 hooks, 10+ form/detail components
+**AGENTS.md learnings:** #142-144 (batch debounce, broadcast vs postgres_changes, channel scoping)
+**Retrospective:** `docs/learnings/2026-03-15-data-invalidation-broadcast-retrospective.md`
+
+---
+
 ### 2026-03-14 - Claude Code Ecosystem Optimization
 
 **Session: Full .claude/ restructuring for consistency, reliability, and replicability**

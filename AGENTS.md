@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-14
-**Total Learnings:** 142
+**Last Updated:** 2026-03-15
+**Total Learnings:** 144
 
 ---
 
@@ -1025,6 +1025,20 @@
 **Example:** `contexts/realtime-context.tsx` — `pendingEntitiesRef` + single `debounceTimerRef` instead of `Map<DataEntity, Timeout>`
 **When to Use:** Any pub/sub system with multi-topic subscriptions and debouncing — always debounce the dispatch batch, not individual topics
 **Added:** 2026-03-15 | **Source:** Simplify /efficiency review — N+1 callback bug in data invalidation
+
+#### Learning #143: Supabase Broadcast for cache invalidation — zero DB overhead alternative to postgres_changes
+**Problem:** SEIDO uses `force-dynamic` on all list pages, making `revalidatePath`/`revalidateTag` no-ops (68 dead calls identified). Client hooks fetch once on mount and never refresh after mutations by other team members. `postgres_changes` would require DB triggers + RLS config for each table.
+**Solution:** Use Supabase Broadcast (lightweight pub/sub over existing WebSocket) on a team-scoped channel (`seido-team:{teamId}`). Mutations broadcast entity type arrays, hooks subscribe and auto-refetch. Zero DB impact — messages flow through Supabase Realtime infrastructure only.
+**Example:** `lib/data-invalidation.ts` (types) + `contexts/realtime-context.tsx` (channel + API) + `hooks/use-buildings.ts` (subscriber)
+**When to Use:** When you need cross-client cache invalidation but your pages are force-dynamic (making Next.js cache primitives useless) and you want to avoid DB-level triggers
+**Added:** 2026-03-15 | **Source:** Data invalidation broadcast feature
+
+#### Learning #144: Separate Supabase channels for different scopes — per-user vs per-team
+**Problem:** Existing `seido:{userId}:{teamId}` channel uses `postgres_changes` for user-specific notifications. Broadcasting invalidation events on this channel would only reach the current user, not other team members.
+**Solution:** Create a SECOND channel `seido-team:{teamId}` scoped to the team (no userId). All team members subscribe to the same channel. Keep the per-user channel for user-specific postgres_changes (notifications, messages). Different concerns = different channels.
+**Example:** `contexts/realtime-context.tsx` — `teamChannelRef` (broadcast) alongside existing per-user `channelRef` (postgres_changes)
+**When to Use:** When you have both user-specific realtime events AND team-wide broadcast events — never mix them on a single channel
+**Added:** 2026-03-15 | **Source:** Data invalidation broadcast architecture decision
 
 ---
 

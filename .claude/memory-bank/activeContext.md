@@ -1,10 +1,24 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Import Review + Claude Code Ecosystem Optimization
+**Objectif:** Data Invalidation Broadcast + UX Improvements
 **Branch:** `preview`
-**Sprint:** Import bugfixes + .claude/ ecosystem (Mar 2026)
-**Derniere analyse:** Ecosystem optimization — CLAUDE.md restructured, 23 skills enriched, 8 agents enriched, safety hooks, global blueprint — 2026-03-14
+**Sprint:** Real-time sync + UX polish (Mar 2026)
+**Derniere analyse:** Data invalidation broadcast system — Supabase Broadcast for cross-team cache sync, onboarding auto-expand, sticky tabs — 2026-03-15
+
+---
+
+## ✅ COMPLETE: Data Invalidation Broadcast (2026-03-15)
+
+Supabase Broadcast-based system for real-time cross-team data synchronization.
+- **Architecture:** Team channel `seido-team:{teamId}` for invalidation broadcasts (separate from per-user channel)
+- **Core:** `lib/data-invalidation.ts` (types) + `contexts/realtime-context.tsx` (channel + API)
+- **Hooks wired:** use-buildings, use-manager-stats, use-team-contacts, use-contacts-data, use-interventions
+- **Mutation sites:** 12+ forms/detail pages broadcast invalidation (buildings, lots, contacts, interventions, contracts)
+- **Debounce:** Batch-debounced dispatch (500ms window, handler called at most once per batch)
+- **UX:** Onboarding auto-expand on dashboard, sticky tabs in creation wizards
+- **Learnings:** #142-144 (batch debounce, broadcast vs postgres_changes, channel scoping)
+- **Remaining:** Task 10 — remove 68 dead revalidatePath/revalidateTag calls (deferred)
 
 ---
 
@@ -110,8 +124,9 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
-- [ ] Commit + push preview branch (git*) — ecosystem optimization + import review
-- [ ] Deploy and test import wizard fixes in production
+- [ ] Dead revalidation cleanup — remove 68 dead revalidatePath/revalidateTag calls (9 files)
+- [ ] Manual testing: verify invalidation broadcast works across 2 tabs/devices
+- [ ] Deploy preview branch and validate data sync in production
 
 ### Fonctionnalites a Venir
 - [ ] Google Maps Integration Phase 2-3
@@ -120,10 +135,11 @@ draft -> pending -> sent -> accepted (terminal positif)
 - [ ] More blog articles (content marketing pipeline)
 - [ ] PPR activation quand Next.js canary disponible
 - [ ] Dashboard analytics avance
+- [ ] WhatsApp agent integration (plan in docs/AI/)
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-03-14)
+## Metriques Systeme (Mise a jour 2026-03-15)
 
 | Composant | Valeur |
 |-----------|--------|
@@ -139,13 +155,13 @@ draft -> pending -> sent -> accepted (terminal positif)
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **141** (+7 since Mar 11: #135-#141) |
+| **AGENTS.md Learnings** | **144** (+3 since Mar 14: #142-#144) |
 | **Blog articles** | **23** |
-| **Retrospectives** | **39** |
-| **.claude/ Skills** | **23** (+4 new: release, monitoring, a11y, analytics) |
-| **.claude/ Agents** | **15** (8 enriched with SEIDO learnings) |
-| **.claude/ Rules** | **5** (+2 extracted: seido-reference, feature-reference) |
-| **.claude/ Scripts** | **5** (+2 safety hooks) |
+| **Retrospectives** | **40** |
+| **.claude/ Skills** | **23** |
+| **.claude/ Agents** | **15** |
+| **.claude/ Rules** | **5** |
+| **.claude/ Scripts** | **5** |
 
 ---
 
@@ -153,18 +169,21 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
-| `1efc2b7` | chore: remove worktrees from git and add to .gitignore |
+| `0be45d6` | feat: data invalidation broadcast + onboarding auto-expand + sticky tabs |
+| `f82240f` | feat: onboarding topbar lift-up + WhatsApp webhook scaffold + Google Maps layout fix |
+| `d157c0e` | feat(claude): ecosystem optimization + import review + deferred geocoding |
+| `2fbb24d` | feat(skills): embed Code Craftsmanship Standards into upstream skills |
 | `d11519c` | feat(analytics): replace Contentsquare with Microsoft Clarity |
-| `2c3f4d3` | feat(billing): Stripe trial payment collection + blocked mode |
-| `62e541b` | chore(compound): add 3 learnings (#135-137) |
-| `80e25dc` | fix(audit): 30 production bugs — deprecated status cleanup |
 
 ---
 
-*Derniere mise a jour: 2026-03-14 (ecosystem optimization + import review + global blueprint)*
-*Focus: Claude Code ecosystem optimization + import wizard fixes*
+*Derniere mise a jour: 2026-03-15 (data invalidation broadcast + UX improvements)*
+*Focus: Real-time cross-team data synchronization + onboarding UX*
 
 ## Files Recently Modified
-### 2026-03-15 17:04:42 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/contexts/realtime-context.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-manager-stats.ts`
+### 2026-03-15 18:05:55 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/systemPatterns.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/rules/feature-reference.md`
+- `C:/Users/arthu/.claude/projects/C--Users-arthu-Desktop-Coding-Seido-app/memory/MEMORY.md`

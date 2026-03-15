@@ -94,6 +94,44 @@ await createInterventionNotification(interventionId)
 
 > Source: app/actions/notification-actions.ts (1249 lignes)
 
+### 4. Data Invalidation Broadcast (NOUVEAU 2026-03-15)
+
+Cross-team real-time cache sync via Supabase Broadcast (zero DB overhead):
+
+```
+Mutation (any client) → broadcastInvalidation(['buildings', 'stats'])
+                              ↓ WebSocket (Supabase Broadcast)
+Team Channel (seido-team:{teamId}) → all connected team members
+                              ↓ 500ms batch debounce
+Hooks (useBuildings, useManagerStats, etc.) → auto-refetch
+```
+
+**Entity types:** `buildings | lots | contacts | interventions | contracts | stats`
+
+```typescript
+// Emit (in mutation components):
+const realtime = useRealtimeOptional()
+realtime?.broadcastInvalidation(['buildings', 'stats'])
+
+// Subscribe (in data hooks):
+useEffect(() => {
+  if (!realtime?.onInvalidation) return
+  return realtime.onInvalidation(['buildings', 'lots'], () => refetch())
+}, [realtime, refetch])
+```
+
+**Key files:**
+- `lib/data-invalidation.ts` — types + constants
+- `contexts/realtime-context.tsx` — team channel + broadcastInvalidation/onInvalidation API
+- 5 hooks subscribe; 12+ mutation sites emit
+
+**Design decisions:**
+- Separate channel from per-user `seido:{userId}:{teamId}` (postgres_changes)
+- Batch debounce (Set + single timer) to prevent N+1 callback storms
+- `useRealtimeOptional()` for graceful degradation outside provider
+
+> Source: contexts/realtime-context.tsx, lib/data-invalidation.ts
+
 ### 30. Shared Cards Pattern for Consistent UI (NOUVEAU 2026-02-12)
 
 Pattern pour afficher les informations d'intervention de manière cohérente entre les 3 rôles :

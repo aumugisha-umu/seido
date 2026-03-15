@@ -165,5 +165,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Claude Code ecosystem optimization + import wizard fixes*
 
 ## Files Recently Modified
-### 2026-03-14 16:46:25 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/AI/ai-whatsapp-agent-plan.md`
+### 2026-03-15 00:48:39 (Auto-updated)
+- `/home/user/seido/docs/AI/ai-pricing-analysis.md`

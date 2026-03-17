@@ -36,6 +36,43 @@ C'est universel a tous les roles (gestionnaire, syndic, prestataire) et toutes l
 
 ---
 
+## Regles SPIN — Investigation avant presentation
+
+> **Methodologie** : SPIN Selling (Rackham). Playbook complet : `spin-playbook-seido.md`
+
+### Principe fondamental
+
+**Ne jamais pitcher une phase de SEIDO tant que le besoin correspondant n'a pas ete exprime par le prospect.** Les pitchs ci-dessous sont des outils a utiliser APRES une phase de decouverte SPIN, pas en remplacement.
+
+### Mapping phases SEIDO → besoins explicites
+
+| Phase SEIDO | Ne la presentez QUE si le prospect a dit... | Exemple de besoin explicite |
+|-------------|---------------------------------------------|----------------------------|
+| **Le Squelette** (centralisation) | "Tout est eparpille" / "Je perds du temps a chercher" / "Personne n'a la meme info" | "J'ai besoin de centraliser mes donnees et documents" |
+| **Les Reflexes** (automatisations) | "Je relance tout le temps" / "J'oublie des echeances" / "Les notifications arrivent n'importe comment" | "J'ai besoin que les relances et rappels se fassent automatiquement" |
+| **Le Cerveau** (IA) | "Si seulement ca pouvait se faire tout seul" / "Je reve d'un assistant qui pre-mache" | "J'ai besoin que quelqu'un fasse le tri et prepare les reponses pour moi" |
+
+### Quand utiliser les pitchs ci-dessous
+
+| Contexte | Approche SPIN |
+|----------|---------------|
+| **Networking / salon** | Pitch 30s = OK sans decouverte prealable (accroche). Mais enchainez avec des questions P, pas avec plus de features. |
+| **Premier rendez-vous** | Decouverte SPIN d'abord (10-15 min). Puis pitch 3 min adapte aux besoins explicites identifies. |
+| **Demo live** | Decouverte SPIN d'abord. Ne montrer que les features correspondant aux besoins. Commenter les Benefices ("Puisque vous avez dit que..."), pas les Avantages. |
+| **Rendez-vous investisseur** | Pitch 5 min = OK tel quel (l'investisseur n'est pas le client, il veut la vision). |
+
+### Adapter le pitch en temps reel
+
+Pendant le pitch, reformulez toujours en Benefice (lie au besoin explicite du prospect) :
+
+| Au lieu de (Avantage) | Dites (Benefice) |
+|----------------------|------------------|
+| "Notre IA pre-mache le travail" | "Puisque vous avez dit vouloir liberer 9h par semaine, notre phase Cerveau automatisera vos reponses aux emails pour atteindre cet objectif" |
+| "SEIDO centralise toutes vos donnees" | "Vous avez mentionne les devis introuvables — dans SEIDO, chaque devis est rattache au bon dossier, vous le retrouvez en 2 secondes" |
+| "Vos prestataires gerent leur planning" | "Vous avez parle des relances qui prennent 1h30 par jour — avec le portail prestataire, c'est eux qui proposent leurs creneaux" |
+
+---
+
 ## Pitch 30 secondes — Elevator pitch
 
 > *~80 mots. Pour : networking, salon, rencontre informelle.*
@@ -165,5 +202,5 @@ SEIDO, c'est une nouvelle maniere de faire de la gestion immobiliere. Et plus no
 
 ---
 
-*Derniere mise a jour : 2026-03-12*
-*Base sur : vision fondateur, productContext.md, sales-deck-seido.md, sales-pitch-gestionnaire.md*
+*Derniere mise a jour : 2026-03-17*
+*Base sur : vision fondateur, productContext.md, sales-deck-seido.md, sales-pitch-gestionnaire.md, SPIN Selling (Rackham)*

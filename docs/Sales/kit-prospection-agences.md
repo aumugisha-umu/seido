@@ -204,43 +204,85 @@ De 5 outils a 1 seul. Le recit d'un gestionnaire.
 
 ---
 
-### Phase 2 — Qualification (2-3 min)
+### Phase 2 — Decouverte SPIN (4-6 min)
 
-**Regle d'or** : Ecouter 80%, parler 20%. Poser les questions dans l'ordre.
+> **Methodologie** : SPIN Selling (Rackham). Detail complet : `spin-playbook-seido.md`
+>
+> **Regle d'or** : Ecouter 80%, parler 20%. Ne JAMAIS pitcher tant qu'un besoin n'est pas devenu EXPLICITE.
+> Un besoin implicite = "Oui, c'est un probleme". Un besoin explicite = "Il faut que ca change".
+
+#### Etape S — Situation (1 min max, 2-3 questions)
+
+Preparer AVANT l'appel (LinkedIn, site web, BCE). Ne pas s'eterniser ici.
 
 1. **"Combien de lots gerez-vous aujourd'hui ?"**
-   → Dimensionne l'offre et le ROI.
+   → Dimensionne le ROI + identifie le segment (independant / agence / syndic).
 
-2. **"Quand un locataire signale un probleme, ca se passe comment chez vous ?"**
-   → Revele le niveau de chaos (appel, email, WhatsApp, visite au bureau).
+2. **"Comment circule l'information quand un locataire signale un probleme — appel, email, WhatsApp ?"**
+   → Carte les canaux et le niveau de fragmentation.
 
-3. **"Et cote prestataires, comment vous suivez l'avancement d'une intervention ?"**
-   → Pointe le manque de visibilite (relances, silence radio).
+3. **"Vous gerez ca seul ou avec une equipe ?"**
+   → Oriente vers les implications continuite/delegation.
 
-4. **"Si je vous dis 'un devis envoye par un prestataire il y a 3 semaines', vous le retrouvez en combien de temps ?"**
-   → Test du "trou noir" documentaire. Generalement : silence gene ou rire nerveux.
+#### Etape P — Probleme (2-3 min, 3-4 questions)
 
-5. **"Vous utilisez votre boite email comme outil de gestion ? Combien de temps par jour a chercher un email lie a un bien ?"**
-   → Ouvre la porte au differenciateur email integre.
+Objectif : obtenir des "oui" (= besoins implicites). Poser la question et **se taire**.
+
+4. **"Est-ce qu'il vous arrive de ne pas retrouver un devis ou un document lie a une intervention ?"**
+   → Boucle information. Signal : soupir, rire nerveux, exemple concret.
+
+5. **"Quand vous envoyez un prestataire sur site, comment savez-vous si c'est fait, en cours, ou oublie ?"**
+   → Boucle visibilite. Signal : "Ben justement..." / silence.
+
+6. **"Les locataires vous rappellent souvent juste pour demander ou en est leur demande ?"**
+   → Boucle communication. Signal : chiffre spontane ("au moins 10 fois par jour").
+
+7. **"Si vous etes absent une semaine, un collegue peut reprendre un dossier en cours facilement ?"**
+   → Boucle continuite. Signal : "Honnetement, non".
+
+**Regle** : Ne passez a l'etape I que si vous avez obtenu au moins 2 "oui". Sinon, explorez d'autres angles.
+
+#### Etape I — Implication (2-3 min, 2-3 questions)
+
+Objectif : transformer les "oui" en douleur quantifiee. C'est ICI que vous construisez la valeur.
+
+Apres chaque "oui" obtenu en P, tirez le fil :
+
+- **Si devis introuvable (P4)** → "Quand un devis se perd, ca retarde l'intervention de combien de temps ? Et pendant ce delai, le locataire vous relance ? Est-ce que ca vous a deja fait perdre un proprietaire ?"
+- **Si pas de visibilite prestataire (P5)** → "Ce temps de relance, multiplie par vos interventions en cours, ca represente quoi sur une semaine ? Est-ce que cette opacite a deja provoque un locataire qui contacte directement le proprietaire ?"
+- **Si appels repetitifs (P6)** → "Sur vos appels quotidiens, combien sont juste des 'ou en est ma demande' ? Ces appels coupent votre concentration sur quoi — du developpement commercial ?"
+- **Si pas de continuite (P7)** → "La derniere fois que vous etiez absent, qu'est-ce qui s'est passe ? Est-ce que ca freine votre capacite a prendre de nouveaux mandats ?"
+
+> Voir `spin-playbook-seido.md` section 3 pour les enchainements complets et les fiches par segment.
+
+#### Etape N — Need-payoff (1 min, 1-2 questions)
+
+Objectif : le prospect decrit LUI-MEME les benefices. Ne proposez rien — laissez-le se vendre a lui-meme.
+
+- "Si vos locataires pouvaient suivre leur demande eux-memes, comme un colis, quel impact sur vos appels ?"
+- "Si chaque devis et echange etait rattache automatiquement au bon dossier, ca changerait quoi ?"
+- "Si vos prestataires geraient leur planning de facon autonome, qu'est-ce que ca libererait pour vous ?"
+
+**Signal de transition** : Le prospect repond avec enthousiasme ("Ah ca changerait tout", "C'est exactement ce qu'il me faudrait"). C'est un besoin EXPLICITE → vous pouvez passer au pitch.
 
 ---
 
-### Bridge vers le pitch (technique projection positive)
+### Bridge SPIN vers le pitch
 
-> "OK, donc si je resume : [douleur 1] et [douleur 2]. *(pause)*
+> "Vous venez de me dire que [besoin explicite, dans SES mots]. C'est exactement le probleme qu'on resout avec SEIDO. Est-ce que ca vaut le coup qu'on regarde ensemble comment d'autres gestionnaires ont resolu ca ?"
 >
-> Juste par curiosite — si je vous disais qu'un locataire peut signaler un probleme depuis son telephone, que votre prestataire recoit la mission avec les photos et l'adresse sans que vous fassiez quoi que ce soit, et que le proprietaire suit l'avancement tout seul... ca ressemblerait a quoi votre journee ?
->
-> *(laisser repondre)*
->
-> C'est exactement ce que fait SEIDO. Je vous decris le parcours en 90 secondes ?"
+> *(laisser repondre — le prospect DEMANDE a voir)*
 
-**Pourquoi** : Le bridge engage le prospect dans une projection positive (imaginer le resultat) au lieu de passer brutalement aux features. Sa reponse le re-engage activement avant le pitch.
+**Pourquoi ce bridge est different** : L'ancien bridge ("si je vous disais que...") positionne le vendeur comme celui qui propose. Le bridge SPIN repart des mots exacts du prospect — c'est lui qui a formule le besoin, donc il est deja engage. La question ne demande qu'une confirmation.
+
+**Si aucun besoin explicite n'a emerge** : Ne forcez pas le pitch. Proposez une Avancee legere : "Je peux vous envoyer un lien pour tester avec 1-2 biens ? C'est gratuit a vie, sans engagement. Vous verrez par vous-meme."
 
 ---
 
 ### Phase 3 — Le pitch narratif (90 secondes max)
 
+> **REGLE SPIN** : Ne presentez QUE les fonctionnalites qui repondent aux besoins explicites exprimes en Phase 2. Si le prospect n'a parle que de devis perdus et d'appels repetitifs, ne montrez que la GED et le portail locataire. Moins vous montrez, plus chaque element a d'impact.
+>
 > **REGLE** : Pas de monologue > 90 secondes. Des pattern interrupts tous les 20-30 secondes.
 
 > "Lundi matin, votre locataire a une fuite. Il ouvre SEIDO sur son telephone — rien a installer, c'est une app web. Description, 2 photos, 2 minutes. **Ca vous parle deja ?**
@@ -687,5 +729,5 @@ Formulations calibrees pour le marche belge francophone. Ton consultatif, zero a
 
 ---
 
-*Derniere mise a jour : Fevrier 2026 — v3*
+*Derniere mise a jour : Mars 2026 — v4 (integration SPIN Selling)*
 *Regle : Ce document ne contient aucune mention d'IA dans les features actuelles, ni aucune statistique inventee. Chaque feature listee comme "actuelle" est verifiable dans l'application.*

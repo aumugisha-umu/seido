@@ -136,7 +136,7 @@ export default function BuildingDetailsClient({
 
   const [error, setError] = useState<string | null>(null)
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
-  const { canAddProperty, status: subscriptionStatus, refresh: refreshSubscription } = useSubscription()
+  const { canAddProperty, loading: subscriptionLoading, status: subscriptionStatus, refresh: refreshSubscription } = useSubscription()
 
   // Accessible lot IDs for subscription restriction
   const [accessibleLotIds, setAccessibleLotIds] = useState<string[] | null>(null)
@@ -203,7 +203,7 @@ export default function BuildingDetailsClient({
         router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)
         break
       case "add-lot":
-        if (!canAddProperty) {
+        if (!subscriptionLoading && !canAddProperty) {
           setUpgradeModalOpen(true)
           return
         }
@@ -529,7 +529,7 @@ export default function BuildingDetailsClient({
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      if (!canAddProperty) {
+                      if (!subscriptionLoading && !canAddProperty) {
                         setUpgradeModalOpen(true)
                         return
                       }

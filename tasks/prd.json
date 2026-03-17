@@ -1,68 +1,81 @@
 {
   "project": "SEIDO",
-  "featureName": "Import Review + Simplify + Deferred Geocoding",
+  "featureName": "Email UX Improvements",
   "branchName": "preview",
-  "description": "Review exhaustive de la section gestionnaire/import: corrections de bugs, simplification du code, et geocoding différé via after().",
-  "createdAt": "2026-03-14",
-  "prdSource": "docs/plans/2026-03-14-import-review-geocoding-design.md",
-  "status": "completed",
+  "description": "5 email UX improvements: rename compose title, full-takeover when no connection, shared EmailConnectionPrompt, disable Rédiger button, global compose via sidebar + button",
+  "createdAt": "2026-03-17",
+  "prdSource": "docs/plans/2026-03-17-email-ux-improvements-design.md",
+  "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Bug fixes: auth, status, SSE errors, dates, AbortController, phase index, activity log",
-      "description": "As a gestionnaire, I want the import to work correctly so that my data is imported without silent failures.",
+      "title": "Rename compose modal title + disable Rédiger when no connection",
+      "description": "As a gestionnaire, the compose modal says 'Nouvel email' and the Rédiger button is disabled when I have no email connected",
       "acceptanceCriteria": [
-        "Import page has server-side auth wrapper (getServerAuthContext)",
-        "Import job status is 'failed' when errors exist, not always 'completed'",
-        "SSE error events are properly distinguished from JSON parse errors",
-        "AbortController cancels SSE stream on component unmount",
-        "Contract end date calculation handles month overflow correctly",
-        "Phase index in progress UI matches actual pipeline phases",
-        "logCompleteImport uses correct property names from parsed types",
-        "Lint passes (npm run lint)"
+        "Compose modal title is 'Nouvel email' (not 'Nouveau message')",
+        "Rédiger button in mail page is disabled when emailConnections has no active connections",
+        "Lint passes"
       ],
       "priority": 1,
       "dependsOn": [],
-      "sizing": "M",
+      "sizing": "XS",
       "passes": true,
-      "notes": "7 bugs fixed: auth wrapper (Server Component), status always completed, SSE error swallowing, AbortController on unmount, setMonth overflow, phase index offset, activity log property names."
+      "notes": "Title changed in compose-email-modal.tsx:122. Rédiger disabled via emailConnections.filter(active).length === 0 in mail-client.tsx:878."
     },
     {
       "id": "US-002",
-      "title": "Simplify: dead code cleanup, validator dedup, shared components",
-      "description": "As a developer, I want the import codebase simplified so it's maintainable and under 500 LOC per file.",
+      "title": "Extract shared EmailConnectionPrompt component",
+      "description": "As a developer, I want a reusable EmailConnectionPrompt component that both the settings dialog and mail page can use without code duplication",
       "acceptanceCriteria": [
-        "Unused column mappings removed from constants.ts",
-        "Unused API route app/api/import/execute/route.ts removed if dead",
-        "Shared validator utilities extracted (normalizeCountry, normalizePhone)",
-        "Demo/example data moved out of constants.ts into template-generator",
-        "N+1 queries in validateAgainstDatabase batched with Promise.all",
-        "Lint passes (npm run lint)"
-      ],
-      "priority": 2,
-      "dependsOn": ["US-001"],
-      "sizing": "L",
-      "passes": true,
-      "notes": "Created validators/utils.ts with 3 shared functions (mapZodErrorToCode, normalizeCountry, normalizePhone). Removed 5 unused column mappings from constants.ts. Deleted dead /api/import/execute route. Batched building+lot N+1 queries with Promise.all. Demo data stays in constants.ts (used by template-generator, moving would add complexity for no gain)."
-    },
-    {
-      "id": "US-003",
-      "title": "Deferred geocoding: remove Phase 0, use after() for background geocoding",
-      "description": "As a gestionnaire, I want the import to complete in seconds without waiting for geocoding so I can continue working immediately.",
-      "acceptanceCriteria": [
-        "Phase 0 geocoding removed from synchronous import pipeline",
-        "Addresses created without coordinates during import",
-        "after() in SSE route triggers geocodePendingAddresses() post-response",
-        "geocodePendingAddresses() added to address.service.ts",
-        "Progress UI shows 5 phases (companies, contacts, buildings, lots, contracts)",
-        "ImportPhase type updated (geocoding removed)",
-        "Lint passes (npm run lint)"
+        "New component at components/email/email-connection-prompt.tsx",
+        "Contains OAuth tabs + IMAP form (extracted from email-connection-form.tsx)",
+        "Settings page uses it inside Dialog with 'Ajouter une connexion email' title",
+        "email-connection-form.tsx becomes a thin re-export or is deleted",
+        "Existing settings page behavior unchanged",
+        "Lint passes"
       ],
       "priority": 2,
       "dependsOn": ["US-001"],
       "sizing": "M",
       "passes": true,
-      "notes": "Removed Phase 0 geocoding from sync pipeline. All createAddress calls pass null geocode. Import returns addressIdsToGeocode[]. SSE route uses after() to trigger geocodePendingAddresses(). Added batch geocoding method to AddressService (10 parallel, 250ms delay). Phase indices shifted: companies=0, contacts=1, buildings=2, lots=3, contracts=4."
+      "notes": "Moved EmailConnectionForm → EmailConnectionPrompt at components/email/. Added className prop + cn(). Fixed any→unknown, removed console.error. Old file is thin re-export. Settings page updated to direct import."
+    },
+    {
+      "id": "US-003",
+      "title": "Mail page full takeover when no email connected",
+      "description": "As a gestionnaire with no email connected, I see the connection form directly on the mail page instead of empty folders",
+      "acceptanceCriteria": [
+        "When emailConnections is empty, mail page shows centered EmailConnectionPrompt",
+        "Heading 'Connectez votre email' + subtitle displayed above the form",
+        "3-column layout (sidebar, list, detail) is NOT rendered",
+        "On successful connection, page refreshes to show full mail client",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Early return pattern in mail-client.tsx render. Centered EmailConnectionPrompt with Mail icon + heading + subtitle. router.refresh() on success. Dead disabled prop removed from Rédiger button."
+    },
+    {
+      "id": "US-004",
+      "title": "Global ComposeEmailProvider + sidebar + button",
+      "description": "As a gestionnaire, I can compose emails from anywhere via the sidebar + button, and the compose modal opens without page redirect",
+      "acceptanceCriteria": [
+        "ComposeEmailProvider context at gestionnaire with-navbar layout level",
+        "Sidebar shows + button next to Emails when hasActiveConnections",
+        "Sidebar + button is hidden when no active connections",
+        "Clicking + opens compose modal from any page (no redirect)",
+        "Mail page Rédiger button uses context openCompose() instead of local state",
+        "Mail page no longer renders its own ComposeEmailModal instance",
+        "Layout fetches email connections SSR and passes to provider",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Created ComposeEmailProvider context with single modal instance at layout level. Layout fetches connections via parallel SSR query. Sidebar uses createAction + useComposeEmail hook for onClick-based + button. Mail page delegates compose to context, removed local ComposeEmailModal render and composeOpen state."
     }
   ]
 }

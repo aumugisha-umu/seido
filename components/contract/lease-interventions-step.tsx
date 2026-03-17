@@ -106,10 +106,10 @@ export function LeaseInterventionsStep({
 
   const handleAddCustomIntervention = useCallback(() => {
     onInterventionsChange(prev => {
-      const lastCustomIdx = prev.reduce((acc, item, idx) => item.key.startsWith('custom_') ? idx : acc, -1)
+      const firstCustomIdx = prev.findIndex(i => i.key.startsWith('custom_'))
       const newCustom = createEmptyCustomIntervention()
       const result = [...prev]
-      result.splice(lastCustomIdx + 1, 0, newCustom)
+      result.splice(firstCustomIdx >= 0 ? firstCustomIdx : 0, 0, newCustom)
       return result
     })
   }, [onInterventionsChange])

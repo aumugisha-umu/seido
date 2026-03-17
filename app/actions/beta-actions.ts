@@ -1,15 +1,13 @@
 /**
- * 🚀 SERVER ACTIONS - BETA ACCESS
+ * Server Actions — Invite-Only Access Gate
  *
- * Gestion de l'accès beta à l'application SEIDO
- * - Validation du mot de passe beta
- * - Soumission de demandes d'intérêt
+ * - Access code validation (cookie-based)
+ * - Access request submission (email notification to admins)
  */
 
 'use server'
 
 import { redirect } from 'next/navigation'
-// Pages are force-dynamic — no cache invalidation needed
 import { headers } from 'next/headers'
 import { z } from 'zod'
 import { setBetaAccessCookie } from '@/lib/beta-access'
@@ -17,173 +15,145 @@ import { rateLimiters } from '@/lib/rate-limit'
 import { resend, EMAIL_CONFIG, isResendConfigured } from '@/lib/email/resend-client'
 import { logger } from '@/lib/logger'
 
-// ✅ VALIDATION: Schemas Zod pour sécurité server-side
-const BetaPasswordSchema = z.object({
-  password: z.string().min(1, 'Mot de passe requis')
+// ---------------------------------------------------------------------------
+// Schemas
+// ---------------------------------------------------------------------------
+
+const AccessCodeSchema = z.object({
+  password: z.string().min(1, 'Code requis')
 })
 
-const BetaInterestSchema = z.object({
+const AccessRequestSchema = z.object({
   firstName: z.string().min(2, 'Prénom requis (minimum 2 caractères)'),
   lastName: z.string().min(2, 'Nom requis (minimum 2 caractères)'),
   email: z.string().email('Email invalide').min(1, 'Email requis'),
   phone: z.string().optional(),
-  company: z.string().min(2, 'Société requise (minimum 2 caractères)'),
-  lotsCount: z.enum(['1-10', '11-50', '51-200', '201-500', '501-1000', '1001-5000', '5001-10000', '10000+'], { errorMap: () => ({ message: 'Veuillez sélectionner le nombre de lots' }) }),
-  message: z.string().max(500, 'Message trop long (maximum 500 caractères)').optional()
+  message: z.string().max(500, 'Message trop long (maximum 500 caractères)').optional(),
 })
 
-// ✅ TYPES: Return types pour actions
-type BetaActionResult = {
+type ActionResult = {
   success: boolean
   error?: string
-  data?: {
-    message?: string
-    redirectTo?: string
-    [key: string]: unknown
-  }
 }
 
-/**
- * ✅ SERVER ACTION: Valider le mot de passe beta
- * Si valide, définit le cookie d'accès et redirige vers signup
- */
-export async function validateBetaPassword(
-  prevState: BetaActionResult,
-  formData: FormData
-): Promise<BetaActionResult> {
-  logger.info('🚀 [BETA-PASSWORD] Validating beta access password...')
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+// ---------------------------------------------------------------------------
+// Recipients — reuses ADMIN_NOTIFICATION_EMAILS with fallback
+// ---------------------------------------------------------------------------
+
+const DEFAULT_ADMIN_EMAIL = 'arthur@seido-app.com'
+
+function getAdminRecipients(): string[] {
+  const raw = process.env.ADMIN_NOTIFICATION_EMAILS ?? ''
+  const parsed = raw.split(',').map(e => e.trim()).filter(Boolean)
+  return parsed.length > 0 ? parsed : [DEFAULT_ADMIN_EMAIL]
+}
+
+// ---------------------------------------------------------------------------
+// 1. Validate access code
+// ---------------------------------------------------------------------------
+
+export async function validateBetaPassword(
+  prevState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
   try {
-    // ✅ RATE LIMITING: Empêcher brute force (5 tentatives / 10s)
     const headersList = await headers()
     const ip = headersList.get('x-forwarded-for')?.split(',')[0] ||
                headersList.get('x-real-ip') ||
                'unknown'
-    const identifier = `beta-password:${ip}`
 
-    const rateLimit = await rateLimiters.auth.limit(identifier)
+    const rateLimit = await rateLimiters.auth.limit(`access-code:${ip}`)
     if (!rateLimit.success) {
-      logger.info(`⚠️ [BETA-PASSWORD] Rate limit exceeded for IP: ${ip}`)
-      return {
-        success: false,
-        error: 'Trop de tentatives. Veuillez patienter avant de réessayer.'
-      }
+      return { success: false, error: 'Trop de tentatives. Veuillez patienter.' }
     }
 
-    // ✅ VALIDATION: Parser et valider les données
-    const rawData = {
+    const { password } = AccessCodeSchema.parse({
       password: formData.get('password') as string
+    })
+
+    const accessCode = process.env.BETA_ACCESS_PASSWORD
+    if (!accessCode) {
+      logger.error('[ACCESS-GATE] BETA_ACCESS_PASSWORD not configured')
+      return { success: false, error: 'Code d\'invitation non configuré. Contactez-nous.' }
     }
 
-    const validatedData = BetaPasswordSchema.parse(rawData)
-    logger.info('📝 [BETA-PASSWORD] Data validated')
-
-    // ✅ VÉRIFIER: Mot de passe beta configuré
-    const betaPassword = process.env.BETA_ACCESS_PASSWORD
-    if (!betaPassword) {
-      logger.error('❌ [BETA-PASSWORD] BETA_ACCESS_PASSWORD not configured in environment')
-      return {
-        success: false,
-        error: 'Accès beta non configuré. Contactez l\'administrateur.'
-      }
+    if (password !== accessCode) {
+      return { success: false, error: 'Code d\'invitation incorrect' }
     }
 
-    // ✅ COMPARER: Mot de passe fourni vs environnement
-    if (validatedData.password !== betaPassword) {
-      logger.info('❌ [BETA-PASSWORD] Invalid password attempt')
-      return {
-        success: false,
-        error: 'Mot de passe incorrect'
-      }
-    }
-
-    // ✅ SUCCÈS: Définir le cookie d'accès
     await setBetaAccessCookie()
-    logger.info('✅ [BETA-PASSWORD] Beta access granted, cookie set')
+    logger.info('[ACCESS-GATE] Access granted via code')
 
-    // ✅ REDIRECTION: Vers la page signup (qui affichera maintenant le formulaire)
     redirect('/auth/signup')
-
   } catch (error) {
-    logger.error(`❌ [BETA-PASSWORD] Exception: ${error instanceof Error ? error.message : String(error)}`)
-
-    // ✅ GESTION: Erreurs de validation Zod
     if (error instanceof z.ZodError) {
-      const firstError = error.errors[0]
-      return { success: false, error: firstError.message }
+      return { success: false, error: error.errors[0].message }
     }
-
-    // ✅ GESTION: redirect() throws - c'est normal, on le propage
     if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
       throw error
     }
-
-    return {
-      success: false,
-      error: 'Une erreur est survenue lors de la validation'
-    }
+    return { success: false, error: 'Une erreur est survenue' }
   }
 }
 
-/**
- * ✅ SERVER ACTION: Soumettre une demande d'intérêt beta
- * Envoie un email de notification à contact@seido-app.com
- */
-export async function submitBetaInterest(
-  prevState: BetaActionResult,
-  formData: FormData
-): Promise<BetaActionResult> {
-  logger.info('🚀 [BETA-INTEREST] Processing beta interest submission...')
+// ---------------------------------------------------------------------------
+// 2. Submit access request
+// ---------------------------------------------------------------------------
 
+export async function submitBetaInterest(
+  prevState: ActionResult,
+  formData: FormData
+): Promise<ActionResult> {
   try {
-    // ✅ RATE LIMITING: Empêcher spam (3 soumissions / 60s par IP)
     const headersList = await headers()
     const ip = headersList.get('x-forwarded-for')?.split(',')[0] ||
                headersList.get('x-real-ip') ||
                'unknown'
-    const identifier = `beta-interest:${ip}`
 
-    const rateLimit = await rateLimiters.sensitive.limit(identifier)
+    const rateLimit = await rateLimiters.sensitive.limit(`access-request:${ip}`)
     if (!rateLimit.success) {
-      logger.info(`⚠️ [BETA-INTEREST] Rate limit exceeded for IP: ${ip}`)
-      return {
-        success: false,
-        error: 'Trop de demandes. Veuillez patienter avant de réessayer.'
-      }
+      return { success: false, error: 'Trop de demandes. Veuillez patienter.' }
     }
 
-    // ✅ VALIDATION: Parser et valider les données
-    const rawData = {
+    const data = AccessRequestSchema.parse({
       firstName: formData.get('firstName') as string,
       lastName: formData.get('lastName') as string,
       email: formData.get('email') as string,
       phone: formData.get('phone') as string || undefined,
-      company: formData.get('company') as string,
-      lotsCount: formData.get('lotsCount') as string,
-      message: formData.get('message') as string || undefined
-    }
+      message: formData.get('message') as string || undefined,
+    })
 
-    const validatedData = BetaInterestSchema.parse(rawData)
-    logger.info(`📝 [FONDATEURS-2026] Candidature validée: ${validatedData.firstName} ${validatedData.lastName} (${validatedData.company})`)
+    const fullName = `${data.firstName} ${data.lastName}`
+    logger.info(`[ACCESS-GATE] Access request from: ${fullName} (${data.email})`)
 
-    // ✅ VÉRIFIER: Service email disponible
     if (!isResendConfigured()) {
-      logger.error('❌ [BETA-INTEREST] Resend not configured - RESEND_API_KEY missing')
-      return {
-        success: false,
-        error: 'Service d\'envoi d\'email non configuré. Veuillez contacter l\'administrateur.'
-      }
+      logger.error('[ACCESS-GATE] Resend not configured')
+      return { success: false, error: 'Service email non configuré. Contactez-nous directement.' }
     }
 
-    // ✅ ENVOYER EMAIL: Notification de candidature Programme Fondateurs
-    logger.info('📧 [FONDATEURS-2026] Envoi notification candidature...')
+    const recipients = getAdminRecipients()
 
-    const lotsLabel = {
-      '1-10': '1 à 10 lots',
-      '11-50': '11 à 50 lots',
-      '51-200': '51 à 200 lots',
-      '200+': 'Plus de 200 lots'
-    }[validatedData.lotsCount] || validatedData.lotsCount
+    // Escape all user-provided fields to prevent HTML injection in emails
+    const safe = {
+      firstName: escapeHtml(data.firstName),
+      lastName: escapeHtml(data.lastName),
+      email: escapeHtml(data.email),
+      phone: data.phone ? escapeHtml(data.phone) : null,
+      message: data.message ? escapeHtml(data.message) : null,
+    }
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -191,113 +161,91 @@ export async function submitBetaInterest(
         <head>
           <meta charset="utf-8">
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; }
-            .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-top: 10px; }
-            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-            .info-row { margin: 15px 0; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea; }
-            .label { font-weight: bold; color: #667eea; margin-bottom: 5px; font-size: 12px; text-transform: uppercase; }
-            .value { color: #333; font-size: 16px; }
-            .highlight { background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border: 1px solid #667eea30; }
-            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
+            .header { background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); color: white; padding: 28px; border-radius: 12px 12px 0 0; }
+            .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+            .header p { margin: 8px 0 0 0; opacity: 0.85; font-size: 14px; }
+            .content { background: #f9fafb; padding: 28px; border-radius: 0 0 12px 12px; }
+            .field { margin: 12px 0; padding: 14px 16px; background: white; border-radius: 8px; border-left: 3px solid #2563eb; }
+            .field-label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+            .field-value { font-size: 15px; color: #111827; }
+            .field-value a { color: #2563eb; text-decoration: none; }
+            .meta { margin-top: 16px; padding: 12px 16px; background: white; border-radius: 8px; border-left: 3px solid #d1d5db; }
+            .meta .field-value { font-size: 12px; color: #6b7280; }
+            .footer { text-align: center; margin-top: 24px; font-size: 12px; color: #9ca3af; }
+            .cta { display: inline-block; margin-top: 8px; padding: 8px 20px; background: #2563eb; color: white; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1 style="margin: 0;">🚀 Nouvelle candidature Fondateurs 2026</h1>
-              <p style="margin: 10px 0 0 0; opacity: 0.9;">Programme Beta Privée SEIDO</p>
-              <span class="badge">${lotsLabel}</span>
+              <h1>Nouvelle demande d'accès</h1>
+              <p>Un professionnel souhaite rejoindre SEIDO</p>
             </div>
             <div class="content">
-              <div class="info-row highlight">
-                <div class="label">Candidat</div>
-                <div class="value">${validatedData.firstName} ${validatedData.lastName}</div>
+              <div class="field">
+                <div class="field-label">Nom</div>
+                <div class="field-value">${safe.firstName} ${safe.lastName}</div>
               </div>
-              <div class="info-row">
-                <div class="label">Société</div>
-                <div class="value">${validatedData.company}</div>
+              <div class="field">
+                <div class="field-label">Email</div>
+                <div class="field-value"><a href="mailto:${safe.email}">${safe.email}</a></div>
               </div>
-              <div class="info-row">
-                <div class="label">Email</div>
-                <div class="value"><a href="mailto:${validatedData.email}" style="color: #667eea;">${validatedData.email}</a></div>
-              </div>
-              ${validatedData.phone ? `
-              <div class="info-row">
-                <div class="label">Téléphone</div>
-                <div class="value"><a href="tel:${validatedData.phone}" style="color: #667eea;">${validatedData.phone}</a></div>
+              ${safe.phone ? `
+              <div class="field">
+                <div class="field-label">Téléphone</div>
+                <div class="field-value"><a href="tel:${safe.phone}">${safe.phone}</a></div>
               </div>
               ` : ''}
-              <div class="info-row">
-                <div class="label">Patrimoine géré</div>
-                <div class="value">${lotsLabel}</div>
-              </div>
-              ${validatedData.message ? `
-              <div class="info-row">
-                <div class="label">Message</div>
-                <div class="value">${validatedData.message}</div>
+              ${safe.message ? `
+              <div class="field">
+                <div class="field-label">Message</div>
+                <div class="field-value">${safe.message}</div>
               </div>
               ` : ''}
-              <div class="info-row" style="border-left-color: #ccc;">
-                <div class="label">Infos techniques</div>
-                <div class="value" style="font-size: 12px; color: #666;">
-                  Date: ${new Date().toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })}<br>
-                  IP: ${ip}
+              <div class="meta">
+                <div class="field-label">Informations techniques</div>
+                <div class="field-value">
+                  ${new Date().toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })} — IP: ${ip}
                 </div>
               </div>
             </div>
             <div class="footer">
-              <p><strong>Action requise:</strong> Recontacter sous 48h comme promis !</p>
-              <p style="margin-top: 10px;">Programme Fondateurs 2026 - SEIDO</p>
+              <p><strong>Recontacter sous 48h</strong></p>
+              <a class="cta" href="mailto:${safe.email}?subject=Votre demande d'accès à SEIDO">Répondre à ${safe.firstName}</a>
             </div>
           </div>
         </body>
       </html>
     `
 
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: EMAIL_CONFIG.from,
-      to: 'contact@seido.pm',
-      subject: `[FONDATEURS 2026] ${validatedData.firstName} ${validatedData.lastName} - ${validatedData.company} (${lotsLabel})`,
+      to: recipients,
+      subject: `[SEIDO] Demande d'accès — ${data.firstName} ${data.lastName} (${data.email})`,
       html: emailHtml,
       tags: [
-        { name: 'type', value: 'fondateurs-2026' },
-        { name: 'company', value: validatedData.company },
-        { name: 'lots', value: validatedData.lotsCount }
+        { name: 'type', value: 'access-request' },
+        { name: 'email', value: data.email },
       ]
     })
 
     if (error) {
-      logger.error(`❌ [FONDATEURS-2026] Échec envoi email: ${error.message}`)
-      return {
-        success: false,
-        error: 'Erreur lors de l\'envoi de votre candidature. Veuillez réessayer.'
-      }
+      logger.error({ error }, '[ACCESS-GATE] Failed to send notification')
+      return { success: false, error: 'Erreur lors de l\'envoi. Veuillez réessayer.' }
     }
 
-    logger.info(`✅ [FONDATEURS-2026] Candidature enregistrée: ${validatedData.company} - ${data?.id}`)
+    logger.info(`[ACCESS-GATE] Notification sent to ${recipients.join(', ')}`)
 
-    // ✅ REDIRECTION: Vers page de remerciement
     redirect('/auth/beta-thank-you')
-
   } catch (error) {
-    logger.error(`❌ [BETA-INTEREST] Exception: ${error instanceof Error ? error.message : String(error)}`)
-
-    // ✅ GESTION: Erreurs de validation Zod
     if (error instanceof z.ZodError) {
-      const firstError = error.errors[0]
-      return { success: false, error: firstError.message }
+      return { success: false, error: error.errors[0].message }
     }
-
-    // ✅ GESTION: redirect() throws - c'est normal, on le propage
     if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
       throw error
     }
-
-    return {
-      success: false,
-      error: 'Une erreur est survenue lors de l\'envoi de votre demande'
-    }
+    return { success: false, error: 'Une erreur est survenue' }
   }
 }

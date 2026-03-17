@@ -13,7 +13,7 @@
  * Règles métier de filtrage :
  * | Type Contact   | Building | Lot | Contract | Supplier Contract |
  * |----------------|----------|-----|----------|-------------------|
- * | gestionnaire   |    ✅    | ✅  |    ✅    |        ❌         |
+ * | gestionnaire   |    ✅    | ✅  |    ❌    |        ❌         |
  * | locataire      |    ❌    | ❌  |    ✅    |        ❌         |
  * | prestataire    |    ✅    | ✅  |    ❌    |        ✅         |
  * | autre          |    ✅    | ✅  |    ✅    |        ❌         |
@@ -130,8 +130,9 @@ export function EntityLinkSection({
   // Filtrer les options disponibles selon le type de contact
   const isLocataire = contactType === 'locataire'
   const isPrestataire = contactType === 'prestataire'
+  const isGestionnaire = contactType === 'gestionnaire'
   const showPropertyOption = !isLocataire
-  const showContractOption = !isPrestataire
+  const showContractOption = !isPrestataire && !isGestionnaire
   const showSupplierContractOption = isPrestataire
 
   // Dynamic title based on contact type

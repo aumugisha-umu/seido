@@ -3,9 +3,13 @@
 import React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Building, TrendingUp, ChevronDown, ChevronUp } from "lucide-react"
+import { Plus, Building, TrendingUp, ChevronDown, Home, Car, Store, MoreHorizontal, type LucideIcon } from "lucide-react"
 import { LotInputCardV2 } from "@/components/ui/lot-input-card-v2"
-import { LotCategory } from "@/lib/lot-types"
+import { getLotCategoryConfig, type LotCategory } from "@/lib/lot-types"
+
+const LOT_ICON_MAP: Record<string, LucideIcon> = {
+  Building, Home, Car, Store, MoreHorizontal,
+}
 import { BuildingInfoCard } from "@/components/ui/building-info-card"
 
 interface Lot {
@@ -32,6 +36,7 @@ interface BuildingLotsStepV2Props {
     floor: string
     door_number: string
     category: LotCategory
+    is_occupied?: boolean | null
   }>
   onAddLot: () => void
   onUpdateLot: (id: string, field: keyof Lot, value: string) => void
@@ -74,13 +79,6 @@ interface BuildingLotsStepV2Props {
  * - Gestionnaires créant 3-10 lots en série
  * - Vue d'ensemble rapide (plusieurs lots visibles simultanément)
  */
-const LOT_CATEGORY_LABELS: Record<string, string> = {
-  'appartement': 'Appartement',
-  'maison': 'Maison',
-  'garage': 'Garage',
-  'local_commercial': 'Local commercial',
-  'autre': 'Autre'
-}
 
 export function BuildingLotsStepV2({
   lots,
@@ -115,52 +113,128 @@ export function BuildingLotsStepV2({
         disableAddLot={disableAddLot}
       />
 
-      {/* Existing Lots - Read-only collapsible */}
-      {existingLots && existingLots.length > 0 && (
-        <Card className="border-dashed border-gray-200 bg-gray-50/50">
-          <CardContent className="py-3 px-4">
+      {/* Existing Lots - Collapsible with category preview */}
+      {existingLots && existingLots.length > 0 && (() => {
+        const categoryCounts = existingLots.reduce<Record<string, number>>((acc, lot) => {
+          acc[lot.category] = (acc[lot.category] || 0) + 1
+          return acc
+        }, {})
+        const occupiedCount = existingLots.filter(l => l.is_occupied === true).length
+
+        return (
+          <div className="rounded-xl border border-gray-200/80 bg-gradient-to-b from-gray-50/80 to-white overflow-hidden">
             <button
               onClick={() => setShowExistingLots(!showExistingLots)}
-              className="flex items-center justify-between w-full text-left"
+              className="flex items-center w-full text-left px-4 py-3 hover:bg-gray-50/50 transition-colors"
             >
-              <span className="text-sm font-medium text-gray-600">
-                {existingLots.length} lot{existingLots.length > 1 ? "s" : ""} existant{existingLots.length > 1 ? "s" : ""} dans cet immeuble
-              </span>
-              {showExistingLots ? (
-                <ChevronUp className="h-4 w-4 text-gray-400" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              )}
-            </button>
-            {showExistingLots && (
-              <div className="mt-3 space-y-1.5">
-                {existingLots.map((lot) => (
-                  <div
-                    key={lot.id}
-                    className="flex items-center gap-3 rounded-md bg-white px-3 py-2 text-sm border border-gray-100"
-                  >
-                    <span className="font-medium text-gray-700">{lot.reference || "Sans référence"}</span>
-                    <span className="text-gray-400">·</span>
-                    <span className="text-gray-500">{LOT_CATEGORY_LABELS[lot.category] || lot.category}</span>
-                    {lot.floor && (
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <Building className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm font-semibold text-gray-700">
+                    {existingLots.length} lot{existingLots.length > 1 ? "s" : ""}
+                  </span>
+                </div>
+
+                {/* Category summary chips — collapsed preview */}
+                {!showExistingLots && (
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    <span className="text-gray-300">|</span>
+                    {Object.entries(categoryCounts).map(([cat, count]) => {
+                      const config = getLotCategoryConfig(cat as LotCategory)
+                      const IconComponent = LOT_ICON_MAP[config.icon] || Building
+                      return (
+                        <span
+                          key={cat}
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${config.bgColor} ${config.color}`}
+                        >
+                          <IconComponent className="h-3 w-3" />
+                          {count > 1 && <span>×{count}</span>}
+                        </span>
+                      )
+                    })}
+                    {occupiedCount > 0 && (
                       <>
-                        <span className="text-gray-400">·</span>
-                        <span className="text-gray-500">Ét. {lot.floor}</span>
-                      </>
-                    )}
-                    {lot.door_number && (
-                      <>
-                        <span className="text-gray-400">·</span>
-                        <span className="text-gray-500">Porte {lot.door_number}</span>
+                        <span className="text-gray-300">|</span>
+                        <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+                          <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                          {occupiedCount}/{existingLots.length}
+                        </span>
                       </>
                     )}
                   </div>
-                ))}
+                )}
+              </div>
+              <ChevronDown className={`h-4 w-4 text-gray-400 shrink-0 transition-transform duration-200 ${showExistingLots ? "rotate-180" : ""}`} />
+            </button>
+
+            {showExistingLots && (
+              <div className="px-4 pb-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {existingLots.map((lot) => {
+                    const config = getLotCategoryConfig(lot.category)
+                    const IconComponent = LOT_ICON_MAP[config.icon] || Building
+                    const isOccupied = lot.is_occupied === true
+                    const subtitle = [
+                      lot.floor ? `Ét. ${lot.floor}` : null,
+                      lot.door_number ? `P. ${lot.door_number}` : null,
+                    ].filter(Boolean).join(" · ")
+
+                    return (
+                      <div
+                        key={lot.id}
+                        title={[lot.reference || "Sans référence", config.label, subtitle, isOccupied ? "Occupé" : "Vacant"].filter(Boolean).join(" · ")}
+                        className="group relative flex items-start gap-2 rounded-lg border border-gray-100 bg-white pl-4 pr-3 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06)] transition-shadow overflow-hidden"
+                      >
+                        {/* Left accent bar */}
+                        <div
+                          className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-lg"
+                          style={{
+                            backgroundColor: lot.category === 'appartement' ? '#3b82f6'
+                              : lot.category === 'maison' ? '#16a34a'
+                              : lot.category === 'garage' ? '#6b7280'
+                              : lot.category === 'local_commercial' ? '#ea580c'
+                              : '#d97706'
+                          }}
+                        />
+
+                        {/* Icon */}
+                        <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${config.bgColor}`}>
+                          <IconComponent className={`h-3.5 w-3.5 ${config.color}`} />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-[13px] font-semibold text-gray-800 leading-tight">
+                              {lot.reference || "Sans réf."}
+                            </span>
+                            {isOccupied && (
+                              <span className="shrink-0 h-1.5 w-1.5 rounded-full bg-green-500" aria-label="Occupé" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-[11px] font-medium text-gray-400 leading-none">
+                              {config.label}
+                            </span>
+                            {subtitle && (
+                              <>
+                                <span className="text-[11px] text-gray-300">·</span>
+                                <span className="truncate text-[11px] text-gray-400 leading-none">
+                                  {subtitle}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )
+      })()}
 
       {/* New Lots Grid - Ultra Compact */}
       {lots.length === 0 ? (

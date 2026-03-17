@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { createBrowserSupabaseClient } from '@/lib/services'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -24,6 +25,7 @@ import {
   Check,
   Loader2,
   AlertCircle,
+  Eye,
   FileSignature,
   Shield,
   IdCard,
@@ -72,6 +74,14 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   ClipboardList
 }
 
+/** Read-only existing file (already in DB) */
+export interface ExistingFileInfo {
+  id: string
+  original_filename: string
+  uploaded_at: string
+  storage_path?: string
+}
+
 interface DocumentSlotGenericProps {
   /** Document type identifier */
   type: string
@@ -91,6 +101,8 @@ interface DocumentSlotGenericProps {
   onAddFiles: (files: File[]) => void
   /** Callback when a file is removed */
   onRemoveFile: (fileId: string) => void
+  /** Existing files already uploaded (read-only display) */
+  existingFiles?: ExistingFileInfo[]
   /** Disable interactions */
   disabled?: boolean
   /** Compact mode for grid display */
@@ -165,6 +177,7 @@ export function DocumentSlotGeneric({
   files,
   onAddFiles,
   onRemoveFile,
+  existingFiles = [],
   disabled = false,
   compact = false,
   hasExpiry = false,
@@ -181,8 +194,9 @@ export function DocumentSlotGeneric({
   const [isDragOver, setIsDragOver] = useState(false)
 
   const IconComponent = ICON_MAP[icon] || File
-  const hasFiles = files.length > 0
-  const canAddMore = allowMultiple || !hasFiles
+  const hasExisting = existingFiles.length > 0
+  const hasFiles = files.length > 0 || hasExisting
+  const canAddMore = allowMultiple || (!files.length && !hasExisting)
 
   const computedExpiry = useMemo(
     () => computeExpiryDate(documentDate, validityDuration, validityCustomExpiry),
@@ -279,7 +293,7 @@ export function DocumentSlotGeneric({
                 "bg-green-100 text-green-700 border-green-200",
                 compact ? "text-[11px] px-1 py-0" : "text-xs"
               )}>
-                {files.length} {compact ? "" : `fichier${files.length > 1 ? 's' : ''}`}
+                {files.length + existingFiles.length} {compact ? "" : `fichier${(files.length + existingFiles.length) > 1 ? 's' : ''}`}
               </Badge>
             )}
             {hasExpiry && expiryStatus.status !== 'none' && (
@@ -357,7 +371,47 @@ export function DocumentSlotGeneric({
 
       {/* Upload zone / File list */}
       <div className={cn("flex-1 flex flex-col", compact ? "px-2.5 pb-2.5" : "px-4 pb-4")}>
-        {hasFiles && (
+        {/* Existing files (read-only) */}
+        {hasExisting && (
+          <div className={cn(compact ? "space-y-1" : "space-y-2", files.length > 0 && (compact ? "mb-1" : "mb-2"))}>
+            {existingFiles.map(ef => (
+              <div
+                key={ef.id}
+                className={cn(
+                  "flex items-center gap-2 rounded-md border border-green-200 bg-green-50",
+                  compact ? "p-1.5" : "p-2"
+                )}
+              >
+                <Check className={cn("text-green-600 shrink-0", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
+                <div className="flex-1 min-w-0">
+                  <p className={cn("font-medium truncate", compact ? "text-xs" : "text-sm")}>
+                    {ef.original_filename}
+                  </p>
+                  <p className={cn("text-muted-foreground", compact ? "text-[11px]" : "text-xs")}>
+                    Ajouté le {new Date(ef.uploaded_at).toLocaleDateString('fr-BE')}
+                  </p>
+                </div>
+                {ef.storage_path && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("shrink-0", compact ? "h-5 w-5" : "h-7 w-7")}
+                    onClick={() => {
+                      const supabase = createBrowserSupabaseClient()
+                      const { data } = supabase.storage.from('documents').getPublicUrl(ef.storage_path!)
+                      window.open(data.publicUrl, '_blank', 'noopener,noreferrer')
+                    }}
+                    title="Voir le document"
+                  >
+                    <Eye className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {files.length > 0 && (
           <div className={cn(compact ? "space-y-1" : "space-y-2")}>
             {files.map(file => {
               const FileIcon = getFileIcon(file.file.type)

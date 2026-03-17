@@ -1,9 +1,9 @@
 # SEIDO AI WhatsApp Agent — Plan Complet
 
-**Version** : 1.0 — Mars 2026
+**Version** : 2.0 — Mars 2026
 **Statut** : Plan valide, pret pour implementation
 **Predecesseur** : `ai-phone-assistant-plan.md` (v3.6 — phone + WhatsApp via ElevenLabs)
-**Pivot** : Agent telephone abandonne → focus WhatsApp-only avec Claude API direct
+**Pivot v1→v2** : Telnyx remplace par Twilio (provisioning simplifie) + mode BYON (Bring Your Own Number)
 
 ---
 
@@ -219,18 +219,9 @@ npx ngrok http 3000
    - **Description** (optionnel) : "Assistant IA pour les demandes d'intervention"
 3. Cliquer "Suivant" / "Continuer"
 4. Entrer le numero : `+32 2 601 07 84` (numero Telnyx existant)
-5. **Methode de verification** — choisir **SMS** ou **Appel vocal** :
-   - **SMS** : le code arrive sur le numero Telnyx
-     → Aller sur [portal.telnyx.com](https://portal.telnyx.com)
-     → **Messaging** → section Messages entrants / Inbound
-     → Chercher le SMS de Meta (expediteur: shortcode ou numero US)
-     → Copier le code a 6 chiffres
-   - **Appel vocal** : Meta appelle le numero
-     → Si le numero est encore sur la SIP Connection ElevenLabs, l'appel arrive la
-     → Sinon, configurer un webhook Telnyx pour recevoir les appels et noter le code lu vocalement
-   - **Alternative si aucun des deux ne fonctionne** :
-     → Utiliser un numero de telephone mobile que tu controles directement
-     → Tu pourras changer le numero plus tard
+5. **Methode de verification** — choisir **SMS** :
+   - **Mode A (managed)** : Le code arrive automatiquement via le webhook Twilio configure sur le numero
+   - **Mode B (BYON)** : Le code arrive par SMS sur le telephone du gestionnaire
 6. Entrer le code dans Meta → **Numero verifie et actif**
 7. Le numero apparait maintenant dans le dropdown "De" de la page "Configuration de l'API"
 8. **Noter le nouveau "ID du numero de telephone"** — c'est ton `PHONE_NUMBER_ID` de production
@@ -257,10 +248,13 @@ npx ngrok http 3000
          v
 1 WABA (WhatsApp Business Account)
          |
-         |-- Numero +32 X XXX XX XX  →  display_name: "Immo Dupont"
-         |-- Numero +32 X XXX XX XX  →  display_name: "Gestion Martin"
-         |-- Numero +32 X XXX XX XX  →  display_name: "Vastgoed Peeters"
+         |-- Numero +32 X XXX XX XX  →  display_name: "Immo Dupont"     (Mode A: managed)
+         |-- Numero +32 X XXX XX XX  →  display_name: "Gestion Martin"  (Mode B: BYON)
+         |-- Numero +32 X XXX XX XX  →  display_name: "Vastgoed Peeters" (Mode A: managed)
 ```
+
+> **IMPORTANT — Limite Meta :** Sans verification entreprise Meta, maximum **2 numeros** par WABA.
+> Avec verification : jusqu'a **20 numeros**. La verification est donc bloquante pour scaler au-dela de 2 equipes.
 
 **Chaque equipe a :**
 - Son propre numero belge (+32)
@@ -268,42 +262,83 @@ npx ngrok http 3000
 - Son propre prompt personnalise (instructions custom, max 500 chars)
 - Son propre `whatsapp_phone_number_id` dans Meta
 
-**Provisioning automatique (production) :**
-1. Commander un numero Telnyx (+32) via API — $1/mo, activation instantanee (requirement group pre-approuve)
-2. Enregistrer le numero dans le WABA Meta via Graph API
-3. Verifier le numero (code SMS via Telnyx)
-4. Sauver en DB
+#### Deux modes de provisioning
+
+**Mode A — "Plug & Play" (Twilio-managed) :**
+1. SEIDO achete un numero +32 via Twilio API (~$1.50/mo)
+2. Configure le webhook SMS sur le numero (pour recevoir le code Meta)
+3. Enregistre le numero dans le WABA Meta via Graph API
+4. Meta envoie SMS de verification → Twilio webhook → SEIDO extrait le code
+5. SEIDO soumet le code a Meta → numero verifie
+6. SEIDO enregistre le numero pour Cloud API (`POST /{phone_id}/register`)
+7. Sauve en DB
+
+**Mode B — "Bring Your Own Number" (BYON) :**
+1. Le gestionnaire saisit son numero professionnel dans SEIDO
+2. SEIDO enregistre le numero dans le WABA Meta via Graph API
+3. Meta envoie SMS de verification AU TELEPHONE DU GESTIONNAIRE
+4. Le gestionnaire entre le code 6 chiffres dans l'UI SEIDO
+5. SEIDO soumet le code a Meta → numero verifie
+6. SEIDO enregistre le numero pour Cloud API
+7. Sauve en DB
+
+> **⚠️ BYON — Avertissement obligatoire :** Le numero utilise pour WhatsApp Business
+> **ne peut plus etre utilise avec WhatsApp classique** (restriction Meta).
+> L'UI doit afficher un avertissement clair + checkbox de confirmation avant de proceder.
 
 **Provisioning manuel (dev) :**
-- Utiliser le numero test Meta ou un numero Telnyx fixe
+- Utiliser le numero test Meta ou un numero Twilio/perso fixe
 - Variables `DEV_*` dans `.env.local`
 
-#### Telnyx : uniquement pour les numeros (pas de SIP)
+#### Twilio : uniquement pour les numeros (Mode A)
 
 ```typescript
-// Commander un numero belge
-// POST https://api.telnyx.com/v2/number_orders
-{
-  "phone_numbers": [{
-    "phone_number": "+32XXXXXXXX",
-    "requirement_group_id": process.env.TELNYX_REQUIREMENT_GROUP_ID
-  }]
-}
+// Chercher un numero belge disponible
+// GET https://api.twilio.com/2010-04-01/Accounts/{SID}/AvailablePhoneNumbers/BE/Mobile.json
 
-// PAS de SIP Connection, PAS de trunk, PAS de codecs
-// Le numero sert uniquement a etre enregistre dans Meta WABA
+// Acheter le numero + configurer webhook SMS
+// POST https://api.twilio.com/2010-04-01/Accounts/{SID}/IncomingPhoneNumbers.json
+// Body: PhoneNumber=+32XXX&FriendlyName=seido-team-{teamId}&SmsUrl=https://seido.app/api/webhooks/twilio-verification
+// Auth: Basic (AccountSid:AuthToken)
+
+// Liberer le numero
+// DELETE https://api.twilio.com/2010-04-01/Accounts/{SID}/IncomingPhoneNumbers/{Sid}.json
 ```
 
-> **Note :** Si Telnyx est un overhead trop lourd pour juste des numeros,
-> on peut aussi acheter des numeros directement via d'autres providers (ex: MessageBird/Vonage).
-> Mais Telnyx est deja configure et le requirement group est pre-approuve → 0 friction.
+> **Simplification vs Telnyx :** Plus de SIP Connection, plus de `requirement_group_id`,
+> plus de `assignToConnection()`. Juste buy → configure webhook → done.
+> Le regulatory bundle Twilio pour la Belgique est deja soumis et approuve.
+
+#### Meta Graph API : enregistrement du numero (4 etapes)
+
+```typescript
+// Etape 1 : Creer le numero dans le WABA
+// POST graph.facebook.com/v23.0/{WABA_ID}/phone_numbers
+// Body: { cc: "32", phone_number: "XXXXXXXX", verified_name: "Immo Dupont" }
+// → Retourne: { id: "phone_number_id" }
+
+// Etape 2 : Demander le code de verification
+// POST graph.facebook.com/v23.0/{phone_number_id}/request_code
+// Body: { code_method: "SMS", language: "fr" }
+
+// Etape 3 : Soumettre le code
+// POST graph.facebook.com/v23.0/{phone_number_id}/verify_code
+// Body: { code: "123456" }
+
+// Etape 4 : Enregistrer pour Cloud API (OBLIGATOIRE — manquait dans v1.0)
+// POST graph.facebook.com/v23.0/{phone_number_id}/register
+// Body: { messaging_product: "whatsapp", pin: "123456" }
+// → Retourne: { success: true }
+```
+
+> **Ref :** [Phone Number Management API — Meta](https://developers.facebook.com/documentation/business-messaging/whatsapp/reference/whatsapp-business-account/phone-number-management-api)
 
 ---
 
 ### Etape 4 : Dependances NPM
 
 ```bash
-npm install ai @ai-sdk/anthropic @react-pdf/renderer
+npm install ai @ai-sdk/anthropic @react-pdf/renderer twilio
 ```
 
 | Package | Version | Role |
@@ -311,8 +346,9 @@ npm install ai @ai-sdk/anthropic @react-pdf/renderer
 | `ai` | ^6.x | Vercel AI SDK — orchestration LLM |
 | `@ai-sdk/anthropic` | ^1.x | Provider Claude pour AI SDK |
 | `@react-pdf/renderer` | ^4.x | Generation PDF server-side |
+| `twilio` | ^5.x | Provisioning numeros belges (Mode A) |
 
-> **Pas besoin de :** `elevenlabs` (plus de pipeline vocal), `telnyx` SDK (REST direct suffit pour commander des numeros)
+> **Pas besoin de :** `elevenlabs` (plus de pipeline vocal), `telnyx` (remplace par Twilio)
 
 ---
 
@@ -333,9 +369,9 @@ META_WHATSAPP_BUSINESS_ID=123456789012345          # WABA ID
 META_WHATSAPP_APP_SECRET=xxxxxxxxxxxxxxxx          # App Secret (signature verification)
 META_WHATSAPP_VERIFY_TOKEN=seido-whatsapp-verify-2026  # Webhook setup token
 
-# Telnyx (provisioning numeros uniquement)
-TELNYX_API_KEY=KEY_xxxxxxxxxxxxxxxxxxxxxxxxx
-TELNYX_REQUIREMENT_GROUP_ID=rg_xxxxxxxxxxxxx
+# Twilio (provisioning numeros — Mode A uniquement)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Dev uniquement (mode manual)
 DEV_WHATSAPP_PHONE_NUMBER_ID=987654321098765       # Phone Number ID Meta
@@ -375,11 +411,18 @@ DEV_WHATSAPP_PHONE_NUMBER=+32XXXXXXXX             # Numero affiche
 - [x] Token copie et stocke de maniere securisee
 
 **--- 4. Numero reel (+32) ---**
-- [ ] Numero Telnyx +32 2 601 07 84 existant (deja achete)
+- [ ] Regulatory bundle Twilio pour Belgique approuve (adresse belge requise depuis 08/2025)
+- [ ] Numero Twilio +32 achete via API ou Console
 - [ ] Numero ajoute au WABA (Developer Portal → "Ajouter un numero de telephone")
       → Pre-requis : informations entreprise remplies (etape 1)
-- [ ] Numero verifie (code SMS/appel recu sur Telnyx, entre dans Meta)
+- [ ] Numero verifie (code SMS recu sur Twilio, entre dans Meta)
+- [ ] Numero enregistre pour Cloud API (POST /{phone_id}/register)
 - [ ] "ID du numero de telephone" du numero reel note
+
+**--- 4b. Route webhook Twilio verification (Mode A) ---**
+- [ ] Endpoint `/api/webhooks/twilio-verification` deploye
+- [ ] SmsUrl configure sur le numero Twilio → pointe vers cet endpoint
+- [ ] **TEST** : envoyer un SMS au numero Twilio → webhook recu
 
 **--- 5. Webhook ---**
 - [x] Endpoint `/api/webhooks/whatsapp` deploye (ou ngrok en dev)
@@ -399,7 +442,7 @@ DEV_WHATSAPP_PHONE_NUMBER=+32XXXXXXXX             # Numero affiche
 - [ ] Variables critiques dans Vercel (preview + production)
 
 **--- 7. Dependances ---**
-- [ ] `npm install ai @ai-sdk/anthropic @react-pdf/renderer` execute
+- [ ] `npm install ai @ai-sdk/anthropic @react-pdf/renderer twilio` execute
 - [ ] `npm run lint` passe apres installation
 
 **Temps total :** ~1h de config active + 1-2 jours d'attente verification Meta.
@@ -431,7 +474,7 @@ Un **agent WhatsApp IA** par equipe qui :
 
 | Critere | Telephone | WhatsApp |
 |---------|-----------|----------|
-| **Cout** | ~$0.114/min (ElevenLabs + Telnyx) | ~$0.001/conversation (Claude Haiku) |
+| **Cout** | ~$0.114/min (ElevenLabs + Twilio) | ~$0.001/conversation (Claude Haiku) |
 | **Photos** | Impossible | Locataire envoie une photo du degat |
 | **Asynchrone** | Temps reel uniquement | Le locataire repond a son rythme |
 | **Trace** | Transcript genere post-appel | Historique natif dans WhatsApp |
@@ -485,7 +528,7 @@ Un **agent WhatsApp IA** par equipe qui :
          |  +--------------------------------------+ |
          +------------------------------------------+
                        |
-                       | POST graph.facebook.com/v21.0/{phone_id}/messages
+                       | POST graph.facebook.com/v23.0/{phone_id}/messages
                        v
          +---------------------------+
          |  META CLOUD API            |
@@ -513,7 +556,7 @@ Un **agent WhatsApp IA** par equipe qui :
 | Meta Cloud API direct (pas de BSP) | Pas d'intermediaire. Messages service (customer-initiated) = GRATUIT. SDK officiel Meta bien documente. |
 | Session en DB (pas Redis) | Supabase deja en place. Conversations WhatsApp sont async (minutes/heures entre messages, pas ms). Pas besoin de la vitesse Redis. |
 | Webhook per-message | Architecture Meta standard. Permet de repondre en temps reel a chaque message. |
-| Telnyx pour numeros | Deja configure, $1/mo, requirement group pre-approuve. Pas de SIP = 0 complexite supplementaire. |
+| Twilio pour numeros (Mode A) | API simple (1 appel), ~$1.50/mo, regulatory bundle approuve. Mode BYON = 0 provisioning. |
 
 ---
 
@@ -522,8 +565,9 @@ Un **agent WhatsApp IA** par equipe qui :
 | Composant | Technologie | Role |
 |-----------|-------------|------|
 | **LLM** | Claude Haiku 4.5 via AI SDK 6.x | Moteur conversationnel (texte + vision) |
-| **Messaging** | Meta WhatsApp Cloud API v21.0 | Reception et envoi de messages |
-| **Numeros** | Telnyx REST API | Provisioning numeros belges (+32) |
+| **Messaging** | Meta WhatsApp Cloud API v23.0 | Reception et envoi de messages |
+| **Numeros (Mode A)** | Twilio REST API | Provisioning numeros belges (+32) |
+| **Numeros (Mode B)** | BYON | Gestionnaire fournit son propre numero |
 | **DB** | Supabase (PostgreSQL) | Sessions, conversations, interventions |
 | **Storage** | Supabase Storage | Photos, documents, PDFs |
 | **PDF** | @react-pdf/renderer | Rapports d'intervention |
@@ -871,18 +915,25 @@ CREATE TABLE ai_whatsapp_numbers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   phone_number TEXT NOT NULL,                    -- Format E.164 (+32XXXXXXXXX)
-  whatsapp_phone_number_id TEXT NOT NULL,        -- ID numero Meta WhatsApp
+  whatsapp_phone_number_id TEXT,                 -- ID numero Meta WhatsApp (NULL pendant verification)
   display_name TEXT NOT NULL,                    -- Nom affiche dans WhatsApp
-  telnyx_phone_number_id TEXT,                   -- ID Telnyx (si provisionne via Telnyx)
-  ai_tier TEXT DEFAULT 'solo'                    -- 'solo' | 'equipe' | 'agence'
-    CHECK (ai_tier IN ('solo', 'equipe', 'agence')),
+  provisioning_mode TEXT NOT NULL DEFAULT 'managed'  -- 'managed' (Twilio) | 'byon'
+    CHECK (provisioning_mode IN ('managed', 'byon')),
+  twilio_number_sid TEXT,                        -- SID Twilio (NULL si mode byon)
+  status TEXT NOT NULL DEFAULT 'pending'          -- 'pending' | 'verifying' | 'active' | 'suspended'
+    CHECK (status IN ('pending', 'verifying', 'active', 'suspended')),
+  ai_tier TEXT DEFAULT 'starter'                 -- 'starter' | 'pro' | 'business' | 'enterprise'
+    CHECK (ai_tier IN ('starter', 'pro', 'business', 'enterprise')),
   custom_instructions TEXT,                      -- Max 500 chars
   auto_topup BOOLEAN DEFAULT false,
+  -- Stripe billing
+  stripe_ai_subscription_id TEXT,                -- Stripe subscription ID
+  stripe_ai_price_id TEXT,                       -- Stripe price ID
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(team_id),                               -- 1 numero par equipe
-  UNIQUE(whatsapp_phone_number_id)
+  UNIQUE(phone_number)                           -- 1 equipe par numero
 );
 
 -- ============================================
@@ -900,13 +951,18 @@ CREATE TABLE ai_whatsapp_sessions (
   identified_user_id UUID REFERENCES users(id),  -- Locataire identifie (nullable)
   intervention_id UUID REFERENCES interventions(id),  -- Intervention creee (nullable)
   language TEXT DEFAULT 'fr',                    -- Langue detectee
+  pdf_document_id UUID,                          -- PDF rapport genere (nullable)
   media_urls JSONB DEFAULT '[]'::jsonb,          -- [{type, storage_path, original_url}]
   last_message_at TIMESTAMPTZ DEFAULT now(),
   completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(contact_phone, team_id, status)         -- 1 session active par contact par equipe
-    WHERE (status = 'active')                    -- Partial unique index
+  -- Partial unique index created below
 );
+
+-- 1 session active par contact par equipe (partial unique index)
+CREATE UNIQUE INDEX idx_whatsapp_sessions_one_active
+  ON ai_whatsapp_sessions(contact_phone, team_id)
+  WHERE status = 'active';
 
 -- Index pour lookup rapide (webhook handler)
 CREATE INDEX idx_whatsapp_sessions_active
@@ -934,6 +990,27 @@ CREATE TABLE ai_whatsapp_usage (
   updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(team_id, month)
 );
+
+-- RPC pour upsert atomique (equivalent a upsert_ai_phone_usage)
+CREATE OR REPLACE FUNCTION upsert_ai_whatsapp_usage(
+  p_team_id UUID,
+  p_month DATE,
+  p_conversations INTEGER DEFAULT 1,
+  p_messages_sent INTEGER DEFAULT 0,
+  p_messages_received INTEGER DEFAULT 1,
+  p_tokens INTEGER DEFAULT 0
+) RETURNS VOID AS $$
+BEGIN
+  INSERT INTO ai_whatsapp_usage (team_id, month, conversations_count, messages_sent, messages_received, llm_tokens_used)
+  VALUES (p_team_id, p_month, p_conversations, p_messages_sent, p_messages_received, p_tokens)
+  ON CONFLICT (team_id, month) DO UPDATE SET
+    conversations_count = ai_whatsapp_usage.conversations_count + p_conversations,
+    messages_sent = ai_whatsapp_usage.messages_sent + p_messages_sent,
+    messages_received = ai_whatsapp_usage.messages_received + p_messages_received,
+    llm_tokens_used = ai_whatsapp_usage.llm_tokens_used + p_tokens,
+    updated_at = now();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
 -- RLS
@@ -966,11 +1043,24 @@ CREATE POLICY "team_read" ON ai_whatsapp_usage FOR SELECT
 Les tables `ai_phone_numbers`, `ai_phone_calls`, `ai_phone_usage` de Phase 1 (telephone)
 restent en place pour l'historique. Les nouvelles tables `ai_whatsapp_*` sont independantes.
 
-Si decision de supprimer les tables phone :
+**Migration v1→v2 (Telnyx→Twilio) :** Si des numeros Telnyx existaient en v1, migrer :
 
 ```sql
--- Migration : renommer ou supprimer les tables phone (optionnel)
--- A faire uniquement si aucune donnee de production n'existe
+-- Migration : Telnyx → Twilio (si applicable)
+-- 1. Ajouter les nouvelles colonnes
+ALTER TABLE ai_whatsapp_numbers ADD COLUMN provisioning_mode TEXT NOT NULL DEFAULT 'managed'
+  CHECK (provisioning_mode IN ('managed', 'byon'));
+ALTER TABLE ai_whatsapp_numbers ADD COLUMN twilio_number_sid TEXT;
+ALTER TABLE ai_whatsapp_numbers ADD COLUMN status TEXT NOT NULL DEFAULT 'active'
+  CHECK (status IN ('pending', 'verifying', 'active', 'suspended'));
+
+-- 2. Migrer les numeros existants (marquer comme managed + active)
+UPDATE ai_whatsapp_numbers SET provisioning_mode = 'managed', status = 'active';
+
+-- 3. Supprimer l'ancienne colonne Telnyx
+ALTER TABLE ai_whatsapp_numbers DROP COLUMN IF EXISTS telnyx_phone_number_id;
+
+-- 4. Supprimer les tables phone (optionnel, si aucune donnee de production)
 DROP TABLE IF EXISTS ai_phone_calls;
 DROP TABLE IF EXISTS ai_phone_usage;
 DROP TABLE IF EXISTS ai_phone_numbers;
@@ -1090,6 +1180,8 @@ export async function POST(request: Request) {
 ### 7.4 Traitement du message
 
 ```typescript
+// import { logger } from '@/lib/logger'
+
 async function processWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
   for (const entry of payload.entry) {
     for (const change of entry.changes) {
@@ -1099,6 +1191,17 @@ async function processWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
       if (!messages?.length) continue // Status update, pas un message
 
       const phoneNumberId = metadata.phone_number_id
+
+      for (const message of messages) {
+        // Deduplication (idempotence) — ignorer les messages deja traites
+        const { data: existing } = await supabase
+          .from('ai_whatsapp_sessions')
+          .select('id')
+          .contains('messages', [{ wamid: message.id }])
+          .limit(1)
+
+        if (existing?.length) continue // Message deja traite
+      }
 
       // 1. Identifier l'equipe via le numero
       const phoneRecord = await supabase
@@ -1110,7 +1213,7 @@ async function processWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
         .single()
 
       if (!phoneRecord.data) {
-        console.error(`Unknown WhatsApp phone_number_id: ${phoneNumberId}`)
+        logger.error(`Unknown WhatsApp phone_number_id: ${phoneNumberId}`)
         return
       }
 
@@ -1138,6 +1241,13 @@ async function processWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
 }
 ```
 
+> **IMPORTANT — Repository Pattern :** Les exemples ci-dessus utilisent des appels Supabase directs
+> pour la clarte. L'implementation DOIT utiliser le Repository Pattern :
+> - `WhatsAppNumberRepository` pour `ai_whatsapp_numbers`
+> - `WhatsAppSessionRepository` pour `ai_whatsapp_sessions`
+> - `InterventionRepository` (existant) pour la creation d'interventions
+> - `UserRepository` / `TeamMemberRepository` (existants) pour l'identification locataire
+
 ### 7.5 Envoi de message via Meta API
 
 ```typescript
@@ -1147,7 +1257,7 @@ async function sendWhatsAppMessage(
   text: string
 ) {
   const response = await fetch(
-    `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+    `https://graph.facebook.com/v23.0/${phoneNumberId}/messages`,
     {
       method: 'POST',
       headers: {
@@ -1172,7 +1282,7 @@ async function sendWhatsAppMessage(
 
 async function markAsRead(phoneNumberId: string, messageId: string) {
   await fetch(
-    `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+    `https://graph.facebook.com/v23.0/${phoneNumberId}/messages`,
     {
       method: 'POST',
       headers: {
@@ -1237,21 +1347,18 @@ async function completeSession(session: WhatsAppSession) {
   session.completed_at = new Date()
 
   // 6. Notifier le gestionnaire
-  await notifyGestionnaire(session, intervention.id, pdfPath)
+  // Utiliser le pattern existant SEIDO
+    await createInterventionNotification(intervention.id)
+    // + EmailNotificationService pour email avec PDF
 
   // 7. Logger l'activite
-  await logActivity({
-    team_id: session.team_id,
-    action: 'whatsapp_ai_intervention_created',
-    entity_type: 'intervention',
-    entity_id: intervention.id,
-    metadata: {
-      contact_phone: session.contact_phone,
-      messages_count: session.messages.length,
-      has_media: (session.media_urls?.length || 0) > 0,
-      language: session.language
-    }
-  })
+  await supabase.from('activity_logs').insert({
+      team_id: session.team_id,
+      action_type: 'whatsapp_ai_intervention_created',
+      entity_type: 'intervention',
+      entity_id: intervention.id,
+      description: `Intervention creee via WhatsApp AI (${session.messages.length} messages)`,
+    })
 }
 ```
 
@@ -1313,13 +1420,17 @@ Afficher un badge dans l'interface :
 
 ### 8.4 Page Settings gestionnaire
 
+> **Pattern obligatoire :** La page settings est un Server Component qui utilise
+> `getServerAuthContext('gestionnaire')` pour charger les donnees, puis passe les props
+> au Client Component `whatsapp-ai-settings-client.tsx`.
+
 `/gestionnaire/parametres/assistant-ia` — adapte pour WhatsApp-only :
 
 ```
 +----------------------------------------------+
 |  Assistant WhatsApp IA           [Actif]      |
 |                                               |
-|  Pack : Equipe (99 EUR/mois)                  |
+|  Pack : Pro (59 EUR/mois)                  |
 |  [ Changer de pack ]                          |
 |                                               |
 |  Votre numero WhatsApp : +32 X XXX XX XX     |
@@ -1357,7 +1468,7 @@ Afficher un badge dans l'interface :
 async function downloadMedia(mediaId: string): Promise<Buffer> {
   // Etape 1 : Obtenir l'URL de telechargement
   const urlResponse = await fetch(
-    `https://graph.facebook.com/v21.0/${mediaId}`,
+    `https://graph.facebook.com/v23.0/${mediaId}`,
     {
       headers: {
         'Authorization': `Bearer ${process.env.META_WHATSAPP_ACCESS_TOKEN}`,
@@ -1431,7 +1542,7 @@ const messages = session.messages.map(m => {
 
 ## 10 — Self-Service Multi-Tenant
 
-### 10.1 Provisioning automatique
+### 10.1 Provisioning — Mode A (Twilio-managed)
 
 ```
 Gestionnaire souscrit add-on WhatsApp IA (Stripe checkout)
@@ -1443,59 +1554,116 @@ Gestionnaire souscrit add-on WhatsApp IA (Stripe checkout)
   +---------------------------------------------+
   |  WhatsAppProvisioningService.provision()     |
   |                                              |
-  |  1. Commander numero Telnyx (+32)            |
-  |     POST /v2/number_orders                   |
-  |     → phone_number                           |
+  |  1. Acheter numero Twilio (+32)              |
+  |     POST /IncomingPhoneNumbers.json          |
+  |     + SmsUrl → /api/webhooks/twilio-verif    |
+  |     → phone_number + twilio_number_sid       |
   |                                              |
   |  2. Enregistrer numero dans WABA Meta        |
   |     POST graph.facebook.com/.../phone_nums   |
   |     → whatsapp_phone_number_id               |
   |                                              |
-  |  3. Verifier le numero                       |
+  |  3. Demander code verification               |
   |     POST .../request_code (SMS)              |
-  |     → Recevoir code sur Telnyx               |
+  |     → Code arrive sur Twilio webhook         |
+  |     → SEIDO extrait le code automatiquement  |
   |     POST .../verify_code                     |
   |                                              |
-  |  4. Sauver en DB                             |
+  |  4. Enregistrer pour Cloud API               |
+  |     POST .../register                        |
+  |                                              |
+  |  5. Sauver en DB                             |
   |     INSERT INTO ai_whatsapp_numbers          |
+  |     (provisioning_mode = 'managed')          |
   +---------------------------------------------+
 ```
 
-> **Simplifie par rapport au plan telephone :** Plus d'etapes ElevenLabs (clone agent, import numero,
-> assign agent, SIP trunk). 4 etapes au lieu de 7.
+> **Simplifie par rapport a v1 (Telnyx) :** Plus de `requirement_group_id`, plus de SIP Connection.
+> Un seul appel API pour acheter + configurer le webhook SMS. Verification automatique via webhook.
 
-### 10.2 Verification du numero (automatisee)
+### 10.2 Provisioning — Mode B (BYON)
 
-La verification du numero WhatsApp necessite un code SMS.
-Le code arrive sur le numero Telnyx → il faut le recuperer :
-
-```typescript
-// Option 1 : Webhook Telnyx pour les SMS entrants
-// Configurer un webhook Telnyx qui recoit les SMS sur le numero
-// Le webhook extrait le code et appelle Meta verify_code
-
-// Option 2 : Polling des SMS via Telnyx API
-// GET /v2/messages?filter[from]=+1XXXX (numero Meta verification)
-// Extraire le code du SMS → POST verify_code
-
-// Option 3 : Verification manuelle (MVP)
-// Le gestionnaire recoit un SMS sur le numero
-// Il entre le code dans l'interface SEIDO
-// SEIDO appelle Meta verify_code
+```
+Gestionnaire choisit "Utiliser mon propre numero"
+         |
+         v
+  +---------------------------------------------+
+  |  UI : saisie numero + display_name           |
+  |                                              |
+  |  ⚠️ Avertissement : "Ce numero ne pourra     |
+  |  plus etre utilise avec WhatsApp classique"  |
+  |  [ ] Je comprends et j'accepte               |
+  |                                              |
+  |  1. Sauver en DB (status = 'pending')        |
+  |     provisioning_mode = 'byon'               |
+  |                                              |
+  |  2. Enregistrer numero dans WABA Meta        |
+  |     POST graph.facebook.com/.../phone_nums   |
+  |     → whatsapp_phone_number_id               |
+  |                                              |
+  |  3. Demander code verification               |
+  |     POST .../request_code (SMS)              |
+  |     → SMS arrive sur le telephone perso      |
+  |     → status = 'verifying'                   |
+  |                                              |
+  |  4. UI : gestionnaire entre le code 6 digits |
+  |     POST .../verify_code                     |
+  |                                              |
+  |  5. Enregistrer pour Cloud API               |
+  |     POST .../register                        |
+  |     → status = 'active'                      |
+  +---------------------------------------------+
 ```
 
-> **Decision MVP :** Option 3 (verification manuelle). L'automatisation viendra en V2.
+### 10.3 Webhook Twilio verification (Mode A)
 
-### 10.3 Rollback
+```typescript
+// app/api/webhooks/twilio-verification/route.ts
 
-| Etape echouee | Rollback |
-|----------------|----------|
-| Telnyx commande | Rien a rollback |
-| Meta enregistrement | Annuler Telnyx (release numero) |
-| Meta verification | Continuer — le gestionnaire peut verifier plus tard |
-| DB insert | Supprimer dans Meta + release Telnyx |
+export async function POST(request: Request) {
+  // 1. Valider la signature Twilio (X-Twilio-Signature)
+  // 2. Extraire le body du SMS (Body, From, To)
+  // 3. Parser le code 6 chiffres du SMS Meta
+  // 4. Trouver le numero en DB (par To = phone_number)
+  // 5. Soumettre le code a Meta (verify_code)
+  // 6. Enregistrer pour Cloud API (register)
+  // 7. Mettre a jour status = 'active' en DB
+  return new Response('<Response></Response>', {
+    headers: { 'Content-Type': 'text/xml' }
+  })
+}
+```
 
-### 10.4 Mode Dev vs Production
+### 10.4 Rollback
+
+| Etape echouee | Rollback (Mode A) | Rollback (Mode B) |
+|----------------|-------------------|-------------------|
+| Twilio achat | Rien a rollback | N/A |
+| Meta enregistrement | Release numero Twilio | Supprimer entree DB |
+| Meta verification | Continuer — verifier plus tard | Continuer — gestionnaire re-saisit code |
+| DB insert | Supprimer dans Meta + release Twilio | Supprimer dans Meta |
+
+#### Stripe webhook routing
+
+Le `stripe-webhook.handler.ts` existant route `addon_type === 'ai_voice'` vers les services ai-phone.
+Pour WhatsApp, deux options :
+
+**Option A (recommandee) : nouveau addon_type**
+- Ajouter `addon_type: 'ai_whatsapp'` dans les metadata Stripe checkout
+- Ajouter un handler `handleAiWhatsAppSubscription` dans le webhook
+- Les anciennes souscriptions `ai_voice` restent gerees par l'ancien handler
+
+**Option B : renommer**
+- Changer `ai_voice` → `ai_assistant` (generique)
+- Router vers le nouveau service WhatsApp
+- Migration des souscriptions existantes necessaire
+
+**Fichiers a modifier :**
+- `lib/stripe.ts` : `STRIPE_AI_PRICES` → nouveaux tiers (Starter/Pro/Business)
+- `lib/services/domain/stripe-webhook.handler.ts` : routing + handlers
+- `app/actions/ai-subscription-actions.ts` : toutes les refs `ai_phone_*` → `ai_whatsapp_*`
+
+### 10.5 Mode Dev vs Production
 
 ```bash
 # .env.local (dev)
@@ -1509,8 +1677,8 @@ AI_WHATSAPP_PROVISIONING=auto
 
 | Action | `manual` | `auto` |
 |--------|----------|--------|
-| Souscription | Cree entree DB avec DEV_* | Provisionne via Telnyx + Meta |
-| Desactivation | Met `is_active=false` | Release numero Telnyx |
+| Souscription | Cree entree DB avec DEV_* | Mode A: Twilio + Meta / Mode B: BYON |
+| Desactivation | Met `is_active=false` | Mode A: release Twilio / Mode B: deregister Meta |
 | Modification prompt | Met a jour DB uniquement | Met a jour DB uniquement |
 | Numero affiche | `DEV_WHATSAPP_PHONE_NUMBER` | Numero unique par equipe |
 
@@ -1520,13 +1688,7 @@ AI_WHATSAPP_PROVISIONING=auto
 
 ### 11.1 Verification webhook
 
-**Signature HMAC-SHA256** sur chaque POST :
-
-```typescript
-const expectedSignature = 'sha256=' + createHmac('sha256', APP_SECRET)
-  .update(rawBody)
-  .digest('hex')
-```
+**Signature HMAC-SHA256** sur chaque POST — voir section 7.2 pour l'implementation.
 
 ### 11.2 Protection DoS
 
@@ -1576,29 +1738,35 @@ Claude est instruite de ne JAMAIS :
 
 ## 12 — Modele de pricing
 
-### 3 packs
+> **Ref :** Voir `docs/AI/ai-pricing-analysis.md` pour l'analyse complete et la justification.
 
-| Pack | Prix | Conversations/mois | Cible |
-|------|------|---------------------|-------|
-| **Solo** | 49 EUR/mois | 200 conversations | 1-10 biens |
-| **Equipe** | 79 EUR/mois | 500 conversations | 10-50 biens |
-| **Agence** | 129 EUR/mois | 1500 conversations | 50+ biens |
+### 3 packs + Enterprise
 
-> **Ajustement par rapport au plan telephone :** Les prix sont legerement reduits car le
-> WhatsApp text-only coute beaucoup moins cher que le vocal (~$0.001/conv vs $0.114/min).
-> L'unite passe de "minutes" a "conversations" (plus intuitif pour WhatsApp).
+| Pack | Prix | Conversations/mois | Overage | Cible |
+|------|------|--------------------|---------|-------|
+| **Starter** | 29 EUR/mois | 50 conversations | 0,75 EUR/conv | Independant 1-30 lots |
+| **Pro** | 59 EUR/mois | 150 conversations | 0,50 EUR/conv | Petite agence 30-100 lots |
+| **Business** | 119 EUR/mois | 500 conversations | 0,35 EUR/conv | Agence structuree 100+ lots |
+| **Enterprise** | Sur devis | Illimite | — | 500+ lots, syndics |
 
-### Depassement
+> **Changement v1→v2 :** Prix d'entree abaisse (29€ vs 49€), volumes ajustes a la realite
+> (50/150/500 vs 200/500/1500), overage aligne sur le marche (€0.35-0.75 vs €0.30 fixe).
 
-- Conversation supplementaire : 0.30 EUR
-- Recharge 200 conversations : 39 EUR
+### Alternative grands comptes : Per-lot AI
+
+| Taille | Prix/lot/mois | Inclus |
+|--------|--------------|--------|
+| 50-200 lots | +1,50 EUR/lot/mois | Conversations illimitees |
+| 200-500 lots | +1,00 EUR/lot/mois | Conversations illimitees |
+| 500+ lots | +0,75 EUR/lot/mois | Conversations illimitees |
 
 ### Stripe implementation
 
 Reutiliser l'architecture Stripe existante (Billing Meters) :
+- Product "Assistant IA WhatsApp" avec 3 Prices (2900/5900/11900 cents)
 - `meterEvents.create` pour chaque conversation terminee
 - Alertes a 80% et 100% du quota
-- Top-up en 1 clic
+- Top-up via one-time invoice items (lots de 25/50 conversations)
 
 ---
 
@@ -1617,14 +1785,15 @@ Reutiliser l'architecture Stripe existante (Billing Meters) :
 | US-009 | PDF rapport | Generation PDF avec transcript + resume + photos | M |
 | US-010 | Page settings | UI gestionnaire : activation, prompt custom, usage, historique | L |
 | US-011 | Provisioning manuel | Mode dev avec variables DEV_* | S |
-| US-012 | Provisioning auto | Telnyx numero + Meta WABA registration + verification | L |
+| US-012 | Provisioning auto | Mode A: Twilio numero + Meta WABA registration + verification automatique. Mode B: BYON avec saisie code manuelle. Route webhook Twilio verification. | L |
 | US-013 | Stripe billing | Souscription add-on IA, metering conversations, top-up | M |
 | US-014 | Timeout & edge cases | Session expiration, rappel, cloture partielle | S |
 | US-015 | Identification locataire | Matching par telephone ou nom dans la base locataires | S |
+| US-016 | Mode BYON | UI saisie numero + avertissement WhatsApp perso + code input 6 chiffres + flow verification manuelle | M |
 
 **Effort total estime :** ~8-12 stories de taille S-L
 
-**Ordre recommande :** US-001 → US-002 → US-003 → US-004 → US-005 → US-006 → US-007 → US-011 → US-010 → US-008 → US-009 → US-014 → US-015 → US-013 → US-012
+**Ordre recommande :** US-001 → US-002 → US-003 → US-004 → US-005 → US-006 → US-007 → US-011 → US-010 → US-008 → US-009 → US-014 → US-015 → US-013 → US-012 → US-016
 
 ---
 
@@ -1645,16 +1814,16 @@ Reutiliser l'architecture Stripe existante (Billing Meters) :
 |---------|------|
 | Claude API | ~$0.10 |
 | Meta WhatsApp | $0.00 |
-| Telnyx numero | $1.00 |
-| **Total variable** | **~$1.10/mois** |
+| Twilio numero (Mode A) | $1.50 |
+| **Total variable** | **~$1.60/mois** |
 
 ### Marge brute
 
 | Pack | Prix | Cout 100% utilisation | Marge |
 |------|------|-----------------------|-------|
-| Solo (200 conv) | 49 EUR | ~$1.20 | **~97%** |
-| Equipe (500 conv) | 79 EUR | ~$1.50 | **~98%** |
-| Agence (1500 conv) | 129 EUR | ~$2.50 | **~98%** |
+| Starter (50 conv) | 29 EUR | ~$1.60 | **~95%** |
+| Pro (150 conv) | 59 EUR | ~$1.70 | **~97%** |
+| Business (500 conv) | 119 EUR | ~$2.10 | **~98%** |
 
 > **Marge exceptionnelle** grace au text-only (pas de pipeline vocal).
 > Les couts fixes (Supabase, Vercel) sont deja absorbes par SEIDO.
@@ -1673,7 +1842,7 @@ Le copy passe de "telephone + WhatsApp" a "WhatsApp" :
 | Section fonctionnalite | "Appels et WhatsApp, meme numero" | "Un numero WhatsApp dedie pour vos locataires" |
 | Carte 1 | "Voix naturelle, ton professionnel" | "Reponses instantanees, ton professionnel" |
 | FAQ | "appelle ou envoie un message WhatsApp" | "envoie un message WhatsApp" |
-| Pricing bandeau | "100 minutes incluses" | "200 conversations incluses" |
+| Pricing bandeau | "100 minutes incluses" | "50 conversations incluses" |
 
 ### Arguments marketing WhatsApp-first
 
@@ -1690,7 +1859,6 @@ Le copy passe de "telephone + WhatsApp" a "WhatsApp" :
 ### V2 (Q2 2026) — Enrichissements
 
 - [ ] Notes vocales : transcription STT + traitement comme texte
-- [ ] Verification numero automatisee (webhook Telnyx SMS)
 - [ ] Templates WhatsApp (messages proactifs : confirmation, suivi)
 - [ ] Identification locataire par numero WhatsApp (auto-match)
 - [ ] Multi-langue amelioree (detection + templates traduits)
@@ -1727,11 +1895,14 @@ Le copy passe de "telephone + WhatsApp" a "WhatsApp" :
 | `app/api/webhooks/whatsapp/route.ts` | Webhook handler (GET verify + POST messages) |
 | `lib/services/domain/ai-whatsapp/conversation-engine.ts` | Session management + appel Claude |
 | `lib/services/domain/ai-whatsapp/meta-whatsapp.service.ts` | Envoi messages + download media via Meta API |
-| `lib/services/domain/ai-whatsapp/whatsapp-provisioning.service.ts` | Provisioning numeros (Telnyx + Meta) |
+| `lib/services/domain/ai-whatsapp/whatsapp-provisioning.service.ts` | Orchestration provisioning (Mode A Twilio + Mode B BYON) |
+| `lib/services/domain/ai-whatsapp/twilio-number.service.ts` | Twilio number provisioning (Mode A) |
+| `lib/services/domain/ai-whatsapp/meta-whatsapp-number.service.ts` | Meta WABA number registration |
+| `app/api/webhooks/twilio-verification/route.ts` | Webhook for Twilio SMS verification (Mode A) |
 | `lib/services/domain/ai-whatsapp/session.repository.ts` | CRUD sessions (Supabase) |
 | `lib/services/domain/ai-whatsapp/whatsapp-number.repository.ts` | CRUD numeros WhatsApp |
 | `lib/services/domain/ai-whatsapp/call-report-pdf.service.tsx` | Generation PDF rapport |
-| `app/(app)/gestionnaire/parametres/assistant-ia/page.tsx` | Page settings gestionnaire |
+| `app/gestionnaire/(with-navbar)/parametres/assistant-ia/page.tsx` | Page settings gestionnaire |
 | `components/settings/whatsapp-ai-settings.tsx` | Composant settings UI |
 
 ---

@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-15
-**Total Learnings:** 144
+**Last Updated:** 2026-03-17
+**Total Learnings:** 158
 
 ---
 
@@ -185,6 +185,20 @@
 **Example:** `building-creation-form.tsx:978`, `lot-creation-form.tsx:1502+1639`, `contact-creation-client.tsx:432`
 **When to Use:** Any form that creates an entity and needs to redirect after success
 **Added:** 2026-03-02 | **Source:** Post-creation redirect UX improvement
+
+#### Learning #157: Context/Provider for global modals accessible from any page
+**Problem:** Compose email modal was local to the mail page — couldn't be triggered from the sidebar on other pages without a redirect.
+**Solution:** Create a `Provider` at the layout level that holds modal state + renders a single modal instance. Expose `openCompose()` via hook. Sidebar and page buttons both call the same hook. The provider receives SSR data (email connections) as props from the Server Component layout.
+**Example:** `contexts/compose-email-context.tsx` — `ComposeEmailProvider` wrapping `app/gestionnaire/(with-navbar)/layout.tsx`
+**When to Use:** Any modal that needs to be triggered from multiple pages (sidebar, topbar, different routes) without navigation
+**Added:** 2026-03-17 | **Source:** Email UX improvements — global compose modal
+
+#### Learning #158: Early return for state-dependent page takeover eliminates dead code
+**Problem:** When a page has two completely different views based on a condition (e.g., "no connections" vs "full mail client"), wrapping in a ternary creates a massive block. Worse, props like `disabled={!hasConnections}` become dead code — if the main view only renders when connections exist, the disabled state is unreachable.
+**Solution:** Use early return: `if (!condition) return <AlternateView />`. The main render only executes when the condition is met. Audit downstream props/attributes for dead logic after adding early returns.
+**Example:** `mail-client.tsx:871-886` — early return for no-connection state, removed dead `disabled` prop from Rédiger button
+**When to Use:** When a component has two mutually exclusive render paths based on a boolean condition
+**Added:** 2026-03-17 | **Source:** Email UX improvements — mail page full takeover
 
 ### Notifications
 
@@ -781,6 +795,41 @@
 **When to Use:** Any quota/limit check where the operation can affect multiple items at once (batch creation, imports, duplications)
 **Added:** 2026-02-22 | **Source:** Billing audit — building creation batch bypass
 
+#### Learning #149: Hook `?? false` defaults create loading race conditions on UI gates
+**Problem:** `useSubscription()` returns `canAddProperty: status?.can_add_property ?? false`. While the hook loads (~200-500ms), `canAddProperty` is `false`, so `if (!canAddProperty) { openUpgradeModal() }` blocks valid users who click before loading finishes. Same applies to `isReadOnly ?? false` — read-only users get a brief window where buttons are enabled.
+**Solution:** Always check `loading` state before acting on derived booleans from hooks. Pattern: `if (subscriptionLoading) { navigateDirectly(); return }` for fail-open gates, `if (!subscriptionLoading && isReadOnly)` for fail-closed gates. Server actions provide defense-in-depth regardless.
+**Example:** `biens-page-client.tsx:163` — checks `subscriptionLoading` before `canAddProperty`; `interventions-page-client.tsx:210` — `disabled={!subscriptionLoading && isReadOnly}`
+**When to Use:** ANY component using `useSubscription()` derived booleans to gate navigation or disable buttons
+**Added:** 2026-03-16 | **Source:** Subscription modal false-positive — user with 14/50 lots blocked on "Nouvel immeuble"
+
+#### Learning #150: `previewUpgrade().current_lots` was Stripe quantity, not actual DB count
+**Problem:** `subscription.service.ts:previewUpgrade()` returned `current_lots: item?.quantity` (Stripe subscription quantity = subscribed lot limit, e.g., 50) instead of the actual lot count in DB (e.g., 14). The UpgradeModal displayed "Lots actuels: 50" which confused users into thinking they had 50 lots.
+**Solution:** Fetch `actualLots` via `getLotCount()` and return it as `current_lots`. Add separate `subscribed_lots` field to `UpgradePreview` interface for the Stripe quantity. Display both in modal: "Lots utilises / inclus: 14 / 50".
+**Example:** `subscription.service.ts:previewUpgrade()` — `current_lots: actualLots, subscribed_lots: currentQuantity`
+**When to Use:** Any preview/summary UI showing subscription data — always distinguish actual usage from subscription capacity
+**Added:** 2026-03-16 | **Source:** UpgradeModal showing misleading "Lots actuels: 50" for user with 14 lots
+
+#### Learning #151: Server-side subscription gates should be fail-open with try-catch
+**Problem:** `lots/nouveau/page.tsx` called `canAddProperty()` without try-catch. If Stripe API is slow/down, the entire page returns 500 — user can't create lots even though the server action `createLotAction` has its own defense-in-depth check.
+**Solution:** Wrap server-side page subscription checks in try-catch with fail-open: `catch { /* let user proceed — server action has its own check */ }`. The server action's `canAddProperty()` call is the real gate — the page-level check is UX optimization only.
+**Example:** `lots/nouveau/page.tsx:28-40` — try-catch around subscription gate with fail-open comment
+**When to Use:** Any Server Component page with subscription gates that duplicate server action checks
+**Added:** 2026-03-16 | **Source:** Audit of server-side race conditions — Stripe timeout risk
+
+#### Learning #152: Zod schema as API contract layer, independent of DB enums
+**Problem:** Adding `'garant'` as a UI contact type required the API to accept it, but `garant` doesn't exist in the DB `user_role` enum. Initial plan was to hack `customRoleDescription` as a signal field — unnecessary complexity.
+**Solution:** Add `'garant'` to the Zod `role` enum (API contract) and map it to real DB values (`prestataire` + `provider_category: 'autre'`) in `mapContactTypeToRoleAndCategory`. The Zod schema defines what the API ACCEPTS, not what the DB STORES. The mapping function bridges the two.
+**Example:** `lib/validation/schemas.ts:164` — Zod enum has 6 values, DB `user_role` has 5. `invite-user/route.ts:118` maps garant→prestataire.
+**When to Use:** When adding a UI-level concept that doesn't need its own DB role/enum but needs API acceptance
+**Added:** 2026-03-17 | **Source:** Rename autre→garant — Zod schema would have rejected 'garant' causing 400 errors
+
+#### Learning #153: Contact type "autre" was never a real DB role — mapped to prestataire
+**Problem:** The `'autre'` contact type appeared to be a standalone role but was actually mapped to `role: 'prestataire', provider_category: 'autre'` in the API. Misunderstanding this could lead to creating unnecessary DB migrations or enum changes.
+**Solution:** Before adding/renaming contact types, trace the full data flow: form → Zod schema → `mapContactTypeToRoleAndCategory` → DB columns. The mapping function is the key transformation point. Check: (1) what Zod accepts, (2) what the mapper produces, (3) what the DB stores, (4) what contract_contacts.role uses.
+**Example:** `invite-user/route.ts:109-122` — mapContactTypeToRoleAndCategory function. `contract_contacts.role` uses a SEPARATE enum (`contract_contact_role`) that already had `'garant'`.
+**When to Use:** Any work involving contact roles, user types, or the invite-user API
+**Added:** 2026-03-17 | **Source:** Rename autre→garant — 0 migrations needed because of mapping layer
+
 #### Learning #074: Layered fail behavior — fail-closed at service, fail-open at page
 **Problem:** `getAccessibleLotIds()` DB query failure returned `null` (all accessible) — a DB error granted full access. But fail-closed everywhere would brick the app on transient errors.
 **Solution:** Two-layer approach: (1) Service-level DB query error → fail-closed (return `[]`, no access), (2) Page-level subscription check error → fail-open (from outer try/catch). This gives security without bricking on transient failures.
@@ -1058,6 +1107,57 @@
 **Symptom:** Related data is `null` even though it exists in the database.
 **Cause:** RLS policy on the nested table blocks access (silent failure).
 **Fix:** Use separate queries with `Promise.all` instead of nested `select()`.
+
+### Admin / Platform Notifications
+
+#### Learning #145: Fire-and-forget in Vercel serverless requires `.catch()` — not just "no await"
+**Problem:** Calling `this.asyncMethod(...)` without `await` in a webhook handler creates a floating Promise. In Vercel serverless, the runtime can freeze/kill the process after the response is sent, silently dropping the Promise. Additionally, if the async function throws before entering its own try/catch (e.g., dynamic `import()` fails), it becomes an unhandled rejection.
+**Solution:** Use `void this.asyncMethod(...).catch(() => {})`. The `void` tells the ESLint linter it's intentional. The `.catch(() => {})` prevents unhandled rejections. For critical notifications, use `await` instead (acceptable latency in webhooks).
+**Example:** `lib/services/domain/stripe-webhook.handler.ts:216` — subscription admin notifications
+**When to Use:** Any fire-and-forget async call in API routes, webhooks, or CRON handlers running on serverless
+**Added:** 2026-03-16 | **Source:** Admin notification emails — simplify review caught floating promises
+
+#### Learning #146: Use the Resend singleton from `lib/email/resend-client.ts` — don't create new instances
+**Problem:** Three separate `new Resend(process.env.RESEND_API_KEY)` instances existed: `lib/email/resend-client.ts` (singleton), `lib/services/domain/email.service.ts` (class), and a new admin notification service. Multiple instances waste resources and bypass any centralized config (rate limiting, logging, from address).
+**Solution:** Import `{ resend, EMAIL_CONFIG, isResendConfigured }` from `@/lib/email/resend-client`. Use `resend.emails.send()` directly for raw HTML emails. Use `EMAIL_CONFIG.from` for the sender address. Use `isResendConfigured()` for the guard check.
+**Example:** `lib/services/domain/admin-notification/admin-notification.service.ts:14` — imports singleton
+**When to Use:** Any new service that needs to send emails (whether React Email templates or raw HTML)
+**Added:** 2026-03-16 | **Source:** Admin notification emails — simplify review found 3 Resend instances
+
+#### Learning #147: Client Components can't send server-side emails — use API route bridge
+**Problem:** `auth/callback/page.tsx` and `auth/set-password/page.tsx` are Client Components (`'use client'`). Admin notifications require server-side Supabase service-role client + Resend. Can't import server-only modules in client code.
+**Solution:** Create a lightweight API route (`/api/internal/admin-signup-notification`) that handles the server-side work. Client calls it fire-and-forget: `fetch('/api/...', { method: 'POST' }).catch(() => {})`. Add a time guard (< 1 hour since `created_at`) to prevent duplicate notifications on page reload.
+**Example:** `app/api/internal/admin-signup-notification/route.ts` + `app/auth/set-password/page.tsx:277`
+**When to Use:** When a Client Component needs to trigger server-only side effects (emails, DB writes with service role, external API calls)
+**Added:** 2026-03-16 | **Source:** Admin notification emails — email signup flow integration
+
+#### Learning #148: OAuth `completeOAuthProfileAction` must set `first_name` AND `last_name` — not just `name`
+**Problem:** The OAuth profile insert only set `name: "Jean Dupont"` but not `first_name`/`last_name`. Downstream code querying `users.first_name` got `null` for all OAuth users and fell back to `name.split(' ')[0]`. This works but is fragile (single-name users, multi-word last names).
+**Solution:** Always set all three: `name`, `first_name`, `last_name` in the insert. The `validatedData` from the form already has separate `firstName` and `lastName` fields — they just weren't being used.
+**Example:** `app/auth/complete-profile/actions.ts:127-128`
+**When to Use:** Any user creation flow (signup, invitation, import) — always populate all name fields
+**Added:** 2026-03-16 | **Source:** Admin notification emails — simplify review found OAuth users missing first_name/last_name
+
+#### Learning #154: Lightweight signup — DB trigger must handle partial profiles (no name)
+**Problem:** Original `handle_new_user_confirmed()` trigger raised EXCEPTION when `first_name` or `last_name` was empty. Lightweight signup sends only `role` + `password_set` in metadata (no name fields), so trigger crashed and user creation failed silently.
+**Solution:** Add a 3-branch IF in the trigger: (1) invitation flow (has `team_id` metadata), (2) lightweight signup (empty name → create partial profile with `name=email_prefix`, `team_id=NULL`), (3) full signup (has name → create complete profile + team + subscription). Partial profiles complete later on `/auth/complete-profile`.
+**Example:** `supabase/migrations/20260317100000_team_name_from_organization.sql` — 3-branch trigger
+**When to Use:** Any change to signup metadata or the `handle_new_user_confirmed()` trigger
+**Added:** 2026-03-17 | **Source:** Lightweight Signup feature
+
+#### Learning #155: Three-layer incomplete profile guard — login + layout + server action
+**Problem:** Users who sign up but don't complete their profile (no team) could bypass the completion page by navigating directly to dashboard URLs or calling server actions.
+**Solution:** Enforce profile completion at 3 layers: (1) `loginAction` checks `team_id` and redirects to `/auth/complete-profile`, (2) `getServerAuthContext()` in layouts redirects when `teams.length === 0`, (3) `getServerActionAuthContext()` redirects in server actions. All 3 check the same condition: user exists but has no team.
+**Example:** `app/actions/auth-actions.ts` (login), `lib/server-context.ts` (layout + action guards)
+**When to Use:** Any new auth guard, login flow change, or new role-gated page/action
+**Added:** 2026-03-17 | **Source:** Lightweight Signup — profile guard story
+
+#### Learning #156: `URL.createObjectURL()` leaks on re-upload — revoke before creating new
+**Problem:** Avatar preview used `URL.createObjectURL(file)` on each file selection. Re-selecting a file created a new blob URL without revoking the old one. The cleanup effect only ran on unmount, so intermediate URLs leaked memory.
+**Solution:** Before creating a new blob URL, check if the current `avatarPreview` starts with `'blob:'` and call `URL.revokeObjectURL(avatarPreview)`. Keep the unmount cleanup as well for the final URL.
+**Example:** `app/auth/complete-profile/complete-profile-form.tsx` — `handleAvatarChange`
+**When to Use:** Any component with file preview that allows re-selection (avatar, document upload, image picker)
+**Added:** 2026-03-17 | **Source:** Lightweight Signup — simplify review
 
 ### Email Template Rendering
 **Symptom:** Email looks correct in preview but broken in actual email clients.

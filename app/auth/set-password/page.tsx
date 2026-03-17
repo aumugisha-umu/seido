@@ -273,6 +273,9 @@ export default function SetPasswordPage() {
           logger.warn("⚠️ [SET-PASSWORD] Error updating invitation:", invError)
         }
 
+        // Admin signup notification (fire-and-forget, non-blocking)
+        fetch('/api/internal/admin-signup-notification', { method: 'POST' }).catch(() => {})
+
         // ✅ CORRECTIF (2025-10-07): Attendre propagation Supabase
         logger.info("⏳ [SET-PASSWORD] Waiting for session propagation...")
         await new Promise(resolve => setTimeout(resolve, 500))

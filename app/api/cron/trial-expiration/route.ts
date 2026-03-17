@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { getSubscriptionEmailService } from '@/lib/services/domain/subscription-email.service'
+import { createAdminNotificationService } from '@/lib/services/domain/admin-notification/admin-notification.service'
 import { FREE_TIER_LIMIT } from '@/lib/stripe'
 import { chunkArray } from '@/lib/utils/array-utils'
 
@@ -32,6 +33,7 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     )
     const emailService = getSubscriptionEmailService()
+    const adminService = createAdminNotificationService(supabase)
     const now = new Date()
     let transitioned = 0
 
@@ -59,7 +61,7 @@ export async function GET(request: Request) {
     for (const chunk of chunks) {
       const results = await Promise.allSettled(chunk.map(async (sub) => {
         const lotCount = sub.billable_properties ?? 0
-        const newStatus = lotCount <= FREE_TIER_LIMIT ? 'free_tier' : 'read_only'
+        const newStatus: 'free_tier' | 'read_only' = lotCount <= FREE_TIER_LIMIT ? 'free_tier' : 'read_only'
         const isReadOnly = newStatus === 'read_only'
 
         const { error: updateError } = await supabase
@@ -77,23 +79,49 @@ export async function GET(request: Request) {
 
         const { data: members } = await supabase
           .from('team_members')
-          .select('user_id, users!inner(email, first_name)')
+          .select('user_id, users!inner(email, first_name, last_name, name)')
           .eq('team_id', sub.team_id)
           .eq('role', 'admin')
           .is('left_at', null)
           .limit(1)
 
         const member = members?.[0]
+        const teamName = (sub.teams as { name: string })?.name || 'Votre equipe'
+
         if (member?.users?.email) {
+          const userInfo = member.users as { email: string; first_name: string | null; last_name: string | null; name: string | null }
+
+          // Send trial-expired email to user
           await emailService.sendTrialExpired(
-            member.users.email,
+            userInfo.email,
             {
-              firstName: member.users.first_name || 'Gestionnaire',
-              teamName: (sub.teams as { name: string })?.name || 'Votre equipe',
+              firstName: userInfo.first_name || 'Gestionnaire',
+              teamName,
               lotCount,
               isReadOnly,
             },
           )
+
+          // Admin notification (fire-and-forget)
+          try {
+            const { count: interventionCount } = await supabase
+              .from('interventions')
+              .select('*', { count: 'exact', head: true })
+              .eq('team_id', sub.team_id)
+
+            await adminService.notifyTrialExpired({
+              teamName,
+              firstName: userInfo.first_name || userInfo.name?.split(' ')[0] || 'Inconnu',
+              lastName: userInfo.last_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+              email: userInfo.email,
+              newStatus,
+              lotCount,
+              trialStart: sub.trial_start,
+              interventionCount: interventionCount ?? 0,
+            })
+          } catch {
+            // Non-blocking — admin notification failure should not affect cron
+          }
         }
 
         transitioned++

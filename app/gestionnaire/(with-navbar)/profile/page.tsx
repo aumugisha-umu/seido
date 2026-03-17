@@ -7,7 +7,17 @@ export const dynamic = 'force-dynamic'
 
 export default async function GestionnaireProfilePage() {
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { user, profile } = await getServerAuthContext('gestionnaire')
+  const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
+
+  // Check if user is team admin (team_members.role = 'admin')
+  const { data: membership } = await supabase
+    .from('team_members')
+    .select('role')
+    .eq('team_id', team.id)
+    .eq('user_id', profile.id)
+    .limit(1)
+
+  const isTeamAdmin = membership?.[0]?.role === 'admin'
 
   // ✅ Parser first_name et last_name depuis name si non renseignés
   let firstName = profile.first_name
@@ -45,6 +55,9 @@ export default async function GestionnaireProfilePage() {
       role="gestionnaire"
       dashboardPath="/gestionnaire/dashboard"
       initialUser={initialUser}
+      teamName={team.name}
+      teamId={team.id}
+      isTeamAdmin={isTeamAdmin}
     />
   )
 }

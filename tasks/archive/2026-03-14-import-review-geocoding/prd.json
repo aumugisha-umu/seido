@@ -1,0 +1,68 @@
+{
+  "project": "SEIDO",
+  "featureName": "Import Review + Simplify + Deferred Geocoding",
+  "branchName": "preview",
+  "description": "Review exhaustive de la section gestionnaire/import: corrections de bugs, simplification du code, et geocoding différé via after().",
+  "createdAt": "2026-03-14",
+  "prdSource": "docs/plans/2026-03-14-import-review-geocoding-design.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Bug fixes: auth, status, SSE errors, dates, AbortController, phase index, activity log",
+      "description": "As a gestionnaire, I want the import to work correctly so that my data is imported without silent failures.",
+      "acceptanceCriteria": [
+        "Import page has server-side auth wrapper (getServerAuthContext)",
+        "Import job status is 'failed' when errors exist, not always 'completed'",
+        "SSE error events are properly distinguished from JSON parse errors",
+        "AbortController cancels SSE stream on component unmount",
+        "Contract end date calculation handles month overflow correctly",
+        "Phase index in progress UI matches actual pipeline phases",
+        "logCompleteImport uses correct property names from parsed types",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "7 bugs fixed: auth wrapper (Server Component), status always completed, SSE error swallowing, AbortController on unmount, setMonth overflow, phase index offset, activity log property names."
+    },
+    {
+      "id": "US-002",
+      "title": "Simplify: dead code cleanup, validator dedup, shared components",
+      "description": "As a developer, I want the import codebase simplified so it's maintainable and under 500 LOC per file.",
+      "acceptanceCriteria": [
+        "Unused column mappings removed from constants.ts",
+        "Unused API route app/api/import/execute/route.ts removed if dead",
+        "Shared validator utilities extracted (normalizeCountry, normalizePhone)",
+        "Demo/example data moved out of constants.ts into template-generator",
+        "N+1 queries in validateAgainstDatabase batched with Promise.all",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "L",
+      "passes": true,
+      "notes": "Created validators/utils.ts with 3 shared functions (mapZodErrorToCode, normalizeCountry, normalizePhone). Removed 5 unused column mappings from constants.ts. Deleted dead /api/import/execute route. Batched building+lot N+1 queries with Promise.all. Demo data stays in constants.ts (used by template-generator, moving would add complexity for no gain)."
+    },
+    {
+      "id": "US-003",
+      "title": "Deferred geocoding: remove Phase 0, use after() for background geocoding",
+      "description": "As a gestionnaire, I want the import to complete in seconds without waiting for geocoding so I can continue working immediately.",
+      "acceptanceCriteria": [
+        "Phase 0 geocoding removed from synchronous import pipeline",
+        "Addresses created without coordinates during import",
+        "after() in SSE route triggers geocodePendingAddresses() post-response",
+        "geocodePendingAddresses() added to address.service.ts",
+        "Progress UI shows 5 phases (companies, contacts, buildings, lots, contracts)",
+        "ImportPhase type updated (geocoding removed)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Removed Phase 0 geocoding from sync pipeline. All createAddress calls pass null geocode. Import returns addressIdsToGeocode[]. SSE route uses after() to trigger geocodePendingAddresses(). Added batch geocoding method to AddressService (10 parallel, 250ms delay). Phase indices shifted: companies=0, contacts=1, buildings=2, lots=3, contracts=4."
+    }
+  ]
+}

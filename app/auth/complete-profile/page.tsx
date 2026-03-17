@@ -5,48 +5,50 @@ import { CompleteProfileForm } from './complete-profile-form'
 import { logger } from '@/lib/logger'
 
 /**
- * Page de complétion de profil pour les utilisateurs OAuth
+ * Unified profile completion page for both OAuth and email signup users.
  *
- * Cette page est affichée aux nouveaux utilisateurs qui se connectent
- * via Google OAuth et qui n'ont pas encore de profil dans la base de données.
- *
- * Le formulaire pré-remplit les champs avec les données Google (nom complet)
- * et force le rôle à "gestionnaire" (seul rôle autorisé pour l'inscription OAuth).
+ * - OAuth users: no profile exists yet → create user + team + subscription
+ * - Email signup users: partial profile exists (no team) → update name + create team + subscription
  */
 export default async function CompleteProfilePage() {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Rediriger vers login si pas de session
   if (!user) {
     logger.info('[COMPLETE-PROFILE] No user session, redirecting to login')
     redirect('/auth/login')
   }
 
-  // Vérifier si un profil existe déjà
+  // Check existing profile state
   const { data: existingProfile } = await supabase
     .from('users')
-    .select('id, role')
+    .select('id, role, team_id')
     .eq('auth_user_id', user.id)
     .single()
 
-  // Si le profil existe, rediriger vers le dashboard
-  if (existingProfile) {
-    logger.info('[COMPLETE-PROFILE] Profile already exists, redirecting to dashboard')
+  // Profile with team = fully complete → redirect to dashboard
+  if (existingProfile?.team_id) {
+    logger.info('[COMPLETE-PROFILE] Profile already complete, redirecting to dashboard')
     redirect(`/${existingProfile.role}/dashboard`)
   }
 
-  // Extraire les infos de l'utilisateur OAuth
+  // Determine mode: partial profile (email signup) vs no profile (OAuth)
+  const isEmailSignup = !!existingProfile
+  const provider = user.app_metadata?.provider || 'email'
+
+  // Extract user data for pre-fill
   const userData = {
     email: user.email || '',
-    fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+    fullName: isEmailSignup ? '' : (user.user_metadata?.full_name || user.user_metadata?.name || ''),
     avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || '',
-    provider: user.app_metadata?.provider || 'google'
+    provider,
+    isEmailSignup,
   }
 
-  logger.info('[COMPLETE-PROFILE] Rendering form for new OAuth user', {
+  logger.info('[COMPLETE-PROFILE] Rendering form', {
     email: userData.email,
-    provider: userData.provider
+    provider,
+    isEmailSignup,
   })
 
   return (
@@ -55,16 +57,18 @@ export default async function CompleteProfilePage() {
         <AuthLogo />
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-white">
-            Bienvenue sur SEIDO
+            {isEmailSignup ? 'Finalisez votre inscription' : 'Bienvenue sur SEIDO'}
           </h1>
           <p className="text-white/60">
-            Finalisez votre profil pour commencer
+            {isEmailSignup
+              ? 'Plus que quelques informations pour configurer votre espace'
+              : 'Finalisez votre profil pour commencer'}
           </p>
         </div>
       </div>
 
-      {/* Afficher l'avatar Google si disponible */}
-      {userData.avatarUrl && (
+      {/* Google avatar for OAuth users */}
+      {!isEmailSignup && userData.avatarUrl && (
         <div className="flex justify-center">
           <img
             src={userData.avatarUrl}
@@ -76,7 +80,8 @@ export default async function CompleteProfilePage() {
 
       <div className="bg-white/5 border border-white/10 rounded-lg p-4 text-center">
         <p className="text-sm text-white/80">
-          Connecté avec <span className="font-medium text-white">{userData.email}</span>
+          {isEmailSignup ? 'Votre compte' : 'Connecté avec'}{' '}
+          <span className="font-medium text-white">{userData.email}</span>
         </p>
       </div>
 

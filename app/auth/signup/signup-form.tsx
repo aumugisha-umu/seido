@@ -4,16 +4,15 @@ import type React from "react"
 import { useState, useActionState, useEffect } from "react"
 import { useFormStatus } from "react-dom"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, Check, Phone } from "lucide-react"
+import { Eye, EyeOff, Check } from "lucide-react"
 import { signupAction } from "@/app/actions/auth-actions"
 import { GoogleOAuthButton } from "@/components/auth/google-oauth-button"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 /**
  * 🚀 COMPOSANT CLIENT - SignupForm (Server Actions 2025)
  * Utilise les Server Actions pour inscription server-side sécurisée
@@ -44,12 +43,9 @@ function SubmitButton({ isFormValid, isSubmitting }: { isFormValid: boolean; isS
 
 export function SignupForm() {
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
-    phone: "",
     acceptTerms: false,
   })
   const [showPassword, setShowPassword] = useState(false)
@@ -58,7 +54,6 @@ export function SignupForm() {
 
   // ✅ 2025: useActionState pour gestion état Server Action
   const [state, formAction] = useActionState(signupAction, { success: true })
-  const router = useRouter()
 
   // ✅ Gérer la redirection après signup réussi
   // Pattern: Identique à login-form.tsx (workaround bug Next.js 15 #72842)
@@ -95,8 +90,6 @@ export function SignupForm() {
 
   const isPasswordValid = passwordRequirements.every(req => req.met)
   const isFormValid =
-    !!formData.firstName.trim() &&
-    !!formData.lastName.trim() &&
     !!formData.email.trim() &&
     !!formData.password.trim() &&
     !!formData.confirmPassword.trim() &&
@@ -143,41 +136,6 @@ export function SignupForm() {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-[#0f172a] px-2 text-white/60">Ou avec email</span>
-        </div>
-      </div>
-
-      {/* Prénom et Nom */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="firstName" className="text-white font-medium">
-            Prénom
-          </Label>
-          <Input
-            id="firstName"
-            name="firstName"
-            type="text"
-            placeholder="Votre prénom"
-            value={formData.firstName}
-            onChange={(e) => handleInputChange("firstName", e.target.value)}
-            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 transition-colors focus:bg-white/20"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="lastName" className="text-white font-medium">
-            Nom
-          </Label>
-          <Input
-            id="lastName"
-            name="lastName"
-            type="text"
-            placeholder="Votre nom de famille"
-            value={formData.lastName}
-            onChange={(e) => handleInputChange("lastName", e.target.value)}
-            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 transition-colors focus:bg-white/20"
-            required
-          />
         </div>
       </div>
 
@@ -275,23 +233,6 @@ export function SignupForm() {
             )}
           </Button>
         </div>
-      </div>
-
-      {/* Téléphone */}
-      <div className="space-y-2">
-        <Label htmlFor="phone" className="text-white font-medium">
-          <Phone className="w-4 h-4 inline mr-1" />
-          Téléphone (optionnel)
-        </Label>
-        <Input
-          id="phone"
-          name="phone"
-          type="tel"
-          placeholder="Votre numéro de téléphone"
-          value={formData.phone}
-          onChange={(e) => handleInputChange("phone", e.target.value)}
-          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 transition-colors focus:bg-white/20"
-        />
       </div>
 
       {/* Terms and Conditions Section */}

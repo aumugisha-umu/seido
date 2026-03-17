@@ -60,8 +60,8 @@ export const TRIAL_DAYS = 30
 // =============================================================================
 
 // Price per lot in cents (HT, excluding VAT)
-const PRICE_PER_LOT_MONTHLY = 500   // 5.00 EUR
-const PRICE_PER_LOT_ANNUAL = 5000   // 50.00 EUR
+export const PRICE_PER_LOT_MONTHLY = 500   // 5.00 EUR
+export const PRICE_PER_LOT_ANNUAL = 5000   // 50.00 EUR
 
 /**
  * Calculate the total price for a given number of lots and billing interval.

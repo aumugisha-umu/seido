@@ -696,7 +696,8 @@ export default function ContractFormContainer({
         'guarantor': 'garant',
         'garant': 'garant'
       }
-      const role = roleMap[contactTypeParam || ''] || 'locataire'
+      const role = roleMap[contactTypeParam || '']
+      if (!role) return // Don't auto-assign if no valid type param
 
       const alreadySelected = formData.contacts?.some(c => c.userId === contactId)
       if (alreadySelected) {
@@ -722,8 +723,8 @@ export default function ContractFormContainer({
           return !!selectedBuildingId || !!formData.lotId
         case 1: // Supplier contracts form
           return supplierContracts.length > 0 && supplierContracts.every(c => c.reference.trim() !== '' && c.supplierId)
-        case 2: // Interventions (optional)
-          return true
+        case 2: // Interventions
+          return !supplierScheduledInterventions.some(i => i.key.startsWith('custom_') && i.enabled && !i.title.trim())
         case 3: // Confirmation
           return true
         default:
@@ -743,14 +744,14 @@ export default function ContractFormContainer({
         return hasStartDate && hasDuration && hasRent && hasLocataire && noDuplicateTenant
       case 2: // Documents (optionnel - toujours valide)
         return true
-      case 3: // Interventions (optionnel - toujours valide)
-        return true
+      case 3: // Interventions
+        return !scheduledInterventions.some(i => i.key.startsWith('custom_') && i.enabled && !i.title.trim())
       case 4: // Confirmation
         return true
       default:
         return false
     }
-  }, [formData, overlapCheckResult, isSupplierMode, selectedBuildingId, supplierContracts])
+  }, [formData, overlapCheckResult, isSupplierMode, selectedBuildingId, supplierContracts, scheduledInterventions, supplierScheduledInterventions])
 
   // Navigation
   const handleNext = useCallback(() => {
@@ -1205,6 +1206,7 @@ export default function ContractFormContainer({
               buildingName={selectedBuildingName}
               lotReference={initialBuildingsData.lots.find((l: any) => l.id === formData.lotId)?.reference}
               contacts={initialContacts}
+              scheduledInterventions={supplierScheduledInterventions}
             />
           )
         default:
@@ -1418,6 +1420,7 @@ export default function ContractFormContainer({
                     { label: 'Duree', value: durationLabel },
                     { label: 'Type de charges', value: chargesTypeLabel, empty: !chargesTypeLabel },
                     { label: 'Frequence de paiement', value: frequencyLabel, empty: !frequencyLabel },
+                    ...(formData.comments ? [{ label: 'Commentaires', value: formData.comments, fullWidth: true }] : []),
                   ]} />
                 </ConfirmationSection>
 

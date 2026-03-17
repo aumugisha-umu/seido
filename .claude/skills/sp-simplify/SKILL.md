@@ -22,8 +22,9 @@ If the user just says `/simplify` with no target:
 ### Mode B: Targeted Section
 If the user specifies a target (e.g., `/simplify components/confirmation`, `/simplify interventions`, `/simplify lib/services`):
 - Use the specified path(s) as the review scope
-- Run `git diff -- <path>` first to see recent changes in that scope
-- If no recent changes, do a full review of the specified directory/files
+- Do a full review of ALL code in the specified directory/files
+- **NEVER run `git diff` or `git diff HEAD`** — the user explicitly chose the scope, respect it as-is and extend to all the other files linked to the seaction/feature you are investigating
+- Read the actual file contents directly; git history is irrelevant here
 - Use `find <path> -name "*.tsx" -o -name "*.ts" | head -50` to enumerate files
 
 ### Mode C: Multi-Section / Full App Audit
@@ -41,7 +42,9 @@ Based on the scope determined in Phase 1, launch review agents.
 
 ### Small scope (< 20 files changed): 3 parallel agents
 
-Launch all three agents concurrently in a single message. Pass each agent the file list and diff context.
+Launch all three agents concurrently in a single message. Pass each agent the file list and the relevant context:
+- **Mode A (git diff):** include the diff output so agents know what changed
+- **Mode B/C (targeted):** pass file paths only — agents read file contents directly, NO git diff
 
 #### Agent 1: Code Reuse Review
 

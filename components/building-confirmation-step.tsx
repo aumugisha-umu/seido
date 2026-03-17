@@ -60,6 +60,14 @@ interface BuildingConfirmationStepProps {
   buildingInterventions?: ScheduledInterventionData[]
   /** Per-lot interventions: Record<lotId, interventions[]> */
   lotInterventions?: Record<string, ScheduledInterventionData[]>
+  /** Existing building documents (already uploaded to the parent building) */
+  existingBuildingDocs?: Array<{
+    id: string
+    document_type: string
+    original_filename: string
+    uploaded_at: string
+    storage_path: string
+  }>
 }
 
 // ─── Helper: map GenericDocumentSlotState[] → ConfirmationDocumentList slots ─
@@ -169,6 +177,7 @@ export function BuildingConfirmationStep({
   lotDocSlots = {},
   buildingInterventions = [],
   lotInterventions = {},
+  existingBuildingDocs = [],
 }: BuildingConfirmationStepProps) {
   // State to manage lot expansion (collapsed by default in confirmation)
   const [expandedLots, setExpandedLots] = React.useState<{ [key: string]: boolean }>(() => {
@@ -261,6 +270,22 @@ export function BuildingConfirmationStep({
 
       {/* Building Documents */}
       <ConfirmationSection title="Documents de l'immeuble" card>
+        {existingBuildingDocs.length > 0 && (
+          <div className="mb-3">
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Documents existants</p>
+            <div className="space-y-1">
+              {existingBuildingDocs.map((doc) => (
+                <div key={doc.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <FileText className="h-3.5 w-3.5 shrink-0" />
+                  <span>{doc.original_filename}</span>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    {doc.document_type.replace(/_/g, ' ')}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <ConfirmationDocumentList slots={mapDocSlots(buildingDocSlots)} />
       </ConfirmationSection>
 

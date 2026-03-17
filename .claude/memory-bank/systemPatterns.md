@@ -94,6 +94,32 @@ await createInterventionNotification(interventionId)
 
 > Source: app/actions/notification-actions.ts (1249 lignes)
 
+### 3b. Admin Notification Service (NOUVEAU 2026-03-16)
+
+Platform owner email alerts for user lifecycle events (separate from team-level notifications):
+
+```
+Event (signup/sub change/churn/trial) → AdminNotificationService
+    → getAdminRecipients() (ADMIN_NOTIFICATION_EMAILS env var)
+    → calculatePlatformMrrCents() (on-the-fly from DB)
+    → buildAdminEmailHtml() (colored badges, data tables)
+    → Resend singleton (lib/email/resend-client.ts)
+```
+
+**Key differences from team notifications:**
+- Recipients: env var (fixed), not DB query (dynamic)
+- Format: raw HTML builder, not React Email templates
+- Delivery: fire-and-forget `void .catch(() => {})` (serverless-safe)
+- Audience: platform owner, not team admins/members
+
+**Integration points:**
+- OAuth signup: `completeOAuthProfileAction` (dynamic import)
+- Email signup: `/api/internal/admin-signup-notification` (API route bridge)
+- Stripe webhooks: `stripe-webhook.handler.ts` (3 event types)
+- Trial cron: `api/cron/trial-expiration/route.ts`
+
+> Source: lib/services/domain/admin-notification/ (3 files)
+
 ### 4. Data Invalidation Broadcast (NOUVEAU 2026-03-15)
 
 Cross-team real-time cache sync via Supabase Broadcast (zero DB overhead):
@@ -229,9 +255,26 @@ checkCanAddProperty()           Server gate on lot edit
   → block operation               → prevent data loss
 ```
 
+**Client-side hook loading pattern (NOUVEAU 2026-03-16):**
+
+```typescript
+// useSubscription() returns false for all booleans while loading
+const { canAddProperty, isReadOnly, loading: subscriptionLoading } = useSubscription()
+
+// WRONG — blocks valid users during loading (~500ms):
+if (!canAddProperty) { openUpgradeModal() }
+disabled={isReadOnly}
+
+// CORRECT — fail-open during loading, fail-closed after:
+if (subscriptionLoading) { navigateDirectly(); return }
+if (!canAddProperty) { openUpgradeModal() }
+disabled={!subscriptionLoading && isReadOnly}
+```
+
 **Key principles:**
 - **Service layer**: Fail-closed (security first) — errors block operations
 - **Page layer**: Fail-open (UX first) — errors show graceful degradation
+- **Client hook layer**: Fail-open during loading (server actions provide defense-in-depth)
 - **CRUD checklist**: When restricting entities, check ALL 5 operations (List, View, Create, Edit, Delete)
 - **CSS overlay**: Use CSS overlay for locked cards (not parent opacity) to preserve button visibility
 

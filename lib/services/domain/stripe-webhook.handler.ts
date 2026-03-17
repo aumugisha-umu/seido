@@ -211,6 +211,11 @@ export class StripeWebhookHandler {
       ...(hasPaymentMethod ? { payment_method_added: true } : {}),
     })
 
+    // Admin notification (non-blocking, .catch prevents unhandled rejection in serverless)
+    if (quantity > 0) {
+      void this.sendSubscriptionAdminNotification('change', teamId, 0, quantity, item?.price?.id ?? null).catch(() => {})
+    }
+
     return { status: 200, message: 'Subscription created processed' }
   }
 
@@ -246,6 +251,10 @@ export class StripeWebhookHandler {
     // If subscription has a default payment method, mark it
     const hasPaymentMethod = !!subscription.default_payment_method
 
+    // Capture old lots before upsert for admin notification delta
+    const { data: existingSub } = await this.subRepo.findByTeamId(targetTeamId)
+    const oldLots = existingSub?.subscribed_lots ?? 0
+
     await this.subRepo.upsertByTeamId(targetTeamId, {
       team_id: targetTeamId,
       stripe_subscription_id: subscription.id,
@@ -268,6 +277,11 @@ export class StripeWebhookHandler {
         : null,
       ...(hasPaymentMethod ? { payment_method_added: true } : {}),
     })
+
+    // Admin notification — only when lot count actually changes
+    if (quantity !== oldLots && quantity > 0) {
+      void this.sendSubscriptionAdminNotification('change', targetTeamId, oldLots, quantity, item?.price?.id ?? null).catch(() => {})
+    }
 
     return { status: 200, message: 'Subscription updated processed' }
   }
@@ -297,6 +311,12 @@ export class StripeWebhookHandler {
       return { status: 200, message: 'Subscription deleted but team not found — no-op' }
     }
 
+    // Capture subscription details before deletion for admin notification
+    const { data: existingSub } = await this.subRepo.findByTeamId(targetTeamId)
+    const lotsLost = existingSub?.subscribed_lots ?? 0
+    const priceId = existingSub?.price_id ?? null
+    const subscriptionStart = existingSub?.current_period_start ?? null
+
     // Determine post-deletion status based on lot count
     const { data: lotCount } = await this.subRepo.getLotCount(targetTeamId)
     const newStatus: SubscriptionStatus = lotCount <= FREE_TIER_LIMIT ? 'free_tier' : 'read_only'
@@ -307,6 +327,11 @@ export class StripeWebhookHandler {
       cancel_at_period_end: false,
       ended_at: new Date().toISOString(),
     })
+
+    // Admin notification — churn (non-blocking)
+    if (lotsLost > 0) {
+      void this.sendSubscriptionAdminNotification('cancelled', targetTeamId, lotsLost, 0, priceId, subscriptionStart).catch(() => {})
+    }
 
     return { status: 200, message: `Subscription deleted, team transitioned to ${newStatus}` }
   }
@@ -538,6 +563,94 @@ export class StripeWebhookHandler {
     }
 
     return { status: 200, message: 'AI subscription deleted — deprovisioned' }
+  }
+
+  // ── Admin Notification Helper ────────────────────────────────────────
+
+  /**
+   * Get team admin details for admin notifications.
+   * Returns null if no admin found.
+   */
+  private async getTeamAdminDetails(teamId: string): Promise<{
+    firstName: string
+    lastName: string
+    email: string
+    teamName: string
+  } | null> {
+    const [memberResult, teamResult] = await Promise.all([
+      this.supabase
+        .from('team_members')
+        .select('user_id, users!inner(email, first_name, last_name, name)')
+        .eq('team_id', teamId)
+        .eq('role', 'admin')
+        .is('left_at', null)
+        .limit(1),
+      this.supabase
+        .from('teams')
+        .select('name')
+        .eq('id', teamId)
+        .limit(1)
+        .maybeSingle(),
+    ])
+
+    const member = memberResult.data?.[0]
+    if (!member?.users?.email) return null
+
+    const user = member.users as { email: string; first_name: string | null; last_name: string | null; name: string | null }
+    return {
+      firstName: user.first_name || user.name?.split(' ')[0] || 'Inconnu',
+      lastName: user.last_name || user.name?.split(' ').slice(1).join(' ') || '',
+      email: user.email,
+      teamName: teamResult.data?.name || 'Equipe inconnue',
+    }
+  }
+
+  /**
+   * Send admin notification for subscription events. Non-blocking.
+   */
+  private async sendSubscriptionAdminNotification(
+    type: 'change' | 'cancelled',
+    teamId: string,
+    oldLots: number,
+    newLots: number,
+    priceId: string | null,
+    subscriptionStartDate?: string | null,
+  ): Promise<void> {
+    try {
+      const admin = await this.getTeamAdminDetails(teamId)
+      if (!admin) return
+
+      const { createAdminNotificationService } = await import(
+        './admin-notification/admin-notification.service'
+      )
+      const adminService = createAdminNotificationService(this.supabase)
+
+      if (type === 'change') {
+        await adminService.notifySubscriptionChange({
+          teamId,
+          teamName: admin.teamName,
+          firstName: admin.firstName,
+          lastName: admin.lastName,
+          email: admin.email,
+          oldLots,
+          newLots,
+          priceId,
+        })
+      } else {
+        await adminService.notifySubscriptionCancelled({
+          teamId,
+          teamName: admin.teamName,
+          firstName: admin.firstName,
+          lastName: admin.lastName,
+          email: admin.email,
+          lotsLost: oldLots,
+          priceId,
+          subscriptionStartDate: subscriptionStartDate ?? null,
+        })
+      }
+    } catch (error) {
+      logger.error({ error, teamId, type }, '[WEBHOOK] Admin notification failed (non-blocking)')
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────

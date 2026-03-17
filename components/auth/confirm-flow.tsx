@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { confirmEmailAction, checkProfileCreated } from '@/app/actions/confirm-actions'
+import { logger } from '@/lib/logger'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import AuthLogo from '@/components/ui/auth-logo'
@@ -63,7 +64,7 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
         const confirmResult = await confirmEmailAction(tokenHash, type)
 
         if (!confirmResult.success || !confirmResult.data) {
-          console.error('[CONFIRM-FLOW] OTP verification failed:', confirmResult.error)
+          logger.error('[CONFIRM-FLOW] OTP verification failed:', confirmResult.error)
           setError(confirmResult.error || 'Erreur de confirmation')
           setState('error')
           return
@@ -77,7 +78,7 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
         const profileData = await pollProfileCreation(confirmResult.data.authUserId)
 
         if (!profileData) {
-          console.error('[CONFIRM-FLOW] Profile not created after 10 seconds')
+          logger.error('[CONFIRM-FLOW] Profile not created after 10 seconds')
           setError(
             'Votre compte est créé mais votre profil prend plus de temps que prévu à être initialisé. ' +
             'Veuillez patienter quelques instants et actualiser la page, ou contactez le support.'
@@ -86,13 +87,19 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
           return
         }
 
-        // ÉTAPE 3 : Succès ! Redirection directe vers le dashboard
+        // ÉTAPE 3 : Redirection selon l'état du profil
         const role = profileData.role || confirmResult.data.role
-        router.push(`/${role}/dashboard`)
-        return // Arrêter l'exécution, pas besoin de setState
+        if (profileData.teamId) {
+          // Full profile (invitation flow or signup with name) → dashboard
+          router.push(`/${role}/dashboard`)
+        } else {
+          // Partial profile (lightweight signup) → complete profile
+          router.push('/auth/complete-profile')
+        }
+        return
 
       } catch (error) {
-        console.error('[CONFIRM-FLOW] Unexpected error:', error)
+        logger.error('[CONFIRM-FLOW] Unexpected error:', error)
         setError('Une erreur inattendue est survenue. Veuillez réessayer.')
         setState('error')
       }

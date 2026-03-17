@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { BlacklistManager } from '../../mail/components/blacklist-manager'
 import type { BlacklistEntry } from '../../mail/components/types'
-import { EmailConnectionForm } from './components/email-connection-form'
+import { EmailConnectionPrompt } from '@/components/email/email-connection-prompt'
 import { EmailConnectionList } from './components/email-connection-list'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -236,7 +236,7 @@ export function EmailSettingsClient({ initialConnections, initialBlacklist }: Em
                 Connectez votre compte email pour synchroniser et envoyer des messages depuis SEIDO
               </DialogDescription>
             </DialogHeader>
-            <EmailConnectionForm
+            <EmailConnectionPrompt
               onSuccess={handleConnectionAdded}
               onCancel={() => setShowAddDialog(false)}
             />

@@ -1,0 +1,99 @@
+{
+  "project": "SEIDO",
+  "featureName": "Lightweight Signup + Deferred Profile Completion",
+  "branchName": "preview",
+  "description": "Reduce signup form to email+password only. Capture name, phone, organization after email confirmation on /auth/complete-profile. Unify email and OAuth flows through the same complete-profile page.",
+  "createdAt": "2026-03-17",
+  "prdSource": "brainstorming session — validated design",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Lightweight signup form (email + password only)",
+      "description": "As a new user, I want a short signup form so that I can create my account quickly",
+      "acceptanceCriteria": [
+        "Signup form shows only: email, password, confirm password, terms checkbox",
+        "firstName, lastName, phone, organization fields are removed",
+        "Zod schema in auth-actions.ts no longer requires firstName/lastName",
+        "Auth metadata sent without first_name/last_name/phone/organization",
+        "Signup confirmation email uses email prefix as firstName fallback",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Stripped signup-form.tsx from 7 fields to 3+terms. Cleaned unused imports (Phone, logError, useRouter, createServerTeamService). Email prefix fallback for confirmation email."
+    },
+    {
+      "id": "US-002",
+      "title": "DB trigger handles partial profile (no name = no team)",
+      "description": "As the system, when a user confirms email without name metadata, I create a partial profile without team/subscription",
+      "acceptanceCriteria": [
+        "Trigger no longer raises exception when first_name is empty",
+        "When first_name is empty: creates user with name=email_prefix, team_id=NULL, skips team/subscription creation",
+        "When first_name is present: existing behavior unchanged (creates team+sub)",
+        "Invitation flow (team_id in metadata) unchanged",
+        "Migration file created and valid SQL"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Rewrote 20260317100000 migration with 3-branch IF: invitation (unchanged) → lightweight (partial profile, no team) → full signup (team+sub, org as team name). SPLIT_PART for email prefix."
+    },
+    {
+      "id": "US-003",
+      "title": "ConfirmFlow redirects to complete-profile when no team",
+      "description": "As a user who just confirmed email, I am redirected to complete-profile instead of dashboard when my profile has no team",
+      "acceptanceCriteria": [
+        "ConfirmFlow checks profileData.teamId after polling",
+        "If teamId is null, redirects to /auth/complete-profile",
+        "If teamId exists (invitation flow), redirects to dashboard as before",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "checkProfileCreated already returns teamId — just needed conditional redirect in confirm-flow.tsx line 91."
+    },
+    {
+      "id": "US-004",
+      "title": "Unified complete-profile page handles both email and OAuth users",
+      "description": "As a user (email or OAuth), I can complete my profile with name, phone, organization on the same page",
+      "acceptanceCriteria": [
+        "Page detects existing partial profile (email signup) vs no profile (OAuth)",
+        "Form shows: firstName, lastName, phone (optional), organization (optional)",
+        "Organization field hint: 'Sera utilisé comme nom de votre espace de travail'",
+        "For email signup: pre-fills email from existing profile",
+        "For OAuth: pre-fills name from Google data (existing behavior)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Page now checks team_id instead of profile existence. Form adds organization field + isEmailSignup hidden flag. Contextual messaging per flow."
+    },
+    {
+      "id": "US-005",
+      "title": "Complete-profile action handles update + team creation",
+      "description": "As the system, when completing a profile, I update name and create team/subscription for email signups, or create everything for OAuth",
+      "acceptanceCriteria": [
+        "Detects existing profile (email) vs no profile (OAuth)",
+        "Email flow: updates name/phone on existing user, creates team with organization name (or fallback), creates subscription",
+        "OAuth flow: unchanged behavior (creates user+team+sub)",
+        "Organization used as team name when provided, fallback to 'Prénom Nom' otherwise",
+        "Admin notification sent after profile completion",
+        "Redirects to dashboard after success",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-004"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Unified completeProfileAction with isEmailSignup flag. Email: update name+phone → create team → link+member+subscription (Promise.all). OAuth: preserved. Organization as team name. Old export aliased for compat."
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import type React from "react"
 import { getServerAuthContext } from "@/lib/server-context"
 import DashboardHeader from "@/components/dashboard-header"
-import { FrillWidget } from "@/components/frill-widget"
+
 
 /**
  * 🔐 PROPRIETAIRE LAYOUT - SERVER COMPONENT
@@ -37,9 +37,6 @@ export default async function ProprietaireLayout({
       <main className="layout-container">
         {children}
       </main>
-
-      {/* Widget Frill pour feedback utilisateur */}
-      <FrillWidget />
     </div>
   )
 }

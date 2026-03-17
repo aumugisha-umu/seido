@@ -1,10 +1,50 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Data Invalidation Broadcast + UX Improvements
+**Objectif:** Subscription UX hardening + UI refinements
 **Branch:** `preview`
-**Sprint:** Real-time sync + UX polish (Mar 2026)
-**Derniere analyse:** Data invalidation broadcast system — Supabase Broadcast for cross-team cache sync, onboarding auto-expand, sticky tabs — 2026-03-15
+**Sprint:** Platform monitoring + UX improvements (Mar 2026)
+**Derniere analyse:** Subscription loading race conditions audit + ConfirmationDocumentList redesign — 2026-03-16
+
+---
+
+## ✅ COMPLETE: Subscription Loading Race Conditions + Audit (2026-03-16)
+
+Critical bug: "Nouvel immeuble" button opened upgrade modal for user with 14/50 lots (valid subscription).
+- **Root cause:** `canAddProperty ?? false` during useSubscription loading → blocks valid users
+- **Secondary:** `previewUpgrade()` returned Stripe quantity (50) as "Lots actuels" instead of actual DB count (14)
+- **Fix:** Fail-open during loading on ALL client gates (biens, contacts, interventions, building details)
+- **UpgradePreview** now has `current_lots` (actual) + `subscribed_lots` (Stripe capacity), displayed as "14 / 50"
+- **Server page gate** wrapped in try-catch fail-open (lots/nouveau/page.tsx)
+- **Pattern:** `!subscriptionLoading && isReadOnly` for disabled buttons, `if (subscriptionLoading) navigateDirectly()` for canAddProperty
+- **Files:** 7 files (biens-page-client, building-details-client, contacts-page-client, interventions-page-client, lots/nouveau/page, subscription.service, upgrade-modal)
+- **Audit scope:** 200+ files, 72 hooks, all subscription gates catalogued
+- **Learnings:** #149-151 (hook loading race, preview actual vs subscribed, server gate fail-open)
+- **Retrospective:** `docs/learnings/2026-03-16-subscription-loading-race-condition-retrospective.md`
+
+---
+
+## ✅ COMPLETE: ConfirmationDocumentList Redesign (2026-03-16)
+
+Material Design chip/wrap layout replacing vertical document list in wizard confirmation steps.
+- **Before:** Vertical list with CheckCircle2 per slot, amber alert box for missing docs
+- **After:** Horizontal flex-wrap chips (emerald pills for uploaded, dashed-border for missing), Eye preview on hover
+- **Unified:** supplier-confirmation-step.tsx now uses shared ConfirmationDocumentList (was custom rendering)
+- **Files:** confirmation-document-list.tsx, supplier-confirmation-step.tsx
+
+---
+
+## ✅ COMPLETE: Admin Notification Emails (2026-03-16)
+
+Platform owner email notifications for 4 user lifecycle events via Resend.
+- **Service:** `lib/services/domain/admin-notification/` (service + MRR helper + HTML builder)
+- **Events:** New signup (OAuth+email), subscription change (upgrade/downgrade), subscription cancelled (churn), trial expired
+- **Integration points:** OAuth action, set-password page (via API route bridge), Stripe webhook handler, trial expiration cron
+- **MRR/ARR:** On-the-fly calculation from DB (individual + platform totals), color-coded badges
+- **Recipients:** `ADMIN_NOTIFICATION_EMAILS` env var (comma-separated)
+- **Pattern:** Fire-and-forget with `void .catch(() => {})` for serverless safety
+- **Learnings:** #145-148 (Resend singleton, floating promises, Client→Server bridge, MRR calculation)
+- **Retrospective:** `docs/learnings/2026-03-16-admin-notification-emails-retrospective.md`
 
 ---
 
@@ -124,6 +164,7 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
+- [ ] Add `ADMIN_NOTIFICATION_EMAILS=arthur@seido-app.pm` to `.env.local` (production)
 - [ ] Dead revalidation cleanup — remove 68 dead revalidatePath/revalidateTag calls (9 files)
 - [ ] Manual testing: verify invalidation broadcast works across 2 tabs/devices
 - [ ] Deploy preview branch and validate data sync in production
@@ -155,9 +196,9 @@ draft -> pending -> sent -> accepted (terminal positif)
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **144** (+3 since Mar 14: #142-#144) |
+| **AGENTS.md Learnings** | **151** (+7 since Mar 15: #145-#151) |
 | **Blog articles** | **23** |
-| **Retrospectives** | **40** |
+| **Retrospectives** | **42** |
 | **.claude/ Skills** | **23** |
 | **.claude/ Agents** | **15** |
 | **.claude/ Rules** | **5** |
@@ -169,19 +210,17 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
+| `f87f091` | fix: lot creation in existing building flow + creation_source tracking |
+| `b3d2337` | feat: enhance data invalidation broadcast system and UX improvements |
 | `0be45d6` | feat: data invalidation broadcast + onboarding auto-expand + sticky tabs |
 | `f82240f` | feat: onboarding topbar lift-up + WhatsApp webhook scaffold + Google Maps layout fix |
 | `d157c0e` | feat(claude): ecosystem optimization + import review + deferred geocoding |
-| `2fbb24d` | feat(skills): embed Code Craftsmanship Standards into upstream skills |
-| `d11519c` | feat(analytics): replace Contentsquare with Microsoft Clarity |
 
 ---
 
-*Derniere mise a jour: 2026-03-15 (data invalidation broadcast + UX improvements)*
-*Focus: Real-time cross-team data synchronization + onboarding UX*
+*Derniere mise a jour: 2026-03-16 (admin notification emails + contact flow)*
+*Focus: Platform monitoring emails + gestionnaire contact creation flow*
 
 ## Files Recently Modified
-### 2026-03-15 21:24:46 (Auto-updated)
-- `C:/Users/arthu/.claude/plans/shimmering-giggling-russell.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/services/repositories/lot.repository.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/gestionnaire/(no-navbar)/biens/lots/nouveau/lot-creation-form.tsx`
+### 2026-03-17 10:36:24 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/auth/beta-access-gate.tsx`

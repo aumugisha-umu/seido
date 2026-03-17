@@ -20,7 +20,9 @@ import type { RoleConfig, CategoryOption } from './types'
 export const USER_ROLES: RoleConfig[] = [
   { value: "locataire", label: "Locataire", color: "bg-blue-100 text-blue-800" },
   { value: "gestionnaire", label: "Gestionnaire", color: "bg-purple-100 text-purple-800" },
-  { value: "prestataire", label: "Prestataire", color: "bg-green-100 text-green-800" }
+  { value: "prestataire", label: "Prestataire", color: "bg-green-100 text-green-800" },
+  { value: "proprietaire", label: "Propriétaire", color: "bg-purple-100 text-purple-800" },
+  { value: "garant", label: "Garant", color: "bg-amber-100 text-amber-800" }
 ]
 
 /**

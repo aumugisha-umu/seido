@@ -691,7 +691,6 @@ export function LocataireInterventionDetailClient({
             }))}
           />
         }
-        hasGlobalNav={false}
       />
 
       <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">

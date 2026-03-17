@@ -193,12 +193,17 @@ export function InterventionScheduleRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           {isEditable ? (
-            <Input
-              value={intervention.title}
-              onChange={(e) => onTitleChange?.(e.target.value)}
-              placeholder="Titre de l'intervention..."
-              className="h-7 text-sm font-medium"
-            />
+            <div className="relative flex-1">
+              <Input
+                value={intervention.title}
+                onChange={(e) => onTitleChange?.(e.target.value)}
+                placeholder="Titre de l'intervention *"
+                className={cn(
+                  "h-7 text-sm font-medium",
+                  !intervention.title && "border-destructive focus-visible:ring-destructive/40"
+                )}
+              />
+            </div>
           ) : (
             <h4
               className={cn(

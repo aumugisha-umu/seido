@@ -25,18 +25,22 @@ export default async function NewLotPage({
   const { profile, team, teams, supabase } = await getServerAuthContext('gestionnaire')
   const params = await searchParams
 
-  // ── Subscription limit gate ──────────────────────────────────────────
-  const subscriptionService = createSubscriptionService(supabase)
-  const canAddResult = await subscriptionService.canAddProperty(team.id)
+  // ── Subscription limit gate (fail-open: if check fails, allow creation — server action has defense-in-depth)
+  try {
+    const subscriptionService = createSubscriptionService(supabase)
+    const canAddResult = await subscriptionService.canAddProperty(team.id)
 
-  if (!canAddResult.allowed && canAddResult.upgrade_needed) {
-    const info = await subscriptionService.getSubscriptionInfo(team.id)
-    return (
-      <SubscriptionLimitPage
-        currentLots={info?.actual_lots ?? 0}
-        subscribedLots={info?.subscribed_lots ?? 0}
-      />
-    )
+    if (!canAddResult.allowed && canAddResult.upgrade_needed) {
+      const info = await subscriptionService.getSubscriptionInfo(team.id)
+      return (
+        <SubscriptionLimitPage
+          currentLots={info?.actual_lots ?? 0}
+          subscribedLots={info?.subscribed_lots ?? 0}
+        />
+      )
+    }
+  } catch {
+    // Fail-open: let user proceed — createLotAction has its own subscription check
   }
 
   // ── Phase 0: Service instantiation + all queries in parallel ──────────

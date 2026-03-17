@@ -61,7 +61,7 @@ export function InterventionsPageClient({
 }: InterventionsPageClientProps) {
   const router = useRouter()
   const { isPending: isNavigating, navigate } = useNavigationPending()
-  const { isReadOnly } = useSubscription()
+  const { isReadOnly, loading: subscriptionLoading } = useSubscription()
 
   // ✅ État local initialisé avec les props (pas de hook de fetch)
   const [interventions, setInterventions] = useState(initialInterventions)
@@ -207,7 +207,7 @@ export function InterventionsPageClient({
           <PageActions>
             <Button
               className="flex items-center gap-2"
-              disabled={isReadOnly}
+              disabled={!subscriptionLoading && isReadOnly}
               title={isReadOnly ? 'Activez votre abonnement' : undefined}
               onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
               isLoading={isNavigating}
@@ -218,7 +218,7 @@ export function InterventionsPageClient({
           </PageActions>
 
           {/* Interventions Navigator - Full height, ContentNavigator handles card styling */}
-          <BlockedListOverlay isBlocked={isReadOnly}>
+          <BlockedListOverlay isBlocked={!subscriptionLoading && isReadOnly}>
           <InterventionsNavigator
             interventions={interventions}
             loading={loading}

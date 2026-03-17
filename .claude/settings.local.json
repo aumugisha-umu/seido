@@ -82,7 +82,9 @@
       "WebFetch(domain:uxpatterns.dev)",
       "WebFetch(domain:www.plivo.com)",
       "WebFetch(domain:doc.didww.com)",
-      "WebFetch(domain:www.anthropic.com)"
+      "WebFetch(domain:www.anthropic.com)",
+      "WebFetch(domain:www.smsgatewayapi.eu)",
+      "WebFetch(domain:developers.facebook.com)"
     ],
     "deny": [],
     "ask": []

@@ -84,6 +84,25 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-16 - Admin Notification Emails (5 stories via Ralph)
+
+**Session: Platform owner email notifications for 4 user lifecycle events**
+
+| Story | Title | Impact |
+|-------|-------|--------|
+| US-001 | Admin notification service core + MRR helper + HTML builder | 3 new files, 4 methods, colored badges, MRR calculation |
+| US-002 | Integrate signup flows (OAuth + Email) | OAuth fire-and-forget + API route bridge for email signup |
+| US-003 | Integrate Stripe webhooks (created/updated/deleted) | 3 event types with MRR delta, old-vs-new lot comparison |
+| US-004 | Integrate trial expiration cron | Admin notification after each trial→free_tier/read_only transition |
+| US-005 | Env var + simplify review | 8 fixes: Resend singleton, floating promises, constant dedup, type narrowing |
+
+**New files:** `lib/services/domain/admin-notification/` (3 files), `app/api/internal/admin-signup-notification/route.ts`
+**Modified files:** `complete-profile/actions.ts`, `set-password/page.tsx`, `stripe-webhook.handler.ts`, `trial-expiration/route.ts`, `lib/stripe.ts`, `.env.example`
+**Learnings:** AGENTS.md #145-148 (Resend singleton, floating promises, Client→Server bridge, MRR on-the-fly)
+**Retrospective:** `docs/learnings/2026-03-16-admin-notification-emails-retrospective.md`
+
+---
+
 ### 2026-03-15 - Data Invalidation Broadcast + UX Improvements
 
 **Session: Cross-team real-time cache sync via Supabase Broadcast + onboarding UX**
@@ -558,7 +577,7 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **141** |
+| **AGENTS.md Learnings** | **148** |
 | **systemPatterns.md Patterns** | **32** |
 | **Shared Cards** | **15** |
 | **E2E Test Files** | **8** |
@@ -646,5 +665,5 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | **2026-03-14** | **Global blueprint** | **Replicable .claude/ ecosystem for any project** | **.claude/claude-code-global-blueprint.md — 33 global + 20-30 per project files** |
 
 ---
-*Derniere mise a jour: 2026-03-14*
-*Session: Ecosystem optimization + import review, 141 learnings in AGENTS.md*
+*Derniere mise a jour: 2026-03-16*
+*Session: Admin notification emails (5 stories), 148 learnings in AGENTS.md*

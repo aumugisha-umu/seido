@@ -30,6 +30,7 @@ export interface SubscriptionInfo {
 
 export interface UpgradePreview {
   current_lots: number
+  subscribed_lots: number
   new_lots: number
   proration_amount: number
   recurring_change: number
@@ -361,6 +362,7 @@ export class SubscriptionService {
       const newLots = additionalLots
       return {
         current_lots: 0,
+        subscribed_lots: 0,
         new_lots: newLots,
         proration_amount: 0,
         recurring_change: 0,
@@ -369,6 +371,9 @@ export class SubscriptionService {
         is_estimate: true,
       }
     }
+
+    // Fetch actual lot count for display (not Stripe quantity)
+    const { data: actualLots } = await this.subscriptionRepo.getLotCount(teamId)
 
     try {
       const stripeSub = await this.stripe.subscriptions.retrieve(sub.stripe_subscription_id)
@@ -393,7 +398,8 @@ export class SubscriptionService {
       const pricePerLot = interval === 'year' ? 5000 : 500
 
       return {
-        current_lots: currentQuantity,
+        current_lots: actualLots,
+        subscribed_lots: currentQuantity,
         new_lots: newQuantity,
         proration_amount: preview.amount_due,
         recurring_change: additionalLots * pricePerLot,
@@ -403,12 +409,13 @@ export class SubscriptionService {
       }
     } catch {
       // Fallback to rough estimate
-      const currentLots = sub.subscribed_lots
-      const newLots = currentLots + additionalLots
+      const subscribedLots = sub.subscribed_lots
+      const newLots = subscribedLots + additionalLots
       const pricePerLot = 5000 // Default to annual
 
       return {
-        current_lots: currentLots,
+        current_lots: actualLots,
+        subscribed_lots: subscribedLots,
         new_lots: newLots,
         proration_amount: additionalLots * pricePerLot,
         recurring_change: additionalLots * pricePerLot,

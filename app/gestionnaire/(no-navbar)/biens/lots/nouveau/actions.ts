@@ -308,6 +308,7 @@ export async function getBuildingExistingDocuments(buildingId: string): Promise<
     document_type: string
     original_filename: string
     uploaded_at: string
+    storage_path: string
   }>
   error?: string
 }> {
@@ -315,7 +316,7 @@ export async function getBuildingExistingDocuments(buildingId: string): Promise<
     const supabase = await createServerActionSupabaseClient()
     const { data, error } = await supabase
       .from('property_documents')
-      .select('id, document_type, original_filename, uploaded_at')
+      .select('id, document_type, original_filename, uploaded_at, storage_path')
       .eq('building_id', buildingId)
       .is('deleted_at', null)
       .order('uploaded_at', { ascending: false })

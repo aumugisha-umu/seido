@@ -197,6 +197,12 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
     )
   }, [activeAssignment, onInterventionsChange, externalAssignedUsers, onExternalContactRemoved])
 
+  // ─── Derived state ─────────────────────────────────────────
+
+  const hasEmptyCustomTitle = scheduledInterventions.some(
+    i => i.key.startsWith('custom_') && i.enabled && !i.title.trim()
+  )
+
   // ─── Render ─────────────────────────────────────────────────
 
   return (
@@ -223,20 +229,27 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
                   section.renderCustom()
                 ) : (
                   /* Standard section with InterventionScheduleRow entries */
-                  <div className="space-y-3">
+                  <div className={cn(
+                    "space-y-3",
+                    section.allowCustomAdd && "rounded-lg border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-4"
+                  )}>
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <h3 className={cn(
+                        "text-sm font-medium flex items-center gap-2",
+                        section.allowCustomAdd ? "font-semibold text-indigo-700" : "text-muted-foreground"
+                      )}>
                         {section.icon && (
-                          <section.icon className={cn("h-4 w-4", section.iconColorClass)} />
+                          <section.icon className={cn("h-4 w-4", section.allowCustomAdd ? "" : section.iconColorClass)} />
                         )}
                         {section.title}
                       </h3>
-                      {section.allowCustomAdd && onAddCustomIntervention && (
+                      {section.allowCustomAdd && onAddCustomIntervention && section.rows.length > 0 && (
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={onAddCustomIntervention}
-                          className="h-7 text-xs gap-1"
+                          disabled={hasEmptyCustomTitle}
+                          className="h-7 text-xs gap-1 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Ajouter
@@ -265,12 +278,20 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
                           )
                         })}
                       </div>
+                    ) : section.allowCustomAdd && onAddCustomIntervention ? (
+                      <button
+                        type="button"
+                        onClick={onAddCustomIntervention}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md hover:bg-indigo-50/50 transition-colors cursor-pointer text-sm text-indigo-600"
+                      >
+                        <Plus className="h-4 w-4" />
+                        <span className="font-medium">Planifier une intervention</span>
+                        <span className="text-muted-foreground text-xs">&mdash; entretien, réparation, visite...</span>
+                      </button>
                     ) : (
-                      !section.allowCustomAdd && (
-                        <p className="text-sm text-muted-foreground/60 text-center py-4">
-                          Aucun élément dans cette section.
-                        </p>
-                      )
+                      <p className="text-sm text-muted-foreground/60 text-center py-4">
+                        Aucun élément dans cette section.
+                      </p>
                     )}
                   </div>
                 )}

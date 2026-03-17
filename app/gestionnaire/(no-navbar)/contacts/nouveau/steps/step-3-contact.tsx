@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PhoneInput } from "@/components/ui/phone-input"
-import { Mail, FileText, User, Loader2, Phone } from "lucide-react"
+import { Mail, FileText, User, Loader2, Phone, Shield, Crown } from "lucide-react"
 import { isValidEmail } from "@/lib/validation/patterns"
 import { EntityLinkSection } from "@/components/contact-details/entity-link-section"
 
@@ -202,7 +202,7 @@ export function Step3Contact({
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => onFieldChange('email', e.target.value)}
+                onChange={(e) => onFieldChange('email', e.target.value.trim())}
                 placeholder="jean.dupont@example.com"
                 className={emailStatus?.existsInCurrentTeam ? 'border-amber-500 focus-visible:ring-amber-500' : ''}
                 aria-required={inviteToApp}
@@ -258,27 +258,75 @@ export function Step3Contact({
       </div>
 
       {/* Invitation à l'application */}
-      <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
-        <div className="flex items-start gap-3">
-          <Checkbox
-            id="invite-checkbox"
-            checked={inviteToApp}
-            onCheckedChange={(checked) => onFieldChange('inviteToApp', checked as boolean)}
-            className="mt-1"
-          />
-          <div className="flex-1">
-            <Label
-              htmlFor="invite-checkbox"
-              className="text-base font-medium cursor-pointer"
-            >
-              Inviter ce contact à rejoindre l'application
-            </Label>
-            <p className="text-sm text-muted-foreground mt-1">
-              Un email d'invitation sera envoyé à <strong>{email || "l'adresse email"}</strong> pour qu'il/elle puisse accéder à ses informations et interventions.
-            </p>
+      {contactType === 'gestionnaire' ? (
+        /* Gestionnaire: forced invitation, no toggle */
+        <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
+          <div className="flex items-start gap-3">
+            <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                Une invitation sera envoyée à <strong>{email || "l'adresse email"}</strong>.
+              </p>
+              <p className="text-xs text-blue-700/70 dark:text-blue-300/70 mt-1">
+                Le gestionnaire aura accès à toute la plateforme dès la création de son compte.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      ) : contactType === 'proprietaire' ? (
+        /* Proprietaire: no invitation possible (roadmap) */
+        <div className="p-4 border rounded-lg bg-purple-50/50 dark:bg-purple-950/50 border-purple-200 dark:border-purple-800">
+          <div className="flex items-start gap-3">
+            <Crown className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                L&apos;invitation des propriétaires n&apos;est pas encore disponible.
+              </p>
+              <p className="text-xs text-purple-700/70 dark:text-purple-300/70 mt-1">
+                Cette fonctionnalité est sur notre roadmap. Le contact sera enregistré dans votre base.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : contactType === 'garant' ? (
+        /* Garant: no invitation possible */
+        <div className="p-4 border rounded-lg bg-amber-50/50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800">
+          <div className="flex items-start gap-3">
+            <Shield className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                Les garants ne peuvent pas être invités dans l&apos;application.
+              </p>
+              <p className="text-xs text-amber-700/70 dark:text-amber-300/70 mt-1">
+                Ce contact sera enregistré et pourra être lié à un bail en tant que garant.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Prestataire / Locataire: optional checkbox */
+        <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="invite-checkbox"
+              checked={inviteToApp}
+              onCheckedChange={(checked) => onFieldChange('inviteToApp', checked as boolean)}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <Label
+                htmlFor="invite-checkbox"
+                className="text-base font-medium cursor-pointer"
+              >
+                Inviter ce contact à rejoindre l&apos;application
+              </Label>
+              <p className="text-sm text-muted-foreground mt-1">
+                Un email d&apos;invitation sera envoyé à <strong>{email || "l'adresse email"}</strong> pour qu&apos;il/elle puisse accéder à ses informations et interventions.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Section de liaison à une entité (optionnelle) */}
       <EntityLinkSection

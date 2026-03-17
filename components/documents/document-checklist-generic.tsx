@@ -15,10 +15,18 @@
 import { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Paperclip, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Paperclip, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DocumentSlotGeneric } from './document-slot-generic'
 import type { GenericDocumentSlotState, DocumentProgress } from './types'
+import type { ExistingFileInfo } from './document-slot-generic'
+
+interface ExistingDoc {
+  id: string
+  document_type: string
+  original_filename: string
+  uploaded_at: string
+}
 
 interface DocumentChecklistGenericProps {
   /** Card title (e.g. "Documents du bail", "Documents du lot") */
@@ -41,6 +49,8 @@ interface DocumentChecklistGenericProps {
   onSetSlotValidityDuration?: (slotType: string, duration: number | undefined) => void
   /** Callback to set custom expiry for all files in a slot */
   onSetSlotCustomExpiry?: (slotType: string, date: string | undefined) => void
+  /** Existing documents already in DB (displayed read-only in matching slots) */
+  existingDocs?: ExistingDoc[]
   /** Additional CSS class */
   className?: string
 }
@@ -56,16 +66,41 @@ export function DocumentChecklistGeneric({
   onSetSlotDocumentDate,
   onSetSlotValidityDuration,
   onSetSlotCustomExpiry,
+  existingDocs = [],
   className
 }: DocumentChecklistGenericProps) {
+  // Group existing docs by document_type for slot matching
+  const existingByType = useMemo(() => {
+    const map = new Map<string, ExistingFileInfo[]>()
+    for (const doc of existingDocs) {
+      const list = map.get(doc.document_type) || []
+      list.push({ id: doc.id, original_filename: doc.original_filename, uploaded_at: doc.uploaded_at })
+      map.set(doc.document_type, list)
+    }
+    return map
+  }, [existingDocs])
+
   const { recommendedSlots, autreSlot } = useMemo(() => {
     const recommended = slots.filter(slot => slot.recommended)
     const autre = slots.find(slot => slot.type === 'autre') ?? null
     return { recommendedSlots: recommended, autreSlot: autre }
   }, [slots])
 
-  const hasAllRecommended = missingRecommendedTypes.length === 0
-  const totalFilesCount = slots.reduce((acc, slot) => acc + slot.fileCount, 0)
+  // Adjust progress: count existing docs as uploaded for their matching recommended slots
+  const existingRecommendedCount = recommendedSlots.filter(
+    s => !s.hasFiles && existingByType.has(s.type)
+  ).length
+  const adjustedProgress = {
+    uploaded: progress.uploaded + existingRecommendedCount,
+    total: progress.total,
+    percentage: progress.total > 0
+      ? Math.round(((progress.uploaded + existingRecommendedCount) / progress.total) * 100)
+      : 0
+  }
+  const adjustedMissing = missingRecommendedTypes.filter(t => !existingByType.has(t))
+
+  const hasAllRecommended = adjustedMissing.length === 0
+  const totalFilesCount = slots.reduce((acc, slot) => acc + slot.fileCount, 0) + existingDocs.length
 
   return (
     <Card className={cn("shadow-sm p-0", className)}>
@@ -80,27 +115,13 @@ export function DocumentChecklistGeneric({
           <div className="flex-1 space-y-1">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>
-                {progress.uploaded} / {progress.total} recommandés complétés
+                {adjustedProgress.uploaded} / {adjustedProgress.total} recommandés complétés
               </span>
-              <span>{progress.percentage}%</span>
+              <span>{adjustedProgress.percentage}%</span>
             </div>
-            <Progress value={progress.percentage} className="h-2" />
+            <Progress value={adjustedProgress.percentage} className="h-2" />
           </div>
         </div>
-
-        {/* Missing recommended alert */}
-        {!hasAllRecommended && totalFilesCount > 0 && (
-          <div className="mt-3 flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200">
-            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-            <div className="text-xs text-amber-700">
-              <p className="font-medium">Documents recommandés manquants :</p>
-              <p className="mt-0.5">
-                {missingRecommendedTypes.length} document{missingRecommendedTypes.length > 1 ? 's' : ''} recommandé{missingRecommendedTypes.length > 1 ? 's' : ''} non uploadé{missingRecommendedTypes.length > 1 ? 's' : ''}.
-                Vous pourrez les ajouter plus tard.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* All recommended present */}
         {hasAllRecommended && totalFilesCount > 0 && (
@@ -122,7 +143,7 @@ export function DocumentChecklistGeneric({
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
                 Documents recommandés
                 <span className="text-xs font-normal">
-                  ({recommendedSlots.filter(s => s.hasFiles).length}/{recommendedSlots.length})
+                  ({recommendedSlots.filter(s => s.hasFiles || existingByType.has(s.type)).length}/{recommendedSlots.length})
                 </span>
               </h3>
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -136,6 +157,7 @@ export function DocumentChecklistGeneric({
                     recommended={slot.recommended}
                     allowMultiple={slot.allowMultiple}
                     files={slot.files}
+                    existingFiles={existingByType.get(slot.type)}
                     onAddFiles={(files) => onAddFilesToSlot(slot.type, files)}
                     onRemoveFile={(fileId) => onRemoveFileFromSlot(slot.type, fileId)}
                     disabled={isUploading}
@@ -169,6 +191,7 @@ export function DocumentChecklistGeneric({
                 recommended={false}
                 allowMultiple={autreSlot.allowMultiple}
                 files={autreSlot.files}
+                existingFiles={existingByType.get(autreSlot.type)}
                 onAddFiles={(files) => onAddFilesToSlot(autreSlot.type, files)}
                 onRemoveFile={(fileId) => onRemoveFileFromSlot(autreSlot.type, fileId)}
                 disabled={isUploading}

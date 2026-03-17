@@ -1,50 +1,24 @@
-# Progress Log — Import Review + Simplify + Deferred Geocoding
-# Started: 2026-03-14
-# Stories: 3/3 complete ✅
+# Progress Log — Email UX Improvements
+# Started: 2026-03-17
+# Stories: 4 total
 ---
 
-## 2026-03-14 — US-001: Bug fixes (7 bugs)
-- Auth wrapper: page.tsx → Server Component + import-page-client.tsx
-- Status bug: `'completed' : 'completed'` → `'completed' : 'failed'` (import.service.ts:685)
-- SSE error handling: re-throw intentional errors, skip JSON parse errors only
-- AbortController: useRef + useEffect cleanup on unmount (use-import-wizard.ts)
-- setMonth overflow: explicit year/month/day arithmetic with day clamping (import.service.ts:1487)
-- Phase index offset: UI shows 5 phases but server sends 6-phase index → subtract 1 (import-step-progress.tsx)
-- Activity log: b.reference→removed, l.building_reference→building_name, c.tenant_email→tenant_emails
-- Files: page.tsx, import-page-client.tsx (new), use-import-wizard.ts, import.service.ts, import-step-progress.tsx
-- Learnings: JS setMonth() overflow is insidious — always use explicit arithmetic for month addition
+## 2026-03-17 — US-001: Rename compose title + disable Rédiger
+- Implemented: Title "Nouveau message" → "Nouvel email" in compose-email-modal.tsx. Rédiger button disabled when no active connections.
+- Files: compose-email-modal.tsx, mail-client.tsx
+- Learnings: Trivial XS story but unlocked 2 dependent stories.
 
-## 2026-03-14 — US-002: Simplify
-- Created validators/utils.ts: extracted mapZodErrorToCode (was in 5 files), normalizeCountry (2 files), normalizePhone (2 files)
-- Updated all 5 validators to import from shared utils
-- Removed 5 unused COLUMN_MAPPING exports from constants.ts (~150 lines)
-- Deleted dead /api/import/execute/ route (replaced by /execute-stream/ SSE route)
-- Batched building+lot N+1 queries in validateAgainstDatabase with Promise.all
-- Demo data kept in constants.ts (template-generator.ts imports it, no gain from moving)
-- Files: validators/utils.ts (new), building/lot/contact/contract/company.validator.ts, constants.ts, import.service.ts
-- Files deleted: app/api/import/execute/route.ts
-- Learnings: Column mappings were a premature abstraction — validators use Zod schemas directly, making the mappings dead code
+## 2026-03-17 — US-002: Extract shared EmailConnectionPrompt
+- Implemented: Moved EmailConnectionForm from settings to components/email/email-connection-prompt.tsx. Added className prop + cn(). Fixed any→unknown types, removed console.error. Old file is thin re-export.
+- Files: components/email/email-connection-prompt.tsx (NEW), email-connection-form.tsx (re-export), email-settings-client.tsx
+- Learnings: Component was already correctly structured with onSuccess/onCancel props — extraction was a clean move+rename. Thin re-export avoids breaking other imports.
 
-## 2026-03-14 — US-003: Deferred geocoding via after()
-- Removed Phase 0 geocoding from synchronous import pipeline (~70 lines deleted from import.service.ts)
-- All createAddress calls now pass null for geocode data — addresses created without coordinates
-- Import returns addressIdsToGeocode[] collected from importCompanies, importBuildings, importLots
-- SSE route uses after() to trigger geocodePendingAddresses() post-response (execute-stream/route.ts)
-- Added geocodePendingAddresses() to AddressService: batch 10 parallel, 250ms delay, rate-limited
-- Updated ImportPhase type: removed 'geocoding' from union
-- Phase indices shifted: companies=0, contacts=1, buildings=2, lots=3, contracts=4
-- Progress UI updated to 5 phases (direct mapping, no offset needed)
-- Files: import.service.ts, types.ts, execute-stream/route.ts, address.service.ts, import-step-progress.tsx
-- Learnings: next/server after() is perfect for non-blocking post-response work; Google Geocoding rate limit = 50/sec, we use 40/sec (10 parallel × 4 batches/sec)
+## 2026-03-17 — US-003: Mail page full takeover when no connection
+- Implemented: Early return in mail-client.tsx render when emailConnections has no active items. Centered EmailConnectionPrompt with Mail icon + heading. router.refresh() on success.
+- Files: mail-client.tsx
+- Learnings: Early return pattern eliminated dead disabled prop on Rédiger button — the button only renders when connections exist, so disabled={false} is always true.
 
-## 2026-03-15 18:00 — Data Invalidation Broadcast + UX Improvements
-- Implemented: Supabase Broadcast-based data invalidation system for cross-team real-time cache sync
-- Architecture: Team channel `seido-team:{teamId}` with batch-debounced dispatch (500ms window)
-- Entity types: buildings, lots, contacts, interventions, contracts, stats
-- 5 hooks wired: use-buildings, use-manager-stats, use-team-contacts, use-contacts-data, use-interventions
-- 12+ mutation sites emit invalidation: creation forms + status change flows (all 3 roles)
-- UX: onboarding checklist auto-expand until 1 lot + 1 contact; sticky tabs in creation wizards
-- Files: lib/data-invalidation.ts (new), contexts/realtime-context.tsx, 5 hooks, 10+ mutation components
-- Bug caught by /simplify: N+1 debounce (per-entity timers → batch Set + single timer)
-- Learnings #142-144: batch debounce, broadcast vs postgres_changes, per-user vs per-team channels
-- Remaining: Task 10 (remove 68 dead revalidatePath/revalidateTag calls) deferred
+## 2026-03-17 — US-004: Global ComposeEmailProvider + sidebar button
+- Implemented: ComposeEmailProvider context at gestionnaire with-navbar layout. Single ComposeEmailModal instance rendered by provider. Sidebar createAction pattern for onClick-based + button. Layout SSR parallel query for email connections. Mail page delegates compose to context.
+- Files: contexts/compose-email-context.tsx (NEW), layout.tsx, gestionnaire-sidebar.tsx, mail-client.tsx
+- Learnings: Layout-level provider needs SSR data as props — added parallel query to existing Promise.all. createAction on nav items enables onClick handlers (vs createHref links). Sidebar hook call must be at component top level.

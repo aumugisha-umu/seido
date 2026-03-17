@@ -1,0 +1,65 @@
+{
+  "project": "SEIDO",
+  "featureName": "Rename Autre to Garant + Proprietaire Fixes",
+  "branchName": "preview",
+  "description": "Replace the 'autre' contact type with 'garant' (guarantor) in the creation wizard. Add info cards for all contact types. Ensure garant is correctly linked to baux via contract_contacts.role='garant'. Fix proprietaire gaps in display constants and edit form.",
+  "createdAt": "2026-03-17",
+  "prdSource": "docs/plans/2026-03-17-autre-to-garant-rename-design.md",
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Zod schemas + API mapping for garant",
+      "description": "As a developer, I want the API to accept 'garant' as a valid role so that the wizard can send it without 400 errors.",
+      "acceptanceCriteria": [
+        "'garant' added to inviteUserSchema.role and createContactSchema.role Zod enums",
+        "'garant' mapped to { role: 'prestataire', provider_category: 'autre' } in invite-user route",
+        "Contract linking uses 'garant' role when contactType is garant",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added 'garant' to both Zod enums (inviteUserSchema + createContactSchema). Added mapping in invite-user route. Contract linking: role === 'garant' ? 'garant' : locataire/autre logic."
+    },
+    {
+      "id": "US-002",
+      "title": "Wizard creation: rename autre → garant across 4 step files",
+      "description": "As a gestionnaire, I want to create a garant contact with a clear info card explaining this role cannot be invited to the app.",
+      "acceptanceCriteria": [
+        "Type union updated from 'autre' to 'garant' in all 4 wizard files",
+        "SelectItem shows 'Garant' with Shield icon and amber info card",
+        "customRoleDescription text field removed from step-1",
+        "Step-3 shows amber non-invitable card for garant",
+        "Step-4 confirmation shows garant label with amber colors",
+        "inviteToApp forced to false for garant",
+        "mapContactType handles 'other'→'garant', 'autre'→'garant', 'guarantor'→'garant'",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Edit form + display constants: add proprietaire & garant",
+      "description": "As a gestionnaire, I want to see correct labels when viewing/editing proprietaire and garant contacts.",
+      "acceptanceCriteria": [
+        "edit-contact-client.tsx: type union includes proprietaire and garant",
+        "edit-contact-client.tsx: validRoles includes both, mappings corrected",
+        "edit-contact-client.tsx: inviteToApp forced false for proprietaire and garant",
+        "contact-details/constants.ts: USER_ROLES includes proprietaire (purple) and garant (amber)",
+        "lot-creation-form.tsx: fallback 'autre' → 'prestataire'",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

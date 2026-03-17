@@ -27,7 +27,7 @@ interface Company {
 
 interface ContactFormData {
   // Step 1: Type de contact
-  contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'autre'
+  contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'garant'
   personOrCompany: 'person' | 'company'
   specialty?: string
   providerCategory?: string // Catégorie de prestataire (artisan, services, energie, etc.)
@@ -151,25 +151,30 @@ export function ContactCreationClient({
       'tenant': 'locataire',
       'provider': 'prestataire',
       'manager': 'gestionnaire',
-      'other': 'autre',
+      'other': 'garant',
+      'owner': 'proprietaire',
+      'guarantor': 'garant',
       // Support direct des valeurs françaises aussi
       'locataire': 'locataire',
       'prestataire': 'prestataire',
       'gestionnaire': 'gestionnaire',
-      'autre': 'autre'
+      'proprietaire': 'proprietaire',
+      'garant': 'garant',
+      'autre': 'garant'
     }
 
     return mapping[type.toLowerCase()] || 'locataire'
   }
 
   // État du formulaire avec pré-remplissage si venant d'un autre formulaire
+  const initialContactType = mapContactType(prefilledType)
   const [formData, setFormData] = useState<ContactFormData>({
-    contactType: mapContactType(prefilledType),
-    personOrCompany: 'person',
+    contactType: initialContactType,
+    personOrCompany: 'person', // Gestionnaire is always person; default for others too
     companyMode: 'new',
     email: '',
     country: 'BE',
-    inviteToApp: true
+    inviteToApp: true // Gestionnaire forces this; others can toggle it off
   })
 
   // Gérer les changements de formulaire
@@ -184,13 +189,11 @@ export function ContactCreationClient({
     switch (currentStep) {
       case 1: // Type de contact
         if (!formData.contactType) errors.push("Sélectionnez un type de contact")
-        if (!formData.personOrCompany) errors.push("Sélectionnez Personne ou Société")
+        if (formData.contactType !== 'gestionnaire' && !formData.personOrCompany) errors.push("Sélectionnez Personne ou Société")
         if (formData.contactType === 'prestataire' && formData.providerCategory === 'artisan' && !formData.specialty) {
           errors.push("Sélectionnez une spécialité pour l'artisan")
         }
-        if (formData.contactType === 'autre' && !formData.customRoleDescription?.trim()) {
-          errors.push("Précisez le type de contact")
-        }
+        // Proprietaire and garant: no extra validation needed beyond contactType selection
         break
 
       case 2: // Informations société (seulement si company)
@@ -515,7 +518,28 @@ export function ContactCreationClient({
                 providerCategory={formData.providerCategory}
                 customRoleDescription={formData.customRoleDescription}
                 initialInterventionTypes={initialInterventionTypes}
-                onContactTypeChange={(value) => handleInputChange('contactType', value)}
+                onContactTypeChange={(value) => {
+                  const prevType = formData.contactType
+                  handleInputChange('contactType', value)
+                  // Gestionnaire = always person + always invited
+                  if (value === 'gestionnaire') {
+                    handleInputChange('personOrCompany', 'person')
+                    handleInputChange('inviteToApp', true)
+                  }
+                  // Proprietaire & garant = cannot be invited
+                  if (value === 'proprietaire' || value === 'garant') {
+                    handleInputChange('inviteToApp', false)
+                  }
+                  // Reset provider fields when changing away from prestataire
+                  if (prevType === 'prestataire' && value !== 'prestataire') {
+                    handleInputChange('providerCategory', undefined as any)
+                    handleInputChange('specialty', undefined as any)
+                  }
+                  // Reset custom role description when changing away from garant
+                  if (prevType === 'garant' && value !== 'garant') {
+                    handleInputChange('customRoleDescription', undefined as any)
+                  }
+                }}
                 onPersonOrCompanyChange={(value) => handleInputChange('personOrCompany', value)}
                 onSpecialtyChange={(value) => handleInputChange('specialty', value)}
                 onProviderCategoryChange={(value) => handleInputChange('providerCategory', value)}
@@ -589,6 +613,8 @@ export function ContactCreationClient({
                 contactType={formData.contactType}
                 personOrCompany={formData.personOrCompany}
                 specialty={formData.specialty}
+                providerCategory={formData.providerCategory}
+                customRoleDescription={formData.customRoleDescription}
                 companyMode={formData.companyMode}
                 companyId={formData.companyId}
                 companyName={formData.companyName}

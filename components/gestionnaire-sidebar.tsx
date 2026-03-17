@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import Image from "next/image"
 import {
   LayoutDashboard,
   Building2,
@@ -14,11 +13,8 @@ import {
   Settings,
   HelpCircle,
   LogOut,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   Plus,
-  ChevronDown,
 } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import {
@@ -34,7 +30,7 @@ import {
   SidebarMenuAction,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { TeamSelector, TeamSelectorCompact } from "@/components/team-selector"
+import { TeamSelectorCompact } from "@/components/team-selector"
 import { useCurrentTeam } from "@/hooks/use-current-team"
 import {
   DropdownMenu,
@@ -45,6 +41,7 @@ import {
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/logger"
 import { SubscriptionSidebarCard } from "@/components/billing/subscription-sidebar-card"
+import { useComposeEmail } from "@/contexts/compose-email-context"
 import type { Team } from "@/lib/services/core/service-types"
 
 interface CreateOption {
@@ -60,6 +57,8 @@ interface NavigationItem {
   createLabel?: string
   /** Multiple create options — renders dropdown instead of direct link */
   createOptions?: CreateOption[]
+  /** Action-based create button (onClick instead of link) */
+  createAction?: string
 }
 
 const mainNavItems: NavigationItem[] = [
@@ -71,7 +70,7 @@ const mainNavItems: NavigationItem[] = [
     { href: "/gestionnaire/contrats/nouveau?type=fournisseur", label: "Contrat fournisseur" },
   ] },
   { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench, createHref: "/gestionnaire/interventions/nouvelle-intervention", createLabel: "Nouvelle intervention" },
-  { href: "/gestionnaire/mail", label: "Emails", icon: Mail },
+  { href: "/gestionnaire/mail", label: "Emails", icon: Mail, createAction: "compose-email", createLabel: "Nouvel email" },
 ]
 
 const secondaryNavItems: NavigationItem[] = [
@@ -84,7 +83,7 @@ interface GestionnaireSidebarProps {
   userInitial: string
   avatarUrl?: string
   teams?: Team[]
-  teamId?: string
+  teamName?: string
 }
 
 export default function GestionnaireSidebar({
@@ -92,10 +91,10 @@ export default function GestionnaireSidebar({
   userInitial,
   avatarUrl,
   teams = [],
-  teamId,
+  teamName,
 }: GestionnaireSidebarProps) {
   const pathname = usePathname()
-  const { state, open, setOpen, toggleSidebar, isMobile, setOpenMobile } = useSidebar()
+  const { state, open, setOpen, isMobile, setOpenMobile } = useSidebar()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const isCollapsed = state === "collapsed"
 
@@ -122,6 +121,8 @@ export default function GestionnaireSidebar({
     teams,
     currentRole: "gestionnaire",
   })
+
+  const { openCompose, hasActiveConnections } = useComposeEmail()
 
   // Auto-close mobile sheet on route change
   useEffect(() => {
@@ -156,6 +157,16 @@ export default function GestionnaireSidebar({
     }
   }
 
+  const createActionStyles = cn(
+    "right-2 flex h-6 w-6 items-center justify-center rounded-md",
+    "bg-sidebar-accent/50 text-sidebar-foreground/60",
+    "hover:bg-white hover:text-primary hover:shadow-sm",
+    "peer-data-[active=true]/menu-button:bg-white peer-data-[active=true]/menu-button:text-primary peer-data-[active=true]/menu-button:shadow-sm",
+    "group-hover/menu-item:bg-white group-hover/menu-item:text-primary group-hover/menu-item:shadow-sm",
+    "transition-all duration-150",
+    "[&>svg]:size-3.5"
+  )
+
   const renderNavItem = (item: NavigationItem) => {
     const Icon = item.icon
     const isActive = isActivePage(item.href)
@@ -181,15 +192,7 @@ export default function GestionnaireSidebar({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <SidebarMenuAction
-                className={cn(
-                  "right-2 flex h-6 w-6 items-center justify-center rounded-md",
-                  "bg-sidebar-accent/50 text-sidebar-foreground/60",
-                  "hover:bg-white hover:text-primary hover:shadow-sm",
-                  "peer-data-[active=true]/menu-button:bg-white peer-data-[active=true]/menu-button:text-primary peer-data-[active=true]/menu-button:shadow-sm",
-                  "group-hover/menu-item:bg-white group-hover/menu-item:text-primary group-hover/menu-item:shadow-sm",
-                  "transition-all duration-150",
-                  "[&>svg]:size-3.5"
-                )}
+                className={createActionStyles}
                 data-testid={`sidebar-create-${item.href.split('/').pop()}`}
               >
                 <Plus />
@@ -206,6 +209,28 @@ export default function GestionnaireSidebar({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+        ) : item.createAction === "compose-email" && hasActiveConnections ? (
+          <SidebarMenuAction
+            className={cn(
+              "right-2 flex h-6 w-6 items-center justify-center rounded-md",
+              "bg-sidebar-accent/50 text-sidebar-foreground/60",
+              "hover:bg-white hover:text-primary hover:shadow-sm",
+              "peer-data-[active=true]/menu-button:bg-white peer-data-[active=true]/menu-button:text-primary peer-data-[active=true]/menu-button:shadow-sm",
+              "group-hover/menu-item:bg-white group-hover/menu-item:text-primary group-hover/menu-item:shadow-sm",
+              "transition-all duration-150",
+              "[&>svg]:size-3.5"
+            )}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              openCompose()
+              handleNavClick()
+            }}
+            data-testid={`sidebar-create-${item.href.split('/').pop()}`}
+          >
+            <Plus />
+            <span className="sr-only">{item.createLabel}</span>
+          </SidebarMenuAction>
         ) : item.createHref && (
           <SidebarMenuAction
             asChild
@@ -236,66 +261,17 @@ export default function GestionnaireSidebar({
 
   return (
     <Sidebar collapsible="icon">
-      {/* Header: Logo + Toggle + Team selector */}
-      <SidebarHeader className={cn("pb-2", isCollapsed ? "p-2" : "p-4")}>
-        <div className={cn(
-          "flex items-center",
-          isCollapsed ? "flex-col gap-1" : "gap-3 justify-between"
-        )}>
-          {/* Logo + Text */}
-          <Link
-            href="/gestionnaire/dashboard"
-            className="flex items-center gap-3 flex-shrink-0 min-w-0"
-            onClick={handleNavClick}
-          >
-            <Image
-              src="/images/Logo/Picto_Seido_Color.png"
-              alt="SEIDO"
-              width={36}
-              height={36}
-              className={cn(
-                "transition-all duration-200 flex-shrink-0",
-                isCollapsed ? "h-7 w-7" : "h-9 w-9"
-              )}
-              priority
-            />
-            {!isCollapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-bold text-foreground leading-tight">Seido</span>
-                <span className="text-xs text-muted-foreground leading-tight">Gestion Immobiliere</span>
-              </div>
-            )}
-          </Link>
-
-          {/* Toggle button — integrated in header */}
-          <button
-            onClick={toggleSidebar}
-            className={cn(
-              "hidden md:flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-all duration-200 flex-shrink-0",
-              isCollapsed ? "h-7 w-7" : "h-8 w-8"
-            )}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? (
-              <ChevronRight className="size-4" />
-            ) : (
-              <ChevronLeft className="size-4" />
-            )}
-          </button>
-        </div>
-
-        {/* Team selector - only in expanded mode for multi-team users */}
-        {hasMultipleTeams && !isCollapsed && (
-          <div className="mt-3">
-            <TeamSelectorCompact
-              teams={teams}
-              currentTeamId={currentTeamId}
-              onTeamChange={changeTeam}
-              currentRole="gestionnaire"
-            />
-          </div>
-        )}
-      </SidebarHeader>
+      {/* Header: Team selector only (logo + toggle moved to full-width header) */}
+      {hasMultipleTeams && !isCollapsed && (
+        <SidebarHeader className="px-4 pt-3 pb-2">
+          <TeamSelectorCompact
+            teams={teams}
+            currentTeamId={currentTeamId}
+            onTeamChange={changeTeam}
+            currentRole="gestionnaire"
+          />
+        </SidebarHeader>
+      )}
 
       {/* Main navigation */}
       <SidebarContent className="overflow-x-hidden">
@@ -347,6 +323,9 @@ export default function GestionnaireSidebar({
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-sm font-semibold leading-tight truncate">{userName}</span>
                 <span className="text-xs text-muted-foreground leading-tight">Gestionnaire</span>
+                {teamName && (
+                  <span className="text-xs text-muted-foreground/60 leading-tight truncate">{teamName}</span>
+                )}
               </div>
             )}
           </Link>

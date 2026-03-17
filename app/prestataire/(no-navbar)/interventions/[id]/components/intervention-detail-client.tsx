@@ -868,7 +868,6 @@ export function PrestataireInterventionDetailClient({
             autoOpenComplete={autoOpenComplete}
           />
         }
-        hasGlobalNav={false}
       />
 
       {/* Banner for child interventions (linked from parent) */}

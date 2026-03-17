@@ -112,14 +112,13 @@ export function ComposeEmailModal({
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erreur lors de l\'envoi'
-      console.error('Compose send error:', error)
       toast.error(message)
     } finally {
       setIsSending(false)
     }
   }, [isValid, connectionId, to, ccAddresses, subject, body, onOpenChange, onEmailSent])
 
-  const title = 'Nouveau message'
+  const title = 'Nouvel email'
 
   return (
     <UnifiedModal open={open} onOpenChange={onOpenChange} size="lg">

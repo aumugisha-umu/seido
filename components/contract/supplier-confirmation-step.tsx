@@ -5,7 +5,7 @@
  * Uses reusable confirmation components for consistent layout.
  */
 
-import { Building2, Home, FileText, Paperclip, Eye } from 'lucide-react'
+import { Building2, Home, FileText, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
   ConfirmationPageShell,
@@ -13,9 +13,12 @@ import {
   ConfirmationSection,
   ConfirmationKeyValueGrid,
   ConfirmationFinancialHighlight,
+  ConfirmationDocumentList,
 } from '@/components/confirmation'
 import type { SupplierContractFormItem } from '@/lib/types/supplier-contract.types'
 import { COST_FREQUENCY_OPTIONS } from '@/lib/types/supplier-contract.types'
+import type { ScheduledInterventionData } from '@/components/contract/intervention-schedule-row'
+import { format } from 'date-fns'
 
 interface Contact {
   id: string
@@ -30,6 +33,7 @@ interface SupplierConfirmationStepProps {
   buildingName?: string
   lotReference?: string
   contacts: Contact[]
+  scheduledInterventions?: ScheduledInterventionData[]
 }
 
 export function SupplierConfirmationStep({
@@ -37,6 +41,7 @@ export function SupplierConfirmationStep({
   buildingName,
   lotReference,
   contacts,
+  scheduledInterventions = [],
 }: SupplierConfirmationStepProps) {
   const getSupplierName = (supplierId: string | null) => {
     if (!supplierId) return 'Non assigne'
@@ -149,34 +154,54 @@ export function SupplierConfirmationStep({
           </ConfirmationSection>
 
           {contract.files.length > 0 && (
-            <div className="flex items-start gap-2 text-sm">
-              <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <span className="font-medium">
-                  {contract.files.length} piece{contract.files.length > 1 ? 's' : ''} jointe{contract.files.length > 1 ? 's' : ''}
-                </span>
-                {contract.files.map((file, fi) => {
-                  const previewUrl = URL.createObjectURL(file)
-                  return (
-                    <div key={fi} className="flex items-center gap-1.5 group">
-                      <p className="text-xs text-muted-foreground truncate flex-1">{file.name}</p>
-                      <a
-                        href={previewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 p-0.5 rounded text-muted-foreground/50 hover:text-primary hover:bg-primary/10 transition-colors"
-                        title={`Apercu : ${file.name}`}
-                      >
-                        <Eye className="h-3 w-3" />
-                      </a>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+            <ConfirmationDocumentList
+              slots={contract.files.map((f) => ({
+                label: f.name,
+                fileCount: 1,
+                fileNames: [{ name: f.name, url: URL.createObjectURL(f) }],
+                recommended: false,
+              }))}
+            />
           )}
         </div>
       ))}
+
+      {scheduledInterventions.length > 0 && (() => {
+        const enabledInterventions = scheduledInterventions.filter(i => i.enabled)
+        const disabledCount = scheduledInterventions.length - enabledInterventions.length
+        return (
+          <ConfirmationSection title="Interventions planifiees">
+            {enabledInterventions.length > 0 ? (
+              <div className="space-y-2">
+                {enabledInterventions.map((intervention) => (
+                  <div key={intervention.key} className="flex items-start gap-2 text-sm">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium">{intervention.title}</span>
+                      <span className="text-muted-foreground">
+                        - {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '\u2014'}
+                      </span>
+                      {intervention.assignedUsers.length > 0 && (
+                        <span className="text-muted-foreground text-xs">
+                          ({intervention.assignedUsers.length} intervenant{intervention.assignedUsers.length > 1 ? 's' : ''})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {disabledCount > 0 && (
+                  <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{disabledCount} intervention(s) desactivee(s)</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Aucune intervention activee</p>
+            )}
+          </ConfirmationSection>
+        )
+      })()}
 
       <ConfirmationFinancialHighlight
         title="Recapitulatif"

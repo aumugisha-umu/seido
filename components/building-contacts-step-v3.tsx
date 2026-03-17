@@ -73,7 +73,7 @@ interface BuildingContactsStepV3Props {
   /** Optional: per-lot document upload hooks (map of lotId → hook return) */
   lotDocUploads?: { [lotId: string]: UsePropertyDocumentUploadReturn }
   /** Existing building documents (read-only display) */
-  existingBuildingDocs?: Array<{ id: string; document_type: string; original_filename: string; uploaded_at: string }>
+  existingBuildingDocs?: Array<{ id: string; document_type: string; original_filename: string; uploaded_at: string; storage_path: string }>
 }
 
 /**

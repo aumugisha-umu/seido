@@ -140,6 +140,8 @@ export default function LotCreationForm({
   const [currentStep, setCurrentStepState] = useState(1)
   const [maxStepReached, setMaxStepReached] = useState(1)
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+
   // Wrapper pour setCurrentStep qui met aussi à jour maxStepReached
   const setCurrentStep = (step: number) => {
     const clampedStep = Math.max(1, Math.min(step, 5)) // 5 étapes total (Immeuble, Lot, Contacts&Docs, Interventions, Confirmation)
@@ -147,6 +149,8 @@ export default function LotCreationForm({
     if (clampedStep > maxStepReached) {
       setMaxStepReached(clampedStep)
     }
+    // Scroll to top on step change
+    scrollContainerRef.current?.scrollTo({ top: 0 })
   }
 
   // Handler pour le clic sur une étape dans le header
@@ -301,6 +305,7 @@ export default function LotCreationForm({
     document_type: string
     original_filename: string
     uploaded_at: string
+    storage_path: string
   }>>([])
 
   // Form persistence for contact creation redirect
@@ -365,7 +370,7 @@ export default function LotCreationForm({
           id: contactData.id,
           name: contactData.name,
           email: contactData.email || '',
-          role: contactType || 'autre',
+          role: contactType || 'prestataire',
         }]
       }))
       toast.success(`${contactData.name} ajouté automatiquement !`)
@@ -1359,6 +1364,12 @@ export default function LotCreationForm({
 
         await Promise.allSettled(allPostCreationPromises)
 
+        if (successfulCreations.length === 0) {
+          toast.error("Erreur", { description: "Aucun lot n'a pu être créé." })
+          setIsSubmitting(false)
+          return
+        }
+
         // Succès - Rediriger vers la page de l'immeuble (navigation immédiate)
         toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's créés' : ' créé'} avec succès`, { description: `Les lots ont été créés et assignés à l'immeuble.` })
         realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
@@ -1540,6 +1551,12 @@ export default function LotCreationForm({
         }
 
         await Promise.allSettled(allIndependentPostCreationPromises)
+
+        if (successfulCreations.length === 0) {
+          toast.error("Erreur", { description: "Aucun lot n'a pu être créé." })
+          setIsSubmitting(false)
+          return
+        }
 
         // Succès - Rediriger vers la page des biens (navigation immédiate)
         toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
@@ -1726,6 +1743,12 @@ export default function LotCreationForm({
         // Pour les lots liés à un immeuble existant, vérifier qu'au moins un lot est configuré
         return lots.length > 0
       }
+    }
+    if (currentStep === 4) {
+      const hasEmptyCustomTitle = scheduledInterventions.some(
+        i => i.key.startsWith('custom_') && i.enabled && !i.title.trim()
+      )
+      return !hasEmptyCustomTitle
     }
     return true
   }
@@ -2406,6 +2429,8 @@ export default function LotCreationForm({
           lotDocSlots={Object.fromEntries(
             Object.entries(lotDocUploads).map(([lotId, upload]) => [lotId, upload.slots])
           )}
+          buildingInterventions={scheduledInterventions}
+          existingBuildingDocs={existingBuildingDocs}
         />
       )
     }
@@ -2629,7 +2654,7 @@ export default function LotCreationForm({
       {/* GoogleMapsProvider wraps all steps to prevent "Rendered fewer hooks" error */}
       {/* (Moving it inside renderStep2 causes hook count changes when switching modes) */}
       <GoogleMapsProvider>
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-6 pb-20">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-6 pb-20">
           <main className="content-max-width pb-8">
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}

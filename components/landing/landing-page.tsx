@@ -161,7 +161,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             </div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                <span className="landing-caption text-white/80">Toute la gestion immobilière</span>
+                                <span className="landing-caption text-white/80">Portail locataires et prestataires</span>
                             </div>
                         </div>
                     </div>

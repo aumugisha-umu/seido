@@ -397,7 +397,7 @@ export function createEmptyCustomIntervention(
     interventionTypeCode: 'autre',
     icon: 'PenLine',
     colorClass: 'text-indigo-500',
-    enabled: false,
+    enabled: true,
     scheduledDate: addDays(new Date(), 7),
     isAutoCalculated: true,
     availableOptions: CUSTOM_INTERVENTION_SCHEDULING_OPTIONS,

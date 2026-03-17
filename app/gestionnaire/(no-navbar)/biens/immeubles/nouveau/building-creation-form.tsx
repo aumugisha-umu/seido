@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import { useRealtimeOptional } from "@/contexts/realtime-context"
-import type { User, Team, Contact } from "@/lib/services/core/service-types"
+import type { User, Team } from "@/lib/services/core/service-types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -173,12 +173,10 @@ export default function NewImmeubleePage({
     description: "",
   })
   const [lots, setLots] = useState<Lot[]>([])
-  const [contacts, setContacts] = useState<Contact[]>([])
   // Contacts assignes au niveau de l'immeuble (format pour ContactSelector)
   const [buildingContacts, setBuildingContacts] = useState<{[contactType: string]: Contact[]}>({
     tenant: [],
     provider: [],
-    owner: [],
     other: [],
   })
   const [buildingManagers, setBuildingManagers] = useState<User[]>([]) // gestionnaires de l'immeuble
@@ -641,11 +639,6 @@ export default function NewImmeubleePage({
       [contactType]: [...prev[contactType], contact],
     }))
     }
-    
-    // Ajouter aussi a la liste globale des contacts si pas deja present
-    if (!contacts.some(c => c.id === contact.id)) {
-      setContacts([...contacts, contact])
-    }
   }
 
   const handleBuildingContactRemove = (contactId: string, contactType: string) => {
@@ -653,17 +646,6 @@ export default function NewImmeubleePage({
       ...prev,
       [contactType]: prev[contactType].filter(contact => contact.id !== contactId),
     }))
-    
-    // Retirer aussi de la liste globale des contacts si plus utilise
-    const isContactUsedElsewhere = Object.entries(buildingContacts).some(([type, contactsArray]) => 
-      type !== contactType && contactsArray.some(c => c.id === contactId)
-    ) || Object.values(lotContactAssignments).some(assignments => 
-      Object.values(assignments).some(contactsArray => contactsArray.some(c => c.id === contactId))
-    )
-    
-    if (!isContactUsedElsewhere) {
-      setContacts(contacts.filter(c => c.id !== contactId))
-    }
   }
 
   // Fonction pour ouvrir le ContactSelector avec un type specifique (pour les boutons individuels)
@@ -676,20 +658,7 @@ export default function NewImmeubleePage({
     }
   }
 
-  // [SUPPRIME] addContact maintenant gere dans ContactSelector
-
-  const _removeContact = (_id: string) => {
-    setContacts(contacts.filter((contact) => contact.id !== _id))
-
-    // Aussi retirer ce contact de toutes les assignations de lots
-    const newLotContactAssignments = { ...lotContactAssignments }
-    Object.keys(newLotContactAssignments).forEach(lotId => {
-      Object.keys(newLotContactAssignments[lotId]).forEach(contactType => {
-        newLotContactAssignments[lotId][contactType] = newLotContactAssignments[lotId][contactType].filter(c => c.id !== _id)
-      })
-    })
-    setLotContactAssignments(newLotContactAssignments)
-  }
+  // [SUPPRIME] addContact et _removeContact — contacts geres via buildingContacts et lotContactAssignments
 
   // Fonction pour assigner un contact a un lot specifique
   // const _assignContactToLot = (lotId: string, contactType: string, contact: Contact) => {
@@ -754,7 +723,10 @@ export default function NewImmeubleePage({
       return true // L'assignation des contacts est optionnelle
     }
     if (currentStep === 4) {
-      return true // Les interventions sont optionnelles
+      const hasEmptyCustomTitle = scheduledInterventions.some(
+        i => i.key.startsWith('custom_') && i.enabled && !i.title.trim()
+      )
+      return !hasEmptyCustomTitle
     }
     return true
   }
@@ -819,7 +791,7 @@ export default function NewImmeubleePage({
 
       // ✅ Preparer les building_contacts (contacts de l'immeuble)
       const contactsData = [
-        // Contacts de l'immeuble (provider, owner, other)
+        // Contacts de l'immeuble (provider, other)
         ...Object.entries(buildingContacts).flatMap(([contactType, contactArray]) =>
           contactArray
             .filter(contact => contact.id) // ✅ Filtrer les contacts sans ID valide
@@ -900,11 +872,18 @@ export default function NewImmeubleePage({
         )
       }
 
-      // Per-lot docs — all in parallel
+      // Per-lot docs — all in parallel (match by reference, not array index)
       for (let i = 0; i < lots.length; i++) {
         const tempLotId = lots[i].id
-        const realLotId = result.data.lots[i]?.id
-        if (realLotId && lotDocUploads[tempLotId]?.hasFiles) {
+        const realLot = result.data.lots.find((rl: { reference?: string }) => rl.reference === lots[i].reference)
+        const realLotId = realLot?.id
+        if (!realLotId) {
+          if (lotDocUploads[tempLotId]?.hasFiles) {
+            logger.warn(`[BUILDING-CREATION] No matching server lot for client lot ${lots[i].reference} — skipping doc upload`)
+          }
+          continue
+        }
+        if (lotDocUploads[tempLotId]?.hasFiles) {
           allPostCreationPromises.push(
             uploadLotDocs(tempLotId, realLotId, userTeam!.id)
               .then(() => logger.info(`✅ Lot documents uploaded for lot ${realLotId}`))
@@ -937,11 +916,18 @@ export default function NewImmeubleePage({
           )
         }
 
-        // Per-lot interventions — flattened into the same batch
+        // Per-lot interventions — flattened into the same batch (match by reference, not array index)
         for (let i = 0; i < lots.length; i++) {
           const tempLotId = lots[i].id
-          const realLotId = result.data.lots[i]?.id
-          if (!realLotId) continue
+          const realLot = result.data.lots.find((rl: { reference?: string }) => rl.reference === lots[i].reference)
+          const realLotId = realLot?.id
+          if (!realLotId) {
+            const lotIntervs = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
+            if (lotIntervs.length > 0) {
+              logger.warn(`[BUILDING-CREATION] No matching server lot for client lot ${lots[i].reference} — skipping ${lotIntervs.length} intervention(s)`)
+            }
+            continue
+          }
 
           const lotIntervs = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
           for (const intervention of lotIntervs) {

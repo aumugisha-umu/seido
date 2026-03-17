@@ -115,6 +115,7 @@ export async function POST(request: Request) {
           'locataire': { role: 'locataire', provider_category: null },
           'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
           'proprietaire': { role: 'proprietaire', provider_category: null },
+          'garant': { role: 'prestataire', provider_category: 'autre' },
           'autre': { role: 'prestataire', provider_category: 'autre' }
         }
 
@@ -691,7 +692,7 @@ export async function POST(request: Request) {
         // Liaison à un contrat
         if (linkedEntityType === 'contract' && linkedContractId) {
           // Mapper le rôle du contact vers le rôle contrat
-          const contractRole = validUserRole === 'locataire' ? 'locataire' : 'autre'
+          const contractRole = role === 'garant' ? 'garant' : validUserRole === 'locataire' ? 'locataire' : 'autre'
 
           const { error: contractLinkError } = await supabaseAdmin
             .from('contract_contacts')

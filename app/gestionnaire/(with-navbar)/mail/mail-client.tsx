@@ -20,13 +20,14 @@ import { toast } from 'sonner'
 import { extractTextFromHtml } from '@/lib/templates/email-pdf-template'
 import { Button } from '@/components/ui/button'
 import { PageActions } from "@/components/page-actions"
-import { Plus, RefreshCw, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, RefreshCw, X, ChevronLeft, ChevronRight, Mail } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
 import { LinkedEmail, EmailLinkWithDetails } from '@/lib/types/email-links'
 import { MailboxEmail, Building, Lot, generateConversationId, extractSenderName, extractEmailAddress } from './components/types'
-import { ComposeEmailModal } from './components/compose-email-modal'
+import { EmailConnectionPrompt } from '@/components/email/email-connection-prompt'
+import { useComposeEmail } from '@/contexts/compose-email-context'
 import { useRealtimeEmailsV2 } from '@/hooks/use-realtime-emails-v2'
 import { useEmailPolling } from '@/hooks/use-email-polling'
 
@@ -206,6 +207,7 @@ export function MailClient({
   initialTotalEmails
 }: MailClientProps) {
   const router = useRouter()
+  const { openCompose } = useComposeEmail()
 
   // Core state (initialized with SSR data)
   const [currentFolder, setCurrentFolder] = useState('inbox')
@@ -230,8 +232,6 @@ export function MailClient({
   // Collapse state for email list column
   const [isEmailListCollapsed, setIsEmailListCollapsed] = useState(false)
 
-  // Compose modal
-  const [composeOpen, setComposeOpen] = useState(false)
   // Loading state for full email body fetch (shows skeleton in EmailDetail)
   const [loadingEmailBodyId, setLoadingEmailBodyId] = useState<string | null>(null)
 
@@ -861,13 +861,32 @@ export function MailClient({
     setCounts(prev => adjustCounts(prev, 'replySent', currentFolder))
   }, [fetchFullEmail, currentFolder])
 
-  const handleCompose = useCallback(() => {
-    setComposeOpen(true)
-  }, [])
-
   // ============================================================================
   // RENDER
   // ============================================================================
+
+  // emailConnections is pre-filtered (is_active=true) by SSR
+  const hasActiveConnections = emailConnections.length > 0
+
+  // Full takeover: show connection prompt when no email connected
+  if (!hasActiveConnections) {
+    return (
+      <div className="h-full flex items-center justify-center p-6">
+        <div className="max-w-lg w-full bg-card rounded-lg border border-border shadow-sm p-8">
+          <div className="text-center mb-8">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <Mail className="h-7 w-7 text-primary" />
+            </div>
+            <h2 className="text-2xl font-semibold tracking-tight">Connectez votre email</h2>
+            <p className="text-muted-foreground mt-2">
+              Synchronisez et envoyez des messages directement depuis SEIDO
+            </p>
+          </div>
+          <EmailConnectionPrompt onSuccess={() => router.refresh()} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-full flex flex-col overflow-hidden layout-container">
@@ -875,7 +894,7 @@ export function MailClient({
         <Button variant="outline" onClick={handleSync} disabled={isLoading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />Synchroniser
         </Button>
-        <Button onClick={handleCompose} className="w-fit">
+        <Button onClick={openCompose} className="w-fit">
           <Plus className="h-4 w-4 mr-2" /><span>Rédiger</span>
         </Button>
       </PageActions>
@@ -976,13 +995,6 @@ export function MailClient({
         </div>
       </div>
 
-      {/* Compose Modal */}
-      <ComposeEmailModal
-        open={composeOpen}
-        onOpenChange={setComposeOpen}
-        emailConnections={emailConnections}
-        onEmailSent={handleReplySent}
-      />
     </div>
   )
 }

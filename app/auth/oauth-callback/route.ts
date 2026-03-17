@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerActionSupabaseClient } from '@/lib/services/core/supabase-client'
+import { checkBetaAccess } from '@/lib/beta-access'
 import { logger } from '@/lib/logger'
 
 /**
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest) {
     // Vérifier si un profil utilisateur existe déjà
     const { data: profile, error: profileError } = await supabase
       .from('users')
-      .select('id, role, name')
+      .select('id, role, name, team_id')
       .eq('auth_user_id', data.user.id)
       .single()
 
@@ -98,12 +99,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (profile) {
-      // Utilisateur existant - rediriger vers le dashboard
       logger.info('[OAUTH-CALLBACK] Existing profile found', {
         userId: profile.id,
-        role: profile.role
+        role: profile.role,
+        hasTeam: !!profile.team_id
       })
 
+      // Partial profile (no team) → complete profile first
+      if (!profile.team_id) {
+        logger.info('[OAUTH-CALLBACK] Partial profile (no team), redirecting to complete-profile')
+        return NextResponse.redirect(new URL('/auth/complete-profile', origin))
+      }
+
+      // Full profile → dashboard
       const dashboardPath = `/${profile.role}/dashboard`
       const destination = validateNextParameter(next, origin)
         ? next
@@ -112,7 +120,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(destination!, origin))
     }
 
-    // Nouvel utilisateur OAuth - rediriger vers la page de complétion du profil
+    // New OAuth user — check invite-only gate before allowing profile creation
+    const hasBetaAccess = await checkBetaAccess()
+    if (!hasBetaAccess) {
+      logger.warn('[OAUTH-CALLBACK] New user blocked by invite-only gate', {
+        email: data.user.email
+      })
+      // Sign out the auth-only user to prevent orphan sessions
+      await supabase.auth.signOut()
+      return NextResponse.redirect(
+        new URL(
+          '/auth/login?error=invite_only&message=' +
+            encodeURIComponent('L\'accès à SEIDO se fait actuellement sur invitation. Demandez votre accès sur la page d\'inscription.'),
+          origin
+        )
+      )
+    }
+
     logger.info('[OAUTH-CALLBACK] No profile found, redirecting to complete-profile')
     return NextResponse.redirect(new URL('/auth/complete-profile', origin))
 

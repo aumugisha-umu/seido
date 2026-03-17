@@ -111,7 +111,7 @@ export function ContactsPageClient({
   user
 }: ContactsPageClientProps) {
   const router = useRouter()
-  const { isReadOnly } = useSubscription()
+  const { isReadOnly, loading: subscriptionLoading } = useSubscription()
 
   // État local initialisé avec les props
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
@@ -386,10 +386,10 @@ export function ContactsPageClient({
     <div className="h-full flex flex-col overflow-hidden layout-container">
       <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
         <PageActions>
-          <Button variant="outline" className="flex items-center space-x-2" disabled={isReadOnly} onClick={() => router.push('/gestionnaire/import')}>
+          <Button variant="outline" className="flex items-center space-x-2" disabled={!subscriptionLoading && isReadOnly} onClick={() => router.push('/gestionnaire/import')}>
             <Upload className="h-4 w-4" /><span>Importer</span>
           </Button>
-          <Button className="flex items-center space-x-2" disabled={isReadOnly} title={isReadOnly ? 'Activez votre abonnement' : undefined} onClick={() => router.push('/gestionnaire/contacts/nouveau')}>
+          <Button className="flex items-center space-x-2" disabled={!subscriptionLoading && isReadOnly} title={isReadOnly ? 'Activez votre abonnement' : undefined} onClick={() => router.push('/gestionnaire/contacts/nouveau')}>
             <Plus className="h-4 w-4" /><span>Nouveau contact</span>
           </Button>
         </PageActions>
@@ -407,7 +407,7 @@ export function ContactsPageClient({
           <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Content wrapper avec padding */}
             <div className="flex-1 flex flex-col min-h-0 p-4">
-              <BlockedListOverlay isBlocked={isReadOnly}>
+              <BlockedListOverlay isBlocked={!subscriptionLoading && isReadOnly}>
               <ContactsNavigator
                 contacts={contactsWithInvitationStatus as any}
                 invitations={invitations as any}

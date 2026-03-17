@@ -33,7 +33,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   const [isRefreshing, setIsRefreshing] = useState(false)
   const previousDataHashRef = useRef<string>('')
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
-  const { canAddProperty, isReadOnly, status, refresh: refreshSubscription } = useSubscription()
+  const { canAddProperty, isReadOnly, status, loading: subscriptionLoading, refresh: refreshSubscription } = useSubscription()
 
   // ✅ Accessible lot IDs (null = all accessible, string[] = only these are accessible)
   const [accessibleLotIds, setAccessibleLotIds] = useState<string[] | null>(null)
@@ -160,6 +160,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
             className="flex items-center space-x-2"
             disabled={isReadOnly}
             onClick={() => {
+              if (subscriptionLoading) { router.push('/gestionnaire/biens/lots/nouveau'); return }
               if (!canAddProperty) { setUpgradeModalOpen(true); return }
               router.push('/gestionnaire/biens/lots/nouveau')
             }}
@@ -170,6 +171,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
             className="flex items-center space-x-2"
             disabled={isReadOnly}
             onClick={() => {
+              if (subscriptionLoading) { router.push('/gestionnaire/biens/immeubles/nouveau'); return }
               if (!canAddProperty) { setUpgradeModalOpen(true); return }
               router.push('/gestionnaire/biens/immeubles/nouveau')
             }}
@@ -206,7 +208,8 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
         <UpgradeModal
           open={upgradeModalOpen}
           onOpenChange={setUpgradeModalOpen}
-          currentLots={status?.actual_lots ?? lots.length}
+          currentLots={status?.actual_lots ?? 0}
+          subscribedLots={status?.subscribed_lots}
           onUpgradeComplete={() => { refreshSubscription(); handleRefresh() }}
         />
       </div>

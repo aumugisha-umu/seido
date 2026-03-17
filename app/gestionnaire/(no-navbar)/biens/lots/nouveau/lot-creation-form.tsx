@@ -27,7 +27,7 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 import { createLotService, createContactInvitationService } from "@/lib/services"
 import type { Team, User as UserType, Contact } from "@/lib/services/core/service-types"
 import { toast } from "sonner"
-import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction, getBuildingExistingDocuments } from "./actions"
+import { batchAssignContactsToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction, getBuildingExistingDocuments } from "./actions"
 
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -600,7 +600,7 @@ export default function LotCreationForm({
           buildingName: building.name,
           buildingContactsType: typeof building.building_contacts,
           buildingContactsIsArray: Array.isArray(building.building_contacts),
-          buildingContactsLength: (building.building_contacts as any)?.length,
+          buildingContactsLength: (building as { building_contacts?: unknown[] }).building_contacts?.length,
           buildingContactsRaw: building.building_contacts
         })
 
@@ -1235,14 +1235,43 @@ export default function LotCreationForm({
           })
         })
       )
-      const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as any)?.success).length
+      const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean })?.success).length
       logger.info({ successCount, total: results.length, lotId }, 'Lot interventions created')
     } catch (err) {
       logger.error('⚠️ Intervention creation failed (lot created successfully):', err)
     }
   }
 
+  /**
+   * Batch assign managers + contacts to a created lot via single server action
+   * Replaces N individual assignContactToLotAction calls with 1 batchAssignContactsToLotAction call
+   */
+  const batchAssignContactsToLot = async (
+    createdLotId: string,
+    managers: Array<{ id: string; name: string }>,
+    contactsByType: Record<string, Contact[]>
+  ) => {
+    const assignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
+
+    // Add manager assignments
+    managers.forEach((manager, index) => {
+      assignments.push({ lotId: createdLotId, userId: manager.id, isPrimary: index === 0 })
+    })
+
+    // Add contact assignments
+    Object.values(contactsByType).forEach(contacts => {
+      contacts.forEach((contact, index) => {
+        assignments.push({ lotId: createdLotId, userId: contact.id, isPrimary: index === 0 })
+      })
+    })
+
+    if (assignments.length === 0) return
+
+    await batchAssignContactsToLotAction(assignments)
+  }
+
   const handleFinish = async () => {
+    if (isSubmitting) return // Double-submission guard
     setIsSubmitting(true)
     try {
       if (!userProfile?.id) {
@@ -1262,8 +1291,8 @@ export default function LotCreationForm({
       try {
         logger.info(`🚀 Creating ${lots.length} lots for building:`, lotData.selectedBuilding)
 
-        // Créer tous les lots en parallèle
-        const lotCreationPromises = lots.map(async (lot) => {
+        // Créer tous les lots en parallèle (1st lot checks subscription, rest skip)
+        const lotCreationPromises = lots.map(async (lot, lotIndex) => {
           try {
             const lotDataToCreate = {
               reference: lot.reference,
@@ -1275,7 +1304,9 @@ export default function LotCreationForm({
               team_id: userTeam.id,
             }
 
-            const result = await createLotAction(lotDataToCreate)
+            const result = await createLotAction(lotDataToCreate, {
+              skipSubscriptionCheck: lotIndex > 0, // Only 1st lot checks subscription
+            })
 
             if (!result.success || !result.data) {
               logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
@@ -1290,57 +1321,28 @@ export default function LotCreationForm({
         })
 
         const creationResults = await Promise.all(lotCreationPromises)
-        const successfulCreations = creationResults.filter(result => result !== null) as Array<{lot: typeof lots[0], createdLot: any}>
+        const successfulCreations = creationResults.filter((r): r is NonNullable<typeof r> => r !== null)
 
         logger.info(`✅ Created ${successfulCreations.length}/${lots.length} lots`)
 
-        // Assigner les contacts et managers à chaque lot créé
+        // Batch assign all contacts + managers across ALL lots in a single server action
+        const allAssignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
         for (const { lot, createdLot } of successfulCreations) {
-          // Assigner les managers spécifiques du lot
           const lotManagers = assignedManagersByLot[lot.id] || []
-          if (lotManagers.length > 0) {
-            logger.info(`👥 Assigning ${lotManagers.length} managers to lot ${lot.reference}`)
+          lotManagers.forEach((manager, index) => {
+            allAssignments.push({ lotId: createdLot.id, userId: manager.id, isPrimary: index === 0 })
+          })
 
-            const managerPromises = lotManagers.map(async (manager, index) => {
-              try {
-                return await assignContactToLotAction(
-                  createdLot.id,
-                  manager.id,
-                  index === 0 // Premier = principal
-                )
-              } catch (error) {
-                logger.error(`❌ Error assigning manager ${manager.name}:`, error)
-                return null
-              }
-            })
-
-            await Promise.all(managerPromises)
-          }
-
-          // Assigner les contacts du lot
           const lotContacts = lotContactAssignments[lot.id] || {}
-          const totalContacts = Object.values(lotContacts).flat().length
+          Object.values(lotContacts).forEach(contacts => {
+            contacts.forEach((contact: Contact, index: number) => {
+              allAssignments.push({ lotId: createdLot.id, userId: contact.id, isPrimary: index === 0 })
+            })
+          })
+        }
 
-          if (totalContacts > 0) {
-            logger.info(`📞 Assigning ${totalContacts} contacts to lot ${lot.reference}`)
-
-            const contactPromises = Object.entries(lotContacts).flatMap(([contactType, contacts]) =>
-              contacts.map(async (contact: any, index: number) => {
-                try {
-                  return await assignContactToLotAction(
-                    createdLot.id,
-                    contact.id,
-                    index === 0 // Premier de chaque type = principal
-                  )
-                } catch (error) {
-                  logger.error(`❌ Error assigning contact ${contact.name}:`, error)
-                  return null
-                }
-              })
-            )
-
-            await Promise.all(contactPromises)
-          }
+        if (allAssignments.length > 0) {
+          await batchAssignContactsToLotAction(allAssignments)
         }
 
         // Create interventions + upload documents for ALL lots in parallel
@@ -1411,7 +1413,7 @@ export default function LotCreationForm({
         }
 
         // Créer tous les lots en parallèle (TOUJOURS créer adresse dans table centralisée)
-        const lotCreationPromises = independentLots.map(async (lot) => {
+        const lotCreationPromises = independentLots.map(async (lot, lotIndex) => {
           try {
             let addressId: string | null = null
 
@@ -1463,7 +1465,9 @@ export default function LotCreationForm({
               team_id: userTeam.id,
             }
 
-            const result = await createLotAction(lotDataToCreate)
+            const result = await createLotAction(lotDataToCreate, {
+              skipSubscriptionCheck: lotIndex > 0, // Only 1st lot checks subscription
+            })
 
             if (!result.success || !result.data) {
               logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
@@ -1478,57 +1482,28 @@ export default function LotCreationForm({
         })
 
         const creationResults = await Promise.all(lotCreationPromises)
-        const successfulCreations = creationResults.filter(result => result !== null) as Array<{lot: IndependentLot, createdLot: any}>
+        const successfulCreations = creationResults.filter((r): r is NonNullable<typeof r> => r !== null)
 
         logger.info(`✅ Created ${successfulCreations.length}/${independentLots.length} independent lots`)
 
-        // Assigner les contacts et managers à chaque lot créé
+        // Batch assign all contacts + managers across ALL lots in a single server action
+        const allIndependentAssignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
         for (const { lot, createdLot } of successfulCreations) {
-          // Assigner les managers spécifiques du lot
           const lotManagers = assignedManagersByLot[lot.id] || []
-          if (lotManagers.length > 0) {
-            logger.info(`👥 Assigning ${lotManagers.length} managers to lot ${lot.reference}`)
+          lotManagers.forEach((manager, index) => {
+            allIndependentAssignments.push({ lotId: createdLot.id, userId: manager.id, isPrimary: index === 0 })
+          })
 
-            const managerPromises = lotManagers.map(async (manager, index) => {
-              try {
-                return await assignContactToLotAction(
-                  createdLot.id,
-                  manager.id,
-                  index === 0 // Premier = principal
-                )
-              } catch (error) {
-                logger.error(`❌ Error assigning manager ${manager.name}:`, error)
-                return null
-              }
-            })
-
-            await Promise.all(managerPromises)
-          }
-
-          // Assigner les contacts du lot
           const lotContacts = lotContactAssignments[lot.id] || {}
-          const totalContacts = Object.values(lotContacts).flat().length
+          Object.values(lotContacts).forEach(contacts => {
+            contacts.forEach((contact: Contact, index: number) => {
+              allIndependentAssignments.push({ lotId: createdLot.id, userId: contact.id, isPrimary: index === 0 })
+            })
+          })
+        }
 
-          if (totalContacts > 0) {
-            logger.info(`📞 Assigning ${totalContacts} contacts to lot ${lot.reference}`)
-
-            const contactPromises = Object.entries(lotContacts).flatMap(([contactType, contacts]) =>
-              contacts.map(async (contact: any, index: number) => {
-                try {
-                  return await assignContactToLotAction(
-                    createdLot.id,
-                    contact.id,
-                    index === 0 // Premier de chaque type = principal
-                  )
-                } catch (error) {
-                  logger.error(`❌ Error assigning contact ${contact.name}:`, error)
-                  return null
-                }
-              })
-            )
-
-            await Promise.all(contactPromises)
-          }
+        if (allIndependentAssignments.length > 0) {
+          await batchAssignContactsToLotAction(allIndependentAssignments)
         }
 
         // Create interventions + upload documents for ALL lots in parallel
@@ -1615,69 +1590,12 @@ export default function LotCreationForm({
       const createdLot = result.data
       logger.info("✅ Lot created successfully:", createdLot)
 
-      // Assigner les gestionnaires au lot via lot_contacts si des gestionnaires ont été sélectionnés
-      if (lotData.assignedLotManagers && lotData.assignedLotManagers.length > 0) {
-        logger.info("👥 Assigning managers to lot via lot_contacts:", lotData.assignedLotManagers)
-        
-        // Assigner tous les gestionnaires via lot_contacts
-        const managerAssignmentPromises = lotData.assignedLotManagers.map(async (manager, index) => {
-          try {
-            const isPrincipal = index === 0
-            logger.info(`📝 Assigning manager ${manager.name} (${manager.id}) to lot ${createdLot.id} as ${isPrincipal ? 'principal' : 'additional'}`)
-            return await assignContactToLotAction(
-              createdLot.id,
-              manager.id,
-              isPrincipal // Le premier est principal, les autres sont additionnels
-            )
-          } catch (error) {
-            logger.error(`❌ Error assigning manager ${manager.name} to lot:`, error)
-            return null
-          }
-        })
-
-        const assignmentResults = await Promise.all(managerAssignmentPromises)
-        const successfulAssignments = assignmentResults.filter((result: unknown) => result !== null)
-        
-        logger.info("✅ Manager assignments completed:", {
-          total: lotData.assignedLotManagers.length,
-          successful: successfulAssignments.length,
-          principalManager: lotData.assignedLotManagers[0].name,
-          additionalManagers: successfulAssignments.length - 1
-        })
-      }
-
-      // Assigner les contacts sélectionnés au lot
-      const totalContacts = Object.values(lotData.assignedContacts).flat().length
-      if (totalContacts > 0) {
-        logger.info("👥 Assigning selected contacts to lot:", totalContacts, "contacts")
-        
-        // Créer les promesses d'assignation pour tous les types de contacts
-        const contactAssignmentPromises = Object.entries(lotData.assignedContacts).flatMap(([contactType, contacts]) => 
-          contacts.map(async (contact, index) => {
-            try {
-              const isPrimary = index === 0 // Le premier contact de chaque type est principal
-              logger.info(`📝 Assigning ${contactType} contact ${contact.name} (${contact.id}) to lot ${createdLot.id}`)
-              return await assignContactToLotAction(
-                createdLot.id,
-                contact.id,
-                isPrimary
-              )
-            } catch (error) {
-              logger.error(`❌ Error assigning ${contactType} contact ${contact.name} to lot:`, error)
-              return null
-            }
-          })
-        )
-
-        const contactAssignmentResults = await Promise.all(contactAssignmentPromises)
-        const successfulContactAssignments = contactAssignmentResults.filter((result: unknown) => result !== null)
-        
-        logger.info("✅ Contact assignments completed:", {
-          total: totalContacts,
-          successful: successfulContactAssignments.length,
-          failed: totalContacts - successfulContactAssignments.length
-        })
-      }
+      // Batch assign managers + contacts in a single server action call
+      await batchAssignContactsToLot(
+        createdLot.id,
+        lotData.assignedLotManagers || [],
+        lotData.assignedContacts || {}
+      )
 
       // Upload documents + create interventions in parallel
       const singleLotPostCreation: Promise<unknown>[] = []

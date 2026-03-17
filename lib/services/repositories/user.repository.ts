@@ -43,7 +43,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
     }
 
     if ('role' in data && data.role) {
-      validateEnum(data.role, ['admin', 'gestionnaire', 'prestataire', 'locataire', 'proprietaire'] as const, 'role')
+      validateEnum(data.role, ['admin', 'gestionnaire', 'prestataire', 'locataire', 'proprietaire', 'garant'] as const, 'role')
     }
 
     // For insert, validate required fields

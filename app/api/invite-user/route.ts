@@ -115,7 +115,7 @@ export async function POST(request: Request) {
           'locataire': { role: 'locataire', provider_category: null },
           'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
           'proprietaire': { role: 'proprietaire', provider_category: null },
-          'garant': { role: 'prestataire', provider_category: 'autre' },
+          'garant': { role: 'garant', provider_category: null },
           'autre': { role: 'prestataire', provider_category: 'autre' }
         }
 

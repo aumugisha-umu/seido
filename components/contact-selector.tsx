@@ -393,6 +393,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
           case 'gestionnaire': return 'manager'
           case 'locataire': return 'tenant'
           case 'prestataire': return 'provider'
+          case 'garant': return 'guarantor'
           case 'admin': return 'admin'
           default: return contact.role
         }
@@ -670,6 +671,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
               {selectedContactType === 'manager' && <Users className="w-5 h-5" />}
               {selectedContactType === 'tenant' && <User className="w-5 h-5" />}
               {selectedContactType === 'provider' && <Briefcase className="w-5 h-5" />}
+              {selectedContactType === 'guarantor' && <Shield className="w-5 h-5" />}
               {selectedContactType === 'other' && <MoreHorizontal className="w-5 h-5" />}
               Sélectionner {getEffectiveSelectionMode(selectedContactType) === 'single' ? 'un' : 'des'} {getSelectedContactTypeInfo().label.toLowerCase()}{getEffectiveSelectionMode(selectedContactType) === 'multi' ? 's' : ''}
               {getEffectiveSelectionMode(selectedContactType) === 'single' && (
@@ -692,6 +694,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
               {selectedContactType === 'manager' && 'Gestionnaire de l\'immeuble ou du lot'}
               {selectedContactType === 'tenant' && 'Personne qui occupe le logement'}
               {selectedContactType === 'provider' && 'Prestataire pour les interventions'}
+              {selectedContactType === 'guarantor' && 'Garant pour un bail'}
               {selectedContactType === 'other' && 'Autre type de contact'}
             </DialogDescription>
           </DialogHeader>
@@ -881,6 +884,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                       {selectedContactType === 'manager' && <Users className="w-8 h-8 text-purple-600" />}
                       {selectedContactType === 'tenant' && <User className="w-8 h-8 text-blue-600" />}
                       {selectedContactType === 'provider' && <Briefcase className="w-8 h-8 text-green-600" />}
+                      {selectedContactType === 'guarantor' && <Shield className="w-8 h-8 text-amber-600" />}
                       {selectedContactType === 'other' && <MoreHorizontal className="w-8 h-8 text-gray-600" />}
                     </div>
                     <h3 className="font-medium text-gray-900 mb-2">

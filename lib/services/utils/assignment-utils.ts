@@ -22,6 +22,7 @@ export const determineAssignmentType = (user: AssignmentUser): string => {
   if (user.role === 'tenant' || user.role === 'locataire') return 'tenant'
   if (user.role === 'manager' || user.role === 'gestionnaire' || user.role === 'admin') return 'manager'
   if (user.role === 'owner' || user.role === 'proprietaire') return 'owner'
+  if (user.role === 'guarantor' || user.role === 'garant') return 'guarantor'
 
   if (user.role === 'provider' || user.role === 'prestataire') {
     // Provider category simplified to 'prestataire' or 'autre'
@@ -43,7 +44,7 @@ export const filterUsersByRole = (users: AssignmentUser[], requestedType: string
  */
 export const validateAssignment = (user: AssignmentUser, context: 'building' | 'lot'): boolean => {
   // Tenants can only be assigned to lots, never to buildings
-  if ((user.role === 'tenant' || user.role === 'locataire') && context === 'building') {
+  if ((user.role === 'tenant' || user.role === 'locataire' || user.role === 'guarantor' || user.role === 'garant') && context === 'building') {
     return false
   }
   return true
@@ -58,6 +59,7 @@ export const getAssignmentTypeDisplayName = (_assignmentType: string): string =>
     'manager': 'Gestionnaire',
     'provider': 'Prestataire',
     'owner': 'Propriétaire',
+    'guarantor': 'Garant',
     'other': 'Autre'
   }
 
@@ -86,7 +88,7 @@ export const getAvailableAssignmentTypes = (context: 'building' | 'lot'): string
   const baseTypes = ['manager', 'provider', 'owner']
 
   if (context === 'lot') {
-    return [...baseTypes, 'tenant']
+    return [...baseTypes, 'tenant', 'guarantor']
   }
 
   return baseTypes
@@ -106,6 +108,8 @@ export const mapFrontendToDbRole = (_frontendRole: string): { role: string; prov
     'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
     'owner': { role: 'proprietaire' },
     'proprietaire': { role: 'proprietaire' },
+    'guarantor': { role: 'garant' },
+    'garant': { role: 'garant' },
     'autre': { role: 'prestataire', provider_category: 'autre' }
   }
 

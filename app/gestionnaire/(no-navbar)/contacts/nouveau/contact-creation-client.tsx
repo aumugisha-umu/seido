@@ -472,7 +472,7 @@ export function ContactCreationClient({
   }
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-full bg-background">
       {/* Header avec progression */}
       <StepProgressHeader
         title="Créer un contact"
@@ -506,10 +506,10 @@ export function ContactCreationClient({
       />
 
       {/* Contenu principal (scrollable) */}
-      <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pt-4 pb-4">
-        <div className="content-max-width flex-1 flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pt-4 pb-4">
+        <div className="content-max-width">
           {/* Step content will be rendered here */}
-          <div className="bg-card rounded-lg border border-border shadow-sm p-6 transition-all duration-500 flex-1">
+          <div className="bg-card rounded-lg border border-border shadow-sm p-6 transition-all duration-500">
             {currentStep === 1 && (
               <Step1Type
                 contactType={formData.contactType}

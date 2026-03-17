@@ -100,37 +100,7 @@ export class LotService {
     // Validate input data
     this.validateLotData(lotData)
 
-    // Validate building exists (only if building_id is provided)
-    if (lotData.building_id && this.buildingService) {
-      const buildingResult = await this.buildingService.getById(lotData.building_id)
-      if (!buildingResult.success || !buildingResult.data) {
-        throw new NotFoundException(
-          'Building not found',
-          'buildings',
-          lotData.building_id
-        )
-      }
-    }
-
-    // Check if reference already exists for this building (only if building_id is provided)
-    if (lotData.building_id) {
-      const referenceCheck = await this.repository.referenceExists(
-        lotData.reference,
-        lotData.building_id
-      )
-      if (!referenceCheck.success) return referenceCheck
-
-      if (referenceCheck.exists) {
-        throw new ConflictException(
-          `A lot with reference "${lotData.reference}" already exists in this building`,
-          'lots',
-          'reference',
-          lotData.reference
-        )
-      }
-    }
-
-    // Set default values (Phase 2: no is_occupied, use tenant_id)
+    // Set default values
     const processedData = {
       ...lotData,
       floor: lotData.floor ?? 0,
@@ -138,9 +108,30 @@ export class LotService {
       updated_at: new Date().toISOString()
     }
 
+    // Insert directly — rely on DB FK constraint (building_id) and unique constraint (reference + building_id)
+    // Previous TOCTOU pre-checks (building exists + reference exists) added ~160ms latency per lot
     const result = await this.repository.create(processedData)
 
-    // Log activity
+    if (!result.success && result.error) {
+      // Map DB constraint errors to user-friendly messages
+      const errMsg = result.error.message || ''
+      if (errMsg.includes('unique') || errMsg.includes('duplicate') || errMsg.includes('23505')) {
+        throw new ConflictException(
+          `A lot with reference "${lotData.reference}" already exists in this building`,
+          'lots',
+          'reference',
+          lotData.reference
+        )
+      }
+      if (errMsg.includes('foreign key') || errMsg.includes('23503')) {
+        throw new NotFoundException(
+          'Building not found',
+          'buildings',
+          lotData.building_id || 'unknown'
+        )
+      }
+    }
+
     if (result.success && result.data) {
       await this.logLotCreation(result.data)
     }

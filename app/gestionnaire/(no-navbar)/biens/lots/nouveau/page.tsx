@@ -25,35 +25,30 @@ export default async function NewLotPage({
   const { profile, team, teams, supabase } = await getServerAuthContext('gestionnaire')
   const params = await searchParams
 
-  // ── Subscription limit gate (fail-open: if check fails, allow creation — server action has defense-in-depth)
-  try {
-    const subscriptionService = createSubscriptionService(supabase)
-    const canAddResult = await subscriptionService.canAddProperty(team.id)
-
-    if (!canAddResult.allowed && canAddResult.upgrade_needed) {
-      const info = await subscriptionService.getSubscriptionInfo(team.id)
-      return (
-        <SubscriptionLimitPage
-          currentLots={info?.actual_lots ?? 0}
-          subscribedLots={info?.subscribed_lots ?? 0}
-        />
-      )
-    }
-  } catch {
-    // Fail-open: let user proceed — createLotAction has its own subscription check
-  }
-
-  // ── Phase 0: Service instantiation + all queries in parallel ──────────
+  // ── Phase 0: Service instantiation + ALL queries in parallel (including subscription) ──
+  const subscriptionService = createSubscriptionService(supabase)
   const [teamService, lotService] = await Promise.all([
     createServerTeamService(),
     createServerLotService(),
   ])
 
-  const [membersResult, categoryCountsResult, buildingCountResult] = await Promise.all([
+  const [canAddResult, membersResult, categoryCountsResult, buildingCountResult] = await Promise.all([
+    subscriptionService.canAddProperty(team.id).catch(() => ({ allowed: true, upgrade_needed: false } as const)),
     teamService.getTeamMembers(team.id),
     lotService.getLotStatsByCategory(team.id).catch(() => ({ data: {} as Record<string, number> })),
     supabase.from('buildings').select('*', { count: 'exact', head: true }).eq('team_id', team.id).is('deleted_at', null),
   ])
+
+  // ── Subscription limit gate (fail-open: if check fails, allow creation)
+  if (!canAddResult.allowed && canAddResult.upgrade_needed) {
+    const info = await subscriptionService.getSubscriptionInfo(team.id)
+    return (
+      <SubscriptionLimitPage
+        currentLots={info?.actual_lots ?? 0}
+        subscribedLots={info?.subscribed_lots ?? 0}
+      />
+    )
+  }
 
   const teamMembers = membersResult?.data || []
   const categoryCountsByTeam: Record<string, number> = categoryCountsResult?.data || {}

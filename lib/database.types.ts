@@ -5007,6 +5007,7 @@ export type Database = {
         | "locataire"
         | "prestataire"
         | "proprietaire"
+        | "garant"
       time_slot_status:
         | "requested"
         | "pending"
@@ -5019,6 +5020,7 @@ export type Database = {
         | "locataire"
         | "prestataire"
         | "proprietaire"
+        | "garant"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5360,6 +5362,7 @@ export const Constants = {
         "locataire",
         "prestataire",
         "proprietaire",
+        "garant",
       ],
       time_slot_status: [
         "requested",
@@ -5374,6 +5377,7 @@ export const Constants = {
         "locataire",
         "prestataire",
         "proprietaire",
+        "garant",
       ],
     },
   },

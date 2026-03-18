@@ -59,9 +59,9 @@ function getStatusDotColor(status: SubscriptionStatus | undefined, isOverage: bo
 // =============================================================================
 
 export function SubscriptionSidebarCard() {
-  const { state } = useSidebar()
+  const { state, overlayHover } = useSidebar()
   const router = useRouter()
-  const isCollapsed = state === 'collapsed'
+  const isCollapsed = state === 'collapsed' && !overlayHover
   const {
     status,
     loading,

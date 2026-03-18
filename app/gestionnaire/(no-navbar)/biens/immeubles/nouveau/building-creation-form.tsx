@@ -853,6 +853,10 @@ export default function NewImmeubleePage({
         lotContactAssignments: lotContactAssignmentsData,
       })
 
+      if (!result) {
+        throw new Error('La création a échoué — veuillez réessayer')
+      }
+
       if (!result.success) {
         const errorMessage = typeof result.error === 'string'
           ? result.error

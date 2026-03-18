@@ -238,6 +238,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Contact terminology alignment + UX refinements*
 
 ## Files Recently Modified
-### 2026-03-18 18:25:32 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
+### 2026-03-18 19:41:15 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/billing/subscription-sidebar-card.tsx`

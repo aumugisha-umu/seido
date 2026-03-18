@@ -122,6 +122,8 @@ export async function POST(request: NextRequest) {
 
     let newStatus: Database['public']['Enums']['intervention_status']
     let notificationMessage = ''
+    let insertedDirectSlotWithId: { id: string; slot_date: string; start_time: string; end_time: string } | null = null
+    let insertedSlotsWithIds: Array<{ id: string; slot_date: string; start_time: string; end_time: string }> | null = null
 
     // Handle different planning types
     switch (planningType) {
@@ -188,8 +190,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Store for email generation (used in after() closure)
-        // @ts-ignore - Used in after() closure
-        var insertedDirectSlotWithId = insertedDirectSlot
+        insertedDirectSlotWithId = insertedDirectSlot
 
         notificationMessage = `Un rendez-vous a été proposé pour votre intervention "${intervention.title}" le ${new Date(directSchedule.date).toLocaleDateString('fr-FR')} à ${directSchedule.startTime}. Veuillez confirmer votre disponibilité.`
 
@@ -252,8 +253,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Store inserted slots with IDs for email generation
-        // @ts-ignore - Used in after() closure
-        var insertedSlotsWithIds = insertedSlots
+        insertedSlotsWithIds = insertedSlots
 
         logger.info({ slotsCount: timeSlots.length }, "📅 Proposed slots created (awaiting preferences):")
         break
@@ -401,8 +401,7 @@ export async function POST(request: NextRequest) {
 
       if (planningType === 'direct' && directSchedule) {
         // Un seul créneau fixé - utiliser l'ID de la DB si disponible
-        // @ts-ignore - Variable set in switch case above
-        if (typeof insertedDirectSlotWithId !== 'undefined' && insertedDirectSlotWithId) {
+        if (insertedDirectSlotWithId) {
           emailSlots = [{
             id: insertedDirectSlotWithId.id,
             date: insertedDirectSlotWithId.slot_date,
@@ -423,8 +422,7 @@ export async function POST(request: NextRequest) {
         }
       } else if (planningType === 'propose' && proposedSlots) {
         // Plusieurs créneaux proposés - utiliser les slots insérés avec leurs IDs
-        // @ts-ignore - Variable set in switch case above
-        if (typeof insertedSlotsWithIds !== 'undefined' && insertedSlotsWithIds) {
+        if (insertedSlotsWithIds) {
           // Use IDs from database for interactive email buttons
           emailSlots = insertedSlotsWithIds.map((slot: any) => ({
             id: slot.id,

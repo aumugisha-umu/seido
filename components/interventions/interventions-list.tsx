@@ -196,7 +196,7 @@ export function InterventionsList({
   // Default grid layout with vertical scroll, fills available space
   return (
     <div className={`flex-1 min-h-0 overflow-y-auto ${className}`}>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 px-1 pb-4">
         {displayedInterventions.map((intervention) => (
           <InterventionCard
             key={intervention.id}

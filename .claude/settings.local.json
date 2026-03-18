@@ -84,7 +84,8 @@
       "WebFetch(domain:doc.didww.com)",
       "WebFetch(domain:www.anthropic.com)",
       "WebFetch(domain:www.smsgatewayapi.eu)",
-      "WebFetch(domain:developers.facebook.com)"
+      "WebFetch(domain:developers.facebook.com)",
+      "Bash(gh run:*)"
     ],
     "deny": [],
     "ask": []

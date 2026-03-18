@@ -127,7 +127,7 @@ const STEPS_DATA = [
     description: "Lancez votre premiere demande de travaux",
     whyItMatters: "C'est le coeur de SEIDO : suivez chaque demande du signalement a la resolution, avec historique complet.",
     howItConnects: "Le prestataire assigne sera notifie, pourra proposer des creneaux et envoyer un devis.",
-    ctaLabel: "Lancer une intervention",
+    ctaLabel: "Créer une intervention",
     icon: Wrench,
     href: "/gestionnaire/interventions/nouvelle-intervention",
   },

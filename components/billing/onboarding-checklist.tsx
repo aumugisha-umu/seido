@@ -95,7 +95,7 @@ const STEPS: ChecklistStep[] = [
     description: 'Lancez votre première demande de travaux',
     whyItMatters: 'C\'est le cœur de SEIDO : suivez chaque demande du signalement à la résolution, avec historique complet.',
     howItConnects: 'Le prestataire assigné sera notifié, pourra proposer des créneaux et envoyer un devis.',
-    ctaLabel: 'Lancer une intervention',
+    ctaLabel: 'Créer une intervention',
     icon: Wrench,
     href: '/gestionnaire/interventions/nouvelle-intervention',
   },
@@ -283,7 +283,7 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
 
       {/* Expanded panel — overlay dropdown below pill */}
       {expanded && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 mt-2 w-[min(480px,calc(100vw-2rem))]">
+        <div className="absolute top-full right-0 sm:left-0 sm:right-auto mt-2 w-[min(480px,calc(100vw-2rem))]">
           <div className="rounded-xl border bg-card shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             {/* Panel header */}
             <div className="flex items-center justify-between p-4 pb-3 border-b">

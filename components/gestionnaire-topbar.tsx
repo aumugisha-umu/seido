@@ -109,13 +109,13 @@ export default function GestionnaireTopbar({
         {/* Onboarding checklist — SSR data eliminates client-side fetch delay */}
         <OnboardingChecklist progress={onboardingProgress} isTrialing={isTrialing} />
 
-        {/* Mobile spacer — pushes right section to edge */}
-        <div className="flex-1 sm:hidden" />
+        {/* Spacer — pushes right section to edge (hidden when PageActions slot is visible at lg) */}
+        <div className="flex-1 lg:hidden" />
 
         {/* Desktop: page-specific actions injected via PageActions portal */}
         <div
           id={TOPBAR_ACTIONS_SLOT_ID}
-          className="hidden sm:flex sm:flex-1 items-center justify-end gap-2 sm:gap-3 min-w-0"
+          className="hidden lg:flex lg:flex-1 items-center justify-end gap-2 lg:gap-3 min-w-0"
         />
 
         {/* Right: team selector + notifications */}

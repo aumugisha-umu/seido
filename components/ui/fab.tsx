@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useCallback, createContext, useContext, useEffect, useMemo } from "react"
+import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Plus, X } from "lucide-react"
@@ -120,11 +121,14 @@ export function FAB({
         setIsOpen(false)
     }, [])
 
-    return (
+    // Portal to body to avoid parent transform/filter breaking fixed positioning
+    const [mounted, setMounted] = useState(false)
+    useEffect(() => { setMounted(true) }, [])
+
+    const fabContent = (
         <div
             className={cn(
-                "fixed z-50",
-                positionStyles[position],
+                "fixed right-4 bottom-20 sm:bottom-6 z-50 flex flex-col items-end",
                 mobileOnly && "lg:hidden",
                 className
             )}
@@ -211,6 +215,9 @@ export function FAB({
             </Button>
         </div>
     )
+
+    if (!mounted) return null
+    return createPortal(fabContent, document.body)
 }
 
 // ============================================================================

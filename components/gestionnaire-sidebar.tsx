@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
   LayoutDashboard,
   Building2,
@@ -63,7 +63,10 @@ interface NavigationItem {
 
 const mainNavItems: NavigationItem[] = [
   { href: "/gestionnaire/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/gestionnaire/biens", label: "Patrimoine", icon: Building2, createHref: "/gestionnaire/biens/lots/nouveau", createLabel: "Nouveau lot" },
+  { href: "/gestionnaire/biens", label: "Patrimoine", icon: Building2, createLabel: "Nouveau bien", createOptions: [
+    { href: "/gestionnaire/biens/immeubles/nouveau", label: "Immeuble" },
+    { href: "/gestionnaire/biens/lots/nouveau", label: "Lot" },
+  ] },
   { href: "/gestionnaire/contacts", label: "Contacts", icon: Users, createHref: "/gestionnaire/contacts/nouveau", createLabel: "Nouveau contact" },
   { href: "/gestionnaire/contrats", label: "Contrats", icon: FileText, createLabel: "Nouveau contrat", createOptions: [
     { href: "/gestionnaire/contrats/nouveau?type=bail", label: "Bail locatif" },
@@ -94,9 +97,33 @@ export default function GestionnaireSidebar({
   teamName,
 }: GestionnaireSidebarProps) {
   const pathname = usePathname()
-  const { state, open, setOpen, isMobile, setOpenMobile } = useSidebar()
+  const { state, open, setOpen, isMobile, setOpenMobile, overlayHover, setOverlayHover } = useSidebar()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const isCollapsed = state === "collapsed"
+  const visuallyCollapsed = isCollapsed && !overlayHover
+
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleMouseEnter = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
+    if (!isCollapsed || isMobile) return
+    hoverTimerRef.current = setTimeout(() => setOverlayHover(true), 150)
+  }, [isCollapsed, isMobile, setOverlayHover])
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    hideTimerRef.current = setTimeout(() => {
+      const hasOpenDropdown = document.querySelector('[data-sidebar="menu-action"][data-state="open"]')
+      if (!hasOpenDropdown) setOverlayHover(false)
+    }, 100)
+  }, [setOverlayHover])
+
+  // Clear overlay when sidebar actually expands
+  useEffect(() => { if (open) setOverlayHover(false) }, [open, setOverlayHover])
+
+  // Clear overlay on route change
+  useEffect(() => { setOverlayHover(false) }, [pathname, setOverlayHover])
 
   // Tablet (768-1023px): auto-collapse sidebar for more content space
   useEffect(() => {
@@ -260,9 +287,14 @@ export default function GestionnaireSidebar({
   }
 
   return (
-    <Sidebar collapsible="icon">
+    <div
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      data-overlay-expanded={overlayHover || undefined}
+    >
+    <Sidebar collapsible="icon" className="sidebar-with-header">
       {/* Header: Team selector only (logo + toggle moved to full-width header) */}
-      {hasMultipleTeams && !isCollapsed && (
+      {hasMultipleTeams && !visuallyCollapsed && (
         <SidebarHeader className="px-4 pt-3 pb-2">
           <TeamSelectorCompact
             teams={teams}
@@ -303,14 +335,14 @@ export default function GestionnaireSidebar({
       <SidebarFooter className="p-2 pt-3">
         <div className={cn(
           "flex items-center gap-2",
-          isCollapsed && "flex-col"
+          visuallyCollapsed && "flex-col"
         )}>
           <Link
             href="/gestionnaire/profile"
             onClick={handleNavClick}
             className={cn(
               "flex items-center gap-3 flex-1 min-w-0 rounded-lg p-2 text-left transition-colors hover:bg-sidebar-accent",
-              isCollapsed && "justify-center p-2"
+              visuallyCollapsed && "justify-center p-2"
             )}
           >
             <Avatar className="h-9 w-9 flex-shrink-0">
@@ -319,7 +351,7 @@ export default function GestionnaireSidebar({
                 {userInitial}
               </AvatarFallback>
             </Avatar>
-            {!isCollapsed && (
+            {!visuallyCollapsed && (
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-sm font-semibold leading-tight truncate">{userName}</span>
                 <span className="text-xs text-muted-foreground leading-tight">Gestionnaire</span>
@@ -347,5 +379,6 @@ export default function GestionnaireSidebar({
         </div>
       </SidebarFooter>
     </Sidebar>
+    </div>
   )
 }

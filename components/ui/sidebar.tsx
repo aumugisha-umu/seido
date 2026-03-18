@@ -40,6 +40,8 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
+  overlayHover: boolean
+  setOverlayHover: (v: boolean) => void
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
@@ -68,6 +70,7 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
+  const [overlayHover, setOverlayHover] = React.useState(false)
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -122,8 +125,10 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      overlayHover,
+      setOverlayHover,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, overlayHover]
   )
 
   return (
@@ -163,7 +168,7 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, openMobile, setOpenMobile, overlayHover } = useSidebar()
 
   if (collapsible === "none") {
     return (
@@ -209,7 +214,7 @@ function Sidebar({
     <div
       className="group peer text-sidebar-foreground hidden md:block"
       data-state={state}
-      data-collapsible={state === "collapsed" ? collapsible : ""}
+      data-collapsible={state === "collapsed" && !overlayHover ? collapsible : ""}
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
@@ -509,7 +514,7 @@ function SidebarMenuButton({
   tooltip?: string | React.ComponentProps<typeof TooltipContent>
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot : "button"
-  const { isMobile, state } = useSidebar()
+  const { isMobile, state, overlayHover } = useSidebar()
 
   const button = (
     <Comp
@@ -538,7 +543,7 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
+        hidden={state !== "collapsed" || isMobile || overlayHover}
         {...tooltip}
       />
     </Tooltip>

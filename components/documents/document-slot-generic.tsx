@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { createBrowserSupabaseClient } from '@/lib/services'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -24,6 +25,7 @@ import {
   Check,
   Loader2,
   AlertCircle,
+  Eye,
   FileSignature,
   Shield,
   IdCard,
@@ -45,6 +47,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DatePicker } from '@/components/ui/date-picker'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { VALIDITY_DURATION_OPTIONS, computeExpiryDate } from '@/lib/constants/property-document-slots'
 import type { GenericFileWithPreview } from './types'
 
 // Map of icon names to components (extensible for all entity types)
@@ -70,6 +74,14 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   ClipboardList
 }
 
+/** Read-only existing file (already in DB) */
+export interface ExistingFileInfo {
+  id: string
+  original_filename: string
+  uploaded_at: string
+  storage_path?: string
+}
+
 interface DocumentSlotGenericProps {
   /** Document type identifier */
   type: string
@@ -89,16 +101,28 @@ interface DocumentSlotGenericProps {
   onAddFiles: (files: File[]) => void
   /** Callback when a file is removed */
   onRemoveFile: (fileId: string) => void
+  /** Existing files already uploaded (read-only display) */
+  existingFiles?: ExistingFileInfo[]
   /** Disable interactions */
   disabled?: boolean
   /** Compact mode for grid display */
   compact?: boolean
   /** Whether this slot has an expiry date */
   hasExpiry?: boolean
-  /** Current expiry date (ISO string) */
-  expiryDate?: string
-  /** Callback when expiry date changes */
-  onExpiryDateChange?: (date: string | undefined) => void
+  /** Default validity in years from slot config */
+  defaultValidityYears?: number
+  /** Current document date (ISO string) */
+  documentDate?: string
+  /** Current validity duration in months */
+  validityDuration?: number
+  /** Custom expiry date (ISO string) — only when validityDuration === -1 */
+  validityCustomExpiry?: string
+  /** Callback when document date changes */
+  onDocumentDateChange?: (date: string | undefined) => void
+  /** Callback when validity duration changes */
+  onValidityDurationChange?: (duration: number | undefined) => void
+  /** Callback when custom expiry changes */
+  onCustomExpiryChange?: (date: string | undefined) => void
   /** Additional CSS class */
   className?: string
 }
@@ -153,21 +177,32 @@ export function DocumentSlotGeneric({
   files,
   onAddFiles,
   onRemoveFile,
+  existingFiles = [],
   disabled = false,
   compact = false,
   hasExpiry = false,
-  expiryDate,
-  onExpiryDateChange,
+  defaultValidityYears,
+  documentDate,
+  validityDuration,
+  validityCustomExpiry,
+  onDocumentDateChange,
+  onValidityDurationChange,
+  onCustomExpiryChange,
   className
 }: DocumentSlotGenericProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
 
   const IconComponent = ICON_MAP[icon] || File
-  const hasFiles = files.length > 0
-  const canAddMore = allowMultiple || !hasFiles
+  const hasExisting = existingFiles.length > 0
+  const hasFiles = files.length > 0 || hasExisting
+  const canAddMore = allowMultiple || (!files.length && !hasExisting)
 
-  const expiryStatus = useMemo(() => getExpiryStatus(expiryDate), [expiryDate])
+  const computedExpiry = useMemo(
+    () => computeExpiryDate(documentDate, validityDuration, validityCustomExpiry),
+    [documentDate, validityDuration, validityCustomExpiry]
+  )
+  const expiryStatus = useMemo(() => getExpiryStatus(computedExpiry), [computedExpiry])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -258,7 +293,7 @@ export function DocumentSlotGeneric({
                 "bg-green-100 text-green-700 border-green-200",
                 compact ? "text-[11px] px-1 py-0" : "text-xs"
               )}>
-                {files.length} {compact ? "" : `fichier${files.length > 1 ? 's' : ''}`}
+                {files.length + existingFiles.length} {compact ? "" : `fichier${(files.length + existingFiles.length) > 1 ? 's' : ''}`}
               </Badge>
             )}
             {hasExpiry && expiryStatus.status !== 'none' && (
@@ -276,16 +311,59 @@ export function DocumentSlotGeneric({
             <p className="text-xs text-muted-foreground mt-0.5">{hint}</p>
           )}
           {hasExpiry && hasFiles && (
-            <div className={cn("w-full", compact ? "mt-1" : "mt-2")}>
-              {!compact && (
-                <label className="text-[13px] font-medium text-muted-foreground mb-1 block">Échéance</label>
+            <div className={cn("w-full", compact ? "mt-1 space-y-1" : "mt-2 space-y-2")}>
+              {/* Document date + Validity duration */}
+              <div className="flex gap-2 flex-row">
+                <div className="flex-1 min-w-0">
+                  <label className={cn(
+                    "font-medium text-muted-foreground mb-1 block",
+                    compact ? "text-[11px]" : "text-[13px]"
+                  )}>Date document</label>
+                  <DatePicker
+                    value={documentDate || ''}
+                    onChange={(val) => onDocumentDateChange?.(val || undefined)}
+                    placeholder="jj/mm/aaaa"
+                    className={cn(compact ? "w-full h-7 [&_input]:h-7 [&_input]:py-0 [&_input]:text-xs [&_input]:px-1.5 [&_input]:pr-7 [&_button]:h-7 [&_button]:px-1.5 [&_.h-4.w-4]:h-3 [&_.h-4.w-4]:w-3" : "w-full [&_input]:h-9 [&_input]:text-sm")}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className={cn(
+                    "font-medium text-muted-foreground mb-1 block",
+                    compact ? "text-[11px]" : "text-[13px]"
+                  )}>Validit&eacute;</label>
+                  <Select
+                    value={validityDuration !== undefined ? String(validityDuration) : (defaultValidityYears ? String(defaultValidityYears * 12) : undefined)}
+                    onValueChange={(val) => onValidityDurationChange?.(Number(val))}
+                  >
+                    <SelectTrigger className={cn(compact ? "w-full h-7 text-xs px-1.5" : "h-9 text-sm")}>
+                      <SelectValue placeholder={compact ? "Validit\u00e9" : "Dur\u00e9e de validit\u00e9"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VALIDITY_DURATION_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={String(opt.value)} className={compact ? "text-xs" : ""}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Custom expiry date picker — only when "Personnalisé" selected */}
+              {validityDuration === -1 && (
+                <div>
+                  <label className={cn(
+                    "font-medium text-muted-foreground mb-1 block",
+                    compact ? "text-[11px]" : "text-[13px]"
+                  )}>Date d&apos;&eacute;ch&eacute;ance</label>
+                  <DatePicker
+                    value={validityCustomExpiry || ''}
+                    onChange={(val) => onCustomExpiryChange?.(val || undefined)}
+                    placeholder="jj/mm/aaaa"
+                    className={cn(compact ? "w-full [&_input]:h-7 [&_input]:text-xs [&_input]:px-1.5 [&_input]:pr-7 [&_button]:h-7 [&_button]:px-1.5 [&_.h-4.w-4]:h-3 [&_.h-4.w-4]:w-3" : "w-full [&_input]:h-9 [&_input]:text-sm")}
+                  />
+                </div>
               )}
-              <DatePicker
-                value={expiryDate || ''}
-                onChange={(val) => onExpiryDateChange?.(val || undefined)}
-                placeholder={compact ? "Échéance" : "jj/mm/aaaa"}
-                className={cn(compact ? "w-full [&_input]:h-7 [&_input]:text-xs [&_input]:px-1.5 [&_input]:pr-7 [&_button]:h-7 [&_button]:px-1.5 [&_.h-4.w-4]:h-3 [&_.h-4.w-4]:w-3" : "w-full [&_input]:h-9 [&_input]:text-sm")}
-              />
             </div>
           )}
         </div>
@@ -293,7 +371,47 @@ export function DocumentSlotGeneric({
 
       {/* Upload zone / File list */}
       <div className={cn("flex-1 flex flex-col", compact ? "px-2.5 pb-2.5" : "px-4 pb-4")}>
-        {hasFiles && (
+        {/* Existing files (read-only) */}
+        {hasExisting && (
+          <div className={cn(compact ? "space-y-1" : "space-y-2", files.length > 0 && (compact ? "mb-1" : "mb-2"))}>
+            {existingFiles.map(ef => (
+              <div
+                key={ef.id}
+                className={cn(
+                  "flex items-center gap-2 rounded-md border border-green-200 bg-green-50",
+                  compact ? "p-1.5" : "p-2"
+                )}
+              >
+                <Check className={cn("text-green-600 shrink-0", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
+                <div className="flex-1 min-w-0">
+                  <p className={cn("font-medium truncate", compact ? "text-xs" : "text-sm")}>
+                    {ef.original_filename}
+                  </p>
+                  <p className={cn("text-muted-foreground", compact ? "text-[11px]" : "text-xs")}>
+                    Ajouté le {new Date(ef.uploaded_at).toLocaleDateString('fr-BE')}
+                  </p>
+                </div>
+                {ef.storage_path && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn("shrink-0", compact ? "h-5 w-5" : "h-7 w-7")}
+                    onClick={() => {
+                      const supabase = createBrowserSupabaseClient()
+                      const { data } = supabase.storage.from('documents').getPublicUrl(ef.storage_path!)
+                      window.open(data.publicUrl, '_blank', 'noopener,noreferrer')
+                    }}
+                    title="Voir le document"
+                  >
+                    <Eye className={cn(compact ? "h-3 w-3" : "h-4 w-4")} />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {files.length > 0 && (
           <div className={cn(compact ? "space-y-1" : "space-y-2")}>
             {files.map(file => {
               const FileIcon = getFileIcon(file.file.type)

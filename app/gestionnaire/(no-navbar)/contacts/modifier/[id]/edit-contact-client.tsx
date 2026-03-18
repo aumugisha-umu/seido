@@ -25,7 +25,7 @@ interface Company {
 
 interface ContactFormData {
     // Step 1: Type de contact
-    contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
+    contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'garant'
     personOrCompany: 'person' | 'company'
     specialty?: string
 
@@ -81,7 +81,7 @@ export function EditContactClient({
     const normalizeContactType = (dbRole: string): ContactFormData['contactType'] => {
         // Les valeurs DB sont déjà en français, on les utilise directement
         // Fallback pour compatibilité avec d'éventuelles anciennes données
-        const validRoles: ContactFormData['contactType'][] = ['locataire', 'prestataire', 'gestionnaire', 'proprietaire', 'autre']
+        const validRoles: ContactFormData['contactType'][] = ['locataire', 'prestataire', 'gestionnaire', 'proprietaire', 'garant']
         if (validRoles.includes(dbRole as ContactFormData['contactType'])) {
             return dbRole as ContactFormData['contactType']
         }
@@ -91,9 +91,10 @@ export function EditContactClient({
             'provider': 'prestataire',
             'manager': 'gestionnaire',
             'owner': 'proprietaire',
-            'other': 'autre'
+            'other': 'garant',
+            'autre': 'garant'
         }
-        return legacyMapping[dbRole] || 'autre'
+        return legacyMapping[dbRole] || 'locataire'
     }
 
     // Initialiser le formulaire avec les données existantes
@@ -286,7 +287,6 @@ export function EditContactClient({
                         logger.info("✅ Invitation sent:", inviteResult)
                         toast.success("Contact modifié et invitation envoyée !")
                         router.push("/gestionnaire/contacts")
-                        router.refresh()
                         return // Skip the default success toast
                     }
                 } catch (inviteError) {
@@ -325,7 +325,6 @@ export function EditContactClient({
                         logger.info("✅ Access revoked:", revokeResult)
                         toast.success("Contact modifié et accès révoqué")
                         router.push("/gestionnaire/contacts")
-                        router.refresh()
                         return // Skip the default success toast
                     }
                 } catch (revokeError) {
@@ -338,7 +337,6 @@ export function EditContactClient({
 
             toast.success("Contact modifié avec succès")
             router.push("/gestionnaire/contacts")
-            router.refresh()
 
         } catch (error) {
             logger.error("❌ Error saving contact:", error)

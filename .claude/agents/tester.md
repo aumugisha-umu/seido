@@ -19,7 +19,7 @@ model: opus
 ## Stack Testing
 
 - **Unit/Integration**: Vitest 2.0.0 + jsdom
-- **E2E**: Playwright 1.45.0 multi-browser
+- **E2E**: Puppeteer 24.x + Vitest (NOT Playwright)
 - **Component**: @testing-library/react
 - **Coverage**: v8 provider, 80% threshold
 
@@ -57,12 +57,15 @@ npx playwright test --grep="Phase 2"  # Specific
 
 ## Critical Workflows to Test
 
-### 1. Intervention Lifecycle (11 statuses)
+### 1. Intervention Lifecycle (9 statuses)
 
 ```typescript
-// demande → approuvee → demande_de_devis → planification →
-// planifiee → en_cours → cloturee_par_prestataire →
-// cloturee_par_locataire → cloturee_par_gestionnaire
+// demande → approuvee | rejetee
+// approuvee → planification → planifiee
+// planifiee → cloturee_par_prestataire → cloturee_par_locataire → cloturee_par_gestionnaire
+// * → annulee
+// NOTE: demande_de_devis et en_cours ont ete SUPPRIMES
+// Les devis sont geres via requires_quote + intervention_quotes
 ```
 
 ### 2. Multi-Role Permissions
@@ -121,6 +124,7 @@ import { checkAccessibility } from '@/test/helpers/a11y'
 - [ ] Mobile tested
 - [ ] Coverage threshold 80%+
 - [ ] Test isolation (no state leakage)
+- [ ] AGENTS.md learnings checked for relevant patterns
 
 ## Anti-Patterns
 
@@ -130,6 +134,7 @@ import { checkAccessibility } from '@/test/helpers/a11y'
 - ❌ Missing cleanup → Always cleanup test data
 - ❌ Skipping a11y → Always test accessibility
 - ❌ Ignoring RLS → Test permission boundaries
+- ❌ Using Playwright → Use Puppeteer + Vitest (SEIDO standard)
 
 ## Skills Integration
 

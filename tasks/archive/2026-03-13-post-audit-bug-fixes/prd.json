@@ -1,0 +1,197 @@
+{
+  "project": "SEIDO",
+  "featureName": "Post-Audit Bug Fixes (Simplify Review)",
+  "branchName": "preview",
+  "description": "Fix 16+14 bugs found during /simplify cross-review. Original 16: 7 P0 runtime crashes, 3 P1 security, 4 P2 logic, 2 P2 smells. Full app review found 14 more: 4 CRITICAL API routes writing deprecated status, 7 HIGH deprecated references in services/utils, 3 MEDIUM UI/mapper cleanups.",
+  "createdAt": "2026-03-13",
+  "prdSource": "Cross-review findings from /simplify agents",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix 7 API routes referencing deleted intervention_contacts table",
+      "description": "As a prestataire, I want work-completion, quotes, slot selection, and availability APIs to work without runtime crashes caused by referencing the renamed intervention_contacts table.",
+      "acceptanceCriteria": [
+        "All 7 API routes reference intervention_assignments instead of intervention_contacts",
+        "Property access uses .intervention_assignments instead of .intervention_contacts",
+        "work-completion/route.ts line 111: .single() replaced with .limit(1).maybeSingle()",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "P0 — Fixed 7 files: work-completion, create-provider-account, quotes, select-slot, availabilities, user-availability, quotes/cancel | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-002",
+      "title": "Fix PostgREST search injection in lot and building repositories",
+      "description": "As a security engineer, I want all .or()/.ilike() search queries to sanitize user input to prevent PostgREST filter injection.",
+      "acceptanceCriteria": [
+        "lot.repository.ts:649 uses sanitizeSearch(query) in .or() filter",
+        "building.repository.ts:322 uses sanitizeSearch(query) in primary .or() path",
+        "sanitizeSearch imported in lot.repository.ts",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "P1 — Added sanitizeSearch import to lot.repository.ts, wrapped both search paths | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-003",
+      "title": "Fix validateEnum missing proprietaire role",
+      "description": "As a developer, I want role validation to accept all 5 valid roles including proprietaire.",
+      "acceptanceCriteria": [
+        "user.repository.ts validate() includes proprietaire in role enum (line 46)",
+        "user.repository.ts findByRole() includes proprietaire (line 176)",
+        "user.repository.ts search() includes proprietaire (line 246)",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "P1 — Added proprietaire to all 3 validateEnum calls via replace_all | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-004",
+      "title": "Remove deprecated statuses demande_de_devis and en_cours",
+      "description": "As a developer, I want the codebase to reflect the current 9-status intervention model without deprecated statuses.",
+      "acceptanceCriteria": [
+        "intervention.repository.ts validate() removes demande_de_devis and en_cours from enum",
+        "intervention.repository.ts getInterventionStats() removes demande_de_devis and en_cours from byStatus",
+        "intervention-schedule/route.ts:109 removes demande_de_devis from allowed statuses",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "P2 — Cleaned 3 locations across 2 files | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-005",
+      "title": "Fix .single() without role filter on intervention_assignments",
+      "description": "As a prestataire assigned to multiple interventions, I want queries to correctly filter by role to avoid PGRST116 crashes.",
+      "acceptanceCriteria": [
+        "prestataire/.../page.tsx:35 adds .eq('role', 'prestataire') before .single()",
+        "intervention-confirm-participation/route.ts:66-71 uses .limit(1).maybeSingle()",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "P2 — prestataire page uses .eq('role') since role is known; confirm-participation uses .limit(1).maybeSingle() since role is unknown | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-006",
+      "title": "Remove dead code and identity copy in mime-types",
+      "description": "As a developer, I want clean code without dead functions and useless identity copies.",
+      "acceptanceCriteria": [
+        "getPriorityColor removed from intervention-display.ts (dead — all consumers use lib/intervention-utils.ts)",
+        "ALLOWED_CHAT_MIME_TYPES removed from mime-types.ts (identity copy of ALLOWED_DOCUMENT_MIME_TYPES_EXTENDED)",
+        "use-chat-upload.ts imports ALLOWED_DOCUMENT_MIME_TYPES_EXTENDED instead",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "P2 — Removed dead getPriorityColor (English inputs, unused), removed ALLOWED_CHAT_MIME_TYPES identity copy, updated use-chat-upload.ts import | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-007",
+      "title": "Fix CRITICAL API routes writing demande_de_devis to DB",
+      "description": "As a gestionnaire, I want API routes to use requires_quote flag instead of the deprecated demande_de_devis status.",
+      "acceptanceCriteria": [
+        "generate-intervention-magic-links sets requires_quote:true instead of status:demande_de_devis",
+        "approve/reject quote routes check status=approuvee not demande_de_devis",
+        "intervention-cancel route removes demande_de_devis from cancellable list",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "CRITICAL — magic-links was WRITING deprecated status to DB. Fixed to set requires_quote:true. Quote approve/reject now transition from approuvee. | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-008",
+      "title": "Clean demande_de_devis from service/utility files",
+      "description": "As a developer, I want all service and utility files to use the current 9-status enum.",
+      "acceptanceCriteria": [
+        "intervention-display.ts: no demande_de_devis in colorMap/variantMap/validStatuses/validTransitions",
+        "notification.service.ts: no demande_de_devis in STATUS_LABELS",
+        "email-notification/types.ts: no demande_de_devis in STATUS_LABELS",
+        "stats.service.ts: no demande_de_devis in requiresAction filter",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Cleaned deprecated status from 4 service/utility files | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-009",
+      "title": "Add sanitizeSearch to remaining repositories",
+      "description": "As a developer, I want all .ilike() calls with user input wrapped in sanitizeSearch().",
+      "acceptanceCriteria": [
+        "company.repository.ts uses sanitizeSearch in findByName",
+        "address.repository.ts uses sanitizeSearch in findByTeam city filter",
+        "building.repository.ts uses sanitizeSearch in findByCity",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "P1 Security — Added sanitizeSearch to 3 more repositories | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-010",
+      "title": "Clean demande_de_devis from all UI components and hooks",
+      "description": "As a developer, I want all UI components and hooks to use the current 9-status enum and requires_quote flag.",
+      "acceptanceCriteria": [
+        "status-timeline.tsx: no demande_de_devis entry",
+        "big-calendar-wrapper.tsx: no demande_de_devis in color maps",
+        "integrated-quotes-card.tsx: uses requires_quote instead of status check",
+        "seido-badge.config.ts: no demande_de_devis entry",
+        "interventions-navigator.tsx: no demande_de_devis in filter arrays",
+        "execution-tab.tsx: no demande_de_devis in canProposeSlots",
+        "intervention-cancel-button.tsx: no demande_de_devis in cancellable list",
+        "programming-modal-FINAL.tsx: uses requires_quote instead of status check",
+        "intervention-modal-header.tsx: uses requires_quote instead of status check",
+        "use-tenant-data.ts: no demande_de_devis in status filter",
+        "use-prestataire-data.ts: no demande_de_devis in 3 status filters",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Cleaned 11 UI files. Status checks replaced with requires_quote flag. Removed unused FileText imports. | Implemented 2026-03-13"
+    },
+    {
+      "id": "US-011",
+      "title": "Clean demande_de_devis from mappers and API route",
+      "description": "As a developer, I want intervention-mappers.ts and remaining API routes to use the current 9-status enum.",
+      "acceptanceCriteria": [
+        "intervention-mappers.ts: no demande_de_devis in STATUS_TO_FRONTEND, STATUS_TO_LABEL, statusRequiresManagerAction",
+        "quotes/[quoteId]/route.ts: filters by approuvee not demande_de_devis",
+        "intervention-quote-validate/route.ts: oldStatus is approuvee not demande_de_devis",
+        "intervention-mappers.test.ts: no demande_de_devis assertion",
+        "Unit tests pass",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Fixed mapper configs, API route DB filter, notification oldStatus, and test assertion. All 36 mapper tests pass. | Implemented 2026-03-13"
+    }
+  ]
+}

@@ -98,6 +98,22 @@ export default function SettingsPage({ role }: SettingsPageProps) {
               </CardHeader>
             </Card>
           )}
+
+          {/* AI Phone Assistant — hidden until feature is ready for production
+          {role === 'gestionnaire' && (
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => router.push('/gestionnaire/parametres/assistant-ia')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="h-5 w-5" />
+                  Assistant IA Téléphonique
+                </CardTitle>
+                <CardDescription>
+                  Activez un assistant vocal IA pour recevoir les demandes d&apos;intervention par téléphone.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+          */}
         </div>
       </div>
     </div>

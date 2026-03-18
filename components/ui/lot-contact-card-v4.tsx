@@ -12,8 +12,7 @@ import {
   ChevronDown,
   ChevronUp,
   Wrench,
-  Home,
-  UserCircle,
+  Home as HomeIcon,
   Building
 } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
@@ -34,14 +33,14 @@ interface Contact {
  * Version 4: Card avec Indicateurs Visuels et Sections Toujours Visibles
  *
  * Cette version optimise l'expérience utilisateur avec :
- * - Indicateurs visuels colorés avec badges (violet, bleu, vert, orange, gris)
+ * - Indicateurs visuels colorés avec badges (violet, bleu, vert, gris)
  * - Sections de contacts toujours visibles (pas de collapse)
- * - Layout responsive: 5 colonnes sur desktop, vertical sur mobile
+ * - Layout responsive: 3 colonnes sur desktop, vertical sur mobile
  *
  * Design Principles:
  * - Header ultra-compact: Badge numéro agrandi + Structure verticale (nom + badges)
  * - Collapsed: 2 lignes - Nom du lot (ligne 1) + Catégorie et badges colorés (ligne 2)
- * - Expanded: Grid 5 colonnes (desktop) avec toutes les sections ouvertes
+ * - Expanded: Grid 3 colonnes (desktop) avec toutes les sections ouvertes
  * - Hiérarchie visuelle forte avec couleurs distinctes par rôle
  *
  * Key Features:
@@ -51,7 +50,7 @@ interface Contact {
  * ✅ Badge catégorie (Appartement, Garage, etc.) toujours visible
  * ✅ Badges compteurs COLORÉS avec icônes toujours visibles
  * ✅ Mode collapsed compact (2 lignes avec séparation visuelle)
- * ✅ Mode expanded: 5 sections toujours ouvertes en grid horizontal (desktop)
+ * ✅ Mode expanded: 3 sections toujours ouvertes en grid horizontal (desktop)
  * ✅ Touch targets 44x44px minimum
  * ✅ Accessible: aria-labels, keyboard navigation
  */
@@ -66,14 +65,12 @@ interface LotContactCardV4Props {
   onAddLotManager?: () => void
   onRemoveLotManager?: (managerId: string) => void
   providers: Contact[]
-  owners: Contact[]
   others: Contact[]
-  onAddContact?: (contactType: 'provider' | 'owner' | 'other') => void
+  onAddContact?: (contactType: 'provider' | 'owner') => void
   onRemoveContact?: (contactId: string, contactType: string) => void
   // Contacts hérités de l'immeuble (not shown in readOnly mode)
   buildingManagers?: UserType[]
   buildingProviders?: Contact[]
-  buildingOwners?: Contact[]
   buildingOthers?: Contact[]
   // Read-only mode (for confirmation view)
   readOnly?: boolean
@@ -97,13 +94,11 @@ export function LotContactCardV4({
   onAddLotManager,
   onRemoveLotManager,
   providers,
-  owners,
   others,
   onAddContact,
   onRemoveContact,
   buildingManagers = [],
   buildingProviders = [],
-  buildingOwners = [],
   buildingOthers = [],
   readOnly = false,
   isExisting = false,
@@ -190,27 +185,15 @@ export function LotContactCardV4({
                   </Tooltip>
                 )}
 
-                {owners.length > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 border border-orange-300 font-medium px-2 py-0.5 cursor-help">
-                        <Home className="w-3.5 h-3.5 mr-1" />
-                        {owners.length}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent side="top"><p className="text-xs">Propriétaires</p></TooltipContent>
-                  </Tooltip>
-                )}
-
                 {others.length > 0 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700 border border-gray-300 font-medium px-2 py-0.5 cursor-help">
-                        <UserCircle className="w-3.5 h-3.5 mr-1" />
+                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border border-amber-300 font-medium px-2 py-0.5 cursor-help">
+                        <HomeIcon className="w-3.5 h-3.5 mr-1" />
                         {others.length}
                       </Badge>
                     </TooltipTrigger>
-                    <TooltipContent side="top"><p className="text-xs">Autres</p></TooltipContent>
+                    <TooltipContent side="top"><p className="text-xs">Propriétaires</p></TooltipContent>
                   </Tooltip>
                 )}
               </div>
@@ -242,8 +225,8 @@ export function LotContactCardV4({
       {/* Expanded Content - Accordion Style from V3 */}
       {isExpanded && (
         <CardContent className="p-3 pt-0">
-          {/* Responsive Grid: Vertical on mobile, 4 columns on desktop (contacts only) */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+          {/* Responsive Grid: Vertical on mobile, 3 columns on desktop (contacts only) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
           {/* Lot Managers Section */}
           <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
             <div className="w-full flex items-center gap-2 p-2.5 bg-purple-50">
@@ -378,17 +361,17 @@ export function LotContactCardV4({
             )}
           </div>
 
-          {/* Owners Section */}
+          {/* Propriétaires Section */}
           <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
-            <div className="w-full flex items-center gap-2 p-2.5 bg-orange-50">
-              <Home className="w-4 h-4 text-orange-600" />
-              <span className="font-semibold text-sm text-orange-900">Propriétaires</span>
+            <div className="w-full flex items-center gap-2 p-2.5 bg-amber-50">
+              <HomeIcon className="w-4 h-4 text-amber-600" />
+              <span className="font-semibold text-sm text-amber-900">Propriétaires</span>
             </div>
 
             {/* Scrollable list - max 3 contacts visible */}
             <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
                 {/* Card récapitulative des propriétaires hérités de l'immeuble */}
-                {buildingOwners.length > 0 && (
+                {buildingOthers.length > 0 && (
                   <div className="p-2 bg-blue-50/40 rounded border border-blue-200/60">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
@@ -396,24 +379,24 @@ export function LotContactCardV4({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm text-blue-900">
-                          {buildingOwners.length} {buildingOwners.length === 1 ? 'propriétaire associé' : 'propriétaires associés'}
+                          {buildingOthers.length} {buildingOthers.length === 1 ? 'propriétaire associé' : 'propriétaires associés'}
                         </div>
-                        <div className="text-xs text-blue-700">Hérité{buildingOwners.length > 1 ? 's' : ''} de l'immeuble</div>
+                        <div className="text-xs text-blue-700">Hérité{buildingOthers.length > 1 ? 's' : ''} de l'immeuble</div>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* Propriétaires spécifiques au lot */}
-                {!readOnly && buildingOwners.length > 0 && owners.length === 0 && (
+                {!readOnly && buildingOthers.length > 0 && others.length === 0 && (
                   <div className="border-t border-slate-200 my-1.5 pt-1.5" />
                 )}
 
-                {owners.length > 0 ? (
-                  owners.map((contact) => (
-                    <div key={contact.id} className="flex items-center justify-between p-2 bg-orange-50/50 rounded border border-orange-100">
+                {others.length > 0 ? (
+                  others.map((contact) => (
+                    <div key={contact.id} className="flex items-center justify-between p-2 bg-amber-50/50 rounded border border-amber-100">
                       <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <Home className="w-4 h-4 text-orange-600 flex-shrink-0" />
+                        <HomeIcon className="w-4 h-4 text-amber-600 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="font-medium text-sm truncate">{contact.name}</div>
                           <div className="text-xs text-gray-500 truncate">{contact.email}</div>
@@ -427,7 +410,7 @@ export function LotContactCardV4({
                     </div>
                   ))
                 ) : (
-                  !readOnly && buildingOwners.length === 0 && (
+                  !readOnly && buildingOthers.length === 0 && (
                     <p className="text-xs text-gray-500 px-2 py-1">Aucun propriétaire</p>
                   )
                 )}
@@ -436,75 +419,9 @@ export function LotContactCardV4({
             {/* Button always visible at bottom - only if not readOnly */}
             {!readOnly && onAddContact && (
               <div className="p-2 pt-0 bg-white border-t border-slate-100">
-                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('owner') }} className="w-full text-xs border-orange-300 text-orange-700 hover:bg-orange-50 h-8">
+                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('owner') }} className="w-full text-xs border-amber-300 text-amber-700 hover:bg-amber-50 h-8">
                     <Plus className="w-4 h-4 mr-1" />
                     Ajouter propriétaire
-                  </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Others Section */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
-            <div className="w-full flex items-center gap-2 p-2.5 bg-gray-50">
-              <UserCircle className="w-4 h-4 text-gray-600" />
-              <span className="font-semibold text-sm text-gray-900">Autres</span>
-            </div>
-
-            {/* Scrollable list - max 3 contacts visible */}
-            <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
-                {/* Card récapitulative des autres contacts hérités de l'immeuble */}
-                {buildingOthers.length > 0 && (
-                  <div className="p-2 bg-blue-50/40 rounded border border-blue-200/60">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Building className="w-4 h-4 text-blue-700" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm text-blue-900">
-                          {buildingOthers.length} {buildingOthers.length === 1 ? 'contact associé' : 'contacts associés'}
-                        </div>
-                        <div className="text-xs text-blue-700">Hérité{buildingOthers.length > 1 ? 's' : ''} de l'immeuble</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Autres contacts spécifiques au lot */}
-                {!readOnly && buildingOthers.length > 0 && others.length === 0 && (
-                  <div className="border-t border-slate-200 my-1.5 pt-1.5" />
-                )}
-
-                {others.length > 0 ? (
-                  others.map((contact) => (
-                    <div key={contact.id} className="flex items-center justify-between p-2 bg-gray-50/50 rounded border border-gray-100">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <UserCircle className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{contact.name}</div>
-                          <div className="text-xs text-gray-500 truncate">{contact.email}</div>
-                        </div>
-                      </div>
-                      {!readOnly && onRemoveContact && (
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(contact.id, 'other') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  !readOnly && buildingOthers.length === 0 && (
-                    <p className="text-xs text-gray-500 px-2 py-1">Aucun autre contact</p>
-                  )
-                )}
-            </div>
-
-            {/* Button always visible at bottom - only if not readOnly */}
-            {!readOnly && onAddContact && (
-              <div className="p-2 pt-0 bg-white border-t border-slate-100">
-                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('other') }} className="w-full text-xs border-gray-300 text-gray-700 hover:bg-gray-50 h-8">
-                    <Plus className="w-4 h-4 mr-1" />
-                    Ajouter contact
                   </Button>
               </div>
             )}

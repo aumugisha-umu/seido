@@ -85,7 +85,6 @@ export async function POST(request: NextRequest) {
     // Vérifier que l'intervention peut être annulée
     const cancellableStatuses = [
       "approuvee",
-      "demande_de_devis",
       "planification",
       "planifiee"
     ]

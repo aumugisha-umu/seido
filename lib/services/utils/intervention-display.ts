@@ -38,7 +38,6 @@ export const getStatusColor = (status: InterventionStatus): string => {
     demande: 'yellow',
     rejetee: 'red',
     approuvee: 'green',
-    demande_de_devis: 'blue',
     planification: 'indigo',
     planifiee: 'purple',
     cloturee_par_prestataire: 'teal',
@@ -60,7 +59,6 @@ export const getStatusBadgeVariant = (status: InterventionStatus):
     demande: 'warning',
     rejetee: 'destructive',
     approuvee: 'success',
-    demande_de_devis: 'default',
     planification: 'secondary',
     planifiee: 'secondary',
     cloturee_par_prestataire: 'secondary',
@@ -78,7 +76,7 @@ export const getStatusBadgeVariant = (status: InterventionStatus):
  */
 export const isValidStatus = (status: string): status is InterventionStatus => {
   const validStatuses: InterventionStatus[] = [
-    'demande', 'rejetee', 'approuvee', 'demande_de_devis',
+    'demande', 'rejetee', 'approuvee',
     'planification', 'planifiee',
     'cloturee_par_prestataire', 'cloturee_par_locataire',
     'cloturee_par_gestionnaire', 'annulee'
@@ -113,23 +111,6 @@ export const getPriorityLabel = (
 }
 
 /**
- * Get priority color
- * @param priority - Intervention priority
- * @returns Tailwind color class name
- */
-export const getPriorityColor = (
-  priority: 'low' | 'medium' | 'high' | 'urgent'
-): string => {
-  const colorMap = {
-    low: 'green',
-    medium: 'blue',
-    high: 'orange',
-    urgent: 'red'
-  }
-  return colorMap[priority] || 'gray'
-}
-
-/**
  * Check if status transition is valid
  * @param currentStatus - Current status
  * @param nextStatus - Target status
@@ -142,8 +123,7 @@ export const isValidStatusTransition = (
   const validTransitions: Record<InterventionStatus, InterventionStatus[]> = {
     demande: ['approuvee', 'rejetee', 'annulee'],
     rejetee: [],
-    approuvee: ['demande_de_devis', 'planification', 'annulee'],
-    demande_de_devis: ['planification', 'annulee'],
+    approuvee: ['planification', 'annulee'],
     planification: ['planifiee', 'annulee'],
     planifiee: ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'],
     cloturee_par_prestataire: ['cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'],
@@ -168,8 +148,7 @@ export const getStatusDescription = (
   const descriptionsFR: Record<InterventionStatus, string> = {
     demande: "En attente de validation par le gestionnaire",
     rejetee: "Demande rejetée par le gestionnaire",
-    approuvee: "Approuvée et en attente d'estimation ou planification",
-    demande_de_devis: "Estimation demandée au prestataire",
+    approuvee: "Approuvée et en attente de planification",
     planification: "Recherche d'un créneau de disponibilité",
     planifiee: "Intervention planifiée à une date précise",
     cloturee_par_prestataire: "Travaux terminés, en attente de validation locataire",

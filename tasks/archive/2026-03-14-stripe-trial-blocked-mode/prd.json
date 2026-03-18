@@ -1,0 +1,204 @@
+{
+  "project": "SEIDO",
+  "featureName": "Stripe Trial Payment Collection and Blocked Mode",
+  "branchName": "preview",
+  "description": "Adapt Stripe billing so trial users who enter payment info are not charged until trial ends.",
+  "createdAt": "2026-03-13",
+  "prdSource": "docs/plans/2026-03-13-stripe-trial-payment-collection-design.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "DB Migration",
+      "description": "Add payment_method_added boolean column.",
+      "acceptanceCriteria": [
+        "Migration adds payment_method_added BOOLEAN DEFAULT FALSE",
+        "Types regenerated",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Migration 20260313100000. Types regenerated."
+    },
+    {
+      "id": "US-002",
+      "title": "Stripe Checkout with trial_end",
+      "description": "Stripe Checkout shows 0 EUR.",
+      "acceptanceCriteria": [
+        "createCheckoutSession passes trial_end",
+        "verifyCheckoutSession sets payment_method_added",
+        "SubscriptionInfo includes payment_method_added",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "trial_end passed to Stripe, payment_method_added set in verifyCheckout, no_payment_required handled"
+    },
+    {
+      "id": "US-003",
+      "title": "Webhook handler update",
+      "description": "Set payment_method_added on subscription events.",
+      "acceptanceCriteria": [
+        "handleSubscriptionCreated sets payment_method_added",
+        "handleSubscriptionUpdated sets payment_method_added",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "S",
+      "passes": true,
+      "notes": "payment_method_added set via default_payment_method check. checkout.session.completed also handles no_payment_required."
+    },
+    {
+      "id": "US-004",
+      "title": "Trial Banner enriched",
+      "description": "Banners with 0 EUR CTAs.",
+      "acceptanceCriteria": [
+        "Lot/intervention counts shown",
+        "0 EUR CTA for J-3 to J-1",
+        "Green banner when payment_method_added",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [
+        "US-002"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "3-tier messaging (blue/amber/red) + green reassurance. Dismissibility: 24h/session/non-dismissible."
+    },
+    {
+      "id": "US-005",
+      "title": "Read-Only Banner redesign",
+      "description": "Blocked mode banner.",
+      "acceptanceCriteria": [
+        "Upgrade CTA and export link",
+        "All 3 role variants",
+        "Non-dismissible",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "3 role variants. Gestionnaire: red with upgrade CTA + export link. Locataire/prestataire: neutral gray."
+    },
+    {
+      "id": "US-006",
+      "title": "Blocked mode on lists",
+      "description": "Truncated non-clickable items.",
+      "acceptanceCriteria": [
+        "Name+address only",
+        "cursor-not-allowed opacity-60",
+        "Disabled create buttons",
+        "Detail redirect",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "L",
+      "passes": true,
+      "notes": "BlockedListOverlay on 3 lists. Detail pages redirect. Create buttons disabled with tooltip."
+    },
+    {
+      "id": "US-007",
+      "title": "CRON and email updates",
+      "description": "Skip if payment_method_added.",
+      "acceptanceCriteria": [
+        "CRON filter added",
+        "Email copy updated",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Both CRONs filter payment_method_added. Email CTAs use 0 EUR messaging. Export link in expired email."
+    },
+    {
+      "id": "US-008",
+      "title": "Login modal J-2",
+      "description": "Trial upgrade prompt.",
+      "acceptanceCriteria": [
+        "Modal at daysLeft<=2",
+        "SessionStorage once",
+        "Not shown if payment added",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [
+        "US-002"
+      ],
+      "sizing": "S",
+      "passes": true,
+      "notes": "TrialUpgradeModal on dashboard, sessionStorage dismiss, skipped if payment_method_added."
+    },
+    {
+      "id": "US-009",
+      "title": "Billing page badge",
+      "description": "Green trial badge.",
+      "acceptanceCriteria": [
+        "Badge when trialing",
+        "French date format",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [
+        "US-002"
+      ],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Green badge on billing page when trialing + payment_method_added. Shows first payment date."
+    },
+    {
+      "id": "US-010",
+      "title": "Notification blocking",
+      "description": "Skip notifs for read_only.",
+      "acceptanceCriteria": [
+        "Check before sending",
+        "Skip silently with log",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "isTeamNotificationsBlocked helper in both notification-actions.ts and conversation-notification-actions.ts. Checks read_only/unpaid/incomplete_expired statuses. Fail-open on error."
+    },
+    {
+      "id": "US-011",
+      "title": "Locataire/Prestataire blocked",
+      "description": "Blocked mode for other roles.",
+      "acceptanceCriteria": [
+        "isTeamSubscriptionBlocked helper",
+        "In-progress interventions accessible for prestataire",
+        "Contact support links",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [
+        "US-005",
+        "US-006"
+      ],
+      "sizing": "L",
+      "passes": true,
+      "notes": "Shared isTeamSubscriptionBlocked in lib/subscription-guard.ts. Both layouts show SubscriptionBanners (neutral gray) when blocked. Locataire detail pages redirect when blocked. Prestataire intervention detail allows IN_PROGRESS_STATUSES (planifiee, planification, approuvee). ReadOnlyBanner already has mailto:support@seido.be links."
+    }
+  ]
+}

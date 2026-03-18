@@ -47,10 +47,16 @@ export default async function ContractDetailsPage({
   params: Promise<{ id: string }>
 }) {
   const startTime = Date.now()
-  const { id } = await params
 
-  // AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { team } = await getServerAuthContext('gestionnaire')
+  // Phase 0: Auth + params in parallel
+  const [{ id }, { team }] = await Promise.all([
+    params,
+    getServerAuthContext('gestionnaire')
+  ])
+
+  if (!team?.id) {
+    notFound()
+  }
 
   logger.info('📄 [CONTRACT-PAGE-SERVER] Loading contract details', {
     contractId: id,
@@ -58,17 +64,18 @@ export default async function ContractDetailsPage({
   })
 
   try {
-    // Initialize service (server-side)
-    const contractService = await createServerContractService()
+    // Phase 1: Create both services in parallel
+    const [contractService, interventionService] = await Promise.all([
+      createServerContractService(),
+      createServerInterventionService()
+    ])
 
-    // Load contract data with relations
+    // Phase 2: Load contract (gate — must exist + team check before loading related data)
     logger.info('📍 [CONTRACT-PAGE-SERVER] Step 1: Loading contract...', { contractId: id })
     const contract = await contractService.getById(id)
 
     if (!contract) {
-      logger.error('❌ [CONTRACT-PAGE-SERVER] Contract not found', {
-        contractId: id
-      })
+      logger.error('❌ [CONTRACT-PAGE-SERVER] Contract not found', { contractId: id })
       notFound()
     }
 
@@ -78,7 +85,6 @@ export default async function ContractDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // Verify team access
     if (contract.team_id !== team.id) {
       logger.error('❌ [CONTRACT-PAGE-SERVER] Access denied - wrong team', {
         contractId: id,
@@ -88,9 +94,8 @@ export default async function ContractDetailsPage({
       notFound()
     }
 
-    // ⚡ Parallelize documents + interventions loading (both independent after contract is validated)
+    // Phase 3: Parallelize documents + interventions (services already initialized)
     logger.info('📍 [CONTRACT-PAGE-SERVER] Step 2: Loading documents + interventions in parallel...', { contractId: id })
-    const interventionService = await createServerInterventionService()
 
     const [documentsResult, interventionsResult] = await Promise.all([
       contractService.getDocuments(id),

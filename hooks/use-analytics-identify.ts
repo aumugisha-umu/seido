@@ -1,53 +1,50 @@
 'use client'
 
 import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
+import Clarity from '@microsoft/clarity'
 import { useAuth } from '@/hooks/use-auth'
-
-declare global {
-  interface Window {
-    _uxa?: Array<[string, ...unknown[]]>
-  }
-}
+import { useSubscription } from '@/hooks/use-subscription'
 
 /**
- * Hook pour identifier l'utilisateur dans Contentsquare/Clarity
- * Permet de filtrer les sessions par role/equipe dans le dashboard analytics
+ * Hook pour identifier l'utilisateur et envoyer des custom tags a Microsoft Clarity
+ * Permet de filtrer les sessions par role/subscription dans le dashboard analytics
  *
  * IMPORTANT - RGPD/Privacy:
  * - Ne JAMAIS envoyer de donnees PII (email, nom complet, telephone)
  * - Utiliser uniquement des identifiants anonymises (hash)
- * - Les custom variables permettent de segmenter sans identifier
+ * - Les custom tags permettent de segmenter sans identifier personnellement
  *
- * @see https://support.contentsquare.com/hc/en-us/articles/37271886552209-How-to-mask-personal-data
+ * Custom tags envoyes:
+ * - user_role: gestionnaire | prestataire | locataire | admin
+ * - subscription_status: trialing | active | past_due | paused | read_only | free
+ * - subscription_plan: starter | pro | enterprise | free
  *
- * @example
- * ```tsx
- * function MyComponent() {
- *   useAnalyticsIdentify()
- *   return <div>...</div>
- * }
- * ```
+ * @see https://learn.microsoft.com/en-us/clarity/setup-and-installation/identify-api
+ * @see https://learn.microsoft.com/en-us/clarity/filters/custom-tags
  */
 export function useAnalyticsIdentify() {
   const { user, profile } = useAuth()
+  const { status: subscription } = useSubscription()
+  const pathname = usePathname()
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window._uxa && user && profile) {
-      // Custom Variable 1: Role utilisateur (gestionnaire, locataire, prestataire, admin)
-      // Permet de filtrer les heatmaps par type d'utilisateur
-      window._uxa.push(['setCustomVariable', 1, 'user_role', profile.role || 'unknown'])
+    if (!user || !profile) return
 
-      // Custom Variable 2: ID utilisateur hashe (anonymise)
-      // Permet de suivre un utilisateur sans connaitre son identite
-      window._uxa.push(['setCustomVariable', 2, 'user_id_hash', hashString(user.id)])
+    // Identify user with hashed ID — called per page for SPA tracking
+    Clarity.identify(hashString(user.id))
 
-      // Custom Variable 3: Team ID hashe (pour gestionnaires)
-      // Permet de segmenter par agence/equipe
-      if (profile.role === 'gestionnaire' && profile.team_id) {
-        window._uxa.push(['setCustomVariable', 3, 'team_id_hash', hashString(profile.team_id)])
+    // Custom tag: user role
+    Clarity.setTag('user_role', profile.role || 'unknown')
+
+    // Custom tag: subscription status (if available)
+    if (subscription) {
+      Clarity.setTag('subscription_status', subscription.status || 'free')
+      if (subscription.plan) {
+        Clarity.setTag('subscription_plan', subscription.plan)
       }
     }
-  }, [user, profile])
+  }, [user, profile, subscription, pathname])
 }
 
 /**

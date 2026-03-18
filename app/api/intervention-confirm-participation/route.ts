@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
       .select('id, requires_confirmation, confirmation_status')
       .eq('intervention_id', interventionId)
       .eq('user_id', userProfile.id)
-      .single()
+      .limit(1)
+      .maybeSingle()
 
     if (assignmentError || !assignment) {
       logger.error({

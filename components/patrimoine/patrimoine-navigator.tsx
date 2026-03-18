@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,11 @@ import { Button } from '@/components/ui/button'
 import { buildingsTableConfig, lotsTableConfig, type BuildingData, type LotData } from '@/config/table-configs/patrimoine.config'
 import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
-import { Building2, Home, Search, Filter } from 'lucide-react'
+import { BuildingCardExpandable } from './building-card-expandable'
+import { LotCardUnified } from './lot-card-unified/lot-card-unified'
+import { BuildingCardMobile } from './building-card-mobile'
+import { LotCardMobile } from './lot-card-mobile'
+import { Building2, Home, Search, Filter, LayoutGrid, List } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // ============================================================================
@@ -40,6 +44,16 @@ export function PatrimoineNavigator({
 }: PatrimoineNavigatorProps) {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'buildings' | 'lots'>('buildings')
+    const [expandedBuildings, setExpandedBuildings] = useState<string[]>([])
+
+    // Toggle building expansion (allows multiple buildings to be expanded)
+    const toggleBuildingExpansion = useCallback((buildingId: string) => {
+        setExpandedBuildings(prev =>
+            prev.includes(buildingId)
+                ? prev.filter(id => id !== buildingId)
+                : [...prev, buildingId]
+        )
+    }, [])
 
     // Get current config and data based on active tab
     const currentConfig = activeTab === 'buildings' ? buildingsTableConfig : lotsTableConfig
@@ -49,16 +63,19 @@ export function PatrimoineNavigator({
     const {
         searchTerm,
         setSearchTerm,
+        viewMode,
+        setViewMode,
         mounted,
         filteredData,
-        createRowClickHandler
+        createRowClickHandler,
+        createRowHoverHandler
     } = useDataNavigator({
         data: currentData,
         searchableFields: currentConfig.searchConfig.searchableFields as string[],
-        defaultView: 'list'
+        defaultView: 'cards'
     })
 
-    // Render buildings as DataTable
+    // Render content based on view mode - Buildings specific
     const renderBuildingsContent = () => {
         if (!mounted) {
             return (
@@ -76,15 +93,64 @@ export function PatrimoineNavigator({
             description: 'Aucun élément à afficher'
         }
 
+        if (viewMode === 'list') {
+            return (
+                <>
+                    {/* Mobile: compact cards */}
+                    <div className="block md:hidden space-y-2">
+                        {data.map((building) => (
+                            <BuildingCardMobile key={building.id} building={building} />
+                        ))}
+                        {!loading && data.length === 0 && (
+                            <p className="text-sm text-muted-foreground text-center py-8">{emptyConfig.description}</p>
+                        )}
+                    </div>
+                    {/* Desktop: table */}
+                    <div className="hidden md:block">
+                        <DataTable<BuildingData>
+                            data={data}
+                            columns={buildingsTableConfig.columns}
+                            actions={buildingsTableConfig.actions}
+                            loading={loading}
+                            emptyMessage={emptyConfig.description}
+                            onRowClick={createRowClickHandler(buildingsTableConfig.rowHref)}
+                            onRowHover={createRowHoverHandler(buildingsTableConfig.rowHref)}
+                        />
+                    </div>
+                </>
+            )
+        }
+
+        // Card view with expandable cards
+        if (loading) {
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                    {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-40 bg-gray-200 rounded-lg animate-pulse" />
+                    ))}
+                </div>
+            )
+        }
+
+        if (data.length === 0) {
+            return (
+                <div className="text-center py-12 text-slate-500">
+                    {emptyConfig.description}
+                </div>
+            )
+        }
+
         return (
-            <DataTable<BuildingData>
-                data={data}
-                columns={buildingsTableConfig.columns}
-                actions={buildingsTableConfig.actions}
-                loading={loading}
-                emptyMessage={emptyConfig.description}
-                onRowClick={createRowClickHandler(buildingsTableConfig.rowHref)}
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                {data.map((building) => (
+                    <BuildingCardExpandable
+                        key={building.id}
+                        item={building}
+                        isExpanded={expandedBuildings.includes(building.id)}
+                        onToggleExpand={() => toggleBuildingExpansion(building.id)}
+                    />
+                ))}
+            </div>
         )
     }
 
@@ -97,7 +163,7 @@ export function PatrimoineNavigator({
         }
     }
 
-    // Render lots as DataTable
+    // Render content based on view mode - Lots specific
     const renderLotsContent = () => {
         if (!mounted) {
             return (
@@ -115,18 +181,74 @@ export function PatrimoineNavigator({
             description: 'Aucun élément à afficher'
         }
 
+        if (viewMode === 'list') {
+            return (
+                <>
+                    {/* Mobile: compact cards */}
+                    <div className="block md:hidden space-y-2">
+                        {data.map((lot) => (
+                            <LotCardMobile
+                                key={lot.id}
+                                lot={lot}
+                                locked={lockedLotIds?.has(lot.id) ?? false}
+                            />
+                        ))}
+                        {!loading && data.length === 0 && (
+                            <p className="text-sm text-muted-foreground text-center py-8">{emptyConfig.description}</p>
+                        )}
+                    </div>
+                    {/* Desktop: table */}
+                    <div className="hidden md:block">
+                        <DataTable<LotData>
+                            data={data}
+                            columns={lotsTableConfig.columns}
+                            actions={lotsTableConfig.actions}
+                            loading={loading}
+                            emptyMessage={emptyConfig.description}
+                            onRowClick={lockedLotIds
+                                ? createLockedAwareRowClickHandler(lotsTableConfig.rowHref)
+                                : createRowClickHandler(lotsTableConfig.rowHref)
+                            }
+                            onRowHover={createRowHoverHandler(lotsTableConfig.rowHref)}
+                        />
+                    </div>
+                </>
+            )
+        }
+
+        // Card view — render directly to support isLocked per-card
+        if (loading) {
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                    {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-40 bg-gray-200 rounded-lg animate-pulse" />
+                    ))}
+                </div>
+            )
+        }
+
+        if (data.length === 0) {
+            return (
+                <div className="text-center py-12 text-slate-500">
+                    {emptyConfig.description}
+                </div>
+            )
+        }
+
         return (
-            <DataTable<LotData>
-                data={data}
-                columns={lotsTableConfig.columns}
-                actions={lotsTableConfig.actions}
-                loading={loading}
-                emptyMessage={emptyConfig.description}
-                onRowClick={lockedLotIds
-                    ? createLockedAwareRowClickHandler(lotsTableConfig.rowHref)
-                    : createRowClickHandler(lotsTableConfig.rowHref)
-                }
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                {data.map((lot) => (
+                    <LotCardUnified
+                        key={lot.id}
+                        lot={lot}
+                        variant="expandable"
+                        mode="view"
+                        showBuilding={true}
+                        customActions={{ showDropdown: true }}
+                        isLocked={lockedLotIds?.has(lot.id) ?? false}
+                    />
+                ))}
+            </div>
         )
     }
 
@@ -189,6 +311,19 @@ export function PatrimoineNavigator({
     const filterBtnClass = cn(
         "patrimoine-section__filter-btn",
         "h-10 w-10 p-0 text-slate-600 hover:text-slate-900 border-slate-200 flex-shrink-0"
+    )
+
+    const viewSwitcherClass = cn(
+        "patrimoine-section__view-switcher",
+        "flex-shrink-0 inline-flex h-10 bg-slate-100 rounded-md p-1"
+    )
+
+    const getViewBtnClass = (isActive: boolean) => cn(
+        "patrimoine-section__view-btn",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all",
+        isActive
+            ? "patrimoine-section__view-btn--active bg-white text-slate-900 shadow-sm"
+            : "text-slate-600 hover:bg-slate-200/60"
     )
 
     const searchClass = cn(
@@ -259,6 +394,26 @@ export function PatrimoineNavigator({
                                     className="pl-9 h-10"
                                 />
                             </div>
+
+                            {/* View Mode Toggle (Cards/List) */}
+                            {mounted && (
+                                <div className={viewSwitcherClass}>
+                                    <button
+                                        onClick={() => setViewMode('list')}
+                                        className={getViewBtnClass(viewMode === 'list')}
+                                        title="Vue liste"
+                                    >
+                                        <List className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('cards')}
+                                        className={getViewBtnClass(viewMode === 'cards')}
+                                        title="Vue cartes"
+                                    >
+                                        <LayoutGrid className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            )}
 
                         </div>
                     </div>

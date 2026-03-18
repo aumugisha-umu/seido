@@ -13,6 +13,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { usePrefetchHandler } from '@/hooks/use-prefetch'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -70,6 +71,8 @@ export function InterventionContactsNavigator({
   className
 }: InterventionContactsNavigatorProps) {
   const router = useRouter()
+  const handlePrefetch = usePrefetchHandler()
+
   const [activeTab, setActiveTab] = useState<'contacts' | 'companies'>('contacts')
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards')
@@ -243,11 +246,12 @@ export function InterventionContactsNavigator({
     return (
       <div className={gridClass}>
         {filteredContacts.map(contact => (
-          <ContactCardCompact
-            key={contact.id}
-            contact={contact}
-            onClick={() => router.push(`/gestionnaire/contacts/details/${contact.id}`)}
-          />
+          <div key={contact.id} onMouseEnter={() => handlePrefetch(`/gestionnaire/contacts/details/${contact.id}`)}>
+            <ContactCardCompact
+              contact={contact}
+              onClick={() => router.push(`/gestionnaire/contacts/details/${contact.id}`)}
+            />
+          </div>
         ))}
       </div>
     )
@@ -267,11 +271,12 @@ export function InterventionContactsNavigator({
     return (
       <div className={gridClass}>
         {filteredCompanies.map(company => (
-          <CompanyCardCompact
-            key={company.id}
-            company={company}
-            onClick={() => router.push(`/gestionnaire/contacts/societes/${company.id}`)}
-          />
+          <div key={company.id} onMouseEnter={() => handlePrefetch(`/gestionnaire/contacts/societes/${company.id}`)}>
+            <CompanyCardCompact
+              company={company}
+              onClick={() => router.push(`/gestionnaire/contacts/societes/${company.id}`)}
+            />
+          </div>
         ))}
       </div>
     )

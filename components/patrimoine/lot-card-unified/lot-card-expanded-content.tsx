@@ -52,7 +52,7 @@ const getContractProgress = (contract: LotContract) => {
 
 /**
  * Expanded content section with:
- * - Contact sections grid (5 columns: managers, tenants, providers, owners, others)
+ * - Contact sections grid (3 columns: managers, providers, others)
  * - Contract contacts section (tenants + guarantors from active contracts)
  */
 export function LotCardExpandedContent({
@@ -72,7 +72,7 @@ export function LotCardExpandedContent({
   void _lotContactIdsMap
   void _teamId
   // Note: tenants are not extracted here - they are managed via contracts
-  const { managers, providers, owners, others } = transformContactsByRole(lot.lot_contacts || [])
+  const { managers, providers, others } = transformContactsByRole(lot.lot_contacts || [])
 
   /**
    * Build return URL dynamically from current location.
@@ -91,8 +91,8 @@ export function LotCardExpandedContent({
 
   return (
     <div className="pt-0 pb-2 px-0">
-      {/* Contact sections grid - 4 columns on desktop (tenants are managed via contracts) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+      {/* Contact sections grid - 3 columns on desktop (tenants are managed via contracts) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         <ContactSection
           sectionType="managers"
           contacts={managers}
@@ -118,22 +118,10 @@ export function LotCardExpandedContent({
           showInheritedSummary={true}
         />
         <ContactSection
-          sectionType="owners"
-          contacts={owners}
-          readOnly={readOnly}
-          onAddContact={readOnly ? undefined : () => onAddContact?.('propriétaires', lot.id)}
-          onRemoveContact={readOnly ? undefined : (id) => {
-            const contact = owners.find(c => c.id === id)
-            if (contact) handleRemoveContact(contact, lot.id)
-          }}
-          inheritedContacts={buildingContext?.owners}
-          showInheritedSummary={true}
-        />
-        <ContactSection
           sectionType="others"
           contacts={others}
           readOnly={readOnly}
-          onAddContact={readOnly ? undefined : () => onAddContact?.('autres contacts', lot.id)}
+          onAddContact={readOnly ? undefined : () => onAddContact?.('propriétaires', lot.id)}
           onRemoveContact={readOnly ? undefined : (id) => {
             const contact = others.find(c => c.id === id)
             if (contact) handleRemoveContact(contact, lot.id)

@@ -360,6 +360,72 @@ export class AddressService {
   }
 
   /**
+   * Geocode pending addresses in batch (deferred from import via after())
+   * Fetches addresses without coordinates, geocodes them, and updates in place
+   */
+  async geocodePendingAddresses(addressIds: string[]): Promise<void> {
+    if (addressIds.length === 0) return
+
+    const BATCH_SIZE = 10
+    const DELAY_MS = 250 // 40 req/sec (Google limit: 50/sec)
+
+    logger.info('[AddressService] Starting deferred geocoding', {
+      count: addressIds.length,
+      estimatedSeconds: Math.ceil(addressIds.length / BATCH_SIZE * DELAY_MS / 1000)
+    })
+
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < addressIds.length; i += BATCH_SIZE) {
+      const batchIds = addressIds.slice(i, i + BATCH_SIZE)
+
+      // Fetch addresses in a single batch query (avoids N+1)
+      const { data: batchAddresses } = await this.repository.getClient()
+        .from('addresses')
+        .select('*')
+        .in('id', batchIds)
+        .is('deleted_at', null)
+
+      if (!batchAddresses || batchAddresses.length === 0) continue
+
+      // Geocode each address in parallel
+      const geocodePromises = batchAddresses.map(async (addr) => {
+
+        // Skip if already geocoded
+        if (addr.latitude && addr.longitude) return
+
+        const geocodeResult = await this.geocodeAddress(
+          addr.street || '',
+          addr.postal_code || '',
+          addr.city || '',
+          addr.country || 'belgique'
+        )
+
+        if (geocodeResult.success && geocodeResult.data) {
+          await this.updateGeocode(addr.id, geocodeResult.data)
+          successCount++
+        } else {
+          failCount++
+        }
+      })
+
+      await Promise.all(geocodePromises)
+
+      // Rate limiting delay (skip on last batch)
+      if (i + BATCH_SIZE < addressIds.length) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_MS))
+      }
+    }
+
+    logger.info('[AddressService] Deferred geocoding complete', {
+      total: addressIds.length,
+      success: successCount,
+      failed: failCount
+    })
+  }
+
+  /**
    * Map country name to database enum
    * Handles various country name formats (English, French, etc.)
    */

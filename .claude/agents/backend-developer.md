@@ -119,6 +119,14 @@ export async function createBuildingAction(data: BuildingInput) {
 - ❌ Manual auth → Use `getServerAuthContext()`
 - ❌ Skip cache invalidation → Use revalidateTag
 
+## AGENTS.md Key Learnings for Backend
+
+Always check AGENTS.md before implementation. Key backend learnings include:
+- **#001**: RLS silent blocks — test with 3 user archetypes
+- **#084**: `users.team_id` is stale — use `team_members` for authorization
+- **#087**: Always use `getServerAuthContext()` — never raw auth
+- Learning numbers change; grep AGENTS.md for your specific domain
+
 ## Skills Integration
 
 | Situation | Skill |

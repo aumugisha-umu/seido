@@ -26,6 +26,8 @@ import { BUILDING_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots
 import { useSubscription } from '@/hooks/use-subscription'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
 import { getAccessibleLots } from '@/app/actions/subscription-actions'
+import { BuildingContractsTab } from '@/components/contracts/building-contracts-tab'
+import type { SupplierContractWithRelations } from '@/lib/types/supplier-contract.types'
 
 interface BuildingContact {
   id: string
@@ -108,6 +110,8 @@ interface BuildingDetailsClientProps {
   lotContactIdsMap: Record<string, { lotId: string; lotContactId: string; lotReference: string }>
   teamId: string
   buildingAddress?: BuildingAddress | null
+  buildingSupplierContracts: SupplierContractWithRelations[]
+  lotSupplierContractsByLotId: Record<string, SupplierContractWithRelations[]>
 }
 
 export default function BuildingDetailsClient({
@@ -119,7 +123,9 @@ export default function BuildingDetailsClient({
   teamId,
   lotsWithContacts,
   lotContactIdsMap,
-  buildingAddress
+  buildingAddress,
+  buildingSupplierContracts,
+  lotSupplierContractsByLotId
 }: BuildingDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("general")
   const router = useRouter()
@@ -130,7 +136,7 @@ export default function BuildingDetailsClient({
 
   const [error, setError] = useState<string | null>(null)
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
-  const { canAddProperty, status: subscriptionStatus, refresh: refreshSubscription } = useSubscription()
+  const { canAddProperty, loading: subscriptionLoading, status: subscriptionStatus, refresh: refreshSubscription } = useSubscription()
 
   // Accessible lot IDs for subscription restriction
   const [accessibleLotIds, setAccessibleLotIds] = useState<string[] | null>(null)
@@ -197,7 +203,7 @@ export default function BuildingDetailsClient({
         router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)
         break
       case "add-lot":
-        if (!canAddProperty) {
+        if (!subscriptionLoading && !canAddProperty) {
           setUpgradeModalOpen(true)
           return
         }
@@ -301,18 +307,8 @@ export default function BuildingDetailsClient({
       type: 'provider',
       speciality: bc.user.speciality || bc.user.provider_category
     }))
-  const owners = buildingContacts
-    .filter(bc => bc.user.role === 'proprietaire')
-    .map(bc => ({
-      id: bc.user.id,
-      name: bc.user.name,
-      email: bc.user.email,
-      phone: bc.user.phone,
-      company: bc.user.company,
-      type: 'owner'
-    }))
   const others = buildingContacts
-    .filter(bc => bc.user.role !== 'prestataire' && bc.user.role !== 'proprietaire' && bc.user.role !== 'locataire' && bc.user.role !== 'gestionnaire' && bc.user.role !== 'admin')
+    .filter(bc => bc.user.role !== 'prestataire' && bc.user.role !== 'locataire' && bc.user.role !== 'gestionnaire' && bc.user.role !== 'admin')
     .map(bc => ({
       id: bc.user.id,
       name: bc.user.name,
@@ -322,10 +318,31 @@ export default function BuildingDetailsClient({
       type: 'other'
     }))
 
+  // Build merged lots with all contracts + total count for the Contracts tab
+  const { mergedLotsWithAllContracts, totalContractsCount } = useMemo(() => {
+    let count = buildingSupplierContracts.length
+    const merged = lotsWithContacts.map(lot => {
+      const leases = (lot.contracts || []).map(c => ({
+        ...c,
+        lot: { id: lot.id, reference: lot.reference },
+      }))
+      const suppliers = lotSupplierContractsByLotId[lot.id] || []
+      count += leases.length + suppliers.length
+      return {
+        lotId: lot.id,
+        lotReference: lot.reference,
+        leaseContracts: leases,
+        supplierContracts: suppliers,
+      }
+    })
+    return { mergedLotsWithAllContracts: merged, totalContractsCount: count }
+  }, [lotsWithContacts, lotSupplierContractsByLotId, buildingSupplierContracts.length])
+
   // Tabs configuration for EntityTabs
   const buildingTabs: TabConfig[] = [
     { value: "general", label: "Général" },
     { value: "contacts", label: "Contacts" },
+    { value: "contracts", label: "Contrats", count: totalContractsCount },
     { value: "interventions", label: "Interventions", count: stats.totalInterventions },
     { value: "documents", label: "Documents" },
     { value: "emails", label: "Emails" },
@@ -477,7 +494,6 @@ export default function BuildingDetailsClient({
                       buildingManagers={buildingManagers}
                       buildingTenants={buildingTenants}
                       buildingProviders={providers}
-                      buildingOwners={owners}
                       buildingOthers={others}
                       lockedLotIds={lockedLotIds}
                       initialExpandAll={false}
@@ -499,7 +515,6 @@ export default function BuildingDetailsClient({
                   buildingName={building.name}
                   buildingManagers={buildingManagers}
                   providers={providers as any}
-                  owners={owners as any}
                   teamId={teamId}
                   others={others as any}
                   buildingContactIds={buildingContactIds}
@@ -514,7 +529,7 @@ export default function BuildingDetailsClient({
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      if (!canAddProperty) {
+                      if (!subscriptionLoading && !canAddProperty) {
                         setUpgradeModalOpen(true)
                         return
                       }
@@ -534,7 +549,6 @@ export default function BuildingDetailsClient({
                   buildingManagers={buildingManagers}
                   buildingTenants={buildingTenants}
                   buildingProviders={providers}
-                  buildingOwners={owners}
                   buildingOthers={others}
                   initialExpandedLotId={expandLotId}
                   lockedLotIds={lockedLotIds}
@@ -542,6 +556,15 @@ export default function BuildingDetailsClient({
                   readOnly={false}
                 />
               </div>
+            </TabContentWrapper>
+
+            {/* Contracts Tab */}
+            <TabContentWrapper value="contracts">
+              <BuildingContractsTab
+                buildingId={building.id}
+                buildingSupplierContracts={buildingSupplierContracts}
+                lotsWithContracts={mergedLotsWithAllContracts}
+              />
             </TabContentWrapper>
 
             {/* Interventions Tab */}

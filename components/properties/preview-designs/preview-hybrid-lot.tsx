@@ -55,13 +55,6 @@ export function PreviewHybridLot({ lot }: { lot: LotData }) {
                     email: lot.tenant.email,
                     phone: lot.tenant.phone,
                     avatar: lot.tenant.avatar
-                }] : []),
-                ...(lot.owner ? [{
-                    role: 'Propriétaire',
-                    name: lot.owner.name,
-                    email: lot.owner.email,
-                    phone: lot.owner.phone,
-                    avatar: lot.owner.avatar
                 }] : [])
             ]}
         />

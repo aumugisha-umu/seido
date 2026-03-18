@@ -100,7 +100,7 @@ export async function POST(
         .from('interventions')
         .update({ status: 'planification' })
         .eq('id', interventionId)
-        .eq('status', 'demande_de_devis')
+        .eq('status', 'approuvee')
 
       if (interventionUpdateError) {
         logger.warn({ error: interventionUpdateError }, 'Warning: Could not update intervention status')

@@ -25,15 +25,21 @@ import {
   Building2,
   Home,
   Wrench,
+  Users,
+  Pencil,
 } from "lucide-react"
+import { updateTeamNameAction } from '@/app/actions/team-actions'
 
 interface ProfilePageProps {
   role: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
   dashboardPath: string
   initialUser?: AuthUser  // ✅ Accepter les données initiales du serveur
+  teamName?: string
+  teamId?: string
+  isTeamAdmin?: boolean
 }
 
-export default function ProfilePage({ role, dashboardPath, initialUser }: ProfilePageProps) {
+export default function ProfilePage({ role, dashboardPath, initialUser, teamName, teamId, isTeamAdmin }: ProfilePageProps) {
   const { user: contextUser, updateProfile } = useAuth()
   // ✅ Utiliser initialUser en priorité (chargé côté serveur), fallback sur contextUser
   const user = initialUser || contextUser
@@ -67,6 +73,9 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
   const [formData, setFormData] = useState(getInitialFormData)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
+  const [isEditingTeamName, setIsEditingTeamName] = useState(false)
+  const [editedTeamName, setEditedTeamName] = useState(teamName || '')
+  const [isSavingTeamName, setIsSavingTeamName] = useState(false)
 
   // Configuration par rôle
   const roleConfig = {
@@ -171,6 +180,25 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
 
   const handleBack = () => {
     router.push(dashboardPath)
+  }
+
+  const handleSaveTeamName = async () => {
+    if (!teamId || !editedTeamName.trim()) return
+    setIsSavingTeamName(true)
+    try {
+      const result = await updateTeamNameAction(teamId, editedTeamName)
+      if (result.success) {
+        setIsEditingTeamName(false)
+        toast("Equipe mise a jour", { description: "Le nom de l'equipe a ete modifie" })
+        router.refresh()
+      } else {
+        toast.error("Erreur", { description: result.error })
+      }
+    } catch {
+      toast.error("Erreur", { description: "Une erreur inattendue est survenue" })
+    } finally {
+      setIsSavingTeamName(false)
+    }
   }
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -372,6 +400,55 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
               </div>
             </CardContent>
           </Card>
+
+          {/* Equipe */}
+          {teamName && teamId && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Equipe
+                </CardTitle>
+                <CardDescription>
+                  {isTeamAdmin
+                    ? "Gerez les informations de votre equipe."
+                    : "Informations de votre equipe."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label>Nom de l'equipe</Label>
+                  {isEditingTeamName && isTeamAdmin ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={editedTeamName}
+                        onChange={(e) => setEditedTeamName(e.target.value)}
+                        placeholder="Nom de l'equipe"
+                        className="flex-1"
+                      />
+                      <Button size="sm" onClick={handleSaveTeamName} disabled={isSavingTeamName || !editedTeamName.trim()}>
+                        <Save className="h-4 w-4 mr-1" />
+                        {isSavingTeamName ? "..." : "Enregistrer"}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => { setIsEditingTeamName(false); setEditedTeamName(teamName) }}>
+                        Annuler
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="flex-1">{editedTeamName || teamName}</span>
+                      {isTeamAdmin && (
+                        <Button size="sm" variant="ghost" onClick={() => setIsEditingTeamName(true)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Sécurité du compte */}
           <Card>

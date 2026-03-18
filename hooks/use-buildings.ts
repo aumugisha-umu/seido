@@ -8,6 +8,7 @@ import {
   createLotService
 } from "@/lib/services"
 import { logger } from '@/lib/logger'
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 
 // Address record from centralized addresses table
 export interface AddressRecord {
@@ -115,9 +116,14 @@ export function useBuildings() {
       const teamId = teams[0].id
       logger.info("🏢 [BUILDINGS] Found team:", teamId)
 
-      // 2. Récupérer les buildings de l'équipe
+      // 2+3. Fetch buildings and lots in parallel
       const buildingService = createBuildingService()
-      const buildingsResult = await buildingService.getBuildingsByTeam(teamId)
+      const lotService = createLotService()
+
+      const [buildingsResult, lotsResult] = await Promise.all([
+        buildingService.getBuildingsByTeam(teamId),
+        lotService.getLotsByTeam(teamId)
+      ])
 
       if (!buildingsResult.success || !buildingsResult.data) {
         logger.error("❌ [BUILDINGS] Error fetching buildings")
@@ -129,14 +135,9 @@ export function useBuildings() {
       const buildings = buildingsResult.data
       logger.info("🏗️ [BUILDINGS] Loaded buildings:", buildings.length)
 
-      // 3. Récupérer TOUS les lots de l'équipe (incluant lots indépendants)
-      logger.info("🏠 [BUILDINGS] Loading ALL lots for team (including independent lots)...")
-      const lotService = createLotService()
-      const lotsResult = await lotService.getLotsByTeam(teamId)
-
+      // If lots fetch failed, continue with just buildings
       if (!lotsResult.success || !lotsResult.data) {
         logger.error("❌ [BUILDINGS] Error fetching team lots")
-        // Continue avec juste les buildings si erreur sur les lots
         if (mountedRef.current) {
           setData({
             buildings,
@@ -233,6 +234,21 @@ export function useBuildings() {
       mountedRef.current = false
     }
   }, [])
+
+  // Auto-refetch on invalidation broadcast
+  const realtime = useRealtimeOptional()
+
+  useEffect(() => {
+    if (!realtime?.onInvalidation) return
+    return realtime.onInvalidation(['buildings', 'lots'], () => {
+      if (user?.id) {
+        logger.info('🔄 [BUILDINGS] Auto-refetch triggered by invalidation')
+        lastUserIdRef.current = null
+        loadingRef.current = false
+        fetchBuildings(user.id, true)
+      }
+    })
+  }, [realtime, user?.id, fetchBuildings])
 
   // Refetch manuel
   const refetch = useCallback(() => {

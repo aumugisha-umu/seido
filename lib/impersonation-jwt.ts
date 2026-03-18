@@ -12,6 +12,7 @@ import jwt from 'jsonwebtoken'
 const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET
 
 export const IMPERSONATION_COOKIE_NAME = 'admin-impersonation'
+export const IMPERSONATION_FLAG_COOKIE_NAME = 'admin-impersonation-flag'
 export const IMPERSONATION_DURATION_HOURS = 4
 
 interface ImpersonationPayload {

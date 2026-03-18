@@ -47,30 +47,8 @@ import {
 // Tab Localisation dédié
 import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
 
-// ✅ LAZY LOADED: Heavy chat component loaded on demand (US-304)
-const InterventionChatTab = dynamic(
-  () => import('@/components/interventions/intervention-chat-tab').then(mod => ({ default: mod.InterventionChatTab })),
-  {
-    loading: () => (
-      <div className="flex-1 flex flex-col p-4 space-y-4">
-        <div className="flex gap-2">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-8 w-24 rounded-full" />
-          ))}
-        </div>
-        <div className="flex-1 space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
-              <Skeleton className={`h-16 ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'} rounded-lg`} />
-            </div>
-          ))}
-        </div>
-        <Skeleton className="h-12 w-full rounded-lg" />
-      </div>
-    ),
-    ssr: false
-  }
-)
+// Lazy-loaded chat component shared across all roles
+import { LazyInterventionChatTab as InterventionChatTab } from '@/components/interventions/lazy-intervention-chat-tab'
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
@@ -107,6 +85,9 @@ import {
   hasConfirmed,
   hasRejected
 } from '@/lib/utils/intervention-permissions'
+
+// Realtime invalidation
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 
 // Types
 import type { Database } from '@/lib/database.types'
@@ -203,6 +184,7 @@ export function PrestataireInterventionDetailClient({
   initialParticipantsByThread
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const [autoOpenComplete, setAutoOpenComplete] = useState(false)
 
@@ -413,6 +395,7 @@ export function PrestataireInterventionDetailClient({
 
   // Callback after confirmation/rejection
   const handleConfirmationResponse = () => {
+    realtime?.broadcastInvalidation(['interventions'])
     router.refresh()
   }
 
@@ -571,6 +554,7 @@ export function PrestataireInterventionDetailClient({
 
   const handleRefresh = async () => {
     setRefreshing(true)
+    realtime?.broadcastInvalidation(['interventions'])
     router.refresh()
     setTimeout(() => setRefreshing(false), 1000)
   }
@@ -884,7 +868,6 @@ export function PrestataireInterventionDetailClient({
             autoOpenComplete={autoOpenComplete}
           />
         }
-        hasGlobalNav={false}
       />
 
       {/* Banner for child interventions (linked from parent) */}

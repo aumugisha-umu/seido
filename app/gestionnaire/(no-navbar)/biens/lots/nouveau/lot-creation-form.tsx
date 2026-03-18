@@ -1,19 +1,20 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { useRealtimeOptional } from "@/contexts/realtime-context"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2, Paperclip, ChevronDown, ChevronUp } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2, Paperclip, Wrench, Calendar } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import PropertySelector from "@/components/property-selector"
+import type { Building, Lot } from "@/hooks/use-buildings"
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
 import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
 import { BuildingConfirmationStep } from "@/components/building-confirmation-step"
@@ -26,7 +27,7 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 import { createLotService, createContactInvitationService } from "@/lib/services"
 import type { Team, User as UserType, Contact } from "@/lib/services/core/service-types"
 import { toast } from "sonner"
-import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction } from "./actions"
+import { batchAssignContactsToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction, getBuildingExistingDocuments } from "./actions"
 
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -38,12 +39,21 @@ import type { CreateContactData } from "@/app/gestionnaire/dashboard/actions"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import { GoogleMapsProvider } from "@/components/google-maps"
 import { logger, logError } from '@/lib/logger'
+import { useSaveFormState, useRestoreFormState } from '@/hooks/use-form-persistence'
 import { usePropertyDocumentUpload } from '@/hooks/use-property-document-upload'
-import { LOT_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
+import { LOT_DOCUMENT_SLOTS, computeExpiryDate } from '@/lib/constants/property-document-slots'
 import { useMultiLotDocumentUpload } from '@/hooks/use-multi-lot-document-upload'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { DocumentChecklistGeneric } from '@/components/documents/document-checklist-generic'
-import type { UsePropertyDocumentUploadReturn } from '@/hooks/use-property-document-upload'
+import { PerLotDocumentAccordion } from '@/components/documents/per-lot-document-accordion'
+import {
+  ConfirmationPageShell,
+  ConfirmationEntityHeader,
+  ConfirmationSummaryBanner,
+  ConfirmationSection,
+  ConfirmationKeyValueGrid,
+  ConfirmationContactGrid,
+  ConfirmationDocumentList,
+} from '@/components/confirmation'
 import { useSubscription } from "@/hooks/use-subscription"
 import { UpgradeModal } from "@/components/billing/upgrade-modal"
 import { FREE_TIER_LIMIT } from "@/lib/stripe"
@@ -96,76 +106,11 @@ interface LotData {
   assignedContacts: {
     tenant: { id: string; name: string; email: string; type: string }[]
     provider: { id: string; name: string; email: string; type: string }[]
-    owner: { id: string; name: string; email: string; type: string }[]
     other: { id: string; name: string; email: string; type: string }[]
   }
   
   // Step 3: Gestionnaires spécifiques du lot
   assignedLotManagers?: { id: string; name: string; email: string; role: string }[]
-}
-
-/** Documents tab for independent lots — accordion per lot with document checklist */
-function IndependentLotsDocumentsTab({
-  lots,
-  lotDocUploads
-}: {
-  lots: { id: string; reference: string; category: string }[]
-  lotDocUploads: { [lotId: string]: UsePropertyDocumentUploadReturn }
-}) {
-  const [expandedLots, setExpandedLots] = useState<{ [key: string]: boolean }>({})
-  const toggleExpansion = (lotId: string) => {
-    setExpandedLots(prev => ({ ...prev, [lotId]: !prev[lotId] }))
-  }
-
-  return (
-    <div className="space-y-3">
-      {lots.map((lot, index) => {
-        const lotNumber = lots.length - index
-        const upload = lotDocUploads[lot.id]
-        if (!upload) return null
-        const isExpanded = expandedLots[lot.id] || false
-        const catConfig = getLotCategoryConfig(lot.category as LotCategory)
-
-        return (
-          <div key={lot.id} className="border rounded-lg bg-white overflow-hidden">
-            <button
-              type="button"
-              onClick={() => toggleExpansion(lot.id)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold bg-blue-100 text-blue-700">
-                #{lotNumber}
-              </div>
-              <div className="flex-1 text-left">
-                <span className="font-medium text-sm">{lot.reference}</span>
-                <Badge variant="outline" className="ml-2 text-xs">{catConfig.label}</Badge>
-              </div>
-              {upload.hasFiles && (
-                <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                  {upload.progress.percentage}%
-                </Badge>
-              )}
-              {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-            </button>
-            {isExpanded && (
-              <div className="px-4 pb-4 border-t">
-                <DocumentChecklistGeneric
-                  title={`Documents — ${lot.reference}`}
-                  slots={upload.slots}
-                  onAddFilesToSlot={upload.addFilesToSlot}
-                  onRemoveFileFromSlot={upload.removeFileFromSlot}
-                  progress={upload.progress}
-                  missingRecommendedTypes={upload.missingRecommendedTypes}
-                  isUploading={upload.isUploading}
-                  onSetSlotExpiryDate={upload.setSlotExpiryDate}
-                />
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 interface LotCreationFormProps {
@@ -175,6 +120,7 @@ interface LotCreationFormProps {
   initialTeamManagers: TeamManager[]
   initialCategoryCounts: Record<string, number>
   prefillBuildingId: string | null
+  initialHasBuildings: boolean
 }
 
 export default function LotCreationForm({
@@ -184,12 +130,17 @@ export default function LotCreationForm({
   initialTeamManagers,
   initialCategoryCounts,
   prefillBuildingId,
+  initialHasBuildings,
 }: LotCreationFormProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
+  const searchParams = useSearchParams()
   const { data: managerData } = useManagerStats()
-  const hasBuildings = (managerData?.buildings?.length ?? 0) > 0
+  const hasBuildings = managerData ? (managerData.buildings?.length ?? 0) > 0 : initialHasBuildings
   const [currentStep, setCurrentStepState] = useState(1)
   const [maxStepReached, setMaxStepReached] = useState(1)
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Wrapper pour setCurrentStep qui met aussi à jour maxStepReached
   const setCurrentStep = (step: number) => {
@@ -198,6 +149,8 @@ export default function LotCreationForm({
     if (clampedStep > maxStepReached) {
       setMaxStepReached(clampedStep)
     }
+    // Scroll to top on step change
+    scrollContainerRef.current?.scrollTo({ top: 0 })
   }
 
   // Handler pour le clic sur une étape dans le header
@@ -234,7 +187,7 @@ export default function LotCreationForm({
   })
 
   const [lotData, setLotData] = useState<LotData>({
-    buildingAssociation: "existing",
+    buildingAssociation: "independent",
     reference: "",
     floor: "",
     doorNumber: "",
@@ -243,7 +196,6 @@ export default function LotCreationForm({
     assignedContacts: {
       tenant: [],
       provider: [],
-      owner: [],
       other: [],
     },
     assignedLotManagers: [],
@@ -290,13 +242,12 @@ export default function LotCreationForm({
   const [assignedManagersByLot, setAssignedManagersByLot] = useState<{
     [lotId: string]: UserType[]
   }>({})
-  // Format identique à la création d'immeuble: tenant, provider, owner, other
+  // Format identique à la création d'immeuble: tenant, provider, other
   const [buildingContacts, setBuildingContacts] = useState<{
     [type: string]: Contact[]
   }>({
     tenant: [],
     provider: [],
-    owner: [],
     other: [],
   })
 
@@ -349,6 +300,85 @@ export default function LotCreationForm({
     category: LotCategory
   }>>([])
   const [isLoadingBuildingData, setIsLoadingBuildingData] = useState(false)
+  const [existingBuildingDocs, setExistingBuildingDocs] = useState<Array<{
+    id: string
+    document_type: string
+    original_filename: string
+    uploaded_at: string
+    storage_path: string
+  }>>([])
+
+  // Form persistence for contact creation redirect
+  const formState = {
+    currentStep,
+    maxStepReached,
+    lotData,
+    lots,
+    expandedLots,
+    lotContactAssignments,
+    assignedManagersByLot,
+    buildingContacts,
+    independentLots,
+    expandedIndependentLots,
+    selectedManagerId,
+    scheduledInterventions,
+  }
+  const { saveAndRedirect } = useSaveFormState(formState)
+
+  // Restore form state after contact creation redirect
+  const { newContactId: restoredNewContactId } = useRestoreFormState(useCallback((restoredState: any) => {
+    logger.info(`📥 [LOT-FORM] Restoring form state after contact creation`)
+    setCurrentStepState(restoredState.currentStep)
+    setMaxStepReached(restoredState.maxStepReached || restoredState.currentStep)
+    setLotData(restoredState.lotData)
+    setLots(restoredState.lots || [])
+    setExpandedLots(restoredState.expandedLots || {})
+    setLotContactAssignments(restoredState.lotContactAssignments || {})
+    setAssignedManagersByLot(restoredState.assignedManagersByLot || {})
+    setBuildingContacts(restoredState.buildingContacts || { tenant: [], provider: [], other: [] })
+    setIndependentLots(restoredState.independentLots || [])
+    setExpandedIndependentLots(restoredState.expandedIndependentLots || {})
+    setSelectedManagerId(restoredState.selectedManagerId || '')
+    setScheduledInterventions(restoredState.scheduledInterventions || [])
+  }, []))
+
+  // Auto-add contact after creation redirect
+  useEffect(() => {
+    if (!restoredNewContactId) return
+    const contactType = searchParams.get('contactType')
+    const sessionKeyParam = searchParams.get('sessionKey')
+    if (!sessionKeyParam) return
+
+    const contactDataStr = sessionStorage.getItem(`contact-data-${sessionKeyParam}`)
+    if (!contactDataStr) return
+
+    try {
+      const contactData = JSON.parse(contactDataStr)
+      logger.info(`✅ [LOT-FORM] New contact created: ${restoredNewContactId}, type: ${contactType}`)
+
+      // Map contact type to category
+      const typeMap: Record<string, string> = {
+        'gestionnaire': 'other', 'manager': 'other',
+        'locataire': 'tenant', 'tenant': 'tenant',
+        'prestataire': 'provider', 'provider': 'provider',
+      }
+      const category = typeMap[contactType || ''] || 'other'
+
+      setBuildingContacts(prev => ({
+        ...prev,
+        [category]: [...(prev[category] || []), {
+          id: contactData.id,
+          name: contactData.name,
+          email: contactData.email || '',
+          role: contactType || 'prestataire',
+        }]
+      }))
+      toast.success(`${contactData.name} ajouté automatiquement !`)
+      sessionStorage.removeItem(`contact-data-${sessionKeyParam}`)
+    } catch (error) {
+      logger.error(`❌ [LOT-FORM] Error parsing contact data:`, error)
+    }
+  }, [restoredNewContactId, searchParams])
 
   // Pre-fill from building page (gestionnaire navigates from building detail)
   useEffect(() => {
@@ -375,10 +405,10 @@ export default function LotCreationForm({
     }
   }, [prefillBuildingId, isPreFilled])
 
-  // Default to "new" when no buildings exist (hide useless "existing" option)
+  // Default to "independent" when no buildings exist (hide useless "existing" option)
   useEffect(() => {
     if (managerData && (managerData.buildings?.length ?? 0) === 0) {
-      setLotData(prev => ({ ...prev, buildingAssociation: 'new' }))
+      setLotData(prev => ({ ...prev, buildingAssociation: 'independent' }))
     }
   }, [managerData])
 
@@ -442,8 +472,7 @@ export default function LotCreationForm({
   useEffect(() => {
     if (currentStep === 2 &&
         lotData.buildingAssociation === "existing" &&
-        lots.length === 0 &&
-        categoryCountsByTeam && Object.keys(categoryCountsByTeam).length > 0) {
+        lots.length === 0) {
 
       logger.info("🏠 [MULTI-LOT] Auto-initializing first lot...")
 
@@ -505,7 +534,15 @@ export default function LotCreationForm({
       setExpandedLots(allExpanded)
       logger.info("📂 [MULTI-LOT] All lots expanded for contact assignment")
     }
-  }, [currentStep, lotData.buildingAssociation, lots])
+    if (currentStep === 3 && lotData.buildingAssociation === "independent" && independentLots.length > 0) {
+      const allExpanded: {[key: string]: boolean} = {}
+      independentLots.forEach(lot => {
+        allExpanded[lot.id] = true
+      })
+      setExpandedIndependentLots(allExpanded)
+      logger.info("📂 [INDEPENDENT-LOT] All lots expanded for contact assignment")
+    }
+  }, [currentStep, lotData.buildingAssociation, lots, independentLots])
 
   // ✅ Assigner automatiquement le gestionnaire au premier lot indépendant initial
   // NOTE: This hook MUST be called before any early returns to respect React's Rules of Hooks
@@ -542,10 +579,10 @@ export default function LotCreationForm({
         setBuildingContacts({
           tenant: [],
           provider: [],
-          owner: [],
           other: [],
         })
         setExistingBuildingLots([])
+        setExistingBuildingDocs([])
         return
       }
 
@@ -563,7 +600,7 @@ export default function LotCreationForm({
           buildingName: building.name,
           buildingContactsType: typeof building.building_contacts,
           buildingContactsIsArray: Array.isArray(building.building_contacts),
-          buildingContactsLength: (building.building_contacts as any)?.length,
+          buildingContactsLength: (building as { building_contacts?: unknown[] }).building_contacts?.length,
           buildingContactsRaw: building.building_contacts
         })
 
@@ -616,7 +653,7 @@ export default function LotCreationForm({
               auth_user_id: user.auth_user_id || null,
               email: user.email || '',
               name: user.name || user.email || 'Sans nom',
-              role: (user.role as 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire') || 'gestionnaire',
+              role: (user.role as 'admin' | 'gestionnaire' | 'prestataire' | 'locataire') || 'gestionnaire',
               phone: user.phone || null,
               provider_category: user.provider_category || null,
               speciality: user.speciality || null,
@@ -641,12 +678,11 @@ export default function LotCreationForm({
 
         logger.info('✅ [BUILDING-DATA] Building managers state updated via setBuildingManagers')
 
-        // ✅ Extract building contacts grouped by type (tenant, provider, owner, other)
+        // ✅ Extract building contacts grouped by type (tenant, provider, other)
         // Format identique à la création d'immeuble pour compatibilité
         const contacts: { [type: string]: Contact[] } = {
           tenant: [],
           provider: [],
-          owner: [],
           other: []
         }
 
@@ -678,8 +714,6 @@ export default function LotCreationForm({
             contacts.tenant.push(contact)
           } else if (role === 'prestataire') {
             contacts.provider.push(contact)
-          } else if (role === 'proprietaire') {
-            contacts.owner.push(contact)
           } else {
             contacts.other.push(contact)
           }
@@ -704,6 +738,12 @@ export default function LotCreationForm({
         })
 
         setExistingBuildingLots(normalizedExistingLots)
+
+        // ✅ Fetch existing building documents
+        const docsResult = await getBuildingExistingDocuments(lotData.selectedBuilding!)
+        if (docsResult.success && docsResult.documents) {
+          setExistingBuildingDocs(docsResult.documents)
+        }
       } catch (error) {
         logger.error("❌ [LOT-CREATION] Error loading building data:", error)
         toast.error("Erreur de chargement", { description: "Impossible de charger les données de l'immeuble. Veuillez réessayer." })
@@ -712,10 +752,10 @@ export default function LotCreationForm({
         setBuildingContacts({
           tenant: [],
           provider: [],
-          owner: [],
           other: [],
         })
         setExistingBuildingLots([])
+        setExistingBuildingDocs([])
       } finally {
         setIsLoadingBuildingData(false)
       }
@@ -1030,15 +1070,23 @@ export default function LotCreationForm({
   // Handle geocode result for independent lots (Google Maps integration)
   // STALE CLOSURE FIX: Use functional update (prevLots =>) to ensure we have the latest state
   // This is called AFTER onUpdate calls for address fields, so we must not overwrite those updates
-  const handleIndependentLotGeocodeResult = (lotId: string, result: { latitude: number; longitude: number; placeId: string; formattedAddress: string } | null) => {
+  const handleIndependentLotGeocodeResult = (lotId: string, result: { latitude: number; longitude: number; placeId: string; formattedAddress: string; fields?: { street: string; postalCode: string; city: string; country: string } } | null) => {
     logger.info(`📍 [INDEPENDENT-LOT] Geocode result for lot ${lotId}:`, result ? 'found' : 'not found')
 
     setIndependentLots(prevLots => prevLots.map(lot => {
       if (lot.id === lotId) {
         if (result) {
-          // IMPORTANT: Spread lot FIRST to preserve address fields updated by onUpdate calls
+          // ATOMIC UPDATE: address fields + geocode data in ONE state update
+          // Previously, address fields were set via separate onUpdate calls that raced
+          // with this geocode callback, causing postal code and city to be lost
           return {
             ...lot,
+            ...(result.fields ? {
+              street: result.fields.street,
+              postalCode: result.fields.postalCode,
+              city: result.fields.city,
+              country: result.fields.country,
+            } : {}),
             latitude: result.latitude,
             longitude: result.longitude,
             placeId: result.placeId,
@@ -1187,14 +1235,43 @@ export default function LotCreationForm({
           })
         })
       )
-      const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length
+      const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean })?.success).length
       logger.info({ successCount, total: results.length, lotId }, 'Lot interventions created')
     } catch (err) {
       logger.error('⚠️ Intervention creation failed (lot created successfully):', err)
     }
   }
 
+  /**
+   * Batch assign managers + contacts to a created lot via single server action
+   * Replaces N individual assignContactToLotAction calls with 1 batchAssignContactsToLotAction call
+   */
+  const batchAssignContactsToLot = async (
+    createdLotId: string,
+    managers: Array<{ id: string; name: string }>,
+    contactsByType: Record<string, Contact[]>
+  ) => {
+    const assignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
+
+    // Add manager assignments
+    managers.forEach((manager, index) => {
+      assignments.push({ lotId: createdLotId, userId: manager.id, isPrimary: index === 0 })
+    })
+
+    // Add contact assignments
+    Object.values(contactsByType).forEach(contacts => {
+      contacts.forEach((contact, index) => {
+        assignments.push({ lotId: createdLotId, userId: contact.id, isPrimary: index === 0 })
+      })
+    })
+
+    if (assignments.length === 0) return
+
+    await batchAssignContactsToLotAction(assignments)
+  }
+
   const handleFinish = async () => {
+    if (isSubmitting) return // Double-submission guard
     setIsSubmitting(true)
     try {
       if (!userProfile?.id) {
@@ -1214,8 +1291,8 @@ export default function LotCreationForm({
       try {
         logger.info(`🚀 Creating ${lots.length} lots for building:`, lotData.selectedBuilding)
 
-        // Créer tous les lots en parallèle
-        const lotCreationPromises = lots.map(async (lot) => {
+        // Créer tous les lots en parallèle (1st lot checks subscription, rest skip)
+        const lotCreationPromises = lots.map(async (lot, lotIndex) => {
           try {
             const lotDataToCreate = {
               reference: lot.reference,
@@ -1227,10 +1304,12 @@ export default function LotCreationForm({
               team_id: userTeam.id,
             }
 
-            const result = await createLotAction(lotDataToCreate)
+            const result = await createLotAction(lotDataToCreate, {
+              skipSubscriptionCheck: lotIndex > 0, // Only 1st lot checks subscription
+            })
 
             if (!result.success || !result.data) {
-              logger.error(`❌ Failed to create lot ${lot.reference}:`, result.error)
+              logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
               return null
             }
 
@@ -1242,57 +1321,28 @@ export default function LotCreationForm({
         })
 
         const creationResults = await Promise.all(lotCreationPromises)
-        const successfulCreations = creationResults.filter(result => result !== null) as Array<{lot: typeof lots[0], createdLot: any}>
+        const successfulCreations = creationResults.filter((r): r is NonNullable<typeof r> => r !== null)
 
         logger.info(`✅ Created ${successfulCreations.length}/${lots.length} lots`)
 
-        // Assigner les contacts et managers à chaque lot créé
+        // Batch assign all contacts + managers across ALL lots in a single server action
+        const allAssignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
         for (const { lot, createdLot } of successfulCreations) {
-          // Assigner les managers spécifiques du lot
           const lotManagers = assignedManagersByLot[lot.id] || []
-          if (lotManagers.length > 0) {
-            logger.info(`👥 Assigning ${lotManagers.length} managers to lot ${lot.reference}`)
+          lotManagers.forEach((manager, index) => {
+            allAssignments.push({ lotId: createdLot.id, userId: manager.id, isPrimary: index === 0 })
+          })
 
-            const managerPromises = lotManagers.map(async (manager, index) => {
-              try {
-                return await assignContactToLotAction(
-                  createdLot.id,
-                  manager.id,
-                  index === 0 // Premier = principal
-                )
-              } catch (error) {
-                logger.error(`❌ Error assigning manager ${manager.name}:`, error)
-                return null
-              }
-            })
-
-            await Promise.all(managerPromises)
-          }
-
-          // Assigner les contacts du lot
           const lotContacts = lotContactAssignments[lot.id] || {}
-          const totalContacts = Object.values(lotContacts).flat().length
+          Object.values(lotContacts).forEach(contacts => {
+            contacts.forEach((contact: Contact, index: number) => {
+              allAssignments.push({ lotId: createdLot.id, userId: contact.id, isPrimary: index === 0 })
+            })
+          })
+        }
 
-          if (totalContacts > 0) {
-            logger.info(`📞 Assigning ${totalContacts} contacts to lot ${lot.reference}`)
-
-            const contactPromises = Object.entries(lotContacts).flatMap(([contactType, contacts]) =>
-              contacts.map(async (contact: any, index: number) => {
-                try {
-                  return await assignContactToLotAction(
-                    createdLot.id,
-                    contact.id,
-                    index === 0 // Premier de chaque type = principal
-                  )
-                } catch (error) {
-                  logger.error(`❌ Error assigning contact ${contact.name}:`, error)
-                  return null
-                }
-              })
-            )
-
-            await Promise.all(contactPromises)
-          }
+        if (allAssignments.length > 0) {
+          await batchAssignContactsToLotAction(allAssignments)
         }
 
         // Create interventions + upload documents for ALL lots in parallel
@@ -1316,8 +1366,15 @@ export default function LotCreationForm({
 
         await Promise.allSettled(allPostCreationPromises)
 
+        if (successfulCreations.length === 0) {
+          toast.error("Erreur", { description: "Aucun lot n'a pu être créé." })
+          setIsSubmitting(false)
+          return
+        }
+
         // Succès - Rediriger vers la page de l'immeuble (navigation immédiate)
         toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's créés' : ' créé'} avec succès`, { description: `Les lots ont été créés et assignés à l'immeuble.` })
+        realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
         router.push(`/gestionnaire/biens/immeubles/${lotData.selectedBuilding}`)
 
         return
@@ -1356,7 +1413,7 @@ export default function LotCreationForm({
         }
 
         // Créer tous les lots en parallèle (TOUJOURS créer adresse dans table centralisée)
-        const lotCreationPromises = independentLots.map(async (lot) => {
+        const lotCreationPromises = independentLots.map(async (lot, lotIndex) => {
           try {
             let addressId: string | null = null
 
@@ -1408,10 +1465,12 @@ export default function LotCreationForm({
               team_id: userTeam.id,
             }
 
-            const result = await createLotAction(lotDataToCreate)
+            const result = await createLotAction(lotDataToCreate, {
+              skipSubscriptionCheck: lotIndex > 0, // Only 1st lot checks subscription
+            })
 
             if (!result.success || !result.data) {
-              logger.error(`❌ Failed to create lot ${lot.reference}:`, result.error)
+              logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
               return null
             }
 
@@ -1423,57 +1482,28 @@ export default function LotCreationForm({
         })
 
         const creationResults = await Promise.all(lotCreationPromises)
-        const successfulCreations = creationResults.filter(result => result !== null) as Array<{lot: IndependentLot, createdLot: any}>
+        const successfulCreations = creationResults.filter((r): r is NonNullable<typeof r> => r !== null)
 
         logger.info(`✅ Created ${successfulCreations.length}/${independentLots.length} independent lots`)
 
-        // Assigner les contacts et managers à chaque lot créé
+        // Batch assign all contacts + managers across ALL lots in a single server action
+        const allIndependentAssignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
         for (const { lot, createdLot } of successfulCreations) {
-          // Assigner les managers spécifiques du lot
           const lotManagers = assignedManagersByLot[lot.id] || []
-          if (lotManagers.length > 0) {
-            logger.info(`👥 Assigning ${lotManagers.length} managers to lot ${lot.reference}`)
+          lotManagers.forEach((manager, index) => {
+            allIndependentAssignments.push({ lotId: createdLot.id, userId: manager.id, isPrimary: index === 0 })
+          })
 
-            const managerPromises = lotManagers.map(async (manager, index) => {
-              try {
-                return await assignContactToLotAction(
-                  createdLot.id,
-                  manager.id,
-                  index === 0 // Premier = principal
-                )
-              } catch (error) {
-                logger.error(`❌ Error assigning manager ${manager.name}:`, error)
-                return null
-              }
-            })
-
-            await Promise.all(managerPromises)
-          }
-
-          // Assigner les contacts du lot
           const lotContacts = lotContactAssignments[lot.id] || {}
-          const totalContacts = Object.values(lotContacts).flat().length
+          Object.values(lotContacts).forEach(contacts => {
+            contacts.forEach((contact: Contact, index: number) => {
+              allIndependentAssignments.push({ lotId: createdLot.id, userId: contact.id, isPrimary: index === 0 })
+            })
+          })
+        }
 
-          if (totalContacts > 0) {
-            logger.info(`📞 Assigning ${totalContacts} contacts to lot ${lot.reference}`)
-
-            const contactPromises = Object.entries(lotContacts).flatMap(([contactType, contacts]) =>
-              contacts.map(async (contact: any, index: number) => {
-                try {
-                  return await assignContactToLotAction(
-                    createdLot.id,
-                    contact.id,
-                    index === 0 // Premier de chaque type = principal
-                  )
-                } catch (error) {
-                  logger.error(`❌ Error assigning contact ${contact.name}:`, error)
-                  return null
-                }
-              })
-            )
-
-            await Promise.all(contactPromises)
-          }
+        if (allIndependentAssignments.length > 0) {
+          await batchAssignContactsToLotAction(allIndependentAssignments)
         }
 
         // Create interventions + upload documents for ALL lots in parallel
@@ -1497,8 +1527,15 @@ export default function LotCreationForm({
 
         await Promise.allSettled(allIndependentPostCreationPromises)
 
+        if (successfulCreations.length === 0) {
+          toast.error("Erreur", { description: "Aucun lot n'a pu être créé." })
+          setIsSubmitting(false)
+          return
+        }
+
         // Succès - Rediriger vers la page des biens (navigation immédiate)
         toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
+        realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
         router.push(`/gestionnaire/biens/lots/${successfulCreations[0].createdLot.id}`)
 
         return
@@ -1553,69 +1590,12 @@ export default function LotCreationForm({
       const createdLot = result.data
       logger.info("✅ Lot created successfully:", createdLot)
 
-      // Assigner les gestionnaires au lot via lot_contacts si des gestionnaires ont été sélectionnés
-      if (lotData.assignedLotManagers && lotData.assignedLotManagers.length > 0) {
-        logger.info("👥 Assigning managers to lot via lot_contacts:", lotData.assignedLotManagers)
-        
-        // Assigner tous les gestionnaires via lot_contacts
-        const managerAssignmentPromises = lotData.assignedLotManagers.map(async (manager, index) => {
-          try {
-            const isPrincipal = index === 0
-            logger.info(`📝 Assigning manager ${manager.name} (${manager.id}) to lot ${createdLot.id} as ${isPrincipal ? 'principal' : 'additional'}`)
-            return await assignContactToLotAction(
-              createdLot.id,
-              manager.id,
-              isPrincipal // Le premier est principal, les autres sont additionnels
-            )
-          } catch (error) {
-            logger.error(`❌ Error assigning manager ${manager.name} to lot:`, error)
-            return null
-          }
-        })
-
-        const assignmentResults = await Promise.all(managerAssignmentPromises)
-        const successfulAssignments = assignmentResults.filter((result: unknown) => result !== null)
-        
-        logger.info("✅ Manager assignments completed:", {
-          total: lotData.assignedLotManagers.length,
-          successful: successfulAssignments.length,
-          principalManager: lotData.assignedLotManagers[0].name,
-          additionalManagers: successfulAssignments.length - 1
-        })
-      }
-
-      // Assigner les contacts sélectionnés au lot
-      const totalContacts = Object.values(lotData.assignedContacts).flat().length
-      if (totalContacts > 0) {
-        logger.info("👥 Assigning selected contacts to lot:", totalContacts, "contacts")
-        
-        // Créer les promesses d'assignation pour tous les types de contacts
-        const contactAssignmentPromises = Object.entries(lotData.assignedContacts).flatMap(([contactType, contacts]) => 
-          contacts.map(async (contact, index) => {
-            try {
-              const isPrimary = index === 0 // Le premier contact de chaque type est principal
-              logger.info(`📝 Assigning ${contactType} contact ${contact.name} (${contact.id}) to lot ${createdLot.id}`)
-              return await assignContactToLotAction(
-                createdLot.id,
-                contact.id,
-                isPrimary
-              )
-            } catch (error) {
-              logger.error(`❌ Error assigning ${contactType} contact ${contact.name} to lot:`, error)
-              return null
-            }
-          })
-        )
-
-        const contactAssignmentResults = await Promise.all(contactAssignmentPromises)
-        const successfulContactAssignments = contactAssignmentResults.filter((result: unknown) => result !== null)
-        
-        logger.info("✅ Contact assignments completed:", {
-          total: totalContacts,
-          successful: successfulContactAssignments.length,
-          failed: totalContacts - successfulContactAssignments.length
-        })
-      }
+      // Batch assign managers + contacts in a single server action call
+      await batchAssignContactsToLot(
+        createdLot.id,
+        lotData.assignedLotManagers || [],
+        lotData.assignedContacts || {}
+      )
 
       // Upload documents + create interventions in parallel
       const singleLotPostCreation: Promise<unknown>[] = []
@@ -1636,6 +1616,7 @@ export default function LotCreationForm({
 
       // Succès - Rediriger vers la page des biens (navigation immédiate)
       toast.success("Lot créé avec succès", { description: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.` })
+      realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
       router.push(`/gestionnaire/biens/lots/${createdLot.id}`)
 
     } catch (error) {
@@ -1652,9 +1633,9 @@ export default function LotCreationForm({
     }
   }
 
-  // Fonction pour ouvrir le wizard de création de gestionnaire
+  // Fonction pour ouvrir le wizard de création de gestionnaire (with form persistence)
   const openGestionnaireModal = () => {
-    router.push('/gestionnaire/contacts/nouveau')
+    saveAndRedirect('/gestionnaire/contacts/nouveau', { type: 'gestionnaire' })
   }
 
   const canProceedToNextStep = () => {
@@ -1681,85 +1662,32 @@ export default function LotCreationForm({
         return lots.length > 0
       }
     }
+    if (currentStep === 4) {
+      const hasEmptyCustomTitle = scheduledInterventions.some(
+        i => i.key.startsWith('custom_') && i.enabled && !i.title.trim()
+      )
+      return !hasEmptyCustomTitle
+    }
     return true
   }
 
 
   const renderStep1 = () => (
+    <div className="flex flex-col justify-center min-h-[calc(100vh-220px)]">
     <Card>
       <CardContent className="py-6 space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground mb-2">Lier à un immeuble</h2>
-        </div>
-
         <RadioGroup
         value={lotData.buildingAssociation}
         onValueChange={(value: "existing" | "new" | "independent") =>
           setLotData((prev) => ({ ...prev, buildingAssociation: value }))
         }
-        className="space-y-4"
+        className="space-y-3"
       >
-        {hasBuildings && (
         <div
-          className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm ${
-            lotData.buildingAssociation === "existing"
-              ? "border-blue-500 bg-blue-50 shadow-sm"
-              : "border-border bg-card"
-          }`}
-          onClick={() => setLotData((prev) => ({ ...prev, buildingAssociation: "existing" }))}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              setLotData((prev) => ({ ...prev, buildingAssociation: "existing" }))
-            }
-          }}
-          tabIndex={0}
-          role="radio"
-          aria-checked={lotData.buildingAssociation === "existing"}
-          data-testid="radio-existing"
-        >
-          <RadioGroupItem value="existing" id="existing" className="mt-1" />
-          <div className="flex-1">
-            <Label htmlFor="existing" className="font-medium text-foreground cursor-pointer">
-              Lier à un immeuble existant
-            </Label>
-            <p className="text-sm text-muted-foreground mt-1">Associez ce lot à un immeuble que vous avez déjà créé</p>
-          </div>
-        </div>
-        )}
-
-        <div
-          className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm ${
-            lotData.buildingAssociation === "new"
-              ? "border-blue-500 bg-blue-50 shadow-sm"
-              : "border-border bg-card"
-          }`}
-          onClick={() => setLotData((prev) => ({ ...prev, buildingAssociation: "new" }))}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              setLotData((prev) => ({ ...prev, buildingAssociation: "new" }))
-            }
-          }}
-          tabIndex={0}
-          role="radio"
-          aria-checked={lotData.buildingAssociation === "new"}
-          data-testid="radio-new"
-        >
-          <RadioGroupItem value="new" id="new" className="mt-1" />
-          <div className="flex-1">
-            <Label htmlFor="new" className="font-medium text-foreground cursor-pointer">
-              Ajouter un immeuble
-            </Label>
-            <p className="text-sm text-muted-foreground mt-1">Créez un nouvel immeuble et associez-y ce lot</p>
-          </div>
-        </div>
-
-        <div 
-          className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm ${
+          className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
             lotData.buildingAssociation === "independent"
-              ? "border-blue-500 bg-blue-50 shadow-sm"
-              : "border-border bg-card"
+              ? "border-amber-400 bg-amber-50 shadow-sm ring-2 ring-amber-100"
+              : "border-border bg-card hover:border-amber-200 hover:bg-amber-50/50 hover:shadow-sm"
           }`}
           onClick={() => setLotData((prev) => ({ ...prev, buildingAssociation: "independent" }))}
           onKeyDown={(e) => {
@@ -1773,25 +1701,85 @@ export default function LotCreationForm({
           aria-checked={lotData.buildingAssociation === "independent"}
           data-testid="radio-independent"
         >
-          <RadioGroupItem value="independent" id="independent" className="mt-1" />
-          <div className="flex-1">
+          <RadioGroupItem value="independent" id="independent" className="flex-shrink-0" />
+          <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <Home className="h-[18px] w-[18px] text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
             <Label htmlFor="independent" className="font-medium text-foreground cursor-pointer">
               Laisser le lot indépendant
             </Label>
-            <p className="text-sm text-muted-foreground mt-1">
-              Ce lot ne sera pas associé à un immeuble (maison individuelle, etc.)
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Lot individuel ou dans un immeuble dont vous ne gérez pas les autres lots. Vous pourrez en créer plusieurs à la fois à l&apos;étape suivante.
             </p>
           </div>
         </div>
-      </RadioGroup>
 
-      {lotData.buildingAssociation === "existing" && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center space-x-2">
-            <Building2 className="h-5 w-5 text-sky-600" />
-            <span>Sélectionner un immeuble</span>
-          </h3>
+        <div
+          className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+            lotData.buildingAssociation === "new"
+              ? "border-emerald-400 bg-emerald-50 shadow-sm ring-2 ring-emerald-100"
+              : "border-border bg-card hover:border-emerald-200 hover:bg-emerald-50/50 hover:shadow-sm"
+          }`}
+          onClick={() => setLotData((prev) => ({ ...prev, buildingAssociation: "new" }))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setLotData((prev) => ({ ...prev, buildingAssociation: "new" }))
+            }
+          }}
+          tabIndex={0}
+          role="radio"
+          aria-checked={lotData.buildingAssociation === "new"}
+          data-testid="radio-new"
+        >
+          <RadioGroupItem value="new" id="new" className="flex-shrink-0" />
+          <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+            <Building2 className="h-[18px] w-[18px] text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <Label htmlFor="new" className="font-medium text-foreground cursor-pointer">
+              Créer un immeuble
+            </Label>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Vous serez redirigé vers le formulaire de création d&apos;immeuble, où vous pourrez ajouter un ou plusieurs lots directement.
+            </p>
+          </div>
+        </div>
 
+        {hasBuildings && (
+        <div
+          className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+            lotData.buildingAssociation === "existing"
+              ? "border-sky-400 bg-sky-50 shadow-sm ring-2 ring-sky-100"
+              : "border-border bg-card hover:border-sky-200 hover:bg-sky-50/50 hover:shadow-sm"
+          }`}
+          onClick={() => setLotData((prev) => ({ ...prev, buildingAssociation: "existing" }))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              setLotData((prev) => ({ ...prev, buildingAssociation: "existing" }))
+            }
+          }}
+          tabIndex={0}
+          role="radio"
+          aria-checked={lotData.buildingAssociation === "existing"}
+          data-testid="radio-existing"
+        >
+          <RadioGroupItem value="existing" id="existing" className="flex-shrink-0" />
+          <div className="w-9 h-9 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0">
+            <Building2 className="h-[18px] w-[18px] text-sky-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <Label htmlFor="existing" className="font-medium text-foreground cursor-pointer">
+              Lier à un immeuble existant
+            </Label>
+            <p className="text-sm text-muted-foreground mt-0.5">Associez ce lot à un immeuble que vous avez déjà créé</p>
+          </div>
+        </div>
+        )}
+
+        <div className={`ml-4 pl-4 border-l-2 border-sky-200 ${lotData.buildingAssociation !== "existing" ? "hidden" : ""}`}>
           <PropertySelector
             mode="select"
             onBuildingSelect={(buildingId) => {
@@ -1804,81 +1792,19 @@ export default function LotCreationForm({
             showActions={false}
             showOnlyBuildings={true}
             hideLotsSelect={true}
+            initialData={managerData ? {
+              buildings: managerData.buildings as Building[],
+              lots: managerData.lots as Lot[],
+              teamId: null
+            } : undefined}
           />
         </div>
-      )}
+      </RadioGroup>
 
-      {lotData.buildingAssociation === "new" && (
-        <Card className="border-blue-200 bg-blue-50/30">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-blue-900">
-              <Building2 className="h-5 w-5 text-blue-600" />
-              <span>Création d'un nouvel immeuble</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-blue-100/50 rounded-lg border border-blue-200">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white font-semibold text-sm">1</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-blue-900 mb-2">
-                    Vous allez d'abord créer l'immeuble
-                  </h4>
-                  <p className="text-blue-700 text-sm leading-relaxed">
-                    En cliquant sur "Suivant", vous serez redirigé vers la page de création d'immeuble.
-                    Une fois l'immeuble créé, vous pourrez revenir ici pour créer votre lot et l'associer 
-                    à ce nouvel immeuble.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white font-semibold text-sm">2</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-amber-900 mb-2">
-                    Puis vous créerez le lot
-                  </h4>
-                  <p className="text-amber-700 text-sm leading-relaxed">
-                    Après avoir créé l'immeuble, vous pourrez utiliser l'option "Lier à un immeuble existant" 
-                    pour associer votre lot au nouvel immeuble que vous venez de créer.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="pt-2">
-              <p className="text-xs text-gray-600 italic">
-                💡 Conseil : Cette approche en deux étapes vous permet de créer un immeuble complet 
-                avec tous ses lots d'un coup, puis d'ajouter des lots individuels plus tard si nécessaire.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {lotData.buildingAssociation === "independent" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Home className="h-5 w-5" />
-              <span>Lot indépendant</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Ce lot ne sera pas associé à un immeuble. Vous pourrez définir ses informations générales à l'étape suivante.
-            </p>
-          </CardContent>
-        </Card>
-      )}
       </CardContent>
     </Card>
+    </div>
   )
 
   const renderStep2 = () => {
@@ -1911,6 +1837,11 @@ export default function LotCreationForm({
           expandedLots={expandedLots}
           buildingReference={selectedBuilding?.name || "Immeuble sélectionné"}
           buildingAddress={selectedBuilding?.address_record?.street || ""}
+          buildingPostalCode={selectedBuilding?.address_record?.postal_code || ""}
+          buildingCity={selectedBuilding?.address_record?.city || ""}
+          buildingCountry={selectedBuilding?.address_record?.country || ""}
+          existingLotsCount={existingBuildingLots.length}
+          existingLots={existingBuildingLots}
           onAddLot={addLot}
           onUpdateLot={updateLot}
           onDuplicateLot={duplicateLot}
@@ -2053,20 +1984,22 @@ export default function LotCreationForm({
   }
 
   const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
+    // Map 'owner' back to internal 'other' bucket key
+    const bucketKey = contactType === 'owner' ? 'other' : contactType
     if (context?.lotId) {
       // Ajouter contact au lot spécifique
       setLotContactAssignments(prev => ({
         ...prev,
         [context.lotId]: {
           ...prev[context.lotId],
-          [contactType]: [...(prev[context.lotId]?.[contactType] || []), contact]
+          [bucketKey]: [...(prev[context.lotId]?.[bucketKey] || []), contact]
         }
       }))
     } else {
       // Ajouter contact à l'immeuble (pour contacts temporaires avant validation)
       setBuildingContacts(prev => ({
         ...prev,
-        [contactType]: [...(prev[contactType] || []), contact]
+        [bucketKey]: [...(prev[bucketKey] || []), contact]
       }))
     }
   }
@@ -2077,11 +2010,13 @@ export default function LotCreationForm({
   }
 
   const removeContactFromLot = (lotId: string, contactType: string, contactId: string) => {
+    // Map 'owner' back to internal 'other' bucket key
+    const bucketKey = contactType === 'owner' ? 'other' : contactType
     setLotContactAssignments(prev => ({
       ...prev,
       [lotId]: {
         ...prev[lotId],
-        [contactType]: (prev[lotId]?.[contactType] || []).filter(c => c.id !== contactId)
+        [bucketKey]: (prev[lotId]?.[bucketKey] || []).filter(c => c.id !== contactId)
       }
     }))
   }
@@ -2112,18 +2047,16 @@ export default function LotCreationForm({
       }
 
       const safeBuildingManagers = Array.isArray(buildingManagers) ? buildingManagers : []
-      const safeBuildingContacts = buildingContacts && typeof buildingContacts === 'object' 
+      const safeBuildingContacts = buildingContacts && typeof buildingContacts === 'object'
         ? {
             tenant: Array.isArray(buildingContacts.tenant) ? buildingContacts.tenant : [],
             provider: Array.isArray(buildingContacts.provider) ? buildingContacts.provider : [],
-            owner: Array.isArray(buildingContacts.owner) ? buildingContacts.owner : [],
-            other: Array.isArray(buildingContacts.other) ? buildingContacts.other : [],
+            owner: Array.isArray(buildingContacts.other) ? buildingContacts.other : [],
           }
         : {
             tenant: [],
             provider: [],
             owner: [],
-            other: [],
           }
 
       return (
@@ -2145,9 +2078,9 @@ export default function LotCreationForm({
                 handleBuildingContactRemove(contactId, contactType)
               }
             }}
-            allowedContactTypes={["tenant", "provider", "owner", "other"]}
+            allowedContactTypes={["tenant", "provider", "owner"]}
           />
-          
+
           <BuildingContactsStepV3
             buildingInfo={{
               name: selectedBuilding?.name || "Immeuble",
@@ -2185,6 +2118,7 @@ export default function LotCreationForm({
             toggleLotExpansion={toggleLotExpansion}
             buildingDocUpload={lotDocUpload}
             lotDocUploads={lotDocUploads}
+            existingBuildingDocs={existingBuildingDocs}
           />
         </>
       )
@@ -2211,18 +2145,19 @@ export default function LotCreationForm({
           selectedContacts={{
             tenant: [],
             provider: [],
-            owner: [],
-            other: []
+            owner: []
           }}
           lotContactAssignments={lotContactAssignments}
           onContactSelected={(contact, contactType, context) => {
             if (context?.lotId) {
+              // Map 'owner' back to internal 'other' bucket key
+              const bucketKey = contactType === 'owner' ? 'other' : contactType
               // Assign to specific lot
               setLotContactAssignments(prev => ({
                 ...prev,
                 [context.lotId]: {
                   ...prev[context.lotId],
-                  [contactType]: [...(prev[context.lotId]?.[contactType] || []), contact]
+                  [bucketKey]: [...(prev[context.lotId]?.[bucketKey] || []), contact]
                 }
               }))
             }
@@ -2232,30 +2167,37 @@ export default function LotCreationForm({
               removeContactFromLot(context.lotId, contactType, contactId)
             }
           }}
-          allowedContactTypes={["tenant", "provider", "owner", "other"]}
+          allowedContactTypes={["tenant", "provider", "owner"]}
         />
 
         <Tabs defaultValue="contacts" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto">
-            <TabsTrigger value="contacts" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              <span>Contacts</span>
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
-              <Paperclip className="w-4 h-4" />
-              <span>Documents</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="py-2">
+            <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto bg-slate-100 border border-slate-200 p-1 rounded-xl shadow-sm">
+              <TabsTrigger
+                value="contacts"
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              >
+                <Users className="w-4 h-4" />
+                <span>Contacts</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="documents"
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-white/60 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+              >
+                <Paperclip className="w-4 h-4" />
+                <span>Documents</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="contacts" className="mt-4">
             <div className="space-y-3 @container">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {independentLots.map((lot, index) => {
                   const isExpanded = expandedIndependentLots[lot.id] || false
-                  const lotNumber = independentLots.length - index
+                  const lotNumber = index + 1
                   const lotManagers = assignedManagersByLot[lot.id] || []
                   const providers = lotContactAssignments[lot.id]?.provider || []
-                  const owners = lotContactAssignments[lot.id]?.owner || []
                   const others = lotContactAssignments[lot.id]?.other || []
 
                   return (
@@ -2273,7 +2215,6 @@ export default function LotCreationForm({
                         onAddLotManager={() => openManagerModal(lot.id)}
                         onRemoveLotManager={(managerId) => removeManagerFromLot(lot.id, managerId)}
                         providers={providers}
-                        owners={owners}
                         others={others}
                         onAddContact={(contactType) => {
                           contactSelectorRef.current?.openContactModal(contactType, lot.id)
@@ -2283,7 +2224,6 @@ export default function LotCreationForm({
                         }}
                         buildingManagers={[]}
                         buildingProviders={[]}
-                        buildingOwners={[]}
                         buildingOthers={[]}
                         floor={lot.floor}
                         doorNumber={lot.doorNumber}
@@ -2297,7 +2237,7 @@ export default function LotCreationForm({
           </TabsContent>
 
           <TabsContent value="documents" className="mt-4">
-            <IndependentLotsDocumentsTab
+            <PerLotDocumentAccordion
               lots={independentLots}
               lotDocUploads={lotDocUploads}
             />
@@ -2312,21 +2252,25 @@ export default function LotCreationForm({
     // Determine entity type and document data based on association mode
     const entityType = lotData.buildingAssociation === 'existing' ? 'lot_in_building' as const : 'lot' as const
 
-    // Collect document expiry dates from all lot doc uploads
+    // Collect document expiry dates from all lot doc uploads (computed from documentDate + validityDuration)
     const documentExpiryDates: Record<string, string> = {}
     // For multi-lot modes, merge expiry dates from all lot uploads
     const allUploads = Object.values(lotDocUploads)
     for (const upload of allUploads) {
       for (const slot of upload.slots) {
-        if (slot.files.length > 0 && slot.files[0]?.expiryDate && !documentExpiryDates[slot.type]) {
-          documentExpiryDates[slot.type] = slot.files[0].expiryDate
+        if (slot.files.length > 0 && !documentExpiryDates[slot.type]) {
+          const file = slot.files[0]
+          const expiry = computeExpiryDate(file.documentDate, file.validityDuration, file.validityCustomExpiry)
+          if (expiry) documentExpiryDates[slot.type] = expiry
         }
       }
     }
     // Also check single-lot upload
     for (const slot of lotDocUpload.slots) {
-      if (slot.files.length > 0 && slot.files[0]?.expiryDate && !documentExpiryDates[slot.type]) {
-        documentExpiryDates[slot.type] = slot.files[0].expiryDate
+      if (slot.files.length > 0 && !documentExpiryDates[slot.type]) {
+        const file = slot.files[0]
+        const expiry = computeExpiryDate(file.documentDate, file.validityDuration, file.validityCustomExpiry)
+        if (expiry) documentExpiryDates[slot.type] = expiry
       }
     }
 
@@ -2405,69 +2349,179 @@ export default function LotCreationForm({
           existingLots={existingBuildingLots}
           lotContactAssignments={lotContactAssignments}
           assignedManagers={assignedManagersByLot}
+          buildingDocSlots={lotDocUpload.slots}
+          lotDocSlots={Object.fromEntries(
+            Object.entries(lotDocUploads).map(([lotId, upload]) => [lotId, upload.slots])
+          )}
+          buildingInterventions={scheduledInterventions}
+          existingBuildingDocs={existingBuildingDocs}
         />
       )
     }
 
-    // Mode "independent" avec multi-lots - Utiliser lot cards en mode preview
+    // Mode "independent" avec multi-lots - Confirmation avec composants reusables
     if (lotData.buildingAssociation === "independent") {
+      // Compute summary counts
+      const totalContacts = independentLots.reduce((sum, lot) => {
+        const managers = assignedManagersByLot[lot.id]?.length || 0
+        const providers = lotContactAssignments[lot.id]?.provider?.length || 0
+        const others = lotContactAssignments[lot.id]?.other?.length || 0
+        return sum + managers + providers + others
+      }, 0)
+
+      const totalDocuments = independentLots.reduce((sum, lot) => {
+        const upload = lotDocUploads[lot.id]
+        if (!upload) return sum
+        return sum + upload.slots.reduce((s, slot) => s + slot.fileCount, 0)
+      }, 0)
+
+      const totalInterventions = scheduledInterventions.filter(i => i.enabled).length
+
       return (
-        <div className="space-y-4">
-          {/* Header compact - title and count on same line */}
-          <Card className="border-l-4 border-l-blue-500">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <MapPin className="h-4 w-4 text-blue-600" />
-                </div>
-                <h3 className="font-medium text-foreground">Lots indépendants</h3>
-                <span className="text-sm text-muted-foreground">
-                  • {independentLots.length} lot{independentLots.length > 1 ? 's' : ''} à créer
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+        <ConfirmationPageShell maxWidth="5xl">
+          <ConfirmationEntityHeader
+            icon={MapPin}
+            iconColor="blue"
+            title="Lots independants"
+            subtitle={`${independentLots.length} lot${independentLots.length > 1 ? 's' : ''} a creer`}
+            badges={[{ label: "Independent", variant: "outline" }]}
+          />
 
-          {/* Lot Cards with expand/collapse enabled */}
-          <div className="space-y-3">
-            {/* Grid layout: 1 col mobile, 2 col tablet, 3 col desktop */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {independentLots.map((lot, index) => {
-                const lotNumber = independentLots.length - index
-                const lotManagers = assignedManagersByLot[lot.id] || []
-                const providers = lotContactAssignments[lot.id]?.provider || []
-                const owners = lotContactAssignments[lot.id]?.owner || []
-                const others = lotContactAssignments[lot.id]?.other || []
-                const isExpanded = expandedIndependentLots[lot.id] || false
+          <ConfirmationSummaryBanner
+            metrics={[
+              { label: "Lots", value: independentLots.length, icon: <Home className="h-3.5 w-3.5" /> },
+              { label: "Contacts", value: totalContacts, icon: <Users className="h-3.5 w-3.5" /> },
+              { label: "Documents", value: totalDocuments, icon: <Paperclip className="h-3.5 w-3.5" /> },
+              { label: "Interventions", value: totalInterventions, icon: <Wrench className="h-3.5 w-3.5" /> },
+            ]}
+          />
 
-                return (
-                  <div
-                    key={lot.id}
-                    className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}
-                  >
-                    <LotContactCardV4
-                      lotNumber={lotNumber}
-                      lotReference={lot.reference}
-                      lotCategory={lot.category}
-                      isExpanded={isExpanded}
-                      onToggleExpand={() => toggleIndependentLotExpansion(lot.id)}
-                      lotManagers={lotManagers}
-                      providers={providers}
-                      owners={owners}
-                      others={others}
-                      // Mode read-only pour confirmation
-                      readOnly={true}
-                      // Display lot details + address
-                      floor={lot.floor}
-                      doorNumber={lot.doorNumber}
-                      description={`${lot.street}, ${lot.postalCode} ${lot.city}${lot.description ? ` - ${lot.description}` : ''}`}
-                    />
+          {independentLots.map((lot, index) => {
+            const lotManagers = assignedManagersByLot[lot.id] || []
+            const providers = lotContactAssignments[lot.id]?.provider || []
+            const others = lotContactAssignments[lot.id]?.other || []
+            const categoryConfig = getLotCategoryConfig(lot.category)
+            const address = `${lot.street}, ${lot.postalCode} ${lot.city}`
+
+            // Documents for this lot
+            const upload = lotDocUploads[lot.id]
+            const docSlots = upload?.slots || []
+            const mappedDocSlots = docSlots.map(slot => ({
+              label: slot.label,
+              fileCount: slot.fileCount,
+              fileNames: slot.files.map(f => ({ name: f.file.name, url: f.signedUrl })),
+              recommended: slot.recommended,
+            }))
+
+            // Interventions (shared across all lots in independent mode)
+            const enabledInterventions = scheduledInterventions.filter(i => i.enabled)
+
+            return (
+              <div
+                key={lot.id}
+                className="rounded-xl border bg-muted/20 p-4 space-y-4"
+                data-testid={`confirmation-lot-${index}`}
+              >
+                {/* Lot header */}
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-primary">{index + 1}</span>
                   </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-semibold text-foreground truncate">{lot.reference}</h3>
+                      <Badge variant="outline" className="text-xs shrink-0">{categoryConfig.label}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground truncate">{address}</p>
+                  </div>
+                </div>
+
+                {/* Caracteristiques */}
+                <ConfirmationSection title="Caracteristiques" compact>
+                  <ConfirmationKeyValueGrid
+                    columns={3}
+                    pairs={[
+                      { label: "Adresse", value: address },
+                      { label: "Etage", value: lot.floor, empty: !lot.floor },
+                      { label: "Porte", value: lot.doorNumber, empty: !lot.doorNumber },
+                      { label: "Description", value: lot.description, empty: !lot.description, fullWidth: true },
+                    ]}
+                  />
+                </ConfirmationSection>
+
+                {/* Contacts */}
+                <ConfirmationSection title="Contacts" compact>
+                  <ConfirmationContactGrid
+                    columns={4}
+                    groups={[
+                      {
+                        type: "Gestionnaires",
+                        contacts: lotManagers.map(m => ({
+                          id: m.id,
+                          name: m.name || m.email || 'Sans nom',
+                          email: m.email || undefined,
+                        })),
+                        emptyLabel: "Aucun gestionnaire",
+                      },
+                      {
+                        type: "Prestataires",
+                        contacts: providers.map((c: any) => ({
+                          id: c.id || c.user_id,
+                          name: c.name || c.email || 'Sans nom',
+                          email: c.email || undefined,
+                        })),
+                        emptyLabel: "Aucun prestataire",
+                      },
+                      {
+                        type: "Autres",
+                        contacts: others.map((c: any) => ({
+                          id: c.id || c.user_id,
+                          name: c.name || c.email || 'Sans nom',
+                          email: c.email || undefined,
+                        })),
+                        emptyLabel: "Aucun",
+                      },
+                    ]}
+                  />
+                </ConfirmationSection>
+
+                {/* Documents */}
+                <ConfirmationSection title="Documents" compact>
+                  <ConfirmationDocumentList slots={mappedDocSlots} />
+                </ConfirmationSection>
+
+                {/* Interventions */}
+                <ConfirmationSection title="Interventions" compact>
+                  {enabledInterventions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground/60 italic">Aucune intervention planifiee</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {enabledInterventions.map(intervention => (
+                        <div key={intervention.key} className="flex items-center gap-3 rounded-lg border bg-card p-2.5">
+                          <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                            <Calendar className="h-3.5 w-3.5 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{intervention.title}</p>
+                            {intervention.scheduledDate && (
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(intervention.scheduledDate).toLocaleDateString('fr-FR', {
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ConfirmationSection>
+              </div>
+            )
+          })}
+        </ConfirmationPageShell>
       )
     }
 
@@ -2524,7 +2578,7 @@ export default function LotCreationForm({
       {/* GoogleMapsProvider wraps all steps to prevent "Rendered fewer hooks" error */}
       {/* (Moving it inside renderStep2 causes hook count changes when switching modes) */}
       <GoogleMapsProvider>
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-6 pb-20">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-6 pb-20">
           <main className="content-max-width pb-8">
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}
@@ -2556,7 +2610,11 @@ export default function LotCreationForm({
               disabled={!canProceedToNextStep()}
               data-testid="wizard-next-btn"
             >
-              <span>Suivant : {lotSteps[currentStep]?.label || 'Étape suivante'}</span>
+              <span>
+                {currentStep === 1 && lotData.buildingAssociation === "new"
+                  ? "Créer un immeuble"
+                  : `Suivant : ${lotSteps[currentStep]?.label || 'Étape suivante'}`}
+              </span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           ) : (

@@ -57,6 +57,7 @@ import {
   EmailLinkEntityType
 } from '@/lib/types/email-links'
 import { AttachmentPreviewModal } from './attachment-preview-modal'
+import { extractTextFromHtml } from '@/lib/templates/email-pdf-template'
 
 const getAttachmentIcon = (mimeType: string) => {
   if (mimeType === 'application/pdf') return FileText
@@ -74,7 +75,6 @@ interface EmailDetailProps {
   onReply?: (replyText: string) => void
   onArchive?: () => void
   onDelete?: () => void
-  onLinkBuilding?: (buildingId: string, lotId?: string) => void
   onCreateIntervention?: () => void
   onSoftDelete?: (emailId: string) => void
   onBlacklist?: (emailId: string, senderEmail: string, reason?: string, archiveExisting?: boolean) => void
@@ -82,6 +82,7 @@ interface EmailDetailProps {
   onMarkAsUnprocessed?: () => void
   onLinksUpdated?: () => void
   onReplySent?: (sentEmailId: string) => void
+  loadingEmailBodyId?: string | null
 }
 
 export function EmailDetail({
@@ -93,14 +94,14 @@ export function EmailDetail({
   onReply,
   onArchive,
   onDelete,
-  onLinkBuilding,
   onCreateIntervention,
   onSoftDelete,
   onBlacklist,
   onMarkAsProcessed,
   onMarkAsUnprocessed,
   onLinksUpdated,
-  onReplySent
+  onReplySent,
+  loadingEmailBodyId
 }: EmailDetailProps) {
   type BoxMode = 'hidden' | 'reply' | 'forward'
   const [boxMode, setBoxMode] = useState<BoxMode>('hidden')
@@ -330,7 +331,7 @@ export function EmailDetail({
     } catch {
       // Keep original string if parsing fails
     }
-    const body = em.body_text || ''
+    const body = em.body_text || extractTextFromHtml(em.body_html) || ''
     return `\n\n---------- Message transféré ----------\nDe : ${em.sender_name} (${em.sender_email})\nDate : ${formattedDate}\nObjet : ${em.subject}\n\n${body}`
   }
 
@@ -378,10 +379,6 @@ export function EmailDetail({
     } finally {
       setIsSendingReply(false)
     }
-  }
-
-  const handleLinkBuilding = (buildingId: string, lotId?: string) => {
-    onLinkBuilding?.(buildingId, lotId)
   }
 
   const handleSoftDelete = (emailId: string) => {
@@ -613,59 +610,71 @@ export function EmailDetail({
         ) : (
           // Display single email content
           <div className="email-content-wrapper px-6 py-4">
-            {/* Email Content - Cleaned (quotes stripped) */}
-            <div className="prose prose-neutral dark:prose-invert max-w-none overflow-hidden">
-              {hasHtmlContent ? (
-                <div
-                  className="break-words [&_.mb-4.pb-4.border-b:first-child]:hidden [&>div.mb-4.pb-4.border-b]:hidden"
-                  dangerouslySetInnerHTML={{ __html: strippedContent.cleanHtml || sanitizedBody }}
-                />
-              ) : (
-                <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
-                  {strippedContent.cleanHtml || textContent}
-                </pre>
-              )}
-            </div>
-
-            {/* Quoted Content Toggle */}
-            {strippedContent.hasQuotedContent && strippedContent.quotedHtml && (
-              <div className="mt-4">
-                <button
-                  onClick={() => setShowQuotedContent(!showQuotedContent)}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-muted/50"
-                  aria-expanded={showQuotedContent}
-                  aria-controls="quoted-content"
-                >
-                  {showQuotedContent ? (
-                    <ChevronDown className="h-3 w-3" aria-hidden="true" />
+            {/* Loading skeleton when fetching full body */}
+            {loadingEmailBodyId === email.id ? (
+              <div className="animate-pulse space-y-3">
+                <div className="h-4 bg-muted rounded w-3/4"></div>
+                <div className="h-4 bg-muted rounded w-full"></div>
+                <div className="h-4 bg-muted rounded w-5/6"></div>
+                <div className="h-4 bg-muted rounded w-2/3"></div>
+              </div>
+            ) : (
+              <>
+                {/* Email Content - Cleaned (quotes stripped) */}
+                <div className="prose prose-neutral dark:prose-invert max-w-none overflow-hidden">
+                  {hasHtmlContent ? (
+                    <div
+                      className="break-words [&_.mb-4.pb-4.border-b:first-child]:hidden [&>div.mb-4.pb-4.border-b]:hidden"
+                      dangerouslySetInnerHTML={{ __html: strippedContent.cleanHtml || sanitizedBody }}
+                    />
                   ) : (
-                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                    <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
+                      {strippedContent.cleanHtml || textContent}
+                    </pre>
                   )}
-                  <span>
-                    {showQuotedContent ? 'Masquer le message cité' : 'Afficher le message cité'}
-                  </span>
-                </button>
+                </div>
 
-                {showQuotedContent && (
-                  <div
-                    id="quoted-content"
-                    className="mt-2 pl-3 border-l-2 border-muted opacity-70"
-                  >
-                    <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none overflow-hidden">
-                      {hasHtmlContent ? (
-                        <div
-                          className="break-words text-muted-foreground"
-                          dangerouslySetInnerHTML={{ __html: strippedContent.quotedHtml }}
-                        />
+                {/* Quoted Content Toggle */}
+                {strippedContent.hasQuotedContent && strippedContent.quotedHtml && (
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setShowQuotedContent(!showQuotedContent)}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-muted/50"
+                      aria-expanded={showQuotedContent}
+                      aria-controls="quoted-content"
+                    >
+                      {showQuotedContent ? (
+                        <ChevronDown className="h-3 w-3" aria-hidden="true" />
                       ) : (
-                        <pre className="whitespace-pre-wrap font-sans text-xs text-muted-foreground leading-relaxed">
-                          {strippedContent.quotedHtml}
-                        </pre>
+                        <ChevronRight className="h-3 w-3" aria-hidden="true" />
                       )}
-                    </div>
+                      <span>
+                        {showQuotedContent ? 'Masquer le message cité' : 'Afficher le message cité'}
+                      </span>
+                    </button>
+
+                    {showQuotedContent && (
+                      <div
+                        id="quoted-content"
+                        className="mt-2 pl-3 border-l-2 border-muted opacity-70"
+                      >
+                        <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none overflow-hidden">
+                          {hasHtmlContent ? (
+                            <div
+                              className="break-words text-muted-foreground"
+                              dangerouslySetInnerHTML={{ __html: strippedContent.quotedHtml }}
+                            />
+                          ) : (
+                            <pre className="whitespace-pre-wrap font-sans text-xs text-muted-foreground leading-relaxed">
+                              {strippedContent.quotedHtml}
+                            </pre>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             )}
 
             {/* Attachments */}
@@ -853,7 +862,6 @@ export function EmailDetail({
         onOpenChange={setShowMarkDialog}
         onSoftDelete={handleSoftDelete}
         onBlacklist={handleBlacklist}
-        onArchive={onArchive}
       />
 
       {/* Link to Entity Dialog */}

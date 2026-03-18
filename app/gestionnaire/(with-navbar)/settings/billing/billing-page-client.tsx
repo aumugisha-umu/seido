@@ -157,6 +157,19 @@ export function BillingPageClient({ initialSubscriptionInfo }: BillingPageClient
         </div>
       )}
 
+      {/* Trial badge — green reassurance when payment method added during trial */}
+      {isTrialing && info?.payment_method_added && (
+        <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Essai en cours</p>
+            <p className="text-xs text-emerald-700 dark:text-emerald-400">
+              0 EUR maintenant &mdash; Premier paiement le {formatDate(info.trial_end)}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Read-only warning */}
       {isReadOnly && (
         <div className="flex items-center gap-3 p-4 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">

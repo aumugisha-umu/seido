@@ -116,6 +116,13 @@ useRealtimeNotificationsV2({ onInsert: (n) => {} })
 
 ## Compound Engineering + Ralph Awareness
 
+### Code Craftsmanship Standards (MANDATORY)
+
+Before writing ANY code, apply the standards from CLAUDE.md:
+1. **Before Writing**: Grep for existing utilities before creating new ones
+2. **While Writing**: No redundant state, no parameter sprawl, no copy-paste, no `any` types
+3. **After Writing**: Efficiency self-check (no N+1, parallel async ops, no redundant queries)
+
 ### Lecture Obligatoire AVANT Implementation
 
 1. `AGENTS.md` (racine) — Pitfalls et patterns specifiques SEIDO

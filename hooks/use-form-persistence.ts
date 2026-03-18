@@ -177,8 +177,8 @@ export function useSaveFormState<T>(state: T) {
       })
     }
 
-    // Add return URL
-    url.searchParams.set('returnUrl', window.location.pathname)
+    // Add return URL (preserve query params like ?type=fournisseur)
+    url.searchParams.set('returnUrl', window.location.pathname + window.location.search)
 
     logger.info(`🚀 [FORM-PERSISTENCE] Redirecting with sessionKey: ${sessionKey}`)
     router.push(url.pathname + url.search)

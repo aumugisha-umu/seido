@@ -53,9 +53,12 @@ export async function POST(request: Request) {
       hasServiceRole: !!supabaseAdmin
     }, '🚀 [CREATE-CONTACT-API] Received request:')
 
+    // Normalize empty email to null (partial unique index only enforces non-null emails)
+    const normalizedEmail = email?.trim() || null
+
     // Préparer l'objet user (nouvelle architecture)
     const userToCreate = {
-      email,
+      email: normalizedEmail,
       name,
       first_name: first_name || null,
       last_name: last_name || null,

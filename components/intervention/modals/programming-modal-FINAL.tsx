@@ -942,7 +942,7 @@ export const ProgrammingModalFinal = ({
                   </div>
                 </div>
                 <Switch
-                  checked={requireQuote || intervention.status === 'demande_de_devis'}
+                  checked={requireQuote || intervention.requires_quote}
                   onCheckedChange={onRequireQuoteChange || (() => {})}
                 />
               </div>

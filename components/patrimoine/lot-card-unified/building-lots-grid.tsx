@@ -29,7 +29,6 @@ interface BuildingLotsGridProps {
   buildingManagers?: BaseContact[]
   buildingTenants?: BaseContact[]
   buildingProviders?: BaseContact[]
-  buildingOwners?: BaseContact[]
   buildingOthers?: BaseContact[]
   // Optional: initial lot to expand (from URL param, e.g., after contract edit)
   initialExpandedLotId?: string | null
@@ -58,7 +57,6 @@ export function BuildingLotsGrid({
   buildingManagers = [],
   buildingTenants = [],
   buildingProviders = [],
-  buildingOwners = [],
   buildingOthers = [],
   initialExpandedLotId = null,
   lockedLotIds = null,
@@ -96,7 +94,6 @@ export function BuildingLotsGrid({
     managers: buildingManagers,
     tenants: buildingTenants,
     providers: buildingProviders,
-    owners: buildingOwners,
     others: buildingOthers
   }
 
@@ -107,11 +104,10 @@ export function BuildingLotsGrid({
       'gestionnaires': 'manager',
       'locataires': 'tenant',
       'prestataires': 'provider',
-      'propriétaires': 'owner',
-      'autres contacts': 'other'
+      'propriétaires': 'owner'
     }
 
-    const contactType = contactTypeMap[sectionType] || 'other'
+    const contactType = contactTypeMap[sectionType] || 'owner'
     setCurrentLotId(lotId)
     contactSelectorRef.current?.openContactModal(contactType, lotId)
   }
@@ -124,7 +120,6 @@ export function BuildingLotsGrid({
     if (contact) {
       const contactType = contact.user.role === 'locataire' ? 'locataire'
         : contact.user.role === 'prestataire' ? 'prestataire'
-        : contact.user.role === 'proprietaire' ? 'proprietaire'
         : 'autre'
 
       setDeleteModal({
@@ -222,9 +217,8 @@ export function BuildingLotsGrid({
       const managers = lot.lot_contacts?.filter(lc => lc.user.role === 'gestionnaire') || []
       const tenants = lot.lot_contacts?.filter(lc => lc.user.role === 'locataire') || []
       const providers = lot.lot_contacts?.filter(lc => lc.user.role === 'prestataire') || []
-      const owners = lot.lot_contacts?.filter(lc => lc.user.role === 'proprietaire') || []
       const others = lot.lot_contacts?.filter(lc =>
-        !['gestionnaire', 'locataire', 'prestataire', 'proprietaire'].includes(lc.user.role)
+        !['gestionnaire', 'locataire', 'prestataire'].includes(lc.user.role)
       ) || []
 
       const toContact = (lc: LotContact): Contact => ({
@@ -239,7 +233,6 @@ export function BuildingLotsGrid({
         manager: managers.map(toContact),
         tenant: tenants.map(toContact),
         provider: providers.map(toContact),
-        owner: owners.map(toContact),
         other: others.map(toContact)
       }
     })

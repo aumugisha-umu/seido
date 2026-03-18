@@ -12,6 +12,7 @@ import {
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { User, UserInsert, UserUpdate } from '../core/service-types'
 import { NotFoundException, handleError } from '../core/error-handler'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 import {
   validateRequired,
   validateEmail,
@@ -42,7 +43,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
     }
 
     if ('role' in data && data.role) {
-      validateEnum(data.role, ['admin', 'manager', 'provider', 'tenant'] as const, 'role')
+      validateEnum(data.role, ['admin', 'gestionnaire', 'prestataire', 'locataire', 'proprietaire', 'garant'] as const, 'role')
     }
 
     // For insert, validate required fields
@@ -172,7 +173,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
    * Get users by role
    */
   async findByRole(role: User['role']) {
-    validateEnum(role, ['admin', 'manager', 'provider', 'tenant'] as const, 'role')
+    validateEnum(role, ['admin', 'gestionnaire', 'prestataire', 'locataire', 'proprietaire'] as const, 'role')
 
     const { data, error } = await this.supabase
       .from(this.tableName)
@@ -239,10 +240,10 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select('*')
-      .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+      .or(`name.ilike.%${sanitizeSearch(query)}%,email.ilike.%${sanitizeSearch(query)}%`)
 
     if (options?.role) {
-      validateEnum(options.role, ['admin', 'manager', 'provider', 'tenant'] as const, 'role')
+      validateEnum(options.role, ['admin', 'gestionnaire', 'prestataire', 'locataire', 'proprietaire'] as const, 'role')
       queryBuilder = queryBuilder.eq('role', options.role)
     }
 

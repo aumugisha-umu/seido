@@ -30,6 +30,7 @@ import { EmailService } from '@/lib/services/domain/email.service'
 import { getServerAuthContext } from '@/lib/server-context'
 import { logger } from '@/lib/logger'
 import { sendPushNotificationToUsers } from '@/lib/send-push-notification'
+import { isTeamSubscriptionBlocked } from '@/lib/subscription-guard'
 
 // ============================================================================
 // PUSH NOTIFICATION HELPER
@@ -250,6 +251,12 @@ export async function createInterventionNotification(interventionId: string) {
       }
     }
 
+    // Skip notifications for blocked subscriptions
+    if (await isTeamSubscriptionBlocked(intervention.team_id)) {
+      logger.info({ interventionId, teamId: intervention.team_id }, '[NOTIFICATION-ACTION] Skipping — subscription blocked')
+      return { success: true, data: [] }
+    }
+
     logger.info({
       action: 'createInterventionNotification',
       interventionId,
@@ -317,6 +324,12 @@ export async function notifyInterventionStatusChange({
 }) {
   try {
     const { user, profile, team } = await getServerAuthContext('gestionnaire')
+
+    // Skip notifications for blocked subscriptions
+    if (await isTeamSubscriptionBlocked(team.id)) {
+      logger.info({ interventionId, teamId: team.id }, '[NOTIFICATION-ACTION] Skipping status change — subscription blocked')
+      return { success: true, data: [] }
+    }
 
     logger.info({
       action: 'notifyInterventionStatusChange',

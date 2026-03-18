@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useMemo, useCallback } from "react"
+import { useRealtimeOptional } from "@/contexts/realtime-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -131,6 +132,7 @@ export default function NouvelleInterventionClient({
   // ✅ FIX 2026-01-26: Move router/auth hooks to the top to avoid "Cannot access before initialization"
   // These hooks must be called before any useMemo/useCallback that reference their values
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
 
@@ -1740,6 +1742,7 @@ export default function NouvelleInterventionClient({
       toast.success("Intervention créée avec succès", { description: `L'intervention "${result.intervention.title}" a été créée et assignée.` })
 
       // Redirect immédiat vers la page de détail de l'intervention
+      realtime?.broadcastInvalidation(['interventions', 'stats'])
       router.push(`/gestionnaire/interventions/${result.intervention.id}`)
 
     } catch (error) {

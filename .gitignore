@@ -68,3 +68,4 @@ backups/
 
 # ggshield cache (contains secret detection metadata)
 .cache_ggshield
+.claude/worktrees/

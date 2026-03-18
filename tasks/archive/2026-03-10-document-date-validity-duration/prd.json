@@ -1,0 +1,77 @@
+{
+  "project": "SEIDO",
+  "featureName": "Document Date + Validity Duration",
+  "branchName": "feature/ai-phone-assistant",
+  "description": "Replace single expiry date picker with 'Date document' + 'Durée de validité' dropdown in all document upload sections. Computed expiry feeds into Interventions step unchanged.",
+  "createdAt": "2026-03-10",
+  "prdSource": "docs/plans/2026-03-10-document-date-validity-duration.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Data model: replace expiryDate with documentDate + validityDuration + validityCustomExpiry",
+      "description": "As a developer, I want the GenericFileWithPreview type to carry document date, validity duration, and optional custom expiry instead of a single expiryDate, so that the UI can render two fields and compute expiry.",
+      "acceptanceCriteria": [
+        "GenericFileWithPreview has documentDate?, validityDuration?, validityCustomExpiry? — expiryDate removed",
+        "VALIDITY_DURATION_OPTIONS constant added to property-document-slots.ts",
+        "computeExpiryDate utility function created and exported",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "3 new fields on GenericFileWithPreview, computeExpiryDate handles custom + duration modes"
+    },
+    {
+      "id": "US-002",
+      "title": "Hook: replace expiry setters with documentDate + validityDuration setters",
+      "description": "As a developer, I want use-property-document-upload and use-multi-lot-document-upload to manage documentDate and validityDuration per slot, and compute expiryDate at upload time.",
+      "acceptanceCriteria": [
+        "setSlotExpiryDate replaced by setSlotDocumentDate and setSlotValidityDuration and setSlotCustomExpiry",
+        "Upload FormData sends computed expiry_date (via computeExpiryDate)",
+        "Multi-lot hook mirrors same changes",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Both hooks updated. Also sends document_date to API for future use."
+    },
+    {
+      "id": "US-003",
+      "title": "UI: DocumentSlotGeneric — date picker + validity dropdown",
+      "description": "As a gestionnaire, I want to see a 'Date document' date picker and a 'Durée de validité' dropdown instead of a single expiry date, so I don't have to calculate expiry dates manually.",
+      "acceptanceCriteria": [
+        "DatePicker labeled 'Date document' appears after file upload, default=today",
+        "Select dropdown labeled 'Validité' with options 1/2/3/5/10 ans + Personnalisé",
+        "Dropdown auto-selects based on slot's defaultValidityYears",
+        "Selecting 'Personnalisé' shows extra DatePicker for custom expiry date",
+        "Both compact and full modes render correctly",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "DatePicker + Select side by side. Defaults set at file-add time in hooks. Personnalisé triggers conditional DatePicker."
+    },
+    {
+      "id": "US-004",
+      "title": "Wiring: checklist + form use new callbacks, documentExpiryDates computed from new fields",
+      "description": "As a developer, I want DocumentChecklistGeneric and lot-creation-form to use the new document date/validity callbacks, and documentExpiryDates to be computed from the new fields.",
+      "acceptanceCriteria": [
+        "DocumentChecklistGeneric passes documentDate, validityDuration, defaultValidityYears to slots",
+        "lot-creation-form.tsx documentExpiryDates uses computeExpiryDate",
+        "Interventions step receives correct computed expiry dates",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Updated 5 files: checklist generic, building-contacts-step-v3, lot-creation-form, building-creation-form. documentExpiryDates computed from new fields everywhere."
+    }
+  ]
+}

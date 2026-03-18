@@ -1,0 +1,505 @@
+﻿User story,Description / Objectif,Module,Section,Type d’utilisateur
+"En tant que visiteur, je veux comprendre rapidement ce qu’est SEIDO afin de savoir si la solution correspond à mon besoin.","Compréhension rapide du produit :
+
+Titre + slogan + description courte",Landing Page,Hero,
+"En tant que visiteur, je veux pouvoir demander une démonstration afin de découvrir la solution plus en détail.","Conversion :  CTA bouton
+
+Bouton “Demander une démo”",Landing Page,Hero,
+"En tant que visiteur, je veux comprendre le problème que SEIDO résout afin de voir la valeur de la solution.","Mise en contexte
+
+Texte expliquant les difficultés de gestion immobilière",Landing Page,Présentation produit,
+"En tant que visiteur, je veux comprendre comment SEIDO simplifie la gestion immobilière afin de voir les bénéfices de la plateforme.","Présentation de la solution
+
+Explication de la plateforme",Landing Page,Solution,
+"En tant que visiteur, je veux découvrir les fonctionnalités principales afin de comprendre ce que la plateforme permet de faire.","Présentation des modules
+
+Patrimoine, Contacts, Contrats, Interventions",Landing Page,Modules,
+"En tant que visiteur, je veux comprendre comment gérer les immeubles et les lots afin d’avoir une vue claire du patrimoine.","Présentation fonction
+
+Description du module patrimoine",Landing Page,Module Patrimoine,
+"En tant que visiteur, je veux comprendre comment centraliser les contacts afin de faciliter la communication entre les acteurs.","Présentation fonction
+
+Description module contacts",Landing Page,Module Contacts,
+"En tant que visiteur, je veux comprendre comment suivre les contrats de location afin d’organiser la gestion locative.","Présentation fonction
+
+Description module contrats",Landing Page,Module Contrats,
+"En tant que visiteur, je veux comprendre comment les interventions sont gérées afin de voir comment les problèmes sont suivis et résolus.","Présentation fonction
+
+Description module interventions",Landing Page,Module Interventions,
+"En tant que visiteur, je veux connaître les avantages de SEIDO afin de comprendre l’impact sur la gestion immobilière.","Mise en avant valeur
+
+Gain de temps, collaboration, visibilité",Landing Page,Bénéfices,
+"En tant que visiteur, je veux comparer les fonctionnalités des différentes offres afin de choisir la formule adaptée.","Transparence prix
+
+Plans tarifaires",Landing Page,Tarifs,
+"En tant que visiteur, je veux comparer les fonctionnalités des différentes offres afin de choisir la formule adaptée.","Aide à la décision
+
+Comparatif des plans",Landing Page,Tarifs,
+"En tant que visiteur, je veux consulter les questions fréquentes afin d’obtenir rapidement des réponses sur le produit.","Réduire les questions
+
+Liste FAQ",Landing Page,FAQ,
+"En tant que visiteur, je veux comprendre le fonctionnement de SEIDO, la sécurité et l’utilisation afin de me rassurer avant de m’inscrire.","Rassurance
+
+Questions sur fonctionnement, sécurité, support",Landing Page,FAQ,
+"En tant que visiteur, je veux pouvoir demander une démonstration ou contacter l’équipe afin de passer à l’étape suivante.","Conversion
+
+Bouton contact / démo",Landing Page,CTA final,
+"En tant que visiteur, je veux accéder aux informations complémentaires afin de trouver les liens utiles et les informations légales.","Navigation secondaire
+
+Liens contact, mentions légales",Landing Page,Footer ou même autres pages,
+"En tant qu’utilisateur, je veux me connecter à mon compte afin d’accéder à la plateforme SEIDO","Accès à l’applicatio
+
+Email + mot de passe ou via SSO",Authentification,Page connexion,
+"En tant qu’utilisateur, je veux voir un message d’erreur si mes identifiants sont incorrects afin de corriger ma connexion.","Gestion erreurs
+
+Message d’erreur bien clair",Authentification,Page connexion,
+"En tant qu’utilisateur, je veux pouvoir réinitialiser mon mot de passe afin de récupérer l’accès à mon compte.","Récupération accès
+
+Lien mot de passe oublié",Authentification,Mot de passe oublié,
+"En tant qu’utilisateur, je veux recevoir un email de réinitialisation afin de créer un nouveau mot de passe.","Sécurité
+
+Email reset",Authentification,Réinitialisation,
+"En tant qu’utilisateur, je veux créer un compte afin d’utiliser la plateforme SEIDO.","Accès nouveau utilisateur
+
+Nom, email, mot de passe",Authentification,Création compte,
+"En tant qu’utilisateur, je veux confirmer mon adresse email afin d’activer mon compte.","Validation compte
+
+Email confirmation",Authentification,Création compte,
+"En tant que visiteur, je veux demander une démonstration afin de découvrir la solution SEIDO.","Génération de leads
+
+Formulaire démo",Démo,Page demande démo,
+"En tant que visiteur, je veux remplir mes informations (nom, email, entreprise) afin d’être contacté pour une démonstration.","Collecte d’informations
+
+Nom, email, entreprise, message",Démo,Formulaire démo,
+"En tant qu’utilisateur connecté, je veux être redirigé vers le tableau de bord afin d’accéder directement à mes fonctionnalités.","Redirection dashboard
+
+Navigation system",Authentification,Redirection,
+Je veux voir un résumé global du patrimoine afin d’avoir une vision rapide des immeubles et des lots.,"Vision globale
+
+Nombre d’immeubles et nombre de lots",Dashboard,Vue générale,gestionnaire
+Je veux voir le taux d’occupation afin de comprendre la situation locative des biens.,"Suivi occupation
+
+Taux d’occupation des lots",Dashboard,KPI,gestionnaire
+Je veux voir le nombre de contrats actifs afin de suivre les locations en cours.,"Suivi contrats
+
+Nombre de contrats actifs",Dashboard,KPI,gestionnaire
+Je veux voir le nombre d’interventions en cours afin d’identifier rapidement les problèmes en attente.,"Suivi maintenance
+
+Interventions ouvertes",Dashboard,KPI,gestionnaire
+Je veux voir la liste des interventions en cours afin de suivre leur statut et leur progression.,"Suivi interventions
+
+Liste des interventions actives",Dashboard,Interventions,gestionnaire
+Je veux voir les messages non lus dans les interventions afin de répondre rapidement aux locataires ou prestataires.,"Communication
+
+Messages non lus liés aux interventions",Dashboard,Discussion (Messages),gestionnaire
+Je veux voir les dernières activités afin de suivre ce qui se passe sur la plateforme.,"Suivi activité
+
+Création d’intervention, nouveaux messages, mise à jour de contrats",Dashboard,Activité récente,gestionnaire
+Je veux accéder rapidement aux actions principales afin d’ajouter ou importer des données sans naviguer dans plusieurs pages.,"Gain de temps
+
+Ajouter immeuble, ajouter lot, créer contrat, créer intervention, importer données",Dashboard,Actions rapides,gestionnaire
+Je veux rechercher ou filtrer les interventions afin de trouver rapidement une intervention spécifique.,"Recherche rapide
+
+Recherche par mot-clé, filtres par statut, immeuble, priorité, plus récent",Dashboard,Interventions,gestionnaire
+Je veux voir la liste des immeubles afin d’avoir une vue globale du patrimoine.,"Visualisation
+
+Liste des immeubles",Patrimoine,Liste patrimoine,gestionnaire
+Je veux rechercher ou filtrer les immeubles afin de trouver rapidement un bâtiment spécifique.,"Recherche rapide
+
+Recherche par nom, filtre",Patrimoine,Recherche,gestionnaire
+Je veux ajouter un immeuble afin d’enregistrer un nouveau bâtiment dans le patrimoine.,"Gestion patrimoine
+
+Formulaire création immeuble",Patrimoine,Création immeuble,gestionnaire
+Je veux voir les informations d’un immeuble afin de consulter ses caractéristiques et ses lots.,"Consultation
+
+Informations immeuble",Patrimoine,Détail immeuble,gestionnaire
+Je veux modifier les informations d’un immeuble afin de mettre à jour les données du patrimoine.,"Mise à jour
+
+Modifier les informations",Patrimoine,Modification immeuble,gestionnaire
+Je veux voir les lots associés à un immeuble afin de consulter toutes les unités du bâtiment.,"Gestion lots
+
+Liste des lots",Patrimoine,Lots,gestionnaire
+Je veux voir les informations d’un lot afin de consulter les données de l’unité.,"Consultation
+
+Informations du lot",Patrimoine,Détail lot,gestionnaire
+Je veux voir le statut d’occupation d’un lot afin de savoir s’il est occupé ou vacant.,"Suivi occupation
+
+Statut du lot",Patrimoine,Statut lot,gestionnaire
+Je veux importer des immeubles ou des lots afin d’ajouter rapidement plusieurs données dans le système.,"Gain de temps
+
+Import CSV / Excel",Patrimoine,Import données,gestionnaire
+Je veux accéder rapidement aux actions principales afin d’ajouter un immeuble ou un lot.,"Navigation rapide
+
+Boutons création",Patrimoine,Actions rapides,gestionnaire
+Je veux archiver un immeuble afin de le retirer du patrimoine actif sans perdre les données.,"Gestion historique
+
+Archivage immeuble",Patrimoine,Archivage immeuble,gestionnaire
+Je veux supprimer un immeuble afin de retirer définitivement un bâtiment du système.,"Nettoyage données
+
+Suppression immeuble",Patrimoine,Suppression immeuble,gestionnaire
+Je veux archiver un lot afin de le retirer des lots actifs tout en conservant son historique.,"Gestion historique
+
+Archivage lot",Patrimoine,Archivage lot,gestionnaire
+Je veux supprimer un lot afin de retirer définitivement une unité du système.,"Nettoyage données
+
+ Suppression lot",Patrimoine,Suppression lot,gestionnaire
+Je veux renseigner les informations générales de l’immeuble afin de définir son identité et sa localisation.,"Structurer les données
+
+Référence, adresse, rue, code postal, ville, pays, description",Patrimoine,Création immeuble,gestionnaire
+Je veux ajouter les lots associés à l’immeuble afin de définir les unités qui composent le bâtiment.,"Structuration des unités
+
+Création des lots dans l’immeuble",Patrimoine,Création immeuble,gestionnaire
+Je veux définir la catégorie du lot afin d’identifier son type d’usage.,"Classification
+
+Appartement / maison, garage, local commercial, autre",Patrimoine,Création lot,gestionnaire
+Je veux renseigner les informations du lot afin de décrire précisément l’unité.,"Étage, porte / boîte, description du lot",Patrimoine,Création lot,gestionnaire
+Je veux associer des contacts à l’immeuble afin d’identifier les personnes liées au bâtiment.,"Gestion acteurs
+
+Gestionnaire, prestataires, locataires, autres",Patrimoine,Contacts immeuble,gestionnaire
+Je veux ajouter des documents à l’immeuble afin de centraliser les documents importants.,"Centralisation documents
+
+Documents recommandés ou autres fichiers",Patrimoine,Création immeuble ou lot - Documents immeuble,gestionnaire
+Je veux définir des suivis techniques recommandés pour l’immeuble afin de suivre la maintenance et les contrôles obligatoires.,"Suivi maintenance
+
+Liste de suivis techniques",Patrimoine,Suivi technique,gestionnaire
+Je veux confirmer la création de l’immeuble afin de valider l’enregistrement dans le système.,"Validation
+
+Message de confirmation",Patrimoine,Validation création,gestionnaire
+Je veux voir la liste des contacts afin d’avoir une vue globale de toutes les personnes liées au patrimoine.,"Visualisation
+
+Liste des contacts",Contacts,Liste contacts,gestionnaire
+Je veux rechercher ou filtrer les contacts afin de trouver rapidement une personne spécifique.,"Recherche rapide
+
+Recherche par nom, type ou entreprise",Contacts,Recherche,gestionnaire
+Je veux créer un contact afin d’enregistrer une nouvelle personne dans le système.,"Gestion contacts
+
+Accès au formulaire de création",Contacts,Création contact,gestionnaire
+Je veux renseigner les informations générales du contact afin d’identifier la personne.,"Structurer les données
+
+Nom, prénom, email, téléphone",Contacts,Informations générales,gestionnaire
+Je veux définir si le contact est une personne physique ou reliée à une société afin de structurer les contacts correctement.,"Structuration
+
+Type contact : personne ou société",Contacts,Type contact,gestionnaire
+Je veux associer un contact à une société afin d’identifier l’entreprise à laquelle il appartient.,"Si c’est relié à une société, possibilité de choisir une société existante ou d’en ajouter une nouvelle.",Contacts,Association société,gestionnaire
+Je veux associer un contact à un immeuble ou un lot afin de lier la personne au patrimoine concerné.,"Organisation
+
+Sélection immeuble ou lot",Contacts,Association patrimoine,gestionnaire
+Je veux envoyer automatiquement une invitation par email au contact après sa création afin qu’il puisse accéder à la plateforme.,"Activation utilisateur
+
+Email d’invitation avec accès",Contacts,Invitation,gestionnaire
+Je veux voir le statut de l’invitation envoyée afin de savoir si le contact a accepté ou non l’invitation.,"Suivi accès
+
+Invitation envoyée, acceptée, en attente",Contacts,Statut invitation,gestionnaire
+Je veux renvoyer une invitation à un contact afin qu’il puisse recevoir à nouveau l’accès à la plateforme.,"Gestion invitations
+
+Action renvoi invitation",Contacts,Renvoyer invitation,gestionnaire
+"Je veux consulter la fiche d’un contact afin de voir toutes ses informations et ses relations avec le patrimoine (contrat), ses interventions en cours.","Consultation
+
+Informations complètes du contact",Contacts,Détail contact,gestionnaire
+Je veux modifier les informations d’un contact afin de maintenir les données à jour.,"Mise à jour
+
+Modifier les informations",Contacts,Modification contact,gestionnaire
+Je veux archiver un contact afin de le retirer des contacts actifs tout en conservant son historique.,"Gestion historique
+
+Archivage contact",Contacts,Archivage contact,gestionnaire
+Je veux supprimer un contact afin de retirer définitivement une personne du système.,"Nettoyage données
+
+Suppression contact",Contacts,Suppression contact,gestionnaire
+Je veux voir une confirmation après la création d’un contact afin de valider son enregistrement et l’envoi de l’invitation.,"Validation
+
+Message confirmation + invitation envoyée",Contacts,Validation création,gestionnaire
+Je veux voir la liste des sociétés afin d’avoir une vue globale des entreprises liées au patrimoine.,"Visualisation
+
+Liste des sociétés",Contacts,Liste sociétés,gestionnaire
+Je veux rechercher ou filtrer les sociétés afin de trouver rapidement une entreprise spécifique.,"Recherche rapide
+
+Recherche par nom ou activité",Contacts,Recherche sociétés,gestionnaire
+Je veux créer une société afin d’enregistrer une nouvelle entreprise dans le système.,"Gestion entreprises
+
+Formulaire création société",Contacts,Création société,gestionnaire
+Je veux renseigner les informations d’une société afin d’identifier l’entreprise.,"Structurer les données
+
+Nom société, adresse, email, téléphone, description",Contacts,Informations société,gestionnaire
+Je veux voir les contacts associés à une société afin d’identifier les contacts.,"Organisation
+
+Liste des contacts liés",Contacts,Contacts liés,gestionnaire
+Je veux modifier les informations d’une société afin de maintenir les données à jour.,"Mise à jour
+
+Modifier les informations",Contacts,Modification société,gestionnaire
+Je veux archiver une société afin de la retirer des sociétés actives tout en conservant son historique,"Gestion historique
+
+Archivage société",Contacts,Archivage société,gestionnaire
+Je veux supprimer une société afin de retirer définitivement une entreprise du système.,"Nettoyage données
+
+Suppression société",Contacts,Suppression société,gestionnaire
+Je veux voir la liste des contrats afin d’avoir une vue globale des baux enregistrés.,"Visualisation
+
+Liste des contrats",Contrats,Liste contrats,gestionnaire
+"Je veux voir les contrats par statut afin d’identifier facilement les contrats actifs, à venir, terminés ou résiliés.","Organisation
+
+Statuts : actif, à venir, terminé, résilié",Contrats,Statuts contrats,gestionnaire
+Je veux rechercher ou filtrer les contrats afin de trouver rapidement un bail spécifique.,"Recherche rapide
+
+Recherche par référence, locataire, immeuble",Contrats,Recherche,gestionnaire
+Je veux créer un contrat afin d’enregistrer un nouveau bail dans le système.,"Gestion baux
+
+Accès au formulaire de création",Contrats,Création contrat,gestionnaire
+Je veux sélectionner l’immeuble et le lot concernés afin d’associer le contrat au bon logement.,"Association patrimoine
+
+Choix immeuble et lot",Contrats,Sélection bien,gestionnaire
+Je veux renseigner les informations principales du bail afin de définir les conditions de location.,"Structuration contrat
+
+Référence du bail",Contrats,Détails bail,gestionnaire
+Je veux définir la date de début et la durée du bail afin de structurer la période de location.,"Gestion durée
+
+Date début, durée",Contrats,Détails bail,gestionnaire
+Je veux renseigner le loyer et les charges afin de définir les conditions financières du contrat.,"Gestion financière
+
+Montant loyer et charges",Contrats,Détails bail,gestionnaire
+Je veux renseigner la garantie locative afin d’enregistrer la caution liée au bail.,"Gestion garantie
+
+Montant garantie",Contrats,Détails bail,gestionnaire
+Je veux définir la fréquence de paiement afin de préciser la périodicité du loyer.,"Gestion paiement
+
+Fréquence mensuelle ou autre",Contrats,Détails bail,gestionnaire
+Je veux ajouter des documents liés au bail afin de centraliser les documents contractuels.,"Centralisation documents
+
+Documents recommandés ou autres",Contrats,Documents bail,gestionnaire
+Je veux consulter les informations d’un contrat afin de voir les détails du bail et les documents associés.,"Consultation
+
+Informations contrat",Contrats,Détail contrat,gestionnaire
+Je veux modifier les informations d’un contrat afin de maintenir les données à jour.,"Mise à jour
+
+Modifier informations du bail",Contrats,Modification contrat,gestionnaire
+Je veux résilier un contrat afin de clôturer un bail avant son terme.,"Gestion statut
+
+Passage en statut résilié",Contrats,Résiliation contrat,gestionnaire
+Je veux voir les contrats terminés afin de suivre l’historique des locations.,"Historique
+
+Contrats terminés",Contrats,Fin contrat,gestionnaire
+Je veux accéder rapidement à la création d’un nouveau contrat afin d’ajouter un bail sans passer par plusieurs pages.,"Gain de temps
+
+Bouton nouveau contrat",Contrats,Actions rapides,gestionnaire
+Je veux voir la liste des contrats avec leur progression afin de suivre facilement l’avancement des baux.,"Suivi des contrats
+
+Progression du contrat, pourcentage d’avancement, nombre de jours restants, statut du contrat",Contrats,Liste contrats,gestionnaire
+Je veux voir la liste des interventions afin d’avoir une vue globale des demandes.,"Visualisation
+
+Liste des interventions",Interventions,Liste interventions,gestionnaire
+Je veux voir les interventions par statut afin de suivre leur progression dans le processus.,"Organisation
+
+Statuts : demande en attente, approuvée, en cours, clôturée",Interventions,Statuts,gestionnaire
+Je veux rechercher ou filtrer les interventions afin de trouver rapidement une demande spécifique.,"Recherche rapide
+
+Recherche par immeuble, lot, statut, urgence",Interventions,Recherche,gestionnaire
+Je veux créer une intervention afin d’enregistrer une nouvelle demande de maintenance.,"Gestion interventions
+
+Accès formulaire création",Interventions,Création intervention,gestionnaire
+Je veux approuver ou refuser une demande d’intervention afin de contrôler les interventions à traiter.,"Validation gestionnaire
+
+Accepter ou refuser la demande",Interventions,Validation demande,gestionnaire
+Je veux sélectionner l’immeuble et le lot concernés afin d’identifier l’emplacement du problème.,"Association patrimoine
+
+Choix immeuble et lot",Interventions,Sélection bien,gestionnaire
+Je veux décrire l’intervention afin d’expliquer clairement le problème.,"Structuration demande
+
+Titre et description",Interventions,Description intervention,gestionnaire
+Je veux définir la catégorie de l’intervention afin de classer le type de problème.,"Organisation
+
+Plomberie, électricité, chauffage, autres",Interventions,Catégorie,gestionnaire
+Je veux définir le niveau d’urgence afin de prioriser les interventions.,"Priorisation
+
+Urgence : basse, normale, haute, urgente",Interventions,Urgence,gestionnaire
+Je veux associer un contact à l’intervention afin d’identifier la personne concernée.,"Organisation
+
+Locataire ou prestataire",Interventions,Contact associé,gestionnaire
+Je veux demander des devis à des prestataires afin d’évaluer les coûts de l’intervention.,"Gestion prestataires
+
+Envoi demandes de devis",Interventions,Demande de devis,gestionnaire
+Je veux sélectionner et valider un devis afin de choisir le prestataire qui réalisera l’intervention.,"Décision
+
+Liste devis reçus",Interventions,Validation devis,gestionnaire
+Je veux définir un créneau d’intervention afin d’organiser le moment de l’intervention.,"Organisation planning
+
+Date et heure intervention",Interventions,Planification,gestionnaire
+Je veux confirmer la clôture de l’intervention afin de valider la fin du processus apres que le prestataire a clôturé.,"Validation finale
+
+Confirmation clôture",Interventions,Clôture gestionnaire,gestionnaire
+Je veux ajouter des photos ou documents afin de documenter l’intervention.,"Documentation
+
+Upload fichiers",Interventions,Documents,gestionnaire
+Je veux échanger des messages dans l’intervention afin de communiquer avec les personnes concernées.,"Communication
+
+Fil de discussion",Interventions,Discussion (Messages),gestionnaire
+Je veux voir l’historique des actions afin de suivre toutes les étapes de l’intervention.,"Traçabilité
+
+Timeline des actions",Interventions,Historique,gestionnaire
+Je veux accéder rapidement à la création d’une intervention afin d’ajouter une demande rapidement.,"Gain de temps
+
+Bouton nouvelle intervention",Interventions,Actions rapides,gestionnaire
+Je veux voir des boutons d’actions rapides sur chaque intervention selon son statut afin d’effectuer rapidement l’étape suivante.,"Fluidité du workflow
+
+Actions : approuver, demander devis, planifier, clôturer",Interventions,Actions par statut,gestionnaire
+Je veux modifier les informations d’une intervention afin de mettre à jour les détails si nécessaire.,"Mise à jour
+
+Modifier titre, catégorie, urgence, description",Interventions,Modification,gestionnaire
+Je veux archiver une intervention afin de la retirer des interventions actives tout en conservant son historique.,"Gestion historique
+
+Archivage intervention",Interventions,Archivage,gestionnaire
+Je veux supprimer une intervention afin de retirer définitivement une demande du système.,"Nettoyage données
+
+Suppression intervention",Interventions,Suppression,gestionnaire
+Je veux voir mes informations personnelles afin de consulter les données de mon compte.,"Consultation
+
+Nom, prénom, email, téléphone",Profils,Informations générales,"gestionnaire, locataire, prestataire"
+Je veux modifier mes informations personnelles afin de mettre à jour mes données.,"Mise à jour
+
+Modifier nom, prénom, email, téléphone",Profils,Modification profil,"gestionnaire, locataire, prestataire"
+Je veux changer mon mot de passe afin de sécuriser l’accès à mon compte.,"Sécurité
+
+Ancien mot de passe, nouveau mot de passe, confirmation",Profils,Sécurité,"gestionnaire, locataire, prestataire"
+Je veux définir mes paramètres de notification afin de choisir comment je suis informé des activités.,"Personnalisation
+
+Notifications email ou plateforme",Profils,Notifications,"gestionnaire, locataire, prestataire"
+Je veux accéder aux préférences de mon compte afin de configurer mon expérience dans l’application.,"Personnalisation
+
+Paramètres utilisateur",Profils,Préférences,"gestionnaire, locataire, prestataire"
+Je veux voir les options pour installer l’application afin d’accéder plus facilement à la plateforme.,"Accessibilité
+
+Lien installation application",Profils,Installation application,"gestionnaire, locataire, prestataire"
+Je veux voir si mon compte est en période d’essai (gratuit) ou sous abonnement afin de connaître mon statut d’accès.,"Suivi abonnement
+
+Indication période d’essai ou abonnement actif",Profils,Abonnement,gestionnaire
+Je veux voir les différentes offres d’abonnement afin de choisir le plan adapté à mes besoins.,"Choix abonnement
+
+Liste des plans tarifaires",Profils,Tarifs,gestionnaire
+Je veux choisir ou modifier mon abonnement afin d’activer une offre adaptée.,"Gestion plan
+
+Sélection plan abonnement",Profils,Gestion abonnement,gestionnaire
+Je veux voir une confirmation après modification des paramètres afin de savoir que les changements ont été enregistrés.,"Validation
+
+Message confirmation",Profils,Confirmation,gestionnaire
+Je veux ajouter une adresse email afin de connecter ma boîte mail à la plateforme.,"Connexion email
+
+Ajout d’une adresse email",Email,Ajout email,gestionnaire
+Je veux synchroniser ma boîte mail afin que les emails soient connectés avec la plateforme.,"Synchronisation
+
+Synchronisation de la boîte mail",Email,Synchronisation,gestionnaire
+Je veux voir mon contrat actuel afin de consulter les informations principales de mon bail.,"Consultation
+
+Bail en cours",Dashboard,Contrat actuel,locataire
+Je veux voir la date de début et la date de fin du bail afin de connaître la durée de mon contrat.,"Suivi contrat
+
+Date début et date fin",Dashboard,Détails bail,locataire
+Je veux voir le montant du loyer et des charges afin de connaître les conditions financières de mon logement.,"Consultation financière
+
+Loyer et charges",Dashboard,Informations financières,locataire
+Je veux voir mes interventions afin de suivre les demandes liées à mon logement.,"Suivi maintenance
+
+Liste interventions",Dashboard,Interventions,locataire
+Je veux voir mes interventions par statut afin de suivre leur progression.,"Organisation
+
+Statuts : à traiter, à planifier, à venir, terminées",Dashboard,Statuts interventions,locataire
+Je veux voir les messages non lus liés à mes interventions afin de rester informé des échanges avec le gestionnaire ou le prestataire.,"Communication
+
+Messages non lus",Dashboard,Messages,locataire
+"Je veux rechercher, filtrer et paginer la liste des interventions afin de retrouver facilement une demande et naviguer dans l’historique.","Recherche rapide
+
+Recherche (mot-clé), filtres (statut, urgence, date), pagination",Dashboard,Recherche / filtres,locataire
+Je veux accéder rapidement à un bouton pour créer une nouvelle demande d’intervention afin de signaler facilement un problème dans mon logement.,"Accessibilité / rapidité
+
+Bouton nouvelle demande",Dashboard,Nouvelle demande,locataire
+Je veux voir l’immeuble et le lot que j’occupe afin d’identifier clairement mon logement.,"Identification logement
+
+Immeuble et lot",Contrats,Vue contrat,locataire
+Je veux voir les informations principales de mon contrat afin de comprendre les conditions de mon bail.,"Consultation
+
+Informations du contrat",Contrats,Détails contrat,locataire
+Je veux voir la progression de mon contrat afin de connaître l’avancement de mon bail.,"Suivi bail
+
+Progression du contrat (%)",Contrats,Progression contrat,locataire
+Je veux voir la date de début et la date de fin afin de connaître la durée de mon contrat.,"Suivi durée
+
+Date début et fin",Contrats,Dates contrat,locataire
+Je veux voir le montant du loyer afin de connaître les conditions financières de mon logement.,"Consultation financière
+
+Loyer",Contrats,Informations financières,locataire
+Je veux voir le statut de mon contrat afin de savoir s’il est actif ou terminé.,"Suivi statut
+
+Statut du contrat",Contrats,Statut contrat,locataire
+Je veux voir le nombre de jours restants afin de savoir combien de temps il reste avant la fin du bail.,"Anticipation
+
+Compteur jours restants",Contrats,Jours restants,locataire
+Je veux voir les interventions liées à mon logement afin de suivre les demandes associées à mon contrat.,"Suivi maintenance
+
+Liste interventions",Contrats,Interventions liées,locataire
+Je veux voir les documents liés à mon contrat afin d’accéder facilement aux fichiers importants.,"Consultation documents
+
+Documents du bail",Contrats,Documents,locataire
+Je veux voir la liste de mes interventions afin de suivre les demandes liées à mon logement.,"Suivi maintenance
+
+Liste interventions",Interventions,Liste interventions,locataire
+"Je veux rechercher, filtrer et paginer mes interventions afin de retrouver facilement une demande.","Recherche rapide
+
+Recherche, filtres, pagination",Interventions,Recherche / filtres,locataire
+Je veux créer une nouvelle intervention afin de signaler un problème dans mon logement.,Signalement problèmeFormulaire intervention,Interventions,Nouvelle demande,locataire
+Je veux voir les informations générales d’une intervention afin de comprendre la demande enregistrée.,"Consultation
+
+Titre, catégorie, urgence, description, statut",Interventions,Informations générales,locataire
+Je veux voir les conversations liées à l’intervention afin de suivre les échanges avec le gestionnaire ou le prestataire.,"Communication
+
+Fil de discussion",Interventions,Conversations,locataire
+Je veux envoyer des messages dans l’intervention afin de communiquer avec les personnes concernées.,"Communication
+
+Envoi message",Interventions,Messages,locataire
+Je veux voir les créneaux proposés pour l’intervention afin de connaître les disponibilités pour le passage du prestataire.,"Organisation intervention
+
+Créneaux proposés",Interventions,Rendez-vous,locataire
+Je veux voir l’avancement de l’intervention afin de suivre les différentes étapes du traitement.,"Suivi progression
+
+Progression de l’intervention",Interventions,Progression,locataire
+Je veux renseigner le type de problème afin de classifier la demande d’intervention.,"Structuration demande
+
+Type de problème (plomberie, électricité, chauffage, autre)",Interventions,Formulaire demande,locataire
+Je veux définir le niveau d’urgence afin d’indiquer la priorité de l’intervention.,"Priorisation
+
+Urgence : basse, normale, haute, urgente",Interventions,Formulaire demande,locataire
+Je veux décrire le problème afin d’expliquer clairement la situation.,"Compréhension demande
+
+Description du problème",Interventions,Formulaire demande,locataire
+Je veux ajouter une pièce jointe afin de fournir des photos ou documents liés au problème.,"Documentation
+
+Upload fichiers / images",Interventions,Pièce jointe,locataire
+Je veux voir les interventions qui me sont assignées afin de suivre les demandes sur lesquelles je dois intervenir.,"Suivi travail
+
+Liste interventions assignées",Dashboard,Interventions assignées,prestataire
+"Je veux rechercher, filtrer et paginer les interventions afin de retrouver facilement une demande spécifique.","Recherche rapide
+
+Recherche, filtres, pagination",Dashboard,Recherche / filtres,prestataire
+Je veux voir les informations générales de l’intervention afin de comprendre le problème à traiter.,"Compréhension intervention
+
+Titre, catégorie, urgence, description, statut",Interventions,Détail intervention,prestataire
+Je veux voir les conversations liées à l’intervention afin de suivre les échanges avec le gestionnaire ou le locataire.,"Communication
+
+Fil de discussion",Interventions,Conversations,prestataire
+Je veux envoyer des messages dans l’intervention afin de communiquer avec les personnes concernées.,"Communication
+
+Envoi message",Interventions,Messages,prestataire
+Je veux voir les documents liés à l’intervention afin d’accéder aux informations ou photos du problème.,"Consultation documents
+
+Documents intervention",Interventions,Documents,prestataire
+Je veux ajouter des documents ou photos afin de documenter mon intervention.,"Documentation
+
+Upload documents",Interventions,Ajout documents,prestataire
+Je veux consulter ou envoyer un devis afin de proposer le coût de l’intervention.,"Gestion devis
+
+Consultation / ajout devis",Interventions,Devis,prestataire
+Je veux voir les créneaux proposés pour l’intervention afin d’organiser la planification.,"Organisation planning
+
+Créneaux intervention",Interventions,Créneaux,prestataire
+Je veux marquer l’intervention comme terminée afin d’indiquer que le travail est réalisé.,"Fin intervention
+
+Validation fin travaux",Interventions,Clôture intervention,prestataire
+Je veux voir un extrait des messages non lus liés aux interventions afin de rester informé des nouvelles communications.,"Communication
+
+Messages non lus",Dashboard,Messages,prestataire

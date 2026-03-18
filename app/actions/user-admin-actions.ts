@@ -12,6 +12,7 @@ import { getServerAuthContext } from '@/lib/server-context'
 // Pages are force-dynamic — no cache invalidation needed
 import { logger } from '@/lib/logger'
 import type { User, UserInsert, UserUpdate, UserWithStatus, UserComputedStatus } from '@/lib/services/core/service-types'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 
 // Type for action results
 interface ActionResult<T = unknown> {
@@ -495,7 +496,7 @@ export async function searchUsersAction(query: string): Promise<ActionResult<Use
       .from('users')
       .select('*')
       .is('deleted_at', null)
-      .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+      .or(`name.ilike.%${sanitizeSearch(query)}%,email.ilike.%${sanitizeSearch(query)}%`)
       .order('name', { ascending: true })
       .limit(50)
 

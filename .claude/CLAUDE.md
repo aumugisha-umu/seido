@@ -1,112 +1,60 @@
-# CLAUDE.md
+# CLAUDE.md — Guidance for Claude Code
 
-This file provides guidance to Claude Code when working with this repository.
+## INTERDICTIONS (Never violate)
 
-## Memory Bank - Documentation Vivante
+1. **No git without `git*`:** NEVER run git add/commit/push unless user types `git*`
+2. **No build without ask:** NEVER run `npm run build` unless user explicitly asks. Use `npm run lint` or `npx tsc --noEmit [file]` for validation. **Exception:** `npm run build` is required during the `git*` quality-gate commit workflow (automated checks step)
+3. **No direct Supabase:** NEVER call Supabase directly in components — Repository Pattern only
+4. **No `any` / `console.log`:** NEVER leave `any` types or `console.log` in production code
 
-**SEIDO utilise un systeme Memory Bank pour optimiser le contexte Claude Code.**
+## Commit Workflow (on `git*`)
 
-### Fichiers Essentiels a Consulter
-
-| Fichier | Usage | Quand le lire |
-|---------|-------|---------------|
-| `.claude/memory-bank/activeContext.md` | Focus session actuelle | **Debut de chaque session** |
-| `.claude/memory-bank/systemPatterns.md` | Architecture et patterns | Avant modifications code |
-| `.claude/memory-bank/techContext.md` | Stack, DB schema, RLS | Avant modifications DB |
-| `.claude/memory-bank/productContext.md` | Frustrations personas | Avant modifications UX |
-| `.claude/memory-bank/projectbrief.md` | Vision et objectifs | Pour contexte global |
-| `.claude/memory-bank/progress.md` | Historique et milestones | Pour suivi projet |
-
-### Navigation Rapide
-
-| Besoin | Fichier de reference |
-|--------|---------------------|
-| Architecture & Patterns | `systemPatterns.md` |
-| Commandes dev & DB schema | `techContext.md` |
-| Personas & frustrations UX | `productContext.md` |
-| Index structurel (domaines, patterns) | `PROJECT_INDEX.json` |
-
-### Regles Conditionnelles
-
-Les fichiers `.claude/rules/*.md` s'appliquent automatiquement :
-- `intervention-rules.md` - Workflow interventions
-- `database-rules.md` - Modifications DB/RLS
-- `ui-rules.md` - Composants UI
-
-### Auto-Update & Commandes
-
-- `activeContext.md` mis a jour automatiquement apres chaque reponse
-- `/sync-memory` - Synchronisation rapide
-- `/update-memory` - Mise a jour complete
-
----
-
-## Regles Strictes Projet
-
-### Mise a jour du Rapport d'Audit
-
-**A chaque fois qu'on fait des tests sur l'application**, mettre a jour :
-`docs/rapport-audit-complet-seido.md`
-
-### Pas de Build Automatique
-
-**INTERDICTION ABSOLUE de lancer `npm run build` sans demande explicite.**
-
-**Alternatives obligatoires :**
-```bash
-# Validation TypeScript ciblee (rapide)
-npx tsc --noEmit components/ui/my-component.tsx
-
-# Validation ESLint
-npm run lint -- components/ui/my-component.tsx
+```
+git* → sp-quality-gate (4 lenses + simplify quick-scan)
+     → Fix blockers
+     → Step 4.5: Knowledge Capture (compound? memory? CLAUDE.md? agents?)
+     → git add . && git commit && git push origin [branch]
 ```
 
-**Exceptions :** Uniquement si l'utilisateur tape "git*" ou demande explicitement un build.
+## Skill & Agent Routing (First Response)
+
+**For requests touching 3+ files, new features, bug fixes, workflow changes, or content creation:**
+
+1. **Evaluate** which skills and/or agents are best suited
+2. **Present** in first response:
+   ```
+   Approach proposee:
+   - [skill/agent 1] — raison
+   - [skill/agent 2] — raison
+   - Parallelisation: oui/non (+ pourquoi)
+   ```
+3. **Wait for validation** before executing
+
+**Skip for:** single-file edit, quick question, typo fix, config change, rename.
 
 ---
 
-## Official Documentation First
+## Memory Bank
 
-**Before making ANY modification:**
-1. **Always consult official documentation first**:
-   - [Supabase Official Docs](https://supabase.com/docs)
-   - [Next.js Official Docs](https://nextjs.org/docs)
-   - [React Official Docs](https://react.dev/learn)
-2. **Apply official recommendations** over custom patterns found in codebase
+| Fichier | Quand le lire |
+|---------|---------------|
+| `.claude/memory-bank/activeContext.md` | **Debut de chaque session** |
+| `.claude/memory-bank/systemPatterns.md` | Avant modifications code |
+| `.claude/memory-bank/techContext.md` | Avant modifications DB |
+| `.claude/memory-bank/productContext.md` | Avant modifications UX |
+| `.claude/memory-bank/projectbrief.md` | Pour contexte global |
+| `.claude/memory-bank/progress.md` | Pour suivi projet |
+
+Rules auto-loaded from `.claude/rules/*.md`: intervention-rules, database-rules, ui-rules, seido-reference, feature-reference.
+Commands: `/sync-memory` (quick sync) | `/update-memory` (full update)
 
 ---
 
-## UX/UI Design Guidelines
+## Regles Obligatoires
 
-**Pour TOUTE modification UX/UI, TOUJOURS consulter :**
-
-### Point d'Entree Principal
-
-`docs/design/ux-ui-decision-guide.md` - Index complet vers :
-- `ux-common-principles.md` - Nielsen, Material Design 3, Apple HIG
-- `ux-components.md` - Navigation, Forms, Notifications
-- `ux-anti-patterns.md` - Erreurs a eviter
-- `ux-metrics.md` - KPIs UX, Core Web Vitals
-
-### Guidelines par Role
-
-| Role | Persona | Guidelines | Focus |
-|------|---------|------------|-------|
-| Gestionnaire | `persona-gestionnaire-unifie.md` | `ux-role-gestionnaire.md` | 70% users, productivite |
-| Prestataire | `persona-prestataire.md` | `ux-role-prestataire.md` | 75% mobile terrain |
-| Locataire | `persona-locataire.md` | `ux-role-locataire.md` | Occasionnel, simplicite |
-| Admin | - | `ux-role-admin.md` | Interface dense |
-
-### Design System
-
-- **Design Tokens** : `app/globals.css` (couleurs OKLCH, spacing)
-- **Composants** : shadcn/ui (50+ composants) - verifier avant de creer
-- **Icones** : Lucide React uniquement
-
-**Principe** : "Creer une fois, utiliser partout"
-- Verifier shadcn/ui avant de creer
-- Etendre avec props/variants au lieu de dupliquer
-- JAMAIS hardcoder couleurs ou styles inline
+**Audit :** A chaque test, mettre a jour `docs/rapport-audit-complet-seido.md`
+**Docs First :** Consulter [Supabase](https://supabase.com/docs), [Next.js](https://nextjs.org/docs), [React](https://react.dev/learn) avant modification.
+**UX/UI :** Consulter `docs/design/ux-ui-decision-guide.md` pour toute modification UX/UI.
 
 ---
 
@@ -118,313 +66,118 @@ npm run lint -- components/ui/my-component.tsx
 import { getServerAuthContext } from '@/lib/server-context'
 
 export default async function MyPage() {
-  // Centralized auth + team fetching (1 line)
   const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
   const data = await someService.getData(team.id)
   return <MyPageClient data={data} />
 }
 ```
 
-**ANTI-PATTERNS a eviter :**
-- Auth manuelle avec `createServerSupabaseClient()` + `supabase.auth.getUser()`
-- Pas d'authentification du tout (faille de securite)
-
-> Details complets : `systemPatterns.md` section "Server Authentication"
+**ANTI-PATTERNS :** Auth manuelle avec `createServerSupabaseClient()` + `supabase.auth.getUser()`, ou pas d'auth du tout. Details : `systemPatterns.md` section "Server Authentication"
 
 ---
 
-## Development Commands (Essentiels)
+## Development Commands
 
 ```bash
-# Development
-npm run dev              # Dev server
+npm run dev              # Dev server (only if asked)
 npm run lint             # ESLint validation
 npx tsc --noEmit [file]  # Validation TS ciblee
-
-# Database
 npm run supabase:types   # Regenerer lib/database.types.ts
 npm run supabase:migrate # Nouvelle migration
-
-# Testing
 npm test                 # Unit tests (vitest)
-npm run test:e2e         # E2E tests (Puppeteer + vitest, requires dev server)
-npm run test:e2e:headed  # E2E with visible browser (cross-env)
+npm run test:e2e         # E2E tests (Puppeteer + vitest)
+npm run test:e2e:headed  # E2E with visible browser
 ```
 
-> Liste complete : `techContext.md`
-
----
-
-## Quick Reference
-
-### Intervention Status Values (9 statuts - mis a jour 2026-01-26)
-
-```typescript
-// NOTE: demande_de_devis et en_cours ont ete SUPPRIMES
-// Les devis sont geres via requires_quote + intervention_quotes
-type InterventionStatus =
-  | 'demande' | 'rejetee' | 'approuvee'
-  | 'planification' | 'planifiee'
-  | 'cloturee_par_prestataire' | 'cloturee_par_locataire'
-  | 'cloturee_par_gestionnaire' | 'annulee'
-```
-
-### User Roles
-
-- **Admin** : Administration systeme
-- **Gestionnaire** : Gestion biens + interventions (70% users)
-- **Prestataire** : Execution services + devis (75% mobile)
-- **Locataire** : Demandes intervention + suivi
-
-### Database Clients
-
-```typescript
-// Browser Client (Client Components)
-import { createBrowserSupabaseClient } from '@/lib/services'
-
-// Server Client (Server Components/Actions)
-import { createServerSupabaseClient } from '@/lib/services'
-```
-
-### Notifications (Server Actions)
-
-```typescript
-import { createInterventionNotification } from '@/app/actions/notification-actions'
-await createInterventionNotification(interventionId)
-```
-
-> 16 actions disponibles - voir `systemPatterns.md` section "Notification Architecture"
-
----
-
-## Features 2026-01 (Reference)
-
-| Feature | Fichiers principaux |
-|---------|-------------------|
-| Google OAuth | `app/auth/login/login-form.tsx`, `app/auth/callback/page.tsx` |
-| Onboarding Modal | `components/auth/onboarding-modal.tsx` |
-| Avatar System | `app/api/upload-avatar/route.ts`, `components/profile-page.tsx` |
-| Intervention Types | Tables `intervention_type_categories`, `intervention_types` |
-| PWA Push | `lib/send-push-notification.ts`, `app/api/push/` |
-| Email Reply Sync | `lib/services/domain/email-reply.service.ts` |
-| **Email Notification Module** | `lib/services/domain/email-notification/` (15 fichiers refactorisés) |
+> Complete list: `techContext.md`
 
 ---
 
 ## Development Rules
 
-### Architecture Decisions
+**Architecture:** Repository Pattern | Service Layer | Server Components default | Error Boundaries
+**Code Style:** kebab-case files | "handle" prefix events | const functions | Tailwind only | TypeScript strict
+**File Org:** < 500 lines/file | Single responsibility | index.ts exports
 
-1. **Repository Pattern** pour acces donnees (pas d'appels Supabase directs)
-2. **Service Layer** pour logique metier
-3. **Server Components** par defaut (minimiser 'use client')
-4. **Error Boundaries** aux niveaux composant + service
+---
 
-### Code Style
+## Code Craftsmanship Standards (Embedded from /simplify)
 
-- kebab-case pour fichiers composants (`my-component.tsx`)
-- Event handlers prefixes "handle" (`handleClick`)
-- Const functions : `const functionName = () => {}`
-- Tailwind pour tout styling (pas CSS inline)
-- TypeScript strict partout
+**Applied automatically during ALL code writing.**
 
-### File Organization
+### Before Writing Code (Reuse Search)
+1. **Grep the codebase** for similar functions before creating new ones (`lib/utils/`, `lib/constants/`, `components/ui/`, adjacent files)
+2. **If existing utility does 80%+ of what you need** — extend it, don't create a new one
+3. **Check shadcn/ui** before creating UI components
+4. **Check existing constants/enums** before using string literals
 
-- **< 500 lignes par fichier** : Separer si plus grand
-- **Single responsibility** : Un concern par module
-- **Proper exports** : Utiliser index.ts pour imports propres
+### While Writing Code (Quality Guardrails)
+| Anti-Pattern | Correct Pattern |
+|---|---|
+| Redundant state (derived from existing) | Compute from source state |
+| Parameter sprawl (adding params) | Generalize or restructure |
+| Copy-paste with variation | Extract shared abstraction |
+| Stringly-typed (raw strings) | Use constants/enums/unions |
+| `any` types | Proper TypeScript types |
+| `console.log` | Remove or use `logger` |
+| Inline styles | Tailwind classes |
+| Hardcoded colors | CSS variables from `globals.css` |
+
+### After Writing Code (Efficiency Self-Check)
+- [ ] No N+1 queries (batch with `Promise.all`)
+- [ ] Independent async ops run in parallel (not sequential)
+- [ ] No redundant DB queries (same data fetched twice)
+- [ ] No TOCTOU (check-then-act) — operate directly, handle errors
+- [ ] No overly broad queries (loading all when filtering for one)
+- [ ] Event listeners / subscriptions cleaned up on unmount
+- [ ] Separate try-catch for JSON.parse vs business logic errors
+
+---
+
+## Parallel Execution Protocol
+
+**For ANY multi-task execution (3+ independent tasks or 2+ tasks touching different file domains):**
+
+1. **Analyze parallelizability:** Map file dependencies — tasks touching different files can run in parallel
+2. **Branch awareness:** `git branch --show-current` — worktrees MUST branch from the CURRENT branch, not main
+3. **Dispatch:** Launch one Agent per domain with `isolation: "worktree"` + `mode: "bypassPermissions"`. Each agent commits on its worktree branch.
+4. **Post-agent simplify:** Each agent runs Craftsmanship Standards self-check on its changes before finishing
+5. **Merge:** Sequentially merge each worktree branch into the current branch (`git merge <branch> --no-edit`)
+6. **Cleanup:** `git worktree remove` + `git branch -D` for each worktree, then `git worktree prune`
+
+**Do NOT parallelize when:** tasks share files, output of one feeds another, or total changes < 3 files.
 
 ---
 
 ## Troubleshooting Protocol
 
 **En cas d'erreur non-triviale :**
-
 1. **INVOQUER** `sp-systematic-debugging` **IMMEDIATEMENT**
 2. Suivre le protocole du skill (4 phases)
 3. Consulter `docs/troubleshooting-checklist.md` si recommande
 
-**Quick Reference :**
-- File editing fails -> Section 1
-- Column not found -> Section 2
-- User not authenticated -> Section 3
-- Permission denied -> Section 4
-- Build errors -> Section 5
+Quick Ref: File editing (S1), Column not found (S2), Auth (S3), Permissions (S4), Build (S5)
 
 ---
 
-## Auto-Escalation vers Ultrathink Orchestrator
+## Auto-Escalation
 
-**Declencheurs automatiques :**
-
-| Condition | Action |
-|-----------|--------|
-| 3 tentatives echouees sur le meme bug | → Invoquer `ultrathink-orchestrator` |
-| Probleme multi-domaines (DB + API + UI) | → Invoquer `ultrathink-orchestrator` |
-| Decision architecturale majeure (> 10 fichiers) | → Invoquer `ultrathink-orchestrator` |
-| "Je ne comprends pas pourquoi..." apres analyse | → Invoquer `ultrathink-orchestrator` |
-
-**Invocation :**
-```
-Utiliser Task tool avec subagent_type: ultrathink-orchestrator
-Model: opus (capacite de raisonnement maximale)
-L'agent orchestre ensuite les agents specialises selon la matrice de delegation
-```
-
-**Methodologie Ultrathink (6 phases) :**
-
-| Phase | Nom | Objectif |
-|-------|-----|----------|
-| 1 | THINK DIFFERENT | Questionner chaque hypothese |
-| 2 | OBSESS OVER DETAILS | Lire le code comme une oeuvre d'art |
-| 3 | PLAN LIKE DA VINCI | Architecture claire avant execution |
-| 4 | CRAFT, DON'T CODE | Artisanat, noms qui chantent |
-| 5 | ITERATE RELENTLESSLY | Tests, screenshots, raffinement |
-| 6 | SIMPLIFY RUTHLESSLY | Retirer tout le superflu |
-
-> Details complets : `.claude/agents/ultrathink-orchestrator.md`
-
----
-
-## Skills Auto-Invocation
-
-**Philosophie**: "If a skill exists and 1% chance applies, invoke it."
-**Priorite**: Process Skills > Implementation Skills
-
-### Matrice de Declenchement
-
-| Skill | Red Flags | Priorite |
-|-------|-----------|----------|
-| `sp-brainstorming` | "Je vais creer...", "Nouvelle feature...", "Modifier comportement..." | **CRITIQUE** |
-| `sp-systematic-debugging` | "Bug...", "Erreur...", "Test echoue...", "Ca ne marche pas..." | **CRITIQUE** |
-| `sp-test-driven-development` | "Je vais implementer...", "Je vais coder..." | **HAUTE** |
-| `sp-verification-before-completion` | "C'est fait...", "Pret a commiter...", "Fix applique..." | **CRITIQUE** |
-| `sp-writing-plans` | "Tache complexe...", "> 3 fichiers a modifier..." | **HAUTE** |
-| `sp-requesting-code-review` | Implementation terminee, avant merge/PR | **HAUTE** |
-| `sp-ralph` | "ralph", "nouvelle feature", "let's build", "implement this" | **CRITIQUE** |
-| `sp-prd` | "create a prd", "specifier", "plan this feature" (standalone) | **HAUTE** |
-| `sp-quality-gate` | "git*", "before commit", "quality check", "review my code" | **CRITIQUE** |
-| `sp-compound` | "feature done", "ready to merge", "compound", "retrospective" | **HAUTE** |
-
-### Declencheurs Specifiques SEIDO
-
-| Contexte | Skills a Invoquer |
-|----------|-------------------|
-| Nouvelle feature a implementer | **`sp-ralph`** (orchestrateur complet, appelle sp-prd si besoin) |
-| PRD seul sans implementation | `sp-prd` (standalone) |
-| Modification workflow intervention | `sp-brainstorming` + `sp-test-driven-development` |
-| Nouvelle migration DB | `sp-verification-before-completion` |
-| Bug RLS/permissions | `sp-systematic-debugging` |
-| Nouveau composant UI | `sp-brainstorming` |
-| Feature multi-domaines | `sp-writing-plans` + `sp-dispatching-parallel-agents` |
-| Avant commit / "git*" | `sp-quality-gate` (AVANT le git add/commit) |
-| Feature completee / mergee | `sp-compound` (capitaliser les learnings) |
-| **Redaction texte site/app** | **`seo-strategist`** (brief) → **`seo-copywriter`** (redaction) → **`seo-reviewer`** (quality gate) |
-| **Nouveau contenu marketing** | `seo-strategist` (analyse concurrence + brief SEO) → `seo-copywriter` |
-| **Microcopy/notifications/emails** | `seo-copywriter` (redaction) → `seo-reviewer` (persona-fit check) |
-| **Audit SEO page existante** | `seo-strategist` (audit technique + E-E-A-T) |
-| **Review contenu avant publication** | `seo-reviewer` (Seven Sweeps + score 0-100) |
-
-### Patterns d'Orchestration
-
-**Chain: New Feature (via Ralph — recommended)**
-```
-sp-ralph (orchestrateur complet, zero commit) :
-  → appelle sp-prd si besoin (brainstorm + PRD)
-  → decompose en stories (prd.json)
-  → implemente story par story (TDD)
-  → quality gate finale
-  → rapport — user fait git* quand valide
-  → sp-compound apres commit
-```
-
-**Chain: Bug Fix**
-```
-sp-systematic-debugging → sp-tdd (failing test) → [fix] →
-sp-quality-gate → sp-verification-before-completion → sp-compound
-```
-
-**Chain: Multi-Domain**
-```
-sp-ralph (PRD + stories) →
-sp-dispatching-parallel-agents → [agents use sp-tdd] →
-sp-quality-gate → sp-verification-before-completion → sp-compound
-```
-
-**Chain: SEO Content (site + app)**
-```
-seo-strategist (analyse concurrence + brief SEO) →
-seo-copywriter (redaction FR/EN/NL, persona-adapted) →
-seo-reviewer (Seven Sweeps + persona-fit + score 0-100) →
-[score >= 75] → Publication | [score < 75] → Retour copywriter
-```
-
----
-
-## Compound Engineering + Ralph Methodology
-
-**SEIDO utilise le cycle Compound Engineering + Ralph pour maximiser qualite et productivite.**
-
-### Le Cycle Complet (via Ralph)
-
-```
-/ralph → sp-prd (brainstorm + PRD) → prd.json (stories) →
-Implementation story-by-story (TDD) → Quality Gate →
-Rapport final (zero commit) → git* quand valide →
-/compound → AGENTS.md + progress.txt enrichis
-```
-
-### Skills par Phase
-
-| Phase | Skills | Fichiers |
-|-------|--------|----------|
-| **Spec + Plan** | `sp-ralph` (appelle `sp-prd`) | `tasks/prd-*.md` + `tasks/prd.json` |
-| **Work** | `sp-ralph` (TDD interne) | Code + tests |
-| **Review** | `sp-ralph` (quality gate interne) | Quality report |
-| **Commit** | User tape `git*` → `sp-quality-gate` | Commit + push |
-| **Compound** | `sp-compound` | `AGENTS.md` + `tasks/progress.txt` + `docs/learnings/*.md` |
-
-### Declencheurs Supplementaires
-
-| Contexte | Skills a Invoquer |
-|----------|-------------------|
-| Nouvelle feature a implementer | **`sp-ralph`** (point d'entree unique) |
-| PRD seul (sans implementation) | `sp-prd` (standalone) |
-| Avant commit / "git*" | `sp-quality-gate` (OBLIGATOIRE) |
-| Feature completee | `sp-compound` (OBLIGATOIRE) |
-| Toutes stories passes:true | `sp-compound` + `/update-memory` |
-
-### Knowledge Base Files
-
-| Fichier | Purpose | Quand lire |
-|---------|---------|------------|
-| `AGENTS.md` | Learnings codebase (pitfalls, patterns) | **AVANT implementation** |
-| `tasks/progress.txt` | Log learnings feature en cours | Pendant implementation |
-| `tasks/prd.json` | User stories + acceptance criteria | Pour choisir prochaine story |
-
-### Distinction progress.txt vs progress.md
-
-| Fichier | Scope | Format | Mis a jour par |
-|---------|-------|--------|----------------|
-| `.claude/memory-bank/progress.md` | Milestones projet (Phases 1-5+) | Markdown structure | `/update-memory` |
-| `tasks/progress.txt` | Log learnings feature EN COURS | Append-only, date/story | `sp-compound` apres chaque story |
+Invoquer `ultrathink-orchestrator` si : 3 tentatives echouees | multi-domaines (DB+API+UI) | > 10 fichiers | incomprehension apres analyse. Details : `.claude/agents/ultrathink-orchestrator.md`
 
 ---
 
 ## Essential References
 
-**Official Docs :**
-- [Supabase SSR with Next.js](https://supabase.com/docs/guides/auth/server-side/nextjs)
-- [Next.js App Router](https://nextjs.org/docs/app)
-- [React 19 Features](https://react.dev/blog/2024/12/05/react-19)
-
-**Project Docs :**
-- `docs/refacto/database-refactoring-guide.md` - Migration guide
-- `docs/refacto/Tests/HELPERS-GUIDE.md` - E2E testing patterns
-- `lib/services/README.md` - Services architecture
+**Official:** [Supabase SSR](https://supabase.com/docs/guides/auth/server-side/nextjs) | [Next.js App Router](https://nextjs.org/docs/app) | [React 19](https://react.dev/blog/2024/12/05/react-19)
+**Project:** `docs/refacto/database-refactoring-guide.md` | `docs/refacto/Tests/HELPERS-GUIDE.md` | `lib/services/README.md`
 
 ---
 
-**Last Updated**: 2026-02-04
-**Status**: Production Ready
-**Current Focus**: Multi-Team Support + Google Maps Integration + Compound Engineering + Ralph Methodology
+## Extracted Content (Lazy-Loaded)
+
+- **Quick Reference** (status, roles, DB clients): `.claude/rules/seido-reference.md`
+- **Feature Reference** (2026-01/02/03): `.claude/rules/feature-reference.md`
+- **Skill Routing** (triggers, chains, compound): `sp-orchestration` skill
+
+---
+**Last Updated**: 2026-03-14 | **Status**: Production Ready

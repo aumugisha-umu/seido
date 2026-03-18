@@ -12,7 +12,7 @@ export interface User {
   first_name?: string | null
   last_name?: string | null
   display_name?: string | null
-  role: 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire'
+  role: 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire' | 'garant'
   provider_category?: string | null
   speciality?: string | null
   phone?: string | null
@@ -53,7 +53,7 @@ export interface UserInsert {
   first_name?: string | null
   last_name?: string | null
   display_name?: string | null
-  role: 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire'
+  role: 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire' | 'garant'
   provider_category?: string | null
   speciality?: string | null
   phone?: string | null
@@ -75,7 +75,7 @@ export interface UserUpdate {
   first_name?: string | null
   last_name?: string | null
   display_name?: string | null
-  role?: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
+  role?: 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire' | 'garant'
   provider_category?: string | null
   speciality?: string | null
   phone?: string | null
@@ -155,6 +155,11 @@ export const STATUS_LABELS_FR: Partial<Record<InterventionStatus, string>> = {
   annulee: "Annulée",
   contestee: "Contestée"
 }
+
+/**
+ * How an intervention was created
+ */
+export type InterventionCreationSource = 'manual' | 'wizard' | 'tenant'
 
 export interface Intervention {
   id: string
@@ -504,16 +509,7 @@ export interface UpdateContactDTO {
 // VALIDATION UTILITIES
 // ===================================
 
-export function validateRequired<T extends Record<string, unknown>>(
-  data: T,
-  fields: (keyof T)[]
-): void {
-  for (const field of fields) {
-    if (!data[field]) {
-      throw new Error(`Field '${String(field)}' is required`)
-    }
-  }
-}
+export { validateRequired } from './error-handler'
 
 export function validateEmail(email: string): void {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

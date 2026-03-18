@@ -4,10 +4,13 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { ContractCard } from './contract-card'
 import { ContractsListView } from './contracts-list-view'
+import { ContractCardMobile } from './contract-card-mobile'
 import { deleteContract } from '@/app/actions/contract-actions'
 import { toast } from 'sonner'
-import { Search, FileText, AlertTriangle, Archive, CheckCircle, Clock } from 'lucide-react'
+import { useViewMode } from '@/hooks/use-view-mode'
+import { Search, LayoutGrid, List, FileText, AlertTriangle, Archive, CheckCircle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { logger } from '@/lib/logger'
 import { getExpiryInfo } from '@/lib/utils/lease-expiry'
@@ -28,8 +31,8 @@ import {
 // ============================================================================
 // Block:    contracts-section
 // Elements: contracts-section__content, __tabs, __tab, __controls, __search,
-//           __data
-// Modifiers: contracts-section__tab--active
+//           __view-switcher, __view-btn, __data, __grid
+// Modifiers: contracts-section__tab--active, __view-btn--active
 // ============================================================================
 
 type TabId = 'actifs' | 'a_venir' | 'expire_bientot' | 'termines' | 'tous'
@@ -92,6 +95,12 @@ export function ContractsNavigator({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [contractToDelete, setContractToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // View mode state
+  const { viewMode, setViewMode, mounted } = useViewMode({
+    defaultMode: 'cards',
+    syncWithUrl: false
+  })
 
   // Get current tab config
   const currentTab = TABS.find(t => t.id === activeTab) || TABS[0]
@@ -245,10 +254,46 @@ export function ContractsNavigator({
     'relative flex-1'
   )
 
+  const viewSwitcherClass = cn(
+    'contracts-section__view-switcher',
+    'flex-shrink-0 inline-flex h-10 bg-slate-100 rounded-md p-1'
+  )
+
+  const getViewBtnClass = (isActive: boolean) => cn(
+    'contracts-section__view-btn',
+    'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all',
+    isActive
+      ? 'contracts-section__view-btn--active bg-white text-slate-900 shadow-sm'
+      : 'text-slate-600 hover:bg-slate-200/60'
+  )
+
   const dataClass = cn(
     'contracts-section__data',
     'flex-1 mt-4 overflow-y-auto'
   )
+
+  const gridClass = cn(
+    'contracts-section__grid',
+    'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'
+  )
+
+  // Render loading state
+  if (!mounted) {
+    return (
+      <div className={blockClass}>
+        <div className={contentClass}>
+          <div className="animate-pulse space-y-4">
+            <div className="h-10 bg-slate-200 rounded w-1/3" />
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-48 bg-slate-200 rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -294,6 +339,23 @@ export function ContractsNavigator({
                 />
               </div>
 
+              {/* View switcher */}
+              <div className={viewSwitcherClass}>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={getViewBtnClass(viewMode === 'list')}
+                  aria-label="Vue liste"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={getViewBtnClass(viewMode === 'cards')}
+                  aria-label="Vue grille"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -301,9 +363,11 @@ export function ContractsNavigator({
           <div className={dataClass}>
             {loading ? (
               <div className="animate-pulse space-y-4">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-12 bg-slate-200 rounded-lg" />
-                ))}
+                <div className={gridClass}>
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="h-48 bg-slate-200 rounded-lg" />
+                  ))}
+                </div>
               </div>
             ) : filteredContracts.length === 0 ? (
               <div className="contracts-section__empty flex flex-col items-center justify-center py-12 text-center">
@@ -326,13 +390,42 @@ export function ContractsNavigator({
                   </Button>
                 )}
               </div>
+            ) : viewMode === 'list' ? (
+              <>
+                {/* Mobile: compact cards */}
+                <div className="block md:hidden space-y-2">
+                  {filteredContracts.map((contract) => (
+                    <ContractCardMobile key={contract.id} contract={contract} />
+                  ))}
+                </div>
+                {/* Desktop: list view */}
+                <div className="hidden md:block">
+                  <ContractsListView
+                    contracts={filteredContracts}
+                    onView={handleView}
+                    onEdit={handleEdit}
+                    onDelete={handleDeleteClick}
+                  />
+                </div>
+              </>
             ) : (
-              <ContractsListView
-                contracts={filteredContracts}
-                onView={handleView}
-                onEdit={handleEdit}
-                onDelete={handleDeleteClick}
-              />
+              <div className={gridClass}>
+                {filteredContracts.map((contract) => {
+                  const info = activeTab === 'expire_bientot'
+                    ? getExpiryInfo(contract.end_date, contract.duration_months, contract.metadata || {})
+                    : undefined
+                  return (
+                    <ContractCard
+                      key={contract.id}
+                      contract={contract}
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onDelete={handleDeleteClick}
+                      expiryInfo={info}
+                    />
+                  )
+                })}
+              </div>
             )}
           </div>
         </div>

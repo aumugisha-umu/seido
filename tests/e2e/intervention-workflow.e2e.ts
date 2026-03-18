@@ -2,7 +2,7 @@
  * E2E test — Intervention Approve/Reject Workflow (E-003)
  *
  * Tests gestionnaire actions on intervention detail page:
- * - Approve an intervention (demande → approuvee) by clicking "Traiter la demande"
+ * - Approve an intervention (demande → approuvee) by clicking "Traiter demande"
  * - Verify approved intervention shows "Planifier" action
  * - Cancel an intervention (approuvee → annulee) by clicking "Annuler"
  * - Verify contacts (provider + locataire) are visible on intervention detail
@@ -112,7 +112,7 @@ describe('Intervention Workflow Actions', () => {
   // Gestionnaire processes a request (demande → approve)
   // ═══════════════════════════════════════════════════════════
 
-  it('should show "Traiter la demande" and complete 2-step approval', async () => {
+  it('should show "Traiter demande" and complete 2-step approval', async () => {
     try {
       const intervention = await createFullTestIntervention({
         teamId,
@@ -127,7 +127,7 @@ describe('Intervention Workflow Actions', () => {
 
       await detail.navigateTo('gestionnaire', intervention.id)
 
-      // Wait specifically for the "Traiter la demande" button to render.
+      // Wait specifically for the "Traiter demande" button to render.
       // Action buttons load AFTER the page shell (Server Component streaming),
       // so we poll rather than instant-check.
       await page.waitForFunction(
@@ -135,7 +135,7 @@ describe('Intervention Workflow Actions', () => {
         { timeout: 15_000, polling: 500 },
       )
 
-      // Click "Traiter la demande"
+      // Click "Traiter demande"
       await detail.clickProcessRequest()
 
       // Wait for the dialog/modal to appear
@@ -257,7 +257,7 @@ describe('Intervention Workflow Actions', () => {
       // Terminal status — no action buttons
       const hasPlanifier = await detail.hasContent('Planifier')
       const hasCloturer = await detail.hasContent('Clôturer')
-      const hasTraiter = await detail.hasContent('Traiter la demande')
+      const hasTraiter = await detail.hasContent('Traiter demande')
       expect(hasPlanifier).toBe(false)
       expect(hasCloturer).toBe(false)
       expect(hasTraiter).toBe(false)

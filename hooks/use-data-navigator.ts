@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useViewMode, type ViewMode } from '@/hooks/use-view-mode'
 import { useDebounce } from '@/hooks/use-debounce'
+import { usePrefetchHandler } from '@/hooks/use-prefetch'
 
 // ============================================================================
 // USE DATA NAVIGATOR HOOK
@@ -43,6 +44,7 @@ interface UseDataNavigatorReturn<T> {
 
     // Navigation
     createRowClickHandler: (rowHref?: (item: T) => string) => ((item: T) => void) | undefined
+    createRowHoverHandler: (rowHref?: (item: T) => string) => ((item: T) => void) | undefined
 }
 
 /**
@@ -72,7 +74,7 @@ function getNestedValue(obj: any, path: string): any {
 export function useDataNavigator<T>({
     data,
     searchableFields,
-    defaultView = 'list'
+    defaultView = 'cards'
 }: UseDataNavigatorOptions<T>): UseDataNavigatorReturn<T> {
     const router = useRouter()
 
@@ -140,12 +142,19 @@ export function useDataNavigator<T>({
     // Count active filters (excluding 'all' values)
     const activeFilterCount = Object.values(activeFilters).filter(v => v && v !== 'all').length
 
+    const prefetchHandler = usePrefetchHandler()
+
     // Create row click handler from rowHref config
     const createRowClickHandler = (rowHref?: (item: T) => string) => {
         return rowHref
             ? (item: T) => router.push(rowHref(item))
             : undefined
     }
+
+    const createRowHoverHandler = useCallback((rowHref?: (item: T) => string) => {
+        if (!rowHref) return undefined
+        return (item: T) => prefetchHandler(rowHref(item))
+    }, [prefetchHandler])
 
     return {
         // Search
@@ -168,6 +177,7 @@ export function useDataNavigator<T>({
         filteredData,
 
         // Navigation
-        createRowClickHandler
+        createRowClickHandler,
+        createRowHoverHandler
     }
 }

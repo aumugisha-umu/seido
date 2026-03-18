@@ -98,7 +98,7 @@ export async function PUT(
           id,
           lot_contacts(user_id, is_primary)
         ),
-       intervention_contacts(
+       intervention_assignments(
           user_id,
           role,
           user:user_id(id, name, email, role)
@@ -122,12 +122,12 @@ export async function PUT(
 
     const hasAccess = (
       isUserTenant ||
-      intervention.intervention_contacts.some(ic => ic.user_id === user.id) ||
+      intervention.intervention_assignments.some(ic => ic.user_id === user.id) ||
       user.role === 'gestionnaire'
     )
 
     if (!hasAccess) {
-      logger.error({ userId: user.id, userRole: user.role, isUserTenant, interventionContacts: intervention.intervention_contacts.map(ic => ic.user_id) }, "🚫 [SELECT-SLOT] Access denied:")
+      logger.error({ userId: user.id, userRole: user.role, isUserTenant, interventionContacts: intervention.intervention_assignments.map(ic => ic.user_id) }, "🚫 [SELECT-SLOT] Access denied:")
       return NextResponse.json({
         success: false,
         error: 'Accès non autorisé à cette intervention'

@@ -2,6 +2,7 @@ import { Users, Mail, Phone, MapPin, Building2, Send, Edit, Eye, Archive, Trash2
 import { Badge } from '@/components/ui/badge'
 import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
 import { CompanyCardCompact } from '@/components/contacts/company-card-compact'
+import { getProviderCategoryLabel, getProviderCategoryIcon } from '@/components/contact-details/constants'
 import type { DataTableConfig } from '@/components/data-navigator/types'
 
 // Contact type
@@ -72,15 +73,17 @@ export const getContactTypeLabel = (role?: string) => {
     const types: Record<string, string> = {
         // English values (expected)
         'tenant': 'Locataire',
-        'owner': 'Propriétaire',
         'provider': 'Prestataire',
         'manager': 'Gestionnaire',
+        'owner': 'Propriétaire',
+        'guarantor': 'Garant',
         'other': 'Autre',
         // French values (fallback for legacy data)
         'locataire': 'Locataire',
-        'proprietaire': 'Propriétaire',
         'prestataire': 'Prestataire',
         'gestionnaire': 'Gestionnaire',
+        'proprietaire': 'Propriétaire',
+        'garant': 'Garant',
         'autre': 'Autre'
     }
     return types[role || 'other'] || 'Non défini'
@@ -90,15 +93,17 @@ export const getContactTypeBadgeStyle = (role?: string) => {
     const styles: Record<string, string> = {
         // English values (expected)
         'tenant': 'bg-blue-100 text-blue-800',
-        'owner': 'bg-amber-100 text-amber-800',
         'provider': 'bg-green-100 text-green-800',
         'manager': 'bg-purple-100 text-purple-800',
+        'owner': 'bg-amber-100 text-amber-800',
+        'guarantor': 'bg-amber-100 text-amber-800',
         'other': 'bg-gray-100 text-gray-600',
         // French values (fallback for legacy data)
         'locataire': 'bg-blue-100 text-blue-800',
-        'proprietaire': 'bg-amber-100 text-amber-800',
         'prestataire': 'bg-green-100 text-green-800',
         'gestionnaire': 'bg-purple-100 text-purple-800',
+        'proprietaire': 'bg-amber-100 text-amber-800',
+        'garant': 'bg-amber-100 text-amber-800',
         'autre': 'bg-gray-100 text-gray-600'
     }
     return styles[role || 'other'] || 'bg-gray-100 text-gray-600'
@@ -173,6 +178,22 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
                     {getContactTypeLabel(contact.role)}
                 </Badge>
             )
+        },
+        {
+            id: 'provider_category',
+            header: 'Catégorie',
+            accessorKey: 'provider_category',
+            sortable: true,
+            cell: (contact) => {
+                if (!contact.provider_category || contact.role !== 'prestataire') return <span className="text-sm text-slate-400">-</span>
+                const Icon = getProviderCategoryIcon(contact.provider_category)
+                return (
+                    <Badge variant="outline" className="text-xs bg-muted text-foreground border-border gap-1">
+                        <Icon className="h-3 w-3" />
+                        {getProviderCategoryLabel(contact.provider_category)}
+                    </Badge>
+                )
+            }
         },
         {
             id: 'speciality',
@@ -268,7 +289,6 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
             options: [
                 { value: 'all', label: 'Tous' },
                 { value: 'locataire', label: 'Locataire' },
-                { value: 'proprietaire', label: 'Propriétaire' },
                 { value: 'prestataire', label: 'Prestataire' },
                 { value: 'gestionnaire', label: 'Gestionnaire' }
             ],
@@ -326,7 +346,7 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
         }
     },
 
-    defaultView: 'list',
+    defaultView: 'cards',
 
     // Row click navigation
     rowHref: (contact) => `/gestionnaire/contacts/details/${contact.id}`,
@@ -490,7 +510,7 @@ export const invitationsTableConfig: DataTableConfig<InvitationData> = {
         }
     },
 
-    defaultView: 'list',
+    defaultView: 'cards',
 
     actions: [
         {
@@ -603,7 +623,7 @@ export const companiesTableConfig: DataTableConfig<CompanyData> = {
         }
     },
 
-    defaultView: 'list',
+    defaultView: 'cards',
 
     // Row click navigation
     rowHref: (company) => `/gestionnaire/contacts/societes/${company.id}`,

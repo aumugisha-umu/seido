@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server'
 import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import { createServerInterventionService, createServerActionInterventionCommentRepository } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { interventionRejectSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'

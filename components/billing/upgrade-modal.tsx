@@ -241,12 +241,12 @@ export function UpgradeModal({
                 {preview && (
                   <>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Lots actuels</span>
-                      <span className="font-medium">{preview.current_lots}</span>
+                      <span className="text-muted-foreground">Lots utilises / inclus</span>
+                      <span className="font-medium">{preview.current_lots} / {preview.subscribed_lots}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Apr&egrave;s mise &agrave; niveau</span>
-                      <span className="font-medium text-blue-600">{preview.new_lots} lots</span>
+                      <span className="font-medium text-blue-600">{preview.current_lots} / {preview.new_lots}</span>
                     </div>
                     <div className="border-t pt-2 mt-2">
                       <div className="flex justify-between text-sm">

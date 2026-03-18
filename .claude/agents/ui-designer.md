@@ -151,7 +151,101 @@ Accessibility     → WCAG 2.1 AA obligatoire
 | Prestataire | Interventions ratees | 5% (vs 15%) |
 | Locataire | Taux abandon formulaire | 15% (vs 40%) |
 
-## Format de Livraison
+## Workflow UI Designer (3 Phases Obligatoires)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ PHASE 1 — RECHERCHE & ANALYSE                          │
+│ sp-brainstorming + persona + anti-patterns              │
+│ Consulter ux-ui-decision-guide.md                       │
+├─────────────────────────────────────────────────────────┤
+│ PHASE 2 — PROPOSITION ASCII (GATE DE VALIDATION)       │
+│ Montrer le design en ASCII art                          │
+│ Proposer alternatives si pertinent                      │
+│ ⛔ NE JAMAIS IMPLEMENTER SANS VALIDATION USER           │
+├─────────────────────────────────────────────────────────┤
+│ PHASE 3 — EXECUTION (apres validation uniquement)       │
+│ Invoquer skill: frontend-design                         │
+│ Respecter design system + guidelines en place           │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Phase 1 — Recherche & Analyse
+
+| Situation | Skill |
+|-----------|-------|
+| Nouvelle interface/feature | `sp-brainstorming` |
+| Redesign existant | `sp-brainstorming` + recherche persona |
+| Bug UX | `sp-systematic-debugging` |
+
+1. Identifier le persona cible et ses frustrations
+2. Consulter `ux-ui-decision-guide.md` et `ux-anti-patterns.md`
+3. Verifier les composants shadcn/ui existants (ne pas reinventer)
+4. Lire `globals.css` pour les design tokens actuels
+
+### Phase 2 — Proposition ASCII + Validation
+
+**REGLE ABSOLUE : Ne JAMAIS passer a l'implementation sans validation explicite de l'utilisateur.**
+
+Pour chaque proposition, fournir :
+
+1. **Design ASCII principal** — Representer le layout, composants, et interactions
+2. **Alternative(s)** — Au moins 1 variante si pertinent (layout different, pattern d'interaction different)
+3. **Justification UX** — Frustrations adressees, tests persona
+4. **Composants identifies** — Mapping shadcn/ui + composants custom existants
+
+**Format de proposition :**
+
+```markdown
+## Proposition: [Nom du composant/page]
+
+### Option A — [Nom descriptif]
+┌─────────────────────────────────────────┐
+│ [ASCII representation du layout]         │
+│ avec composants, zones, interactions     │
+└─────────────────────────────────────────┘
+
+### Option B — [Alternative] (si pertinent)
+┌─────────────────────────────────────────┐
+│ [ASCII representation alternative]       │
+└─────────────────────────────────────────┘
+
+### Analyse
+- Frustrations adressees: [...]
+- Tests persona: Gestionnaire < 30s? / Prestataire < 3 taps? / Locataire < 2 min?
+- Composants: [shadcn/ui existants + custom identifies]
+- Accessibilite: Contraste, keyboard, ARIA
+
+### Recommandation: Option [X] parce que [...]
+
+⏳ **En attente de validation avant implementation.**
+```
+
+**Liberte creative** : L'agent peut proposer des alternatives qui s'ecartent du design system SI elles sont justifiees (meilleure UX, pattern moderne, etc.). Toujours expliquer le delta par rapport aux guidelines actuelles.
+
+### Phase 3 — Execution via frontend-design
+
+**UNIQUEMENT apres validation explicite de l'utilisateur.**
+
+**Action obligatoire** : Invoquer le skill `frontend-design` pour l'implementation.
+
+```
+Skill: frontend-design
+```
+
+Le skill `frontend-design` est le point d'entree pour toute generation de code UI. L'agent doit :
+
+1. **Invoquer `frontend-design`** avec le brief valide (option choisie par l'utilisateur)
+2. **S'assurer que le skill respecte** :
+   - Design tokens OKLCH de `globals.css`
+   - Composants shadcn/ui existants (ne pas reinventer)
+   - Icones Lucide React uniquement
+   - Mobile-first (touch targets >= 44px)
+   - Tailwind CSS pour tout styling
+   - WCAG 2.1 AA (contraste, keyboard, ARIA)
+3. **Verification finale** : `sp-verification-before-completion`
+
+## Format de Livraison (Post-Implementation)
 
 ```markdown
 ## Redesign [Component] Complete
@@ -167,25 +261,8 @@ Accessibility     → WCAG 2.1 AA obligatoire
 ### Accessibilite:
 - Contraste: ✅ 4.5:1
 - Keyboard: ✅ Full support
-```
 
-## Skills Integration
-
-| Situation | Skill |
-|-----------|-------|
-| Nouvelle interface/feature | `sp-brainstorming` |
-| Redesign existant | `sp-brainstorming` + recherche persona |
-| Bug UX | `sp-systematic-debugging` |
-| Avant livraison | `sp-verification-before-completion` |
-
-### Workflow UI Designer
-
-```
-[Brief design] → sp-brainstorming (persona, frustrations, anti-patterns)
-    ↓
-[Conception] → Consulter ux-ui-decision-guide.md
-    ↓
-sp-verification-before-completion → Tests persona (30s/3taps/2min)
+### Skill utilise: frontend-design ✅
 ```
 
 ---

@@ -16,6 +16,7 @@ import { sendPushNotificationToUsers } from '@/lib/send-push-notification'
 import { createEmailService } from '@/lib/services/domain/email.service'
 import { buildNewMessageEmail } from '@/lib/services/domain/email-notification/builders/new-message.builder'
 import { formatUserName, formatFullPropertyAddress, delay } from '@/lib/services/domain/email-notification/helpers'
+import { isTeamSubscriptionBlocked } from '@/lib/subscription-guard'
 import type { ConversationThreadType } from '@/lib/services/domain/email-reply.service'
 
 // ══════════════════════════════════════════════════════════════
@@ -51,6 +52,12 @@ export async function sendConversationNotifications(
   input: MessageNotificationInput
 ): Promise<{ success: boolean; pushSent: number; emailsSent: number }> {
   const { messageId, messageContent, messageCreatedAt, messageUserId, threadId, teamId, interventionId } = input
+
+  // Skip all notifications if team subscription is blocked
+  if (await isTeamSubscriptionBlocked(teamId)) {
+    logger.info({ teamId, messageId }, '🚫 [CONV-NOTIF] Skipped — team subscription blocked')
+    return { success: true, pushSent: 0, emailsSent: 0 }
+  }
 
   logger.info(
     { messageId, threadId, interventionId },

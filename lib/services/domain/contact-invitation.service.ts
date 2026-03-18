@@ -18,6 +18,7 @@ export interface ContactInvitationData {
   email: string
   phone?: string
   speciality?: string
+  providerCategory?: string
   notes?: string
   inviteToApp: boolean
   teamId: string
@@ -94,7 +95,7 @@ export class ContactInvitationService {
             firstName: contactData.firstName,
             lastName: contactData.lastName,
             role: this.mapFrontendTypeToUserRole(contactData.type).role,
-            providerCategory: this.mapFrontendTypeToUserRole(contactData.type).provider_category,
+            providerCategory: contactData.providerCategory || this.mapFrontendTypeToUserRole(contactData.type).provider_category,
             teamId: contactData.teamId,
             phone: sanitizedPhone,
             notes: contactData.notes,
@@ -147,7 +148,7 @@ export class ContactInvitationService {
             firstName: contactData.firstName,
             lastName: contactData.lastName,
             role: this.mapFrontendTypeToUserRole(contactData.type).role,
-            providerCategory: this.mapFrontendTypeToUserRole(contactData.type).provider_category,
+            providerCategory: contactData.providerCategory || this.mapFrontendTypeToUserRole(contactData.type).provider_category,
             teamId: contactData.teamId,
             phone: sanitizedPhone,
             notes: contactData.notes,

@@ -128,6 +128,15 @@ grep -r "is_team_manager" supabase/migrations/
 - ❌ Ignorer types generes
 - ❌ Modifier schema sans migration
 
+## AGENTS.md Key Learnings for Database
+
+Always check AGENTS.md before schema changes. Key DB learnings include:
+- **RLS source of truth**: `team_members` NOT `users.team_id`
+- **Storage RLS**: Use `get_my_profile_ids()` not `auth.uid()` when joining team_members
+- **PostgREST FK disambiguation**: Use `!fk_constraint_name` hint for multiple FK paths
+- **Two role systems**: `users.role` (global) vs `team_members.role` (team-specific)
+- Learning numbers change; grep AGENTS.md for your specific domain
+
 ---
 
 ## Skills Integration

@@ -74,6 +74,7 @@ export async function POST(request: Request) {
       linkedBuildingId,
       linkedLotId,
       linkedContractId,
+      linkedSupplierContractId,
       linkedInterventionId
     } = validatedData
 
@@ -114,6 +115,7 @@ export async function POST(request: Request) {
           'locataire': { role: 'locataire', provider_category: null },
           'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
           'proprietaire': { role: 'proprietaire', provider_category: null },
+          'garant': { role: 'garant', provider_category: null },
           'autre': { role: 'prestataire', provider_category: 'autre' }
         }
 
@@ -690,7 +692,7 @@ export async function POST(request: Request) {
         // Liaison à un contrat
         if (linkedEntityType === 'contract' && linkedContractId) {
           // Mapper le rôle du contact vers le rôle contrat
-          const contractRole = validUserRole === 'locataire' ? 'locataire' : 'autre'
+          const contractRole = role === 'garant' ? 'garant' : validUserRole === 'locataire' ? 'locataire' : 'autre'
 
           const { error: contractLinkError } = await supabaseAdmin
             .from('contract_contacts')
@@ -705,6 +707,20 @@ export async function POST(request: Request) {
             logger.warn({ error: contractLinkError }, '⚠️ [STEP-5] Failed to link contact to contract')
           } else {
             logger.info({ contractId: linkedContractId }, '✅ [STEP-5] Contact linked to contract')
+          }
+        }
+
+        // Liaison à un contrat fournisseur (set supplier_id)
+        if (linkedEntityType === 'supplier_contract' && linkedSupplierContractId) {
+          const { error: supplierContractLinkError } = await supabaseAdmin
+            .from('supplier_contracts')
+            .update({ supplier_id: userProfile.id })
+            .eq('id', linkedSupplierContractId)
+
+          if (supplierContractLinkError) {
+            logger.warn({ error: supplierContractLinkError }, '⚠️ [STEP-5] Failed to link contact to supplier contract')
+          } else {
+            logger.info({ supplierContractId: linkedSupplierContractId }, '✅ [STEP-5] Contact linked to supplier contract')
           }
         }
 

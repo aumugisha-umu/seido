@@ -161,7 +161,7 @@ export const inviteUserSchema = z.object({
   // La validation métier (required pour 'person') est faite dans ContactFormModal
   firstName: z.string().max(100).trim().optional().nullable(),
   lastName: z.string().max(100).trim().optional().nullable(),
-  role: z.enum(['admin', 'gestionnaire', 'locataire', 'prestataire', 'proprietaire'], {
+  role: z.enum(['admin', 'gestionnaire', 'locataire', 'prestataire', 'proprietaire', 'garant'], {
     errorMap: () => ({ message: 'Invalid role' })
   }),
   providerCategory: z.enum(['prestataire', 'autre']).optional().nullable(),
@@ -188,10 +188,11 @@ export const inviteUserSchema = z.object({
   companyPlaceId: z.string().max(500).optional().nullable(),
   companyFormattedAddress: z.string().max(500).optional().nullable(),
   // Champs liaison à une entité (optionnel)
-  linkedEntityType: z.enum(['building', 'lot', 'contract', 'intervention']).optional().nullable(),
+  linkedEntityType: z.enum(['building', 'lot', 'contract', 'supplier_contract', 'intervention']).optional().nullable(),
   linkedBuildingId: uuidSchema.optional().nullable(),
   linkedLotId: uuidSchema.optional().nullable(),
   linkedContractId: uuidSchema.optional().nullable(),
+  linkedSupplierContractId: uuidSchema.optional().nullable(),
   linkedInterventionId: uuidSchema.optional().nullable(),
 }).superRefine((data, ctx) => {
   // Email obligatoire si shouldInviteToApp === true
@@ -304,11 +305,17 @@ export const createContactSchema = z.object({
   name: z.string().min(1).max(200).trim(),
   first_name: z.string().max(100).trim().optional().nullable(),
   last_name: z.string().max(100).trim().optional().nullable(),
-  email: emailSchema,
+  email: z.preprocess(
+    (val) => {
+      if (typeof val === 'string' && val.trim() === '') return null
+      return val
+    },
+    z.union([emailSchema, z.null()]).nullable()
+  ),
   phone: z.string().max(50).trim().optional().nullable(),
   address: z.string().max(500).trim().optional().nullable(),
   notes: z.string().max(2000).trim().optional().nullable(),
-  role: z.enum(['gestionnaire', 'locataire', 'prestataire', 'proprietaire'], {
+  role: z.enum(['gestionnaire', 'locataire', 'prestataire', 'proprietaire', 'garant'], {
     errorMap: () => ({ message: 'Invalid contact role' })
   }),
   provider_category: z.enum(['prestataire', 'autre']).optional().nullable(),
@@ -647,12 +654,18 @@ export const uploadContractDocumentSchema = z.object({
 })
 
 /**
+ * Avatar upload constants — single source of truth
+ */
+export const AVATAR_MAX_SIZE = 5 * 1024 * 1024 // 5MB
+export const AVATAR_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+
+/**
  * POST /api/upload-avatar
  */
 export const uploadAvatarSchema = z.object({
   fileName: z.string().min(1).max(255).trim(),
-  fileSize: z.number().int().positive().max(5 * 1024 * 1024), // max 5MB for avatar
-  fileType: z.enum(['image/jpeg', 'image/png', 'image/webp'], {
+  fileSize: z.number().int().positive().max(AVATAR_MAX_SIZE),
+  fileType: z.enum(AVATAR_ALLOWED_TYPES, {
     errorMap: () => ({ message: 'Invalid image format. Only JPEG, PNG, WEBP allowed' })
   }),
 })

@@ -54,7 +54,7 @@ export async function GET(
     // Check if user has access to this intervention
     const hasAccess = (
       intervention.tenant_id === user.id ||
-      intervention.intervention_contacts.some(ic => ic.user_id === user.id) ||
+      intervention.intervention_assignments.some(ic => ic.user_id === user.id) ||
       user.role === 'gestionnaire'
     )
 
@@ -183,7 +183,7 @@ export async function GET(
 
     // Calculate statistics
     const stats = {
-      total_participants: intervention.intervention_contacts.length + (intervention.tenant_id ? 1 : 0),
+      total_participants: intervention.intervention_assignments.length + (intervention.tenant_id ? 1 : 0),
       participants_with_availabilities: userSummary.size,
       total_availability_slots: allAvailabilities?.length || 0,
       total_time_slots: timeSlots?.length || 0,

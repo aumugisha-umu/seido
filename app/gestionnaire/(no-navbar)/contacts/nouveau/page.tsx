@@ -5,6 +5,7 @@ import {
   createServerLotService,
   createServerContractService
 } from '@/lib/services'
+import { getInterventionTypesServer } from '@/lib/services/domain/intervention-types.server'
 import { logger } from '@/lib/logger'
 import { ContactCreationClient } from './contact-creation-client'
 
@@ -47,12 +48,13 @@ export default async function NewContactPage({
     ])
 
     // ── Wave 1: All independent queries in parallel ─────────────────────
-    const [companiesResult, buildingsResult, occupiedResult, lotsResult, contractsResult] = await Promise.all([
+    const [companiesResult, buildingsResult, occupiedResult, lotsResult, contractsResult, interventionTypes] = await Promise.all([
       companyRepository.findActiveByTeam(team.id),
       buildingService.getBuildingsByTeam(team.id),
       contractService.getOccupiedLotIdsByTeam(team.id).catch(() => ({ success: false as const, data: new Set<string>() })),
       lotService.getLotsByTeam(team.id),
       contractService.getByTeam(team.id).catch(() => ({ success: false as const, data: [] as any[] })),
+      getInterventionTypesServer().catch(() => null),
     ])
 
     // ── Sequential transforms (CPU only, no DB) ────────────────────────
@@ -98,6 +100,7 @@ export default async function NewContactPage({
         initialBuildings={buildings}
         initialLots={lots}
         initialContracts={contracts}
+        initialInterventionTypes={interventionTypes}
         prefilledType={prefilledType}
         sessionKey={sessionKey}
         returnUrl={returnUrl}

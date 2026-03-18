@@ -3,7 +3,7 @@
  * Configuration for Excel/CSV import functionality
  */
 
-import type { TemplateConfig, ColumnMapping } from './types';
+import type { TemplateConfig } from './types';
 
 // ============================================================================
 // Sheet Names (French)
@@ -43,13 +43,11 @@ export const LOT_CATEGORY_LABELS: Record<string, string> = {
 export const CONTACT_ROLES = [
   'locataire',
   'prestataire',
-  'proprietaire',
 ] as const;
 
 export const CONTACT_ROLE_LABELS: Record<string, string> = {
   'locataire': 'Locataire',
   'prestataire': 'Prestataire',
-  'proprietaire': 'Propriétaire',
 };
 
 export const CONTRACT_TYPES = [
@@ -539,51 +537,6 @@ export const CONTACT_TEMPLATE: TemplateConfig = {
     ['Rénovation Totale', 'demo+renovation.totale@seido-app.com', '+32 2 555 08 03', 'prestataire', '89 Boulevard Charlemagne, 1000 Bruxelles', 'autre', 'Rénovation Totale SA', 'Gros œuvre'],
     ['Dépannage Rapide', 'demo+depannage.rapide@seido-app.com', '+32 2 555 08 04', 'prestataire', '12 Rue de Trèves, 1040 Etterbeek', 'autre', 'Dépannage Rapide SPRL', 'Tous dépannages'],
     ['Artisan Polyvalent', 'demo+artisan.polyvalent@seido-app.com', '+32 2 555 08 05', 'prestataire', '34 Place du Luxembourg, 1050 Ixelles', 'autre', 'Artisan Polyvalent', 'Homme toutes mains'],
-    // ============================================================================
-    // PROPRIÉTAIRES - 40 contacts (SCI, particuliers, investisseurs)
-    // ============================================================================
-    // SCI et sociétés immobilières (20)
-    ['SCI Bruxelles Invest', 'demo+sci.bruxelles.invest@seido-app.com', '+32 2 555 10 01', 'proprietaire', '1 Place de Brouckère, 1000 Bruxelles', '', 'SCI Bruxelles Invest', 'Propriétaire Résidence Leopold'],
-    ['Immo Plus SA', 'demo+immo.plus@seido-app.com', '+32 2 555 10 02', 'proprietaire', '45 Avenue Louise, 1050 Bruxelles', '', 'Immo Plus SA', 'Propriétaire Le Sablon'],
-    ['SCI Centre Ville', 'demo+sci.centreville@seido-app.com', '+32 2 555 10 03', 'proprietaire', '78 Rue Neuve, 1000 Bruxelles', '', 'SCI Centre Ville', 'Propriétaire Bruxelles Centre'],
-    ['Tower Investment SA', 'demo+tower.investment@seido-app.com', '+32 2 555 10 04', 'proprietaire', '1 Boulevard du Roi Albert II, 1210 Bruxelles', '', 'Tower Investment SA', 'Propriétaire Tour Horizon'],
-    ['SCI Résidentiel Uccle', 'demo+sci.uccle@seido-app.com', '+32 2 555 10 05', 'proprietaire', '12 Avenue Churchill, 1180 Uccle', '', 'SCI Résidentiel Uccle', 'Propriétaire maisons Uccle'],
-    ['Patrimoine Immo SPRL', 'demo+patrimoine.immo@seido-app.com', '+32 2 555 10 06', 'proprietaire', '34 Avenue de Tervueren, 1040 Etterbeek', '', 'Patrimoine Immo SPRL', 'Multi-propriétaire'],
-    ['SCI Rendement Plus', 'demo+sci.rendement@seido-app.com', '+32 2 555 10 07', 'proprietaire', '67 Boulevard Brand Whitlock, 1200 Woluwe', '', 'SCI Rendement Plus', 'Investisseur institutionnel'],
-    ['Capital Stone SA', 'demo+capital.stone@seido-app.com', '+32 2 555 10 08', 'proprietaire', '90 Avenue des Celtes, 1040 Etterbeek', '', 'Capital Stone SA', 'Fonds immobilier'],
-    ['SCI Famille Dumont', 'demo+sci.dumont@seido-app.com', '+32 2 555 10 09', 'proprietaire', '15 Rue de la Loi, 1040 Etterbeek', '', 'SCI Famille Dumont', 'Patrimoine familial'],
-    ['Urban Properties SA', 'demo+urban.properties@seido-app.com', '+32 2 555 10 10', 'proprietaire', '48 Avenue d\'Auderghem, 1040 Etterbeek', '', 'Urban Properties SA', 'Immeubles de rapport'],
-    ['SCI Les Trois Couronnes', 'demo+sci.couronnes@seido-app.com', '+32 2 555 10 11', 'proprietaire', '23 Avenue de la Couronne, 1050 Ixelles', '', 'SCI Les Trois Couronnes', 'Propriétaire lots Ixelles'],
-    ['Belgian Real Estate SA', 'demo+belgian.realestate@seido-app.com', '+32 2 555 10 12', 'proprietaire', '56 Rue Gray, 1050 Ixelles', '', 'Belgian Real Estate SA', 'Grand propriétaire'],
-    ['SCI Investissement Bruxelles', 'demo+sci.invest.bxl@seido-app.com', '+32 2 555 10 13', 'proprietaire', '89 Rue Malibran, 1050 Ixelles', '', 'SCI Investissement Bruxelles', 'Portefeuille diversifié'],
-    ['Home Capital SPRL', 'demo+home.capital@seido-app.com', '+32 2 555 10 14', 'proprietaire', '12 Avenue Molière, 1050 Ixelles', '', 'Home Capital SPRL', 'Investisseur privé'],
-    ['SCI Sablon Prestige', 'demo+sci.sablon@seido-app.com', '+32 2 555 10 15', 'proprietaire', '34 Place du Grand Sablon, 1000 Bruxelles', '', 'SCI Sablon Prestige', 'Biens de standing'],
-    ['Prime Location SA', 'demo+prime.location@seido-app.com', '+32 2 555 10 16', 'proprietaire', '67 Rue du Bailli, 1050 Ixelles', '', 'Prime Location SA', 'Emplacements premium'],
-    ['SCI Woluwe Invest', 'demo+sci.woluwe@seido-app.com', '+32 2 555 10 17', 'proprietaire', '90 Avenue de Tervueren, 1200 Woluwe', '', 'SCI Woluwe Invest', 'Propriétaire Woluwe'],
-    ['Forest Properties SPRL', 'demo+forest.properties@seido-app.com', '+32 2 555 10 18', 'proprietaire', '15 Avenue Brugmann, 1190 Forest', '', 'Forest Properties SPRL', 'Propriétaire Forest'],
-    ['SCI Quartier Européen', 'demo+sci.europeen@seido-app.com', '+32 2 555 10 19', 'proprietaire', '48 Rue Belliard, 1040 Etterbeek', '', 'SCI Quartier Européen', 'Bureaux et logements'],
-    ['Schaerbeek Invest SA', 'demo+schaerbeek.invest@seido-app.com', '+32 2 555 10 20', 'proprietaire', '23 Chaussée de Louvain, 1030 Schaerbeek', '', 'Schaerbeek Invest SA', 'Rénovation quartiers'],
-    // Propriétaires particuliers (20)
-    ['Jean-Pierre Vandenberghe', 'demo+jp.vandenberghe@seido-app.com', '+32 470 50 00 01', 'proprietaire', '12 Avenue Churchill, 1180 Uccle', '', '', 'Propriétaire MAIS-001'],
-    ['Marie-Claire Dupont', 'demo+mc.dupont@seido-app.com', '+32 470 50 00 02', 'proprietaire', '45 Avenue des Hêtres, 1170 Watermael', '', '', 'Propriétaire MAIS-002'],
-    ['François Lemaitre', 'demo+f.lemaitre@seido-app.com', '+32 470 50 00 03', 'proprietaire', '8 Rue de la Forêt, 1180 Uccle', '', '', 'Propriétaire MAIS-003'],
-    ['Catherine Rousseau', 'demo+c.rousseau@seido-app.com', '+32 470 50 00 04', 'proprietaire', '23 Drève du Duc, 1160 Auderghem', '', '', 'Propriétaire MAIS-004'],
-    ['Philippe Moreau', 'demo+p.moreau@seido-app.com', '+32 470 50 00 05', 'proprietaire', '67 Avenue Churchill, 1180 Uccle', '', '', 'Propriétaire MAIS-005'],
-    ['Isabelle Bernard', 'demo+i.bernard@seido-app.com', '+32 470 50 00 06', 'proprietaire', '15 Rue Jean Vandeuren, 1150 Woluwe-Saint-Pierre', '', '', 'Propriétaire MAIS-006'],
-    ['Michel Fontaine', 'demo+m.fontaine@seido-app.com', '+32 470 50 00 07', 'proprietaire', '89 Avenue de Tervueren, 1200 Woluwe', '', '', 'Propriétaire MAIS-007'],
-    ['Anne-Sophie Laurent', 'demo+as.laurent@seido-app.com', '+32 470 50 00 08', 'proprietaire', '34 Rue du Bois, 1170 Watermael', '', '', 'Propriétaire MAIS-008'],
-    ['Pierre-Yves Simon', 'demo+py.simon@seido-app.com', '+32 470 50 00 09', 'proprietaire', '56 Avenue Louise, 1050 Ixelles', '', '', 'Propriétaire MAIS-009'],
-    ['Martine Delcourt', 'demo+m.delcourt@seido-app.com', '+32 470 50 00 10', 'proprietaire', '78 Rue Américaine, 1050 Ixelles', '', '', 'Propriétaire MAIS-010'],
-    ['Jacques Mercier', 'demo+j.mercier@seido-app.com', '+32 470 50 00 11', 'proprietaire', '8 Rue du Commerce, 1000 Bruxelles', '', '', 'Propriétaire garages'],
-    ['Sylvie Peeters', 'demo+s.peeters@seido-app.com', '+32 470 50 00 12', 'proprietaire', '45 Avenue Louise, 1050 Bruxelles', '', '', 'Propriétaire parkings'],
-    ['Luc Janssen', 'demo+l.janssen@seido-app.com', '+32 470 50 00 13', 'proprietaire', '5 Rue du Marché aux Herbes, 1000 Bruxelles', '', '', 'Propriétaire locaux commerciaux'],
-    ['Hélène Claessens', 'demo+h.claessens@seido-app.com', '+32 470 50 00 14', 'proprietaire', '10 Zone Industrielle Nord, 1070 Anderlecht', '', '', 'Propriétaire entrepôt'],
-    ['Robert Willems', 'demo+r.willems@seido-app.com', '+32 470 50 00 15', 'proprietaire', '12 Clos du Soleil, 1950 Kraainem', '', '', 'Propriétaire MAIS-011'],
-    ['Monique Maes', 'demo+m.maes@seido-app.com', '+32 470 50 00 16', 'proprietaire', '45 Rue de Genève, 1140 Evere', '', '', 'Propriétaire MAIS-012'],
-    ['Christophe Wouters', 'demo+c.wouters@seido-app.com', '+32 470 50 00 17', 'proprietaire', '23 Avenue des Cerisiers, 1030 Schaerbeek', '', '', 'Propriétaire MAIS-013'],
-    ['Nathalie Jacobs', 'demo+n.jacobs@seido-app.com', '+32 470 50 00 18', 'proprietaire', '67 Rue de la Station, 1190 Forest', '', '', 'Propriétaire MAIS-014'],
-    ['Éric Van den Berg', 'demo+e.vandenberg@seido-app.com', '+32 470 50 00 19', 'proprietaire', '89 Avenue Brugmann, 1190 Forest', '', '', 'Propriétaire MAIS-015'],
-    ['Brigitte Mertens', 'demo+b.mertens@seido-app.com', '+32 470 50 00 20', 'proprietaire', '100 Boulevard du Souverain, 1170 Watermael', '', '', 'Investisseur particulier'],
   ],
   columnWidths: [30, 35, 18, 15, 35, 15, 30, 30],
   requiredColumns: ['Nom*', 'Rôle*'],
@@ -875,175 +828,6 @@ export const COMPANY_TEMPLATE: TemplateConfig = {
   columnWidths: [30, 30, 15, 30, 10, 12, 20, 15, 35, 18, 30],
   requiredColumns: ['Nom*'],
 };
-
-// ============================================================================
-// Column Mappings (Excel Header → DB Field)
-// ============================================================================
-
-export const BUILDING_COLUMN_MAPPING: ColumnMapping[] = [
-  { excelHeader: 'Nom*', dbField: 'name', required: true, type: 'string' },
-  { excelHeader: 'Adresse*', dbField: 'address', required: true, type: 'string' },
-  { excelHeader: 'Ville*', dbField: 'city', required: true, type: 'string' },
-  { excelHeader: 'Code Postal*', dbField: 'postal_code', required: true, type: 'string' },
-  {
-    excelHeader: 'Pays',
-    dbField: 'country',
-    required: false,
-    type: 'enum',
-    enumValues: [...COUNTRIES],
-    transform: (v) => String(v || 'france').toLowerCase(),
-  },
-  { excelHeader: 'Description', dbField: 'description', required: false, type: 'string' },
-];
-
-export const LOT_COLUMN_MAPPING: ColumnMapping[] = [
-  { excelHeader: 'Référence*', dbField: 'reference', required: true, type: 'string' },
-  { excelHeader: 'Nom Immeuble', dbField: 'building_name', required: false, type: 'string' },
-  {
-    excelHeader: 'Catégorie',
-    dbField: 'category',
-    required: false,
-    type: 'enum',
-    enumValues: [...LOT_CATEGORIES],
-    transform: (v) => String(v || 'appartement').toLowerCase(),
-  },
-  {
-    excelHeader: 'Étage',
-    dbField: 'floor',
-    required: false,
-    type: 'number',
-    transform: (v) => v ? parseInt(String(v), 10) : undefined,
-  },
-  { excelHeader: 'Rue', dbField: 'street', required: false, type: 'string' },
-  { excelHeader: 'Ville', dbField: 'city', required: false, type: 'string' },
-  { excelHeader: 'Code Postal', dbField: 'postal_code', required: false, type: 'string' },
-  {
-    excelHeader: 'Pays',
-    dbField: 'country',
-    required: false,
-    type: 'enum',
-    enumValues: [...COUNTRIES],
-    transform: (v) => String(v || 'france').toLowerCase(),
-  },
-  { excelHeader: 'Description', dbField: 'description', required: false, type: 'string' },
-];
-
-export const CONTACT_COLUMN_MAPPING: ColumnMapping[] = [
-  { excelHeader: 'Nom*', dbField: 'name', required: true, type: 'string' },
-  { excelHeader: 'Email', dbField: 'email', required: false, type: 'string' },
-  { excelHeader: 'Téléphone', dbField: 'phone', required: false, type: 'string' },
-  {
-    excelHeader: 'Rôle*',
-    dbField: 'role',
-    required: true,
-    type: 'enum',
-    enumValues: [...CONTACT_ROLES],
-    transform: (v) => String(v || '').toLowerCase(),
-  },
-  { excelHeader: 'Adresse', dbField: 'address', required: false, type: 'string' },
-  {
-    excelHeader: 'Spécialité',
-    dbField: 'speciality',
-    required: false,
-    type: 'enum',
-    enumValues: [...INTERVENTION_TYPES],
-    transform: (v) => {
-      if (!v) return undefined;
-      // Normalize: remove accents, lowercase, handle common variations
-      const normalized = String(v)
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '') // Remove accents
-        .trim();
-      // Direct match or return as-is (will be validated)
-      return normalized;
-    },
-  },
-  { excelHeader: 'Société', dbField: 'company_name', required: false, type: 'string' },
-  { excelHeader: 'Notes', dbField: 'notes', required: false, type: 'string' },
-];
-
-export const CONTRACT_COLUMN_MAPPING: ColumnMapping[] = [
-  { excelHeader: 'Titre*', dbField: 'title', required: true, type: 'string' },
-  { excelHeader: 'Réf Lot*', dbField: 'lot_reference', required: true, type: 'string' },
-  {
-    excelHeader: 'Date Début*',
-    dbField: 'start_date',
-    required: true,
-    type: 'date',
-    transform: (v) => {
-      if (!v) return undefined;
-      if (v instanceof Date) return v.toISOString().split('T')[0];
-      const str = String(v);
-      // Try to parse various date formats
-      const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (isoMatch) return str.slice(0, 10);
-      const frMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-      if (frMatch) return `${frMatch[3]}-${frMatch[2]}-${frMatch[1]}`;
-      return str;
-    },
-  },
-  {
-    excelHeader: 'Durée (mois)*',
-    dbField: 'duration_months',
-    required: true,
-    type: 'number',
-    transform: (v) => parseInt(String(v), 10),
-  },
-  {
-    excelHeader: 'Loyer*',
-    dbField: 'rent_amount',
-    required: true,
-    type: 'number',
-    transform: (v) => parseFloat(String(v).replace(',', '.')),
-  },
-  {
-    excelHeader: 'Charges',
-    dbField: 'charges_amount',
-    required: false,
-    type: 'number',
-    transform: (v) => v ? parseFloat(String(v).replace(',', '.')) : undefined,
-  },
-  {
-    excelHeader: 'Type',
-    dbField: 'contract_type',
-    required: false,
-    type: 'enum',
-    enumValues: [...CONTRACT_TYPES],
-    transform: (v) => String(v || 'bail_habitation').toLowerCase().replace(/['\s]/g, '_'),
-  },
-  {
-    excelHeader: 'Garantie',
-    dbField: 'guarantee_amount',
-    required: false,
-    type: 'number',
-    transform: (v) => v ? parseFloat(String(v).replace(',', '.')) : undefined,
-  },
-  { excelHeader: 'Email Locataires', dbField: 'tenant_emails', required: false, type: 'string' },
-  { excelHeader: 'Email Garants', dbField: 'guarantor_emails', required: false, type: 'string' },
-  { excelHeader: 'Commentaires', dbField: 'comments', required: false, type: 'string' },
-];
-
-export const COMPANY_COLUMN_MAPPING: ColumnMapping[] = [
-  { excelHeader: 'Nom*', dbField: 'name', required: true, type: 'string' },
-  { excelHeader: 'Nom Légal', dbField: 'legal_name', required: false, type: 'string' },
-  { excelHeader: 'N° TVA', dbField: 'vat_number', required: false, type: 'string' },
-  { excelHeader: 'Rue', dbField: 'street', required: false, type: 'string' },
-  { excelHeader: 'Numéro', dbField: 'street_number', required: false, type: 'string' },
-  { excelHeader: 'Code Postal', dbField: 'postal_code', required: false, type: 'string' },
-  { excelHeader: 'Ville', dbField: 'city', required: false, type: 'string' },
-  {
-    excelHeader: 'Pays',
-    dbField: 'country',
-    required: false,
-    type: 'enum',
-    enumValues: [...COUNTRIES],
-    transform: (v) => String(v || 'belgique').toLowerCase(),
-  },
-  { excelHeader: 'Email', dbField: 'email', required: false, type: 'string' },
-  { excelHeader: 'Téléphone', dbField: 'phone', required: false, type: 'string' },
-  { excelHeader: 'Site Web', dbField: 'website', required: false, type: 'string' },
-];
 
 // ============================================================================
 // Error Messages (French)

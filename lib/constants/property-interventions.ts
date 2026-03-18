@@ -124,7 +124,7 @@ export const BUILDING_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
     interventionTypeCode: 'autre_technique',
     icon: 'Zap',
     colorClass: 'text-yellow-500',
-    enabledByDefault: false,
+    enabledByDefault: true,
     linkedDocumentType: 'certificat_peb',
     schedulingOptions: [
       { value: 'creation_plus_120m', label: 'Dans 10 ans', calculateDate: (c) => addMonths(c, 120) },
@@ -195,7 +195,7 @@ export const LOT_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
     interventionTypeCode: 'autre_technique',
     icon: 'Zap',
     colorClass: 'text-yellow-500',
-    enabledByDefault: false,
+    enabledByDefault: true,
     linkedDocumentType: 'certificat_peb',
     schedulingOptions: [
       { value: 'creation_plus_120m', label: 'Dans 10 ans', calculateDate: (c) => addMonths(c, 120) },
@@ -219,7 +219,7 @@ export const LOT_IN_BUILDING_INTERVENTION_TEMPLATES: PropertyInterventionTemplat
     interventionTypeCode: 'autre_technique',
     icon: 'Zap',
     colorClass: 'text-yellow-500',
-    enabledByDefault: false,
+    enabledByDefault: true,
     linkedDocumentType: 'certificat_peb',
     schedulingOptions: [
       { value: 'creation_plus_120m', label: 'Dans 10 ans', calculateDate: (c) => addMonths(c, 120) },
@@ -397,7 +397,7 @@ export function createEmptyCustomIntervention(
     interventionTypeCode: 'autre',
     icon: 'PenLine',
     colorClass: 'text-indigo-500',
-    enabled: false,
+    enabled: true,
     scheduledDate: addDays(new Date(), 7),
     isAutoCalculated: true,
     availableOptions: CUSTOM_INTERVENTION_SCHEDULING_OPTIONS,

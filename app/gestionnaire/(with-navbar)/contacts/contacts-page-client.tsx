@@ -16,7 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useFABActions } from "@/components/ui/fab"
 import { ContactsNavigator } from "@/components/contacts/contacts-navigator"
+import { BlockedListOverlay } from "@/components/billing/blocked-list-overlay"
+import { useSubscription } from "@/hooks/use-subscription"
 import { useRouter } from "next/navigation"
 import { createContactService, createContactInvitationService } from '@/lib/services'
 import { logger } from '@/lib/logger'
@@ -109,6 +112,16 @@ export function ContactsPageClient({
   user
 }: ContactsPageClientProps) {
   const router = useRouter()
+  const { isReadOnly, loading: subscriptionLoading } = useSubscription()
+
+  useFABActions([
+    {
+      id: 'import-contacts',
+      label: 'Importer',
+      icon: Upload,
+      onClick: () => router.push('/gestionnaire/import'),
+    }
+  ])
 
   // État local initialisé avec les props
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
@@ -383,10 +396,10 @@ export function ContactsPageClient({
     <div className="h-full flex flex-col overflow-hidden layout-container">
       <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
         <PageActions>
-          <Button variant="outline" className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/import')}>
+          <Button variant="outline" className="flex items-center space-x-2" disabled={!subscriptionLoading && isReadOnly} onClick={() => router.push('/gestionnaire/import')}>
             <Upload className="h-4 w-4" /><span>Importer</span>
           </Button>
-          <Button className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/contacts/nouveau')}>
+          <Button className="flex items-center space-x-2" disabled={!subscriptionLoading && isReadOnly} title={isReadOnly ? 'Activez votre abonnement' : undefined} onClick={() => router.push('/gestionnaire/contacts/nouveau')}>
             <Plus className="h-4 w-4" /><span>Nouveau contact</span>
           </Button>
         </PageActions>
@@ -404,6 +417,7 @@ export function ContactsPageClient({
           <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Content wrapper avec padding */}
             <div className="flex-1 flex flex-col min-h-0 p-4">
+              <BlockedListOverlay isBlocked={!subscriptionLoading && isReadOnly}>
               <ContactsNavigator
                 contacts={contactsWithInvitationStatus as any}
                 invitations={invitations as any}
@@ -423,6 +437,7 @@ export function ContactsPageClient({
                 onRevokeContactAccess={handleRevokeContactAccess as any}
                 className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
               />
+              </BlockedListOverlay>
             </div>
           </div>
         </div>

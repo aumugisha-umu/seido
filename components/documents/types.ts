@@ -14,8 +14,12 @@ export interface GenericFileWithPreview {
   documentId?: string
   signedUrl?: string
   documentType: string
-  /** Optional expiry date for property documents */
-  expiryDate?: string
+  /** Date the document was issued (ISO string) */
+  documentDate?: string
+  /** Validity duration in months (12, 24, 36, 60, 120) — -1 means custom */
+  validityDuration?: number
+  /** Custom expiry date (ISO string) — only when validityDuration === -1 */
+  validityCustomExpiry?: string
 }
 
 /** Configuration for a single document slot */

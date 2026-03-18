@@ -101,7 +101,7 @@ export async function DELETE(
         .from('interventions')
         .update({ status: 'planification' })
         .eq('id', interventionId)
-        .eq('status', 'demande_de_devis') // Only update if currently in demande_de_devis
+        .eq('status', 'approuvee') // Only update if currently in approuvee (quotes happen during approuvee status)
 
       if (interventionUpdateError) {
         logger.error({ error: interventionUpdateError }, '❌ Error updating intervention status')

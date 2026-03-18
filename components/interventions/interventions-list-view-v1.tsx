@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { List, type RowComponentProps } from 'react-window'
 import {
   Eye,
-  Euro,
   MoreVertical,
   ArrowUpDown,
   ArrowUp,
@@ -28,6 +27,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -41,15 +41,17 @@ import {
   getInterventionLocationIcon
 } from '@/lib/intervention-utils'
 import { shouldShowAlertBadge } from '@/lib/intervention-alert-utils'
+import { getRoleBasedActions, getDotMenuActions, type RoleBasedAction } from '@/lib/intervention-action-utils'
 import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 // ============================================================================
 // Virtual Scrolling Configuration
 // ============================================================================
 
-/** Row height for virtualized list (in pixels) */
-const ROW_HEIGHT = 52
+/** Row height for virtualized list (in pixels) — 60px for two-line title cell */
+const ROW_HEIGHT = 60
 
 /** Minimum items before enabling virtualization (overhead not worth it for small lists) */
 const VIRTUALIZATION_THRESHOLD = 50
@@ -132,8 +134,8 @@ interface VirtualRowData {
   userContext: 'gestionnaire' | 'prestataire' | 'locataire'
   userId?: string
   onRowClick: (id: string) => void
-  onQuoteClick?: (id: string) => void
   renderTypeBadge: (type: string) => React.ReactNode
+  renderActionsCell: (intervention: InterventionWithRelations) => React.ReactNode
 }
 
 /**
@@ -145,7 +147,7 @@ const VirtualizedRow = memo(function VirtualizedRow({
   style,
   ...rowProps
 }: RowComponentProps<VirtualRowData>) {
-  const { interventions, userContext, userId, onRowClick, onQuoteClick, renderTypeBadge } = rowProps as VirtualRowData
+  const { interventions, userContext, userId, onRowClick, renderTypeBadge, renderActionsCell } = rowProps as VirtualRowData
   const intervention = interventions[index]
 
   if (!intervention) return null
@@ -161,9 +163,9 @@ const VirtualizedRow = memo(function VirtualizedRow({
       onClick={() => onRowClick(intervention.id)}
       role="row"
     >
-      {/* Title Cell - w-[250px] */}
-      <div className="w-[250px] px-4 py-2 font-medium flex-shrink-0" role="cell">
-        <div className="flex items-center gap-2">
+      {/* Title Cell - flex-1 with two lines */}
+      <div className="flex-1 min-w-0 px-4 py-1.5 font-medium" role="cell">
+        <div className="flex items-center gap-1.5">
           {isAlert && (
             <TooltipProvider>
               <Tooltip>
@@ -176,20 +178,30 @@ const VirtualizedRow = memo(function VirtualizedRow({
               </Tooltip>
             </TooltipProvider>
           )}
-          <span className="truncate">{intervention.title}</span>
+          {intervention.urgency && intervention.urgency !== 'normale' && (
+            <Badge className={`${getPriorityColor(intervention.urgency)} text-[10px] px-1.5 py-0 flex-shrink-0`}>
+              {getPriorityLabel(intervention.urgency)}
+            </Badge>
+          )}
+          <span className="truncate text-sm">{intervention.title}</span>
         </div>
+        {intervention.description && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-xs text-muted-foreground truncate mt-0.5">{intervention.description}</p>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[300px]">
+                <p className="text-sm">{intervention.description}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {/* Type Cell - w-[120px] */}
       <div className="w-[120px] px-4 py-2 flex-shrink-0" role="cell">
         {renderTypeBadge(intervention.type || 'autre')}
-      </div>
-
-      {/* Urgency Cell - w-[110px] */}
-      <div className="w-[110px] px-4 py-2 flex-shrink-0" role="cell">
-        <Badge className={`${getPriorityColor(intervention.urgency || 'normale')} text-xs`}>
-          {getPriorityLabel(intervention.urgency || 'normale')}
-        </Badge>
       </div>
 
       {/* Status Cell - w-[130px] */}
@@ -209,16 +221,6 @@ const VirtualizedRow = memo(function VirtualizedRow({
           )}
           <span className="truncate">{locationText}</span>
         </div>
-      </div>
-
-      {/* Created Date Cell - w-[110px] */}
-      <div className="w-[110px] px-4 py-2 text-sm text-slate-600 flex-shrink-0" role="cell">
-        {intervention.created_at
-          ? new Date(intervention.created_at).toLocaleDateString('fr-FR', {
-              day: '2-digit',
-              month: '2-digit'
-            })
-          : '-'}
       </div>
 
       {/* Scheduled Date Cell - w-[110px] */}
@@ -249,56 +251,8 @@ const VirtualizedRow = memo(function VirtualizedRow({
       </div>
 
       {/* Actions Cell - w-[100px] */}
-      <div className="w-[100px] px-4 py-2 text-right flex-shrink-0" role="cell" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-end gap-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onRowClick(intervention.id)
-                  }}
-                  aria-label="Voir les détails"
-                >
-                  <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Voir les détails</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={(e) => e.stopPropagation()}
-                aria-label="Plus d'actions"
-              >
-                <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onRowClick(intervention.id)}>
-                <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
-                Voir les détails
-              </DropdownMenuItem>
-              {userContext === 'prestataire' && intervention.requires_quote && onQuoteClick && (
-                <DropdownMenuItem onClick={() => onQuoteClick(intervention.id)}>
-                  <Euro className="h-4 w-4 mr-2" aria-hidden="true" />
-                  Gérer devis
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+      <div className="w-[100px] px-2 py-2 text-right flex-shrink-0" role="cell" onClick={(e) => e.stopPropagation()}>
+        {renderActionsCell(intervention)}
       </div>
     </div>
   )
@@ -348,10 +302,8 @@ interface InterventionsListViewV1Props {
 type SortField =
   | 'title'
   | 'status'
-  | 'urgency'
   | 'type'
   | 'location'
-  | 'created_at'
   | 'scheduled_date'
 
 type SortDirection = 'asc' | 'desc' | null
@@ -477,9 +429,170 @@ export function InterventionsListViewV1({
     router.push(getInterventionUrl(interventionId))
   }, [router, getInterventionUrl])
 
-  const onQuoteClick = useCallback((interventionId: string) => {
-    router.push(`${getInterventionUrl(interventionId)}?action=quote`)
+  /**
+   * 🔧 Handle action click (API call or navigation)
+   */
+  const handleActionClick = useCallback(async (action: RoleBasedAction, intervention: InterventionWithRelations) => {
+    if (action.apiRoute && !action.href) {
+      try {
+        const response = await fetch(action.apiRoute, {
+          method: action.apiMethod || 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interventionId: intervention.id })
+        })
+        const data = await response.json()
+        if (data.success) {
+          toast("Action effectuée", {
+            description: `${(intervention as any).reference || intervention.id} — ${intervention.title}`,
+            duration: 3000
+          })
+        } else {
+          throw new Error(data.error || "Erreur lors de l'action")
+        }
+      } catch (error) {
+        toast.error("Erreur", {
+          description: error instanceof Error ? error.message : "Impossible d'effectuer l'action"
+        })
+      }
+    } else if (action.href) {
+      router.push(action.href)
+    } else {
+      router.push(getInterventionUrl(intervention.id))
+    }
   }, [router, getInterventionUrl])
+
+  /**
+   * 🎬 Render the actions cell for a given intervention
+   * Left: contextual primary action icon | Right: enriched dot menu
+   */
+  const renderActionsCell = useCallback((intervention: InterventionWithRelations) => {
+    const actions = getRoleBasedActions(intervention.id, intervention.status, userContext, {
+      requiresQuote: (intervention as any).requires_quote,
+      hasPendingQuote: false
+    })
+    const dotActions = getDotMenuActions(intervention.id, intervention.status, userContext)
+
+    const primaryAction = actions[0] ?? null
+    // Secondary actions: skip primary, filter out view_details (shown at bottom of menu)
+    const secondaryActions = actions.slice(1).filter(a => a.actionType !== 'view_details')
+
+    const PrimaryIcon = primaryAction?.icon ?? null
+
+    return (
+      <div className="flex items-center justify-end gap-0.5">
+        {/* Eye — always visible, navigates to detail */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  router.push(getInterventionUrl(intervention.id))
+                }}
+                aria-label="Voir les détails"
+              >
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent><p>Voir les détails</p></TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {/* Primary action — inline if available */}
+        {primaryAction && PrimaryIcon && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "h-7 w-7 p-0",
+                    primaryAction.variant === 'destructive'
+                      ? "text-red-600 hover:text-red-700 hover:bg-red-50"
+                      : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleActionClick(primaryAction, intervention)
+                  }}
+                  aria-label={primaryAction.label}
+                >
+                  <PrimaryIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>{primaryAction.label}</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {/* Dot menu — secondary actions + Modifier/Annuler + Voir détails */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Plus d'actions"
+            >
+              <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {secondaryActions.map((action, idx) => (
+              <DropdownMenuItem
+                key={`action-${idx}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleActionClick(action, intervention)
+                }}
+                className={cn(
+                  action.variant === 'destructive' && 'text-red-600 focus:text-red-600 focus:bg-red-50'
+                )}
+              >
+                <action.icon className="h-4 w-4 mr-2" aria-hidden="true" />
+                {action.label}
+              </DropdownMenuItem>
+            ))}
+
+            {secondaryActions.length > 0 && dotActions.length > 0 && <DropdownMenuSeparator />}
+
+            {dotActions.map((action, idx) => (
+              <DropdownMenuItem
+                key={`dot-${idx}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (action.href) router.push(action.href)
+                }}
+                className={cn(
+                  action.variant === 'destructive' && 'text-red-600 focus:text-red-600 focus:bg-red-50'
+                )}
+              >
+                <action.icon className="h-4 w-4 mr-2" aria-hidden="true" />
+                {action.label}
+              </DropdownMenuItem>
+            ))}
+
+            {(secondaryActions.length > 0 || dotActions.length > 0) && <DropdownMenuSeparator />}
+
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation()
+                router.push(getInterventionUrl(intervention.id))
+              }}
+            >
+              <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
+              Voir les détails
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    )
+  }, [userContext, handleActionClick, router, getInterventionUrl])
 
   /**
    * 🎨 Get type label - formats type code to readable label
@@ -552,9 +665,9 @@ export function InterventionsListViewV1({
     userContext,
     userId,
     onRowClick,
-    onQuoteClick,
-    renderTypeBadge
-  }), [sortedInterventions, userContext, userId, onRowClick, onQuoteClick])
+    renderTypeBadge,
+    renderActionsCell
+  }), [sortedInterventions, userContext, userId, onRowClick, renderActionsCell])
 
   if (loading) {
     return (
@@ -572,7 +685,7 @@ export function InterventionsListViewV1({
   const renderHeader = () => (
     <div className="flex bg-slate-50 border-b border-slate-200 sticky top-0 z-10" role="row">
       {/* Title Column - Sortable */}
-      <div className="w-[250px] px-4 py-2 flex-shrink-0" role="columnheader">
+      <div className="flex-1 min-w-0 px-4 py-2" role="columnheader">
         <Button
           variant="ghost"
           size="sm"
@@ -594,19 +707,6 @@ export function InterventionsListViewV1({
         >
           Catégorie
           {renderSortIcon('type')}
-        </Button>
-      </div>
-
-      {/* Urgency Column - Sortable */}
-      <div className="w-[110px] px-4 py-2 flex-shrink-0" role="columnheader">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 hover:bg-slate-100 font-semibold"
-          onClick={() => handleSort('urgency')}
-        >
-          Urgence
-          {renderSortIcon('urgency')}
         </Button>
       </div>
 
@@ -636,19 +736,6 @@ export function InterventionsListViewV1({
         </Button>
       </div>
 
-      {/* Created Date - Sortable */}
-      <div className="w-[110px] px-4 py-2 flex-shrink-0" role="columnheader">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 hover:bg-slate-100 font-semibold"
-          onClick={() => handleSort('created_at')}
-        >
-          Créée
-          {renderSortIcon('created_at')}
-        </Button>
-      </div>
-
       {/* Scheduled Date - Sortable */}
       <div className="w-[110px] px-4 py-2 flex-shrink-0" role="columnheader">
         <Button
@@ -663,9 +750,7 @@ export function InterventionsListViewV1({
       </div>
 
       {/* Actions Column - Not sortable */}
-      <div className="w-[100px] px-4 py-2 text-right flex-shrink-0" role="columnheader">
-        <span className="font-semibold">Actions</span>
-      </div>
+      <div className="w-[100px] px-2 py-2 flex-shrink-0" role="columnheader" />
     </div>
   )
 
@@ -700,11 +785,11 @@ export function InterventionsListViewV1({
   return (
     <div className={`rounded-md border ${className}`}>
       <div className="overflow-x-auto">
-        <Table>
+        <Table className="table-fixed">
           <TableHeader className="bg-slate-50 sticky top-0 z-10">
             <TableRow>
               {/* Title Column - Sortable */}
-              <TableHead className="w-[250px]">
+              <TableHead>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -726,19 +811,6 @@ export function InterventionsListViewV1({
                 >
                   Catégorie
                   {renderSortIcon('type')}
-                </Button>
-              </TableHead>
-
-              {/* Urgency Column - Sortable */}
-              <TableHead className="w-[110px]">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 hover:bg-slate-100 font-semibold"
-                  onClick={() => handleSort('urgency')}
-                >
-                  Urgence
-                  {renderSortIcon('urgency')}
                 </Button>
               </TableHead>
 
@@ -768,19 +840,6 @@ export function InterventionsListViewV1({
                 </Button>
               </TableHead>
 
-              {/* Created Date - Sortable */}
-              <TableHead className="w-[110px]">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 hover:bg-slate-100 font-semibold"
-                  onClick={() => handleSort('created_at')}
-                >
-                  Créée
-                  {renderSortIcon('created_at')}
-                </Button>
-              </TableHead>
-
               {/* Scheduled Date - Sortable */}
               <TableHead className="w-[110px]">
                 <Button
@@ -795,9 +854,7 @@ export function InterventionsListViewV1({
               </TableHead>
 
               {/* Actions Column - Not sortable */}
-              <TableHead className="w-[100px] text-right">
-                <span className="font-semibold">Actions</span>
-              </TableHead>
+              <TableHead className="w-[100px]" />
             </TableRow>
           </TableHeader>
 
@@ -813,9 +870,9 @@ export function InterventionsListViewV1({
                   className="hover:bg-slate-50 cursor-pointer transition-colors"
                   onClick={() => router.push(getInterventionUrl(intervention.id))}
                 >
-                  {/* Title Cell */}
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
+                  {/* Title Cell — two lines: title + description */}
+                  <TableCell className="font-medium py-1.5">
+                    <div className="flex items-center gap-1.5">
                       {isAlert && (
                         <TooltipProvider>
                           <Tooltip>
@@ -828,20 +885,30 @@ export function InterventionsListViewV1({
                           </Tooltip>
                         </TooltipProvider>
                       )}
-                      <span className="truncate">{intervention.title}</span>
+                      {intervention.urgency && intervention.urgency !== 'normale' && (
+                        <Badge className={`${getPriorityColor(intervention.urgency)} text-[10px] px-1.5 py-0 flex-shrink-0`}>
+                          {getPriorityLabel(intervention.urgency)}
+                        </Badge>
+                      )}
+                      <span className="truncate text-sm">{intervention.title}</span>
                     </div>
+                    {intervention.description && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{intervention.description}</p>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-[300px]">
+                            <p className="text-sm">{intervention.description}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
                   </TableCell>
 
                   {/* Type Cell */}
                   <TableCell>
                     {renderTypeBadge(intervention.type || 'autre')}
-                  </TableCell>
-
-                  {/* Urgency Cell */}
-                  <TableCell>
-                    <Badge className={`${getPriorityColor(intervention.urgency || 'normale')} text-xs`}>
-                      {getPriorityLabel(intervention.urgency || 'normale')}
-                    </Badge>
                   </TableCell>
 
                   {/* Status Cell */}
@@ -861,16 +928,6 @@ export function InterventionsListViewV1({
                       )}
                       <span className="truncate">{locationText}</span>
                     </div>
-                  </TableCell>
-
-                  {/* Created Date Cell */}
-                  <TableCell className="text-sm text-slate-600">
-                    {intervention.created_at
-                      ? new Date(intervention.created_at).toLocaleDateString('fr-FR', {
-                          day: '2-digit',
-                          month: '2-digit'
-                        })
-                      : '-'}
                   </TableCell>
 
                   {/* Scheduled Date Cell - Show selected time slot if available */}
@@ -901,56 +958,8 @@ export function InterventionsListViewV1({
                   </TableCell>
 
                   {/* Actions Cell */}
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                router.push(getInterventionUrl(intervention.id))
-                              }}
-                              aria-label="Voir les détails"
-                            >
-                              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Voir les détails</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                            onClick={(e) => e.stopPropagation()}
-                            aria-label="Plus d'actions"
-                          >
-                            <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(getInterventionUrl(intervention.id))}>
-                            <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
-                            Voir les détails
-                          </DropdownMenuItem>
-                          {userContext === 'prestataire' && intervention.requires_quote && (
-                            <DropdownMenuItem onClick={() => router.push(`/prestataire/interventions/${intervention.id}?action=quote`)}>
-                              <Euro className="h-4 w-4 mr-2" aria-hidden="true" />
-                              Gérer devis
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                  <TableCell className="text-right p-1" onClick={(e) => e.stopPropagation()}>
+                    {renderActionsCell(intervention)}
                   </TableCell>
                 </TableRow>
               )

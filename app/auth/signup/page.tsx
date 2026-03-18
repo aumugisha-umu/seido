@@ -1,9 +1,6 @@
 import Link from "next/link"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building2 } from "lucide-react"
 import AuthLogo from "@/components/ui/auth-logo"
 import { SignupForm } from "./signup-form"
-import { logger } from '@/lib/logger'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -12,18 +9,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-/**
- * 🔐 PAGE SIGNUP - SERVER COMPONENT (Migration Server Components)
- *
- * Architecture optimisée:
- * 1. Server Component: Structure statique, layout et navigation
- * 2. Client Component (SignupForm): Interactions et logique de formulaire
- * 3. Rendu côté serveur: SEO optimisé, chargement plus rapide
- */
-
 export default async function SignupPage() {
-  logger.info('🔄 [SIGNUP-SERVER] Signup page rendered server-side')
-
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col items-center space-y-4 text-center">
@@ -36,7 +22,6 @@ export default async function SignupPage() {
         </div>
       </div>
 
-      {/* Formulaire d'inscription - composant client */}
       <SignupForm />
 
       <div className="mt-6 text-center">

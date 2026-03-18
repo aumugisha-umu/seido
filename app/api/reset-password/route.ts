@@ -14,14 +14,6 @@ import { resetPasswordSchema, validateRequest, formatZodErrors } from '@/lib/val
 export async function POST(request: NextRequest) {
   try {
     logger.info({}, '🔄 [RESET-PASSWORD-API] Processing password reset request...')
-    logger.info({
-      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30, '🔧 [RESET-PASSWORD-API] Environment check:') + '...',
-      serviceRoleKeyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10) + '...',
-      nodeEnv: process.env.NODE_ENV,
-      appUrl: process.env.NEXT_PUBLIC_SITE_URL || 'not-set'
-    })
 
     // Vérifier si le service est disponible (même check que invitations)
     if (!isServiceRoleAvailable()) {
@@ -91,18 +83,7 @@ export async function POST(request: NextRequest) {
 
     const userExists = authUsers.users.find(user => user.email?.toLowerCase() === email.toLowerCase())
     
-    logger.info({
-      searchEmail: email.toLowerCase(),
-      totalUsers: authUsers.users.length,
-      userEmails: authUsers.users.map(u => u.email?.toLowerCase()).filter(Boolean),
-      userFound: !!userExists
-    }, '🔧 [RESET-PASSWORD-API] User search details')
-    
     if (!userExists) {
-      logger.info({ user: email }, '❌ [RESET-PASSWORD-API] User not found in auth system:')
-      logger.info({
-        users: authUsers.users.map(u => ({ email: u.email, id: u.id, confirmed: u.email_confirmed_at }))
-      }, '🔧 [RESET-PASSWORD-API] Available users in system')
       // ✅ FIX (Oct 23, 2025 - Issue #5): Remove email enumeration vulnerability
       // Never expose: list of valid emails, user count, etc.
       logger.info({ searchedEmail: email }, '⚠️ [RESET-PASSWORD-API] User not found')
@@ -158,13 +139,6 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             error: errorMessage,
-            details: resetError?.message,
-            debugInfo: {
-              email: email,
-              redirectUrl: redirectUrl,
-              hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-              supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL
-            }
           },
           { status: 400 }
         )
@@ -214,23 +188,6 @@ export async function POST(request: NextRequest) {
         {
           success: true,
           message: 'Email de réinitialisation envoyé avec succès',
-          data: {
-            email: email,
-            resetEmailSent: true,
-            emailId: emailResult.emailId,
-            redirectUrl: redirectUrl,
-            userConfirmed: !!userExists.email_confirmed_at
-          },
-          debugInfo: process.env.NODE_ENV === 'development' ? {
-            userId: userExists.id,
-            userCreated: userExists.created_at,
-            userLastSignIn: userExists.last_sign_in_at,
-            supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-            hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-            serviceRoleKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
-            appUrl: process.env.NEXT_PUBLIC_SITE_URL,
-            emailProvider: 'Resend'
-          } : undefined
         },
         { status: 200 }
       )
@@ -241,7 +198,6 @@ export async function POST(request: NextRequest) {
         { 
           success: false,
           error: 'Erreur inattendue lors de l\'envoi de l\'email',
-          details: sendError instanceof Error ? sendError.message : 'Unknown error'
         },
         { status: 500 }
       )
@@ -253,7 +209,6 @@ export async function POST(request: NextRequest) {
       { 
         success: false,
         error: 'Erreur interne du serveur',
-        details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
     )

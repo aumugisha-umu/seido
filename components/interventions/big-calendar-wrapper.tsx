@@ -226,7 +226,6 @@ export function BigCalendarWrapper({
       'demande': '#fee2e2',           // red-100
       'rejetee': '#fee2e2',           // red-100
       'approuvee': '#dcfce7',         // green-100
-      'demande_de_devis': '#dbeafe',  // blue-100
       'planification': '#fef3c7',     // yellow-100
       'planifiee': '#f3e8ff',         // purple-100
       'cloturee_par_prestataire': '#fed7aa', // orange-100
@@ -239,7 +238,6 @@ export function BigCalendarWrapper({
       'demande': '#991b1b',           // red-800
       'rejetee': '#991b1b',           // red-800
       'approuvee': '#166534',         // green-800
-      'demande_de_devis': '#1e40af',  // blue-800
       'planification': '#854d0e',     // yellow-800
       'planifiee': '#6b21a8',         // purple-800
       'cloturee_par_prestataire': '#9a3412', // orange-800

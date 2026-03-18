@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-04
-**Total Learnings:** 117
+**Last Updated:** 2026-03-17
+**Total Learnings:** 158
 
 ---
 
@@ -185,6 +185,20 @@
 **Example:** `building-creation-form.tsx:978`, `lot-creation-form.tsx:1502+1639`, `contact-creation-client.tsx:432`
 **When to Use:** Any form that creates an entity and needs to redirect after success
 **Added:** 2026-03-02 | **Source:** Post-creation redirect UX improvement
+
+#### Learning #157: Context/Provider for global modals accessible from any page
+**Problem:** Compose email modal was local to the mail page — couldn't be triggered from the sidebar on other pages without a redirect.
+**Solution:** Create a `Provider` at the layout level that holds modal state + renders a single modal instance. Expose `openCompose()` via hook. Sidebar and page buttons both call the same hook. The provider receives SSR data (email connections) as props from the Server Component layout.
+**Example:** `contexts/compose-email-context.tsx` — `ComposeEmailProvider` wrapping `app/gestionnaire/(with-navbar)/layout.tsx`
+**When to Use:** Any modal that needs to be triggered from multiple pages (sidebar, topbar, different routes) without navigation
+**Added:** 2026-03-17 | **Source:** Email UX improvements — global compose modal
+
+#### Learning #158: Early return for state-dependent page takeover eliminates dead code
+**Problem:** When a page has two completely different views based on a condition (e.g., "no connections" vs "full mail client"), wrapping in a ternary creates a massive block. Worse, props like `disabled={!hasConnections}` become dead code — if the main view only renders when connections exist, the disabled state is unreachable.
+**Solution:** Use early return: `if (!condition) return <AlternateView />`. The main render only executes when the condition is met. Audit downstream props/attributes for dead logic after adding early returns.
+**Example:** `mail-client.tsx:871-886` — early return for no-connection state, removed dead `disabled` prop from Rédiger button
+**When to Use:** When a component has two mutually exclusive render paths based on a boolean condition
+**Added:** 2026-03-17 | **Source:** Email UX improvements — mail page full takeover
 
 ### Notifications
 
@@ -781,6 +795,41 @@
 **When to Use:** Any quota/limit check where the operation can affect multiple items at once (batch creation, imports, duplications)
 **Added:** 2026-02-22 | **Source:** Billing audit — building creation batch bypass
 
+#### Learning #149: Hook `?? false` defaults create loading race conditions on UI gates
+**Problem:** `useSubscription()` returns `canAddProperty: status?.can_add_property ?? false`. While the hook loads (~200-500ms), `canAddProperty` is `false`, so `if (!canAddProperty) { openUpgradeModal() }` blocks valid users who click before loading finishes. Same applies to `isReadOnly ?? false` — read-only users get a brief window where buttons are enabled.
+**Solution:** Always check `loading` state before acting on derived booleans from hooks. Pattern: `if (subscriptionLoading) { navigateDirectly(); return }` for fail-open gates, `if (!subscriptionLoading && isReadOnly)` for fail-closed gates. Server actions provide defense-in-depth regardless.
+**Example:** `biens-page-client.tsx:163` — checks `subscriptionLoading` before `canAddProperty`; `interventions-page-client.tsx:210` — `disabled={!subscriptionLoading && isReadOnly}`
+**When to Use:** ANY component using `useSubscription()` derived booleans to gate navigation or disable buttons
+**Added:** 2026-03-16 | **Source:** Subscription modal false-positive — user with 14/50 lots blocked on "Nouvel immeuble"
+
+#### Learning #150: `previewUpgrade().current_lots` was Stripe quantity, not actual DB count
+**Problem:** `subscription.service.ts:previewUpgrade()` returned `current_lots: item?.quantity` (Stripe subscription quantity = subscribed lot limit, e.g., 50) instead of the actual lot count in DB (e.g., 14). The UpgradeModal displayed "Lots actuels: 50" which confused users into thinking they had 50 lots.
+**Solution:** Fetch `actualLots` via `getLotCount()` and return it as `current_lots`. Add separate `subscribed_lots` field to `UpgradePreview` interface for the Stripe quantity. Display both in modal: "Lots utilises / inclus: 14 / 50".
+**Example:** `subscription.service.ts:previewUpgrade()` — `current_lots: actualLots, subscribed_lots: currentQuantity`
+**When to Use:** Any preview/summary UI showing subscription data — always distinguish actual usage from subscription capacity
+**Added:** 2026-03-16 | **Source:** UpgradeModal showing misleading "Lots actuels: 50" for user with 14 lots
+
+#### Learning #151: Server-side subscription gates should be fail-open with try-catch
+**Problem:** `lots/nouveau/page.tsx` called `canAddProperty()` without try-catch. If Stripe API is slow/down, the entire page returns 500 — user can't create lots even though the server action `createLotAction` has its own defense-in-depth check.
+**Solution:** Wrap server-side page subscription checks in try-catch with fail-open: `catch { /* let user proceed — server action has its own check */ }`. The server action's `canAddProperty()` call is the real gate — the page-level check is UX optimization only.
+**Example:** `lots/nouveau/page.tsx:28-40` — try-catch around subscription gate with fail-open comment
+**When to Use:** Any Server Component page with subscription gates that duplicate server action checks
+**Added:** 2026-03-16 | **Source:** Audit of server-side race conditions — Stripe timeout risk
+
+#### Learning #152: Zod schema as API contract layer, independent of DB enums
+**Problem:** Adding `'garant'` as a UI contact type required the API to accept it, but `garant` doesn't exist in the DB `user_role` enum. Initial plan was to hack `customRoleDescription` as a signal field — unnecessary complexity.
+**Solution:** Add `'garant'` to the Zod `role` enum (API contract) and map it to real DB values (`prestataire` + `provider_category: 'autre'`) in `mapContactTypeToRoleAndCategory`. The Zod schema defines what the API ACCEPTS, not what the DB STORES. The mapping function bridges the two.
+**Example:** `lib/validation/schemas.ts:164` — Zod enum has 6 values, DB `user_role` has 5. `invite-user/route.ts:118` maps garant→prestataire.
+**When to Use:** When adding a UI-level concept that doesn't need its own DB role/enum but needs API acceptance
+**Added:** 2026-03-17 | **Source:** Rename autre→garant — Zod schema would have rejected 'garant' causing 400 errors
+
+#### Learning #153: Contact type "autre" was never a real DB role — mapped to prestataire
+**Problem:** The `'autre'` contact type appeared to be a standalone role but was actually mapped to `role: 'prestataire', provider_category: 'autre'` in the API. Misunderstanding this could lead to creating unnecessary DB migrations or enum changes.
+**Solution:** Before adding/renaming contact types, trace the full data flow: form → Zod schema → `mapContactTypeToRoleAndCategory` → DB columns. The mapping function is the key transformation point. Check: (1) what Zod accepts, (2) what the mapper produces, (3) what the DB stores, (4) what contract_contacts.role uses.
+**Example:** `invite-user/route.ts:109-122` — mapContactTypeToRoleAndCategory function. `contract_contacts.role` uses a SEPARATE enum (`contract_contact_role`) that already had `'garant'`.
+**When to Use:** Any work involving contact roles, user types, or the invite-user API
+**Added:** 2026-03-17 | **Source:** Rename autre→garant — 0 migrations needed because of mapping layer
+
 #### Learning #074: Layered fail behavior — fail-closed at service, fail-open at page
 **Problem:** `getAccessibleLotIds()` DB query failure returned `null` (all accessible) — a DB error granted full access. But fail-closed everywhere would brick the app on transient errors.
 **Solution:** Two-layer approach: (1) Service-level DB query error → fail-closed (return `[]`, no access), (2) Page-level subscription check error → fail-open (from outer try/catch). This gives security without bricking on transient failures.
@@ -851,6 +900,195 @@
 **When to Use:** Any time a gestionnaire list page is created — default to DataTable, never add card toggle. Cards are valid ONLY for: property selection modals, inline contact displays, kanban boards.
 **Added:** 2026-03-04 | **Source:** Remove Card Views from Gestionnaire feature (5 stories)
 
+#### Learning #118: CSS @layer cascade in Tailwind v4 — unlayered styles beat @layer components
+**Problem:** Dashboard mobile stats toggle used Tailwind responsive classes (`hidden lg:block`), then BEM classes inside `@layer components`. Both failed: during Next.js hydration, `@layer utilities` (Tailwind) and unlayered styles override `@layer components` rules. The correct mobile layout appeared during SSR then vanished on hydrate.
+**Solution:** Place responsive visibility rules OUTSIDE any `@layer` block (unlayered = highest cascade priority) with `!important`. CSS layer priority: unlayered > `@layer utilities` > `@layer components` > `@layer base`.
+**Example:** `app/globals.css:48-68` — `.dashboard__stats--mobile` / `.dashboard__stats--desktop` with `@media (min-width: 1024px)`
+**When to Use:** Any time you need deterministic show/hide between mobile/desktop in a Tailwind v4 + Next.js project. NEVER use Tailwind responsive classes (`hidden lg:block`) for critical layout toggles.
+**Added:** 2026-03-05 | **Source:** Dashboard mobile stat cards hydration bug
+
+#### Learning #119: PostgreSQL NULLS NOT DISTINCT — partial unique index for nullable columns
+**Problem:** `UNIQUE NULLS NOT DISTINCT (email, team_id)` treats NULL as equal to NULL, meaning only ONE row with `email = NULL` allowed per team. Creating a second contact without email fails with duplicate key violation.
+**Solution:** Replace with a partial unique index: `CREATE UNIQUE INDEX ON users (email, team_id) WHERE email IS NOT NULL AND email != ''`. Combine with Zod preprocess (`z.preprocess(val => val?.trim() === '' ? null : val, schema)`) and API-layer normalization (`email?.trim() || null`) for defense-in-depth.
+**Example:** `supabase/migrations/20260304100000_fix_users_email_team_unique_allow_null.sql`, `lib/validation/schemas.ts` (createContactSchema.email), `app/api/create-contact/route.ts:57`
+**When to Use:** Any unique constraint on a nullable column where multiple NULL rows must be allowed. Also applies to `phone`, `company`, etc.
+**Added:** 2026-03-05 | **Source:** Contact creation empty email duplicate key bug
+
+#### Learning #120: Virtual DB concepts vs actual enum values in RPC functions
+**Problem:** Migration `20260302120000` (get_email_counts RPC) used `status = 'processed'` in SQL. But `'processed'` is a virtual folder concept in the app layer (`email.repository.ts`), not a valid `email_status` enum value. The actual enum has: `unread`, `read`, `archived`, `deleted`. Migration failed on push with `invalid input value for enum email_status`.
+**Solution:** Always verify DB enum values before using them in SQL functions. Use `\dT+ enum_name` or check migration that created the enum. Map virtual concepts to actual column filters: `processed → direction = 'received' AND status = 'read'`.
+**Example:** `supabase/migrations/20260302120000_create_get_email_counts_rpc.sql:25`
+**When to Use:** When writing RPC functions that use enum columns. Always cross-reference the enum definition, never trust app-layer naming.
+**Added:** 2026-03-05 | **Source:** Migration sync — staging/production push failure
+
+#### Learning #121: Expandable table rows — reuse card view expand state + stopPropagation on action column
+**Problem:** Building list view needed collapsible rows showing lot sub-rows, but the expand/collapse state already existed (`expandedBuildings` + `toggleBuildingExpansion`) for the card view. Creating separate state would mean switching view modes resets expand state.
+**Solution:** Reuse the same `expandedBuildings` state across both card and list views. Make the entire building row clickable (`onClick` on row div) but add `e.stopPropagation()` on the action column div to prevent button clicks from toggling expand. Use a vertical bar (`w-1 bg-slate-300`) + `pl-5` indent for visual hierarchy on sub-rows.
+**Example:** `components/property-selector.tsx:769-942` — list view with expandable lot sub-rows
+**When to Use:** Any table with a card/list toggle where both views have expand/collapse — share the state. Always stopPropagation on interactive cells in clickable rows.
+**Added:** 2026-03-05 | **Source:** Contract creation wizard — expandable building list view
+
+#### Learning #122: auth.uid() is NULL for service_role — don't guard SECURITY DEFINER RPCs with auth-dependent helpers
+**Problem:** `get_email_counts` RPC had `EXISTS (SELECT 1 FROM team_members WHERE user_id IN (SELECT get_my_profile_ids()))` guard. When called via `createServiceRoleSupabaseClient()` in SSR, `auth.uid()` returns NULL → `get_my_profile_ids()` returns empty → EXISTS always false → COUNT(*) FILTER returns all zeros. No error thrown — silent data loss.
+**Solution:** SECURITY DEFINER RPCs called via service_role don't need auth guards — the caller (page.tsx) validates auth upstream via `getServerAuthContext()`. Remove `get_my_profile_ids()` / `auth.uid()` guards from RPCs used in SSR. The `p_team_id` parameter + SECURITY DEFINER is sufficient authorization.
+**Example:** `supabase/migrations/20260305100000_fix_get_email_counts_v2.sql` — removed EXISTS guard
+**When to Use:** Any time you create a SECURITY DEFINER RPC that will be called from Server Components with service_role client
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — US-001
+
+#### Learning #123: Handler-driven fetches over useEffect for user navigation
+**Problem:** `useEffect([currentFolder])` triggers fetch on folder change — but fails when returning from an entity filter to the same folder (currentFolder didn't change → effect doesn't fire → old data remains). Skip conditions (`offset === 50`) also match on subsequent navigations, not just initial render.
+**Solution:** Remove the folder-change useEffect. Make every navigation handler call `fetchEmails()` explicitly. Add `folderOverride` parameter to bypass stale closures from batched `setCurrentFolder()`. Pattern: `fetchEmails(false, 'all', folder)` where `folder` is the handler's argument, not the stale state.
+**Example:** `mail-client.tsx:handleFolderChange` — calls `fetchEmails(false, 'all', folder)` directly
+**When to Use:** Any "fetch on state change" pattern where every state change has a corresponding user action handler. Prefer imperative over reactive when closures carry stale values.
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — sidebar navigation bug
+
+#### Learning #124: optimisticRemovals Set — prevent stale-while-revalidate from resurrecting deleted items
+**Problem:** Stale-while-revalidate cache pattern shows cached data instantly, then background-refreshes. But if user archived/deleted an email between cache write and refresh, the removed email reappears in the refreshed list for a split second.
+**Solution:** Track optimistically removed IDs in a `useRef<Set<string>>`. On archive/delete/softDelete: add ID to set. On background refresh: filter `data.emails.filter(e => !optimisticRemovals.current.has(e.id))`. On rollback: remove from set. On hard sync: clear set.
+**Example:** `mail-client.tsx:optimisticRemovals` ref — used in handleArchive, handleDelete, handleSoftDelete, fetchEmails
+**When to Use:** Any list with optimistic removal + background refresh. Prevents the "zombie item" flash.
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — US-008
+
+#### Learning #125: SSR/API query parity — initial load must match client refresh exactly
+**Problem:** SSR fetched ALL received emails for inbox, but the API endpoint filtered `status='unread'`. On first client-side refresh, 471 emails became a different set → emails "disappeared" and reappeared as the list replaced.
+**Solution:** SSR initial data query MUST use identical filters as the API endpoint for the same view. For inbox: both must use `.eq('direction', 'received').eq('status', 'unread').is('deleted_at', null)`. Test by comparing SSR count vs API count on page load.
+**Example:** `mail/page.tsx:getInitialEmails` — added `.eq('status', 'unread')` to match API
+**When to Use:** Any page with SSR initial data + client-side refresh/polling. Mismatched queries cause "flash of different content" on first revalidation.
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — US-002
+
+#### Learning #126: Dead code chain tracing — callback → prop → child handler → UI invocation
+**Problem:** `handleLinkBuilding` in mail-client.tsx was passed as `onLinkBuilding` prop to EmailDetail. EmailDetail defined a local `handleLinkBuilding` wrapper. But no UI element in EmailDetail ever called the wrapper — the entire prop→handler→UI chain was dead. Simple grep for the function name misses this because the function IS referenced (as prop), just never invoked.
+**Solution:** When removing "dead" handlers, trace the full chain: (1) callback defined, (2) passed as prop, (3) destructured in child, (4) wrapper defined, (5) wrapper called from UI element. If step 5 is missing, the entire chain is dead. Search for the child's wrapper function name in onClick/onChange/etc handlers, not just the prop name.
+**Example:** `mail-client.tsx:handleLinkBuilding` → `email-detail.tsx:onLinkBuilding` → `handleLinkBuilding` wrapper → never called
+**When to Use:** Any dead code cleanup involving parent→child prop chains
+**Added:** 2026-03-06 | **Source:** Email Section Refonte Phase 1 — US-012
+
+#### Learning #127: Webhook AI extraction must have fallback — never let enrichment abort the pipeline
+**Problem:** ElevenLabs webhook called `extractInterventionSummary()` (Anthropic API) without try/catch. When API credits ran out (HTTP 400, not 402), the entire pipeline aborted — no intervention created, no call log, no notifications. ElevenLabs has ZERO retry, so the call data was lost forever.
+**Solution:** Wrap AI extraction in try/catch with a fallback summary built from raw transcript data. The fallback provides: raw transcript as `problem_description`, caller name from phone lookup (or "Appelant inconnu"), urgency "normale", category "autre". The rest of the pipeline (intervention creation, assignments, threads, PDF, notifications, emails) proceeds normally.
+**Example:** `app/api/webhooks/elevenlabs/route.ts:318-335` — try/catch with fallback InterventionSummary
+**When to Use:** Any webhook or background job that uses external AI APIs for data enrichment. Always design enrichment as optional — the core operation must succeed without it.
+**Added:** 2026-03-09 | **Source:** AI Phone Assistant — Anthropic credit balance error in production
+
+#### Learning #128: CHECK constraints designed for web flows break webhook/AI flows — audit XOR constraints
+**Problem:** `valid_intervention_location CHECK (building_id XOR lot_id)` required exactly one location. Web intervention creation always has property context. AI phone calls may not — caller gives unrecognizable address, or AI extraction fails → both `building_id` and `lot_id` are NULL → INSERT fails with "Value does not meet constraints" (PostgREST doesn't name the constraint in the error).
+**Solution:** Relax XOR to "at most one": `CHECK (NOT (building_id IS NOT NULL AND lot_id IS NOT NULL))`. Both NULL = unassigned location (gestionnaire assigns later). When adding a new creation channel (API, webhook, import, AI), audit ALL CHECK constraints on the target table — they were written for the original channel's assumptions.
+**Example:** `supabase/migrations/20260309120000_relax_intervention_location_constraint.sql`
+**When to Use:** Adding any new entity creation pathway (webhook, import, AI, API) to a table that was originally web-only
+**Added:** 2026-03-09 | **Source:** AI Phone Assistant — intervention INSERT failure after fallback
+
+#### Learning #129: PostgREST constraint errors don't name the constraint — parse "Failing row contains"
+**Problem:** When a CHECK constraint fails, PostgREST returns `"message": "Value does not meet constraints"` with no constraint name. The only clue is `"details": "Failing row contains (...)"` with all column values. You must mentally match the failing values against known CHECK constraints to identify which one failed.
+**Solution:** When debugging "Value does not meet constraints", (1) read the "Failing row contains" details to identify which columns have unexpected values, (2) search migrations for `CHECK` constraints on that table, (3) match NULL/value patterns against each constraint's condition. For SEIDO: `valid_intervention_location` (building_id XOR lot_id), `valid_assignment_role` (role enum), `valid_quote_type`, `valid_time_range`.
+**Example:** Failing row had `building_id=null, lot_id=null` → violated `valid_intervention_location` XOR constraint
+**When to Use:** Any "Value does not meet constraints" error from Supabase/PostgREST
+**Added:** 2026-03-09 | **Source:** AI Phone Assistant — debugging constraint violation after fallback
+
+#### Learning #130: Agent-delegated content — verify cross-reference slugs match canonical frontmatter
+**Problem:** When 3 SEO copywriter agents created 20 blog articles in parallel, all 14 Mars/Fevrier articles linked to the hub using the OLD omnibus slug (`/blog/immobilier-belgique-mars-2026`) instead of the new hub slug (`/blog/essentiel-immo-mars-2026`). Agents inferred slugs from the source filename pattern, not from the hub's actual frontmatter.
+**Solution:** After agent-delegated content creation, always grep for cross-reference links and verify they match the canonical slugs in the target files' frontmatter. For batch fixes: `sed -i 's|old-slug|new-slug|g' blog/articles/2026-03-0*.md`. Better yet: include exact slugs in agent prompts AND run a post-creation validation step.
+**Example:** `blog/articles/2026-03-01-*.md` through `2026-03-06-*.md` — 14 files fixed with sed
+**When to Use:** Any time you delegate content creation to agents that must cross-link to other content. Verify slugs post-creation.
+**Added:** 2026-03-11 | **Source:** Blog Hub/Cluster Redesign — US-009
+
+#### Learning #131: Additive schema changes with defaults — zero migration for existing content
+**Problem:** Adding `type` and `hub` fields to `ArticleMeta` could break all existing articles that don't have these frontmatter fields.
+**Solution:** Use defaults in the parser: `type: data.type || 'article'` and `hub: data.hub || ''`. Existing articles automatically get `type: 'article'` (correct) and `hub: ''` (no parent). No frontmatter migration needed for existing content. Filter functions use positive checks (`type !== 'hub'`, `hub === hubSlug`) so empty defaults are naturally excluded.
+**Example:** `lib/blog.ts:42-43` — default values in parseArticleFile
+**When to Use:** Adding new metadata fields to a content system with existing files. Always default to the "normal" case.
+**Added:** 2026-03-11 | **Source:** Blog Hub/Cluster Redesign — US-001
+
+#### Learning #132: Async Server Component for data-dependent UI — no useEffect needed
+**Problem:** The hub-article relationship banner needs to fetch sibling articles from the same hub. In a Client Component, this would require useEffect + useState + loading state.
+**Solution:** Make it an async Server Component function in the same file. `async function HubBanner({ hubSlug, currentSlug })` directly calls `getArticlesByHub(hubSlug)` and `getArticleBySlug(hubSlug)` with `Promise.all`. No client-side state, no loading spinners, no hydration issues. The parent conditionally renders it with `{article.hub && article.type !== 'hub' && <HubBanner ... />}`.
+**Example:** `app/blog/[slug]/page.tsx:188-225` — HubBanner async component
+**When to Use:** Any UI that depends on fetched data but doesn't need interactivity. Async Server Components are simpler than Client Components with useEffect.
+**Added:** 2026-03-11 | **Source:** Blog Hub/Cluster Redesign — US-002
+
+#### Learning #133: PostgREST PGRST201 — disambiguate multiple FK paths with `!fk_name`
+**Problem:** Adding `company_record:companies(id, name)` as a nested select inside a `users` relation fails with PGRST201 ("Could not embed because more than one relationship was found") when two FK paths exist between the same table pair (e.g., `users.company_id → companies.id` AND `companies.deleted_by → users.id`). PostgREST can't guess which FK to follow.
+**Solution:** Use the FK constraint name as a hint: `company_record:companies!fk_users_company(id, name)`. Find the constraint name in migration SQL or via `\d+ tablename` in psql. This explicitly tells PostgREST which path to traverse.
+**Example:** `lib/services/repositories/supplier-contract.repository.ts` — all 4 query methods
+**When to Use:** Any nested PostgREST select between tables that have 2+ FK relationships (forward + reverse, or multiple forward FKs). Common with audit columns (`created_by`, `deleted_by`) pointing back to `users`.
+**Added:** 2026-03-11 | **Source:** Supplier contracts — company nested relation fix
+
+#### Learning #134: Card display — show person name + company badge, not company-as-name
+**Problem:** Supplier contract cards showed `company_record.name` as the supplier name, losing the individual contact's identity. This was inconsistent with contact cards which show the person's name prominently with a company badge alongside.
+**Solution:** Split the display function into two: `getSupplierDisplayName()` (always returns person's first_name + last_name) and `getSupplierCompanyName()` (returns company_record.name or legacy company field). Render person name as primary text, company as a purple `Badge` with `Building2` icon — matching the pattern in `contact-card-compact.tsx:153-161`.
+**Example:** `components/contracts/supplier-contract-card.tsx` — `getSupplierDisplayName` + `getSupplierCompanyName`
+**When to Use:** Any new entity card that displays a contact/supplier — always show person name as primary, company as badge.
+**Added:** 2026-03-11 | **Source:** Supplier contract cards UI consistency fix
+
+#### Learning #135: Deprecated enum cleanup — grep entire codebase, not just typed references
+**Problem:** After removing `demande_de_devis` from the DB enum and TypeScript type, 30+ files still had executable references. TypeScript couldn't catch them because status values are often stored in `Record<string, ...>` configs, `string[]` filter arrays, and template literal comparisons — all typed as `string`, not the union type. A targeted review (3 parallel agents) found only 16 bugs; a full-codebase `grep 'demande_de_devis'` revealed 14 more, including a CRITICAL API route (`generate-intervention-magic-links`) that was **writing** the deprecated status to the database.
+**Solution:** When deprecating any enum value: (1) `grep -r 'value_name' --include='*.ts' --include='*.tsx'` the ENTIRE codebase, (2) classify each hit as comment vs executable code, (3) fix ALL executable references in one batch, (4) verify with build. Never trust a scoped/targeted review alone.
+**Example:** `app/api/generate-intervention-magic-links/route.ts` — was setting `status: 'demande_de_devis'` in DB write, fixed to `requires_quote: true`
+**When to Use:** Any time a DB enum value, status, or role is deprecated/renamed
+**Added:** 2026-03-13 | **Source:** Post-audit production bug fixes — 30 bugs across 45 files
+
+#### Learning #136: sanitizeSearch() needed on ALL .ilike() with user input, not just search bars
+**Problem:** `sanitizeSearch()` was only applied to explicit search bar queries (lot.repository, building.repository primary path) but missed `.ilike()` calls in filter params: `company.repository.findByName()`, `address.repository.findByTeam(city)`, `building.repository.findByCity()`. These accept user-controlled strings that could inject PostgREST filter syntax (`%`, `_`, `\`).
+**Solution:** Audit EVERY `.ilike()` and `.or()` call in ALL repositories. If the argument comes from outside the repository (function parameter, not hardcoded), wrap it in `sanitizeSearch()`. Import from `@/lib/utils/sanitize-search`.
+**Example:** `lib/services/repositories/company.repository.ts` — `.ilike('name', sanitizeSearch(name))`, `lib/services/repositories/address.repository.ts` — city filter
+**When to Use:** Writing or reviewing any repository method that accepts a string parameter for filtering
+**Added:** 2026-03-13 | **Source:** Post-audit security review — 5 repositories fixed
+
+#### Learning #137: .single() on composite UNIQUE — must filter ALL constraint columns
+**Problem:** `intervention_assignments` has UNIQUE on `(intervention_id, user_id, role)`. Using `.single()` with only `.eq('intervention_id', id).eq('user_id', userId)` fails if the same user is assigned with multiple roles. The prestataire detail page queried without `.eq('role')` and the `intervention-confirm-participation` endpoint didn't know the role at all.
+**Solution:** When using `.single()`, verify ALL columns of the UNIQUE constraint are in the WHERE clause. If you can't filter all columns (e.g., role unknown at that endpoint), use `.limit(1).maybeSingle()` instead. If the role IS known (e.g., prestataire page), add `.eq('role', 'prestataire')` to make the query match the constraint.
+**Example:** `app/prestataire/(no-navbar)/interventions/[id]/page.tsx` — added `.eq('role', 'prestataire')`, `app/api/intervention-confirm-participation/route.ts` — changed to `.limit(1).maybeSingle()`
+**When to Use:** Any `.single()` call on a table with composite UNIQUE constraints
+**Added:** 2026-03-13 | **Source:** Post-audit .single() safety review
+
+#### Learning #138: Stripe trial checkout returns `no_payment_required` not `paid`
+**Problem:** `verifyCheckoutSession` checked `payment_status === 'paid'` to confirm a successful checkout. Trial checkouts with `subscription_data.trial_end` return `payment_status: 'no_payment_required'` because no charge occurs. Checkout appeared to fail even though the subscription was created correctly.
+**Solution:** Accept both `'paid'` and `'no_payment_required'` as valid payment statuses in `verifyCheckoutSession` and webhook `checkout.session.completed` handler. Trial = no payment = `no_payment_required`.
+**Example:** `app/actions/subscription-actions.ts:verifyCheckoutSession()` — `['paid', 'no_payment_required'].includes(paymentStatus)`
+**When to Use:** Any Stripe Checkout integration that supports trial periods via `subscription_data.trial_end`
+**Added:** 2026-03-14 | **Source:** Stripe trial payment collection feature
+
+#### Learning #139: Status constant sets must match canonical service — audit cross-file consistency
+**Problem:** `BLOCKED_STATUSES` was defined in 3 files (`subscription-guard.ts`, `notification-actions.ts`, `conversation-notification-actions.ts`) with `['read_only', 'unpaid', 'incomplete_expired']`. But `subscription.service.ts` also treats `paused` as blocked (is_read_only=true). Paused teams' locataires/prestataires were not blocked, and notifications still fired.
+**Solution:** (1) Define status constants in ONE shared file and import everywhere. (2) When creating a status set, always cross-reference the canonical service that defines the business rule (e.g., `subscription.service.ts:getSubscriptionInfo`). (3) Include ALL statuses the service treats as equivalent.
+**Example:** `lib/subscription-guard.ts` — single source of truth for `BLOCKED_STATUSES`, imported by both notification action files
+**When to Use:** Any time you create a Set/array of statuses that mirrors business logic from a service class
+**Added:** 2026-03-14 | **Source:** Simplify review — semantic bug found by cross-referencing subscription.service.ts
+
+#### Learning #140: `unstable_cache` wrappers should be shared utilities, not duplicated in layouts
+**Problem:** `getCachedSubscriptionInfo` was copy-pasted identically in gestionnaire, locataire, and prestataire layouts (3 copies). Any change to cache key, TTL, or query logic required updating 3 files. The locataire/prestataire copies also dragged in 5 unnecessary imports each.
+**Solution:** Extract `unstable_cache`-wrapped functions to shared utility files (e.g., `lib/subscription-cache.ts`). Import from layouts. This reduces each layout from ~15 import lines to 1.
+**Example:** `lib/subscription-cache.ts` — shared `getCachedSubscriptionInfo`, imported by all 3 role layouts
+**When to Use:** Any `unstable_cache` wrapper used by 2+ Server Components — extract to `lib/` immediately
+**Added:** 2026-03-14 | **Source:** Simplify review — triple duplication across role layouts
+
+#### Learning #141: `'use server'` file helpers can't be imported cross-file — extract to `lib/`
+**Problem:** `isTeamNotificationsBlocked` was needed in both `notification-actions.ts` and `conversation-notification-actions.ts`. Since both are `'use server'` files, the helper was duplicated (copy-pasted) rather than shared. This led to 3 copies of the same function with identical logic.
+**Solution:** Extract shared server-side helpers to `lib/` files (not `'use server'` action files). `lib/subscription-guard.ts` is importable by any file — server actions, Server Components, API routes. Reserve `'use server'` files for exported server actions only.
+**Example:** `lib/subscription-guard.ts:isTeamSubscriptionBlocked()` — imported by `notification-actions.ts`, `conversation-notification-actions.ts`, and page Server Components
+**When to Use:** Whenever you need a helper function in 2+ server action files — move it to `lib/` immediately
+**Added:** 2026-03-14 | **Source:** Simplify review — triple duplication of subscription blocking helper
+
+#### Learning #142: Debounce event dispatch per-batch, not per-entity — avoids N+1 callback storms
+**Problem:** Data invalidation broadcast sends entity arrays like `['buildings', 'lots', 'stats']`. Initial implementation debounced per entity type (one timer per entity), meaning a handler subscribed to `['buildings', 'lots', 'contacts', 'interventions', 'stats']` would fire 3 separate refetches from a single broadcast — once per matched entity after its 500ms timer.
+**Solution:** Collect all pending entities in a `Set` during the debounce window (single 500ms timer). When the timer fires, iterate handlers once and call each handler at most once if ANY of its entities are in the pending set.
+**Example:** `contexts/realtime-context.tsx` — `pendingEntitiesRef` + single `debounceTimerRef` instead of `Map<DataEntity, Timeout>`
+**When to Use:** Any pub/sub system with multi-topic subscriptions and debouncing — always debounce the dispatch batch, not individual topics
+**Added:** 2026-03-15 | **Source:** Simplify /efficiency review — N+1 callback bug in data invalidation
+
+#### Learning #143: Supabase Broadcast for cache invalidation — zero DB overhead alternative to postgres_changes
+**Problem:** SEIDO uses `force-dynamic` on all list pages, making `revalidatePath`/`revalidateTag` no-ops (68 dead calls identified). Client hooks fetch once on mount and never refresh after mutations by other team members. `postgres_changes` would require DB triggers + RLS config for each table.
+**Solution:** Use Supabase Broadcast (lightweight pub/sub over existing WebSocket) on a team-scoped channel (`seido-team:{teamId}`). Mutations broadcast entity type arrays, hooks subscribe and auto-refetch. Zero DB impact — messages flow through Supabase Realtime infrastructure only.
+**Example:** `lib/data-invalidation.ts` (types) + `contexts/realtime-context.tsx` (channel + API) + `hooks/use-buildings.ts` (subscriber)
+**When to Use:** When you need cross-client cache invalidation but your pages are force-dynamic (making Next.js cache primitives useless) and you want to avoid DB-level triggers
+**Added:** 2026-03-15 | **Source:** Data invalidation broadcast feature
+
+#### Learning #144: Separate Supabase channels for different scopes — per-user vs per-team
+**Problem:** Existing `seido:{userId}:{teamId}` channel uses `postgres_changes` for user-specific notifications. Broadcasting invalidation events on this channel would only reach the current user, not other team members.
+**Solution:** Create a SECOND channel `seido-team:{teamId}` scoped to the team (no userId). All team members subscribe to the same channel. Keep the per-user channel for user-specific postgres_changes (notifications, messages). Different concerns = different channels.
+**Example:** `contexts/realtime-context.tsx` — `teamChannelRef` (broadcast) alongside existing per-user `channelRef` (postgres_changes)
+**When to Use:** When you have both user-specific realtime events AND team-wide broadcast events — never mix them on a single channel
+**Added:** 2026-03-15 | **Source:** Data invalidation broadcast architecture decision
+
 ---
 
 ## Common Pitfalls (Avoid These!)
@@ -869,6 +1107,71 @@
 **Symptom:** Related data is `null` even though it exists in the database.
 **Cause:** RLS policy on the nested table blocks access (silent failure).
 **Fix:** Use separate queries with `Promise.all` instead of nested `select()`.
+
+### Admin / Platform Notifications
+
+#### Learning #145: Fire-and-forget in Vercel serverless requires `.catch()` — not just "no await"
+**Problem:** Calling `this.asyncMethod(...)` without `await` in a webhook handler creates a floating Promise. In Vercel serverless, the runtime can freeze/kill the process after the response is sent, silently dropping the Promise. Additionally, if the async function throws before entering its own try/catch (e.g., dynamic `import()` fails), it becomes an unhandled rejection.
+**Solution:** Use `void this.asyncMethod(...).catch(() => {})`. The `void` tells the ESLint linter it's intentional. The `.catch(() => {})` prevents unhandled rejections. For critical notifications, use `await` instead (acceptable latency in webhooks).
+**Example:** `lib/services/domain/stripe-webhook.handler.ts:216` — subscription admin notifications
+**When to Use:** Any fire-and-forget async call in API routes, webhooks, or CRON handlers running on serverless
+**Added:** 2026-03-16 | **Source:** Admin notification emails — simplify review caught floating promises
+
+#### Learning #146: Use the Resend singleton from `lib/email/resend-client.ts` — don't create new instances
+**Problem:** Three separate `new Resend(process.env.RESEND_API_KEY)` instances existed: `lib/email/resend-client.ts` (singleton), `lib/services/domain/email.service.ts` (class), and a new admin notification service. Multiple instances waste resources and bypass any centralized config (rate limiting, logging, from address).
+**Solution:** Import `{ resend, EMAIL_CONFIG, isResendConfigured }` from `@/lib/email/resend-client`. Use `resend.emails.send()` directly for raw HTML emails. Use `EMAIL_CONFIG.from` for the sender address. Use `isResendConfigured()` for the guard check.
+**Example:** `lib/services/domain/admin-notification/admin-notification.service.ts:14` — imports singleton
+**When to Use:** Any new service that needs to send emails (whether React Email templates or raw HTML)
+**Added:** 2026-03-16 | **Source:** Admin notification emails — simplify review found 3 Resend instances
+
+#### Learning #147: Client Components can't send server-side emails — use API route bridge
+**Problem:** `auth/callback/page.tsx` and `auth/set-password/page.tsx` are Client Components (`'use client'`). Admin notifications require server-side Supabase service-role client + Resend. Can't import server-only modules in client code.
+**Solution:** Create a lightweight API route (`/api/internal/admin-signup-notification`) that handles the server-side work. Client calls it fire-and-forget: `fetch('/api/...', { method: 'POST' }).catch(() => {})`. Add a time guard (< 1 hour since `created_at`) to prevent duplicate notifications on page reload.
+**Example:** `app/api/internal/admin-signup-notification/route.ts` + `app/auth/set-password/page.tsx:277`
+**When to Use:** When a Client Component needs to trigger server-only side effects (emails, DB writes with service role, external API calls)
+**Added:** 2026-03-16 | **Source:** Admin notification emails — email signup flow integration
+
+#### Learning #148: OAuth `completeOAuthProfileAction` must set `first_name` AND `last_name` — not just `name`
+**Problem:** The OAuth profile insert only set `name: "Jean Dupont"` but not `first_name`/`last_name`. Downstream code querying `users.first_name` got `null` for all OAuth users and fell back to `name.split(' ')[0]`. This works but is fragile (single-name users, multi-word last names).
+**Solution:** Always set all three: `name`, `first_name`, `last_name` in the insert. The `validatedData` from the form already has separate `firstName` and `lastName` fields — they just weren't being used.
+**Example:** `app/auth/complete-profile/actions.ts:127-128`
+**When to Use:** Any user creation flow (signup, invitation, import) — always populate all name fields
+**Added:** 2026-03-16 | **Source:** Admin notification emails — simplify review found OAuth users missing first_name/last_name
+
+#### Learning #154: Lightweight signup — DB trigger must handle partial profiles (no name)
+**Problem:** Original `handle_new_user_confirmed()` trigger raised EXCEPTION when `first_name` or `last_name` was empty. Lightweight signup sends only `role` + `password_set` in metadata (no name fields), so trigger crashed and user creation failed silently.
+**Solution:** Add a 3-branch IF in the trigger: (1) invitation flow (has `team_id` metadata), (2) lightweight signup (empty name → create partial profile with `name=email_prefix`, `team_id=NULL`), (3) full signup (has name → create complete profile + team + subscription). Partial profiles complete later on `/auth/complete-profile`.
+**Example:** `supabase/migrations/20260317100000_team_name_from_organization.sql` — 3-branch trigger
+**When to Use:** Any change to signup metadata or the `handle_new_user_confirmed()` trigger
+**Added:** 2026-03-17 | **Source:** Lightweight Signup feature
+
+#### Learning #155: Three-layer incomplete profile guard — login + layout + server action
+**Problem:** Users who sign up but don't complete their profile (no team) could bypass the completion page by navigating directly to dashboard URLs or calling server actions.
+**Solution:** Enforce profile completion at 3 layers: (1) `loginAction` checks `team_id` and redirects to `/auth/complete-profile`, (2) `getServerAuthContext()` in layouts redirects when `teams.length === 0`, (3) `getServerActionAuthContext()` redirects in server actions. All 3 check the same condition: user exists but has no team.
+**Example:** `app/actions/auth-actions.ts` (login), `lib/server-context.ts` (layout + action guards)
+**When to Use:** Any new auth guard, login flow change, or new role-gated page/action
+**Added:** 2026-03-17 | **Source:** Lightweight Signup — profile guard story
+
+#### Learning #156: `URL.createObjectURL()` leaks on re-upload — revoke before creating new
+**Problem:** Avatar preview used `URL.createObjectURL(file)` on each file selection. Re-selecting a file created a new blob URL without revoking the old one. The cleanup effect only ran on unmount, so intermediate URLs leaked memory.
+**Solution:** Before creating a new blob URL, check if the current `avatarPreview` starts with `'blob:'` and call `URL.revokeObjectURL(avatarPreview)`. Keep the unmount cleanup as well for the final URL.
+**Example:** `app/auth/complete-profile/complete-profile-form.tsx` — `handleAvatarChange`
+**When to Use:** Any component with file preview that allows re-selection (avatar, document upload, image picker)
+**Added:** 2026-03-17 | **Source:** Lightweight Signup — simplify review
+
+#### Learning #157: Contact type key mismatch — `determineAssignmentType` vs ContactSelector tab keys
+**Problem:** ContactSelector used `key: "other"` for the propriétaire tab, but `determineAssignmentType()` returns `"owner"` for `role='proprietaire'`. The filtering comparison `assignmentType === selectedContactType` silently returned zero results — propriétaire contacts were invisible in the selector modal.
+**Solution:** Align all external-facing contact type keys with `determineAssignmentType()` output: `owner` for propriétaire, `guarantor` for garant. Keep internal state bucket keys (e.g. `buildingContacts.other`) as-is and map at the boundary (`const bucketKey = contactType === 'owner' ? 'other' : contactType`).
+**Example:** `components/contact-selector.tsx` contactTypes[].key, `app/gestionnaire/(no-navbar)/biens/lots/nouveau/lot-creation-form.tsx` handleContactAdd
+**When to Use:** Any time you rename or remap contact roles/types — always verify the full chain: DB role → role switch → determineAssignmentType → tab key → selectedContacts keys → callback contactType → state bucket key
+**Added:** 2026-03-18 | **Source:** Propriétaire role rename — "Autre" → "Propriétaire"
+
+#### Learning #158: Missing role entries in label/badge lookup tables cause silent "Non défini" display
+**Problem:** `getContactTypeLabel()` and `getContactTypeBadgeStyle()` in `contacts.config.tsx` only had entries for locataire/prestataire/gestionnaire. When DB stores `role='proprietaire'`, the lookup falls through to `'Non défini'` — no error, just wrong display.
+**Solution:** Always add BOTH the French DB value (`proprietaire`, `garant`) AND the English interface value (`owner`, `guarantor`) to ALL role lookup tables. Grep for `getContactTypeLabel` and `getContactTypeBadgeStyle` after adding new roles.
+**Example:** `config/table-configs/contacts.config.tsx` lines 72-110
+**When to Use:** When adding or renaming any contact role — check ALL lookup maps across the codebase
+**Added:** 2026-03-18 | **Source:** Propriétaire role rename — contacts list showing "Non défini"
 
 ### Email Template Rendering
 **Symptom:** Email looks correct in preview but broken in actual email clients.

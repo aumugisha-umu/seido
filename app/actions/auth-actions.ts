@@ -15,7 +15,7 @@ import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient, createServerActionSupabaseClient } from '@/lib/services/core/supabase-client'
 import { getSupabaseAdmin, isAdminConfigured } from '@/lib/services/core/supabase-admin'
 import { requireGuest, invalidateAuth, getDashboardPath } from '@/lib/auth-dal'
-import { createServerUserService, createServerTeamService } from '@/lib/services'
+import { createServerUserService } from '@/lib/services'
 import { z } from 'zod'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
@@ -34,10 +34,6 @@ const SignupSchema = z.object({
     .regex(/[A-Z]/, 'Une majuscule requise')
     .regex(/[a-z]/, 'Une minuscule requise')
     .regex(/\d/, 'Un chiffre requis'),
-  firstName: z.string().min(1, 'Prénom requis').trim(),
-  lastName: z.string().min(1, 'Nom requis').trim(),
-  phone: z.string().optional(),
-  role: z.enum(['admin', 'gestionnaire', 'prestataire', 'locataire']).optional().default('gestionnaire'),
   acceptTerms: z.boolean().refine(val => val === true, 'Acceptation des conditions requise')
 })
 
@@ -136,11 +132,17 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
     if (userResult.success && userResult.data) {
       const userData = userResult.data
       if ('role' in userData && userData.role) {
-        dashboardPath = getDashboardPath(userData.role)
+        // Partial profile (no team) → redirect to complete-profile
+        if ('team_id' in userData && !userData.team_id) {
+          logger.info('🔄 [LOGIN-ACTION] Partial profile (no team), redirecting to complete-profile')
+          dashboardPath = '/auth/complete-profile'
+        } else {
+          dashboardPath = getDashboardPath(userData.role)
+        }
         logger.info({
           role: userData.role,
           dashboard: dashboardPath
-        }, '🔄 [LOGIN-ACTION] Determined role-specific dashboard')
+        }, '🔄 [LOGIN-ACTION] Determined redirect path')
       } else {
         logger.info('⚠️ [LOGIN-ACTION] No role found, using default dashboard')
       }
@@ -215,13 +217,10 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
   }
 
   try {
-    // ✅ VALIDATION: Parser et valider les données
+    // ✅ VALIDATION: Parser et valider les données (lightweight: email + password only)
     const rawData = {
       email: formData.get('email') as string,
       password: formData.get('password') as string,
-      firstName: formData.get('firstName') as string,
-      lastName: formData.get('lastName') as string,
-      phone: formData.get('phone') as string || undefined,
       acceptTerms: formData.get('acceptTerms') === 'true'
     }
 
@@ -242,18 +241,15 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     // ✅ NOUVELLE APPROCHE: Utiliser admin.generateLink() pour créer user SANS email automatique
     logger.info('🔧 [SIGNUP-ACTION] Using admin.generateLink() to create user without automatic email')
 
+    // Lightweight signup: no name/phone/org — captured after email confirmation
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'signup',
       email: validatedData.email,
       password: validatedData.password,
       options: {
         data: {
-          first_name: validatedData.firstName,
-          last_name: validatedData.lastName,
-          phone: validatedData.phone,
-          role: validatedData.role || 'gestionnaire', // ✅ AJOUT: role requis pour le trigger
-          full_name: `${validatedData.firstName} ${validatedData.lastName}`,
-          password_set: true // ✅ SIGNUP: User définit son password lors de l'inscription
+          role: 'gestionnaire',
+          password_set: true,
         }
       }
     })
@@ -309,8 +305,10 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
     // ✅ OPTIMISATION: Envoi d'email en arrière-plan (fire-and-forget)
     // Permet de ne pas bloquer la réponse de signup (~2-5s économisés)
     // L'utilisateur reçoit une réponse immédiate, l'email arrive quelques secondes après
+    // Use email prefix as firstName fallback (name captured after confirmation)
+    const emailPrefix = validatedData.email.split('@')[0] || 'Utilisateur'
     emailService.sendSignupConfirmationEmail(validatedData.email, {
-      firstName: validatedData.firstName,
+      firstName: emailPrefix,
       confirmationUrl: confirmationUrl!,
       expiresIn: 60, // 60 minutes
     }).then(emailResult => {

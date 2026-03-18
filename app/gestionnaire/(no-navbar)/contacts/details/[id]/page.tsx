@@ -14,7 +14,11 @@ import {
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import { ContactDetailsClient } from './contact-details-client'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
+import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
+import { SubscriptionRepository } from '@/lib/services/repositories/subscription.repository'
+import { createServiceRoleSupabaseClient } from '@/lib/services'
+import { logger } from '@/lib/logger'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -42,7 +46,20 @@ export default async function ContactDetailsPage({ params }: PageProps) {
   // ============================================================================
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
   // Remplace ~20 lignes d'auth manuelle (getServerSession + profile fetch)
-  const { profile: currentUser, supabase } = await getServerAuthContext('gestionnaire')
+  const { profile: currentUser, supabase, team } = await getServerAuthContext('gestionnaire')
+
+  // Blocked mode: redirect to list when subscription is read_only
+  try {
+    const subService = createSubscriptionService(supabase)
+    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
+    const subInfo = await subService.getSubscriptionInfo(team.id, serviceRoleRepo)
+    if (subInfo?.is_read_only) {
+      redirect('/gestionnaire/contacts')
+    }
+  } catch (e) {
+    if (e instanceof Error && 'digest' in e) throw e
+    logger.warn('[CONTACT-PAGE-SERVER] Subscription check failed, allowing access', { contactId: resolvedParams.id })
+  }
 
   // ============================================================================
   // ÉTAPE 2 : Fetch Contact Data (Server-side avec SSR auth)

@@ -188,9 +188,7 @@ export function createServiceRoleSupabaseClient() {
 
   logger.info('🔑 [SERVICE-ROLE] Creating service role client (RLS BYPASS)', {
     url: supabaseUrl,
-    keyPrefix: supabaseServiceRoleKey.substring(0, 20) + '...',
-    keySuffix: '...' + supabaseServiceRoleKey.substring(supabaseServiceRoleKey.length - 10),
-    keyLength: supabaseServiceRoleKey.length
+    keyPresent: !!supabaseServiceRoleKey
   })
 
   return createClient<Database>(supabaseUrl, supabaseServiceRoleKey, {

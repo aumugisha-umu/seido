@@ -530,7 +530,6 @@ export default function EditBuildingClient({
 
       // Redirect back to building details (toast will remain visible during navigation)
       router.push(`/gestionnaire/biens/immeubles/${buildingId}`)
-      router.refresh()
 
     } catch (err) {
       logger.error("Error updating building:", err)

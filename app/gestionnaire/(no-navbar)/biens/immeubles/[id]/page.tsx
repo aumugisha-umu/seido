@@ -1,14 +1,18 @@
 // Server Component - loads data server-side
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import {
   createServerBuildingService,
   createServerLotService,
   createServerInterventionService,
   createServerContractService,
-  createServerSupabaseClient
+  createServerSupabaseClient,
+  createServerSupplierContractService,
+  createServiceRoleSupabaseClient,
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
+import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
+import { SubscriptionRepository } from '@/lib/services/repositories/subscription.repository'
 import BuildingDetailsClient from './building-details-client'
 import { logger } from '@/lib/logger'
 import { Skeleton } from "@/components/ui/skeleton"
@@ -101,7 +105,20 @@ export default async function BuildingDetailsPage({
 
   // 🚨 SECURITY FIX: Cette page n'avait AUCUNE authentification!
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { team } = await getServerAuthContext('gestionnaire')
+  const { team, supabase: authSupabase } = await getServerAuthContext('gestionnaire')
+
+  // Blocked mode: redirect to list when subscription is read_only
+  try {
+    const subService = createSubscriptionService(authSupabase)
+    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
+    const subInfo = await subService.getSubscriptionInfo(team.id, serviceRoleRepo)
+    if (subInfo?.is_read_only) {
+      redirect('/gestionnaire/biens')
+    }
+  } catch (e) {
+    if (e instanceof Error && 'digest' in e) throw e
+    logger.warn('[BUILDING-PAGE-SERVER] Subscription check failed, allowing access', { buildingId: id })
+  }
 
   logger.info('🏗️ [BUILDING-PAGE-SERVER] Loading building details', {
     buildingId: id,
@@ -110,11 +127,12 @@ export default async function BuildingDetailsPage({
 
   try {
     // Initialize all services in parallel (server-side)
-    const [buildingService, lotService, interventionService, contractService, supabase] = await Promise.all([
+    const [buildingService, lotService, interventionService, contractService, supplierContractService, supabase] = await Promise.all([
       createServerBuildingService(),
       createServerLotService(),
       createServerInterventionService(),
       createServerContractService(),
+      createServerSupplierContractService(),
       createServerSupabaseClient()
     ])
 
@@ -159,7 +177,9 @@ export default async function BuildingDetailsPage({
       contractsResult,
       interventionsResult,
       buildingContactsResponse,
-      addressResponse
+      addressResponse,
+      buildingSupplierContracts,
+      lotSupplierContracts
     ] = await Promise.all([
       // Occupied lot IDs from active contracts
       contractService.getOccupiedLotIdsByTeam(team.id).catch(() => {
@@ -201,7 +221,19 @@ export default async function BuildingDetailsPage({
             .select('latitude, longitude, formatted_address')
             .eq('id', building.address_id)
             .single()
-        : Promise.resolve({ data: null })
+        : Promise.resolve({ data: null }),
+
+      // Supplier contracts: building-level
+      supplierContractService.getByBuilding(id).catch(() => {
+        logger.warn('[BUILDING-PAGE-SERVER] Could not load building supplier contracts')
+        return [] as Awaited<ReturnType<typeof supplierContractService.getByBuilding>>
+      }),
+
+      // Supplier contracts: lot-level (batch for all lots)
+      supplierContractService.getByLotIds(lotIds).catch(() => {
+        logger.warn('[BUILDING-PAGE-SERVER] Could not load lot supplier contracts')
+        return [] as Awaited<ReturnType<typeof supplierContractService.getByLotIds>>
+      })
     ])
 
     logger.info('✅ [BUILDING-PAGE-SERVER] Parallel queries completed', {
@@ -330,8 +362,19 @@ export default async function BuildingDetailsPage({
       })
     }
 
+    // Group lot-level supplier contracts by lot_id
+    const lotSupplierContractsByLotId: Record<string, typeof lotSupplierContracts> = {}
+    for (const sc of lotSupplierContracts) {
+      if (!sc.lot_id) continue
+      const key = sc.lot_id
+      if (!lotSupplierContractsByLotId[key]) lotSupplierContractsByLotId[key] = []
+      lotSupplierContractsByLotId[key].push(sc)
+    }
+
     logger.info('🎉 [BUILDING-PAGE-SERVER] All data loaded successfully', {
       buildingId: id,
+      buildingSupplierContracts: buildingSupplierContracts.length,
+      lotSupplierContracts: lotSupplierContracts.length,
       totalElapsed: `${Date.now() - startTime}ms`
     })
 
@@ -348,6 +391,8 @@ export default async function BuildingDetailsPage({
         lotContactIdsMap={lotContactIdsMap}
         teamId={team.id}
         buildingAddress={buildingAddress}
+        buildingSupplierContracts={buildingSupplierContracts}
+        lotSupplierContractsByLotId={lotSupplierContractsByLotId}
       />
     )
   } catch (error) {

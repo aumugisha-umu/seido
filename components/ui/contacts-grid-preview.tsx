@@ -22,7 +22,6 @@ interface ContactsGridPreviewProps {
   buildingName: string
   buildingManagers?: unknown[]
   providers: Contact[]
-  owners: Contact[]
   others: Contact[]
   buildingContactIds: Record<string, string> // Maps user_id to building_contact_id
   teamId: string // Pour charger les contacts disponibles
@@ -45,7 +44,6 @@ export function ContactsGridPreview({
   buildingName,
   buildingManagers = [],
   providers,
-  owners,
   others,
   buildingContactIds,
   teamId
@@ -65,7 +63,7 @@ export function ContactsGridPreview({
 
   // Handle contact removal
   const handleRemoveContact = (contact: Contact) => {
-    const contactType = contact.type === 'provider' ? 'prestataire' : contact.type === 'owner' ? 'proprietaire' : 'autre'
+    const contactType = contact.type === 'provider' ? 'prestataire' : 'autre'
     setDeleteModal({
       isOpen: true,
       contact,
@@ -104,11 +102,10 @@ export function ContactsGridPreview({
     const contactTypeMap: Record<string, string> = {
       'gestionnaires': 'manager',
       'prestataires': 'provider',
-      'propriétaires': 'owner',
-      'autres contacts': 'other'
+      'propriétaires': 'owner'
     }
 
-    const contactType = contactTypeMap[sectionType] || 'other'
+    const contactType = contactTypeMap[sectionType] || 'owner'
     contactSelectorRef.current?.openContactModal(contactType)
   }
 
@@ -156,14 +153,13 @@ export function ContactsGridPreview({
     return {
       manager: buildingManagers as Contact[],
       provider: providers,
-      owner: owners,
       other: others
     }
   }
 
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
         {/* Building Managers Section */}
         <ContactSection
           sectionType="managers"
@@ -190,24 +186,12 @@ export function ContactsGridPreview({
           }}
         />
 
-        {/* Owners Section */}
-        <ContactSection
-          sectionType="owners"
-          contacts={owners}
-          readOnly={false}
-          onAddContact={() => handleAddContact('propriétaires')}
-          onRemoveContact={(id) => {
-            const contact = owners.find(c => c.id === id)
-            if (contact) handleRemoveContact(contact)
-          }}
-        />
-
         {/* Others Section */}
         <ContactSection
           sectionType="others"
           contacts={others}
           readOnly={false}
-          onAddContact={() => handleAddContact('autres contacts')}
+          onAddContact={() => handleAddContact('propriétaires')}
           onRemoveContact={(id) => {
             const contact = others.find(c => c.id === id)
             if (contact) handleRemoveContact(contact)

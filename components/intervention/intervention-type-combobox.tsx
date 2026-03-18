@@ -28,19 +28,21 @@ const CATEGORY_COLORS: Record<string, string> = {
   bien: 'bg-blue-500',
   bail: 'bg-emerald-500',
   locataire: 'bg-orange-500',
+  rappel: 'bg-violet-500',
 }
 
 const CATEGORY_TEXT_COLORS: Record<string, string> = {
   bien: 'text-blue-600',
   bail: 'text-emerald-600',
   locataire: 'text-orange-600',
+  rappel: 'text-violet-600',
 }
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type CategoryCode = 'bien' | 'bail' | 'locataire'
+type CategoryCode = 'bien' | 'bail' | 'locataire' | 'rappel'
 
 interface InterventionTypeComboboxProps {
   value?: string
@@ -49,7 +51,7 @@ interface InterventionTypeComboboxProps {
   disabled?: boolean
   className?: string
   /**
-   * Filter by category code ('bien', 'bail', 'locataire')
+   * Filter by category code ('bien', 'bail', 'locataire', 'rappel')
    * Accepts a single category or an array of categories.
    * If null/undefined, shows all categories.
    *
@@ -66,6 +68,11 @@ interface InterventionTypeComboboxProps {
    * Initial data from server-side prefetch (avoids loading spinner)
    */
   initialData?: InterventionTypesData | null
+  /**
+   * Show collapsible category headers (default: true)
+   * Set to false for a flat list without category grouping UI
+   */
+  showCategoryHeaders?: boolean
 }
 
 // ============================================================================
@@ -100,6 +107,7 @@ export function InterventionTypeCombobox({
   categoryFilter = null,
   error = false,
   initialData,
+  showCategoryHeaders = true,
 }: InterventionTypeComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -249,7 +257,7 @@ export function InterventionTypeCombobox({
               return (
                 <CommandGroup
                   key={categoryCode}
-                  heading={
+                  heading={showCategoryHeaders ? (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -274,10 +282,10 @@ export function InterventionTypeCombobox({
                         {categoryTypes.length}
                       </span>
                     </button>
-                  }
+                  ) : undefined}
                 >
-                  {/* Show items if category is expanded OR if user is searching */}
-                  {(isSearching || isExpanded) && categoryTypes.map((type) => {
+                  {/* Show items if category is expanded, headers hidden, or user is searching */}
+                  {(isSearching || isExpanded || !showCategoryHeaders) && categoryTypes.map((type) => {
                     const Icon = getTypeIcon(type.code)
                     return (
                       <CommandItem

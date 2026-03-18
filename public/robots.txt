@@ -1,8 +1,8 @@
 # Robots.txt for seido-app.com
+
+# Search engines (Google, Bing, etc.) — allowed on public pages
 User-agent: *
 Allow: /
-
-# Disallow private/authenticated routes
 Disallow: /admin/
 Disallow: /gestionnaire/
 Disallow: /prestataire/
@@ -10,6 +10,46 @@ Disallow: /locataire/
 Disallow: /api/
 Disallow: /auth/callback
 Disallow: /auth/confirm
+
+# AI crawlers — block all
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Cohere-ai
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
 
 # Sitemap
 Sitemap: https://www.seido-app.com/sitemap.xml

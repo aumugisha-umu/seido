@@ -20,6 +20,7 @@ export default async function NewContractPage({
   searchParams
 }: {
   searchParams: Promise<{
+    type?: string
     lot?: string
     renew?: string
     // Paramètres de retour après création de contact
@@ -32,6 +33,7 @@ export default async function NewContractPage({
   const { team, profile } = await getServerAuthContext('gestionnaire')
 
   const params = await searchParams
+  const contractMode = (params.type === 'fournisseur' ? 'fournisseur' : 'bail') as 'bail' | 'fournisseur'
   const prefilledLotId = params.lot || null
   const renewFromId = params.renew || null
 
@@ -111,6 +113,7 @@ export default async function NewContractPage({
   return (
     <ContractFormContainer
       mode="create"
+      contractMode={contractMode}
       teamId={team.id}
       initialBuildingsData={buildingsData}
       initialContacts={contacts}

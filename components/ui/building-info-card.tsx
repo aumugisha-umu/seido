@@ -19,6 +19,7 @@ export interface BuildingInfoCardProps {
   city: string
   country: string
   description?: string
+  existingLotsCount?: number
   onAddLot?: () => void
   className?: string
   readOnly?: boolean
@@ -52,6 +53,7 @@ export function BuildingInfoCard({
   city,
   country,
   description,
+  existingLotsCount,
   onAddLot,
   className,
   readOnly = false,
@@ -81,6 +83,11 @@ export function BuildingInfoCard({
                 <h3 className="font-semibold text-sm text-gray-900 flex-shrink-0">
                   {name}
                 </h3>
+                {existingLotsCount != null && existingLotsCount > 0 && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 flex-shrink-0">
+                    {existingLotsCount} lot{existingLotsCount > 1 ? "s" : ""} existant{existingLotsCount > 1 ? "s" : ""}
+                  </span>
+                )}
                 <span className="text-gray-400 flex-shrink-0" aria-hidden="true">
                   •
                 </span>

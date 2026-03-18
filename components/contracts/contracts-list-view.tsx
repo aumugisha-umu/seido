@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import { usePrefetchHandler } from '@/hooks/use-prefetch'
 import {
   Eye,
   Edit,
@@ -85,6 +86,7 @@ export function ContractsListView({
   className
 }: ContractsListViewProps) {
   const router = useRouter()
+  const handleRowHover = usePrefetchHandler()
 
   // Sorting state
   const [sortField, setSortField] = useState<SortField | null>(null)
@@ -392,6 +394,7 @@ export function ContractsListView({
                   key={contract.id}
                   className="hover:bg-slate-50 cursor-pointer transition-colors"
                   onClick={() => handleRowClick(contract.id)}
+                  onMouseEnter={() => handleRowHover(`/gestionnaire/contrats/${contract.id}`)}
                 >
                   {/* Title Cell */}
                   <TableCell className="font-medium">

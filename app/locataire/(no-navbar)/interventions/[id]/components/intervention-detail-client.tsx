@@ -42,30 +42,8 @@ import {
 // Tab Localisation dédié
 import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
 
-// ✅ LAZY LOADED: Heavy chat component loaded on demand (US-304)
-const InterventionChatTab = dynamic(
-  () => import('@/components/interventions/intervention-chat-tab').then(mod => ({ default: mod.InterventionChatTab })),
-  {
-    loading: () => (
-      <div className="flex-1 flex flex-col p-4 space-y-4">
-        <div className="flex gap-2">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-8 w-24 rounded-full" />
-          ))}
-        </div>
-        <div className="flex-1 space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
-              <Skeleton className={`h-16 ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'} rounded-lg`} />
-            </div>
-          ))}
-        </div>
-        <Skeleton className="h-12 w-full rounded-lg" />
-      </div>
-    ),
-    ssr: false
-  }
-)
+// Lazy-loaded chat component shared across all roles
+import { LazyInterventionChatTab as InterventionChatTab } from '@/components/interventions/lazy-intervention-chat-tab'
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
@@ -77,6 +55,9 @@ import { InterventionActionPanelHeader } from '@/components/intervention/interve
 // import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
 import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
+
+// Realtime invalidation
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 
 // Hooks
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
@@ -156,11 +137,15 @@ export function LocataireInterventionDetailClient({
   initialParticipantsByThread
 }: LocataireInterventionDetailClientProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const planning = useInterventionPlanning(
     undefined, undefined, undefined, undefined, undefined,
     undefined, undefined, undefined, undefined,
-    () => router.refresh(),
+    () => {
+      realtime?.broadcastInvalidation(['interventions'])
+      router.refresh()
+    },
   )
   // Deep-link support: ?tab=conversations&thread=group
   const initialTab = searchParams.get('tab')
@@ -198,6 +183,7 @@ export function LocataireInterventionDetailClient({
         if (!result.success) {
           throw new Error(result.error || 'Erreur lors de la sélection du créneau')
         }
+        realtime?.broadcastInvalidation(['interventions'])
         router.refresh()
       },
       // Locataire rejects a time slot
@@ -237,6 +223,7 @@ export function LocataireInterventionDetailClient({
           if (!result.success) {
             throw new Error(result.error || 'Erreur lors de la validation')
           }
+          realtime?.broadcastInvalidation(['interventions'])
           router.refresh()
         } else if (type === 'contest') {
           // Contest requires opening a modal or navigating to a form
@@ -348,6 +335,7 @@ export function LocataireInterventionDetailClient({
 
   // Callback after confirmation/rejection
   const handleConfirmationResponse = () => {
+    realtime?.broadcastInvalidation(['interventions'])
     router.refresh()
   }
 
@@ -500,6 +488,7 @@ export function LocataireInterventionDetailClient({
       const result = await selectTimeSlotAction(intervention.id, slotId)
       if (result.success) {
         toast.success('Créneau sélectionné avec succès')
+        realtime?.broadcastInvalidation(['interventions'])
         router.refresh()
       } else {
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la sélection du créneau'))
@@ -578,6 +567,7 @@ export function LocataireInterventionDetailClient({
       const result = await validateByTenantAction(intervention.id, satisfaction)
       if (result.success) {
         toast.success('Travaux validés avec succès')
+        realtime?.broadcastInvalidation(['interventions'])
         router.refresh()
       } else {
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la validation des travaux'))
@@ -593,6 +583,7 @@ export function LocataireInterventionDetailClient({
 
   // Handle action completion from action panel
   const handleActionComplete = () => {
+    realtime?.broadcastInvalidation(['interventions'])
     router.refresh()
   }
 
@@ -700,7 +691,6 @@ export function LocataireInterventionDetailClient({
             }))}
           />
         }
-        hasGlobalNav={false}
       />
 
       <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">

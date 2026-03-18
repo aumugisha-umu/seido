@@ -36,11 +36,11 @@ When the user types "git*" (global CLAUDE.md trigger for auto-commit):
 
 ### Step 1: Automated Checks
 
-Run these checks in parallel:
+Run these checks:
 
 ```bash
-# TypeScript — ALWAYS required
-npx tsc --noEmit
+# Build — ALWAYS required (catches TS errors + build issues)
+npm run build
 
 # ESLint — ALWAYS required
 npm run lint
@@ -64,6 +64,14 @@ git diff --name-only
 git status --short
 ```
 
+### Step 2.5: Simplify Quick-Scan (Active Duplicate Detection)
+
+For each **new function/export** in changed files:
+1. Grep `lib/utils/`, `lib/constants/`, `components/ui/`, and adjacent files for similar names/signatures
+2. Flag any duplicate as BLOCKER (Lens 3 "Code reuse" — but caught here via active search, not passive review)
+
+This is NOT a full `/simplify` audit — it's a targeted grep for the highest-value check. Full `/simplify` remains available for deep reviews.
+
 ### Step 3: 4-Lens Review
 
 For each changed file, apply all 4 lenses:
@@ -85,10 +93,15 @@ For each changed file, apply all 4 lenses:
 | Check | SEIDO-Specific | Severity |
 |-------|----------------|----------|
 | N+1 queries | Lists must batch with Promise.all (Learning #008) | WARNING |
+| Missed parallelism | Independent async ops must use Promise.all | WARNING |
+| TOCTOU anti-pattern | Operate directly, handle errors (no check-then-act) | WARNING |
+| Redundant DB queries | Same data fetched twice in same request | WARNING |
+| Overly broad queries | Loading all when filtering for one | WARNING |
 | Separate queries pattern | Nested relations with RLS (Learning #004) | WARNING |
 | Pagination | Large datasets must be paginated | WARNING |
 | Client bundle | Minimize 'use client' directives | WARNING |
 | Image optimization | Next/Image for all images | INFO |
+| Memory leaks | Event listeners / subscriptions not cleaned up on unmount | WARNING |
 | Realtime channels | Single RealtimeProvider, no duplicate channels | WARNING |
 
 #### Lens 3: Patterns (VETO on critical)
@@ -96,6 +109,12 @@ For each changed file, apply all 4 lenses:
 | Check | SEIDO-Specific | Severity |
 |-------|----------------|----------|
 | Repository Pattern | No direct Supabase calls in components | BLOCKER |
+| Code reuse | New function duplicates existing utility (grep first!) | BLOCKER |
+| Redundant state | State derived from existing state — compute instead | WARNING |
+| Parameter sprawl | Adding params instead of generalizing | WARNING |
+| Copy-paste variation | Near-duplicate code blocks — extract shared abstraction | WARNING |
+| Stringly-typed code | Raw strings where constants/enums exist | WARNING |
+| `any` / `console.log` | Must be properly typed; remove debug logging | BLOCKER |
 | Server Components default | 'use client' only when necessary | WARNING |
 | Module Facade | Files > 500 lines must be split | BLOCKER |
 | Naming conventions | kebab-case files, handleX events, const functions | WARNING |
@@ -148,6 +167,21 @@ For each changed file, apply all 4 lenses:
 
 **Recommendation:** [APPROVED ✅ | FIX BLOCKERS ❌]
 ```
+
+### Step 4.5: Knowledge Capture Check
+
+After all blockers/warnings are resolved and before committing, review the work for learnings to persist:
+
+| Question | If YES → Action |
+|----------|-----------------|
+| Did we discover a non-obvious pitfall or pattern? | → **Compound:** Add learning to `AGENTS.md` via `sp-compound` |
+| Did we learn something about the user, project, or external reference? | → **Memory Bank:** Save to `.claude/projects/.../memory/` (user, project, feedback, or reference type) |
+| Did this work reveal a missing or wrong instruction in CLAUDE.md? | → **CLAUDE.md:** Update the relevant section |
+| Did an agent or skill behave incorrectly or miss something important? | → **Agent/Skill:** Update the `.claude/agents/*.md` or `.claude/skills/*/SKILL.md` file |
+| Did we establish a new reusable pattern (code or process)? | → **systemPatterns.md:** Add to memory-bank patterns |
+
+**If nothing to persist** — skip silently and proceed to commit.
+**If learnings found** — apply them NOW (before commit), so the commit includes both the feature AND the knowledge updates.
 
 ### Step 5: User Decision
 
@@ -202,6 +236,11 @@ These are the most common issues caught by the quality gate in SEIDO:
 5. **Missing notification integration** for workflow changes — Patterns WARNING
 6. **Push notification URLs without role prefix** — Patterns WARNING
 7. **'use client' on pages that could be Server Components** — Patterns WARNING
+8. **Duplicate utility function** created when one already exists — Patterns BLOCKER
+9. **Missed `Promise.all`** for independent async operations — Performance WARNING
+10. **`any` types or `console.log`** left in production code — Patterns BLOCKER
+11. **Redundant DB query** (same data fetched twice in same handler) — Performance WARNING
+12. **Inline styles or hardcoded colors** instead of Tailwind/CSS variables — Patterns WARNING
 
 ## Remember
 

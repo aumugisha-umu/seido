@@ -79,12 +79,40 @@
       "WebFetch(domain:stripe.com)",
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:bengrab.au)",
-      "WebFetch(domain:uxpatterns.dev)"
+      "WebFetch(domain:uxpatterns.dev)",
+      "WebFetch(domain:www.plivo.com)",
+      "WebFetch(domain:doc.didww.com)",
+      "WebFetch(domain:www.anthropic.com)",
+      "WebFetch(domain:www.smsgatewayapi.eu)",
+      "WebFetch(domain:developers.facebook.com)",
+      "Bash(gh run:*)"
     ],
     "deny": [],
     "ask": []
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/scripts/block-dangerous-commands.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/scripts/block-secret-writes.js",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",

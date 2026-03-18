@@ -111,7 +111,7 @@ export function IndependentLotsStepV2({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {lots.map((lot, index) => {
             const isExpanded = expandedLots[lot.id] || false
-            const lotNumber = lots.length - index
+            const lotNumber = index + 1
 
             return (
               <div

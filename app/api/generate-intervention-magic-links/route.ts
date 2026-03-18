@@ -188,34 +188,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update intervention status to quote request if any links were generated successfully
+    // Update intervention quote metadata if any links were generated successfully
+    // Note: status stays as 'approuvee' — quote tracking is via intervention_quotes table, not status
     if (magicLinkResults.length > 0) {
-      logger.info("🔄 Updating intervention status to 'demande_de_devis'...")
+      logger.info("🔄 Updating intervention quote metadata (requires_quote)...")
 
       await supabase
         .from('interventions')
         .update({
-          status: 'demande_de_devis' as Database['public']['Enums']['intervention_status'],
+          requires_quote: true,
           quote_deadline: deadline || null,
           quote_notes: additionalNotes || null,
           updated_at: new Date().toISOString()
         })
         .eq('id', interventionId)
 
-      logger.info({}, "✅ Intervention status updated to quote request")
-
-      // Send status change notification
-      try {
-        await notificationService.notifyInterventionStatusChanged(
-          intervention,
-          'approuvee',
-          'demande_de_devis',
-          user.id
-        )
-        logger.info({}, "📧 Status change notifications sent")
-      } catch (notifError) {
-        logger.warn({ notifError: notifError }, "⚠️ Could not send status notifications:")
-      }
+      logger.info({}, "✅ Intervention quote metadata updated")
     }
 
     const successCount = magicLinkResults.length
@@ -232,7 +220,7 @@ export async function POST(request: NextRequest) {
       },
       intervention: {
         id: intervention.id,
-        status: 'demande_de_devis',
+        status: intervention.status,
         quote_deadline: deadline,
         updated_at: new Date().toISOString()
       }

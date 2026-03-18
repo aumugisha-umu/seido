@@ -18,6 +18,7 @@ import {
   validateNumber
 } from '../core/service-types'
 import { logger } from '@/lib/logger'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 
 const logInfo = (msg: string, data?: object) => logger.info(msg, data)
 const logDebug = (msg: string, data?: object) => logger.debug(msg, data)
@@ -318,7 +319,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select('*, address_record:address_id!inner(*)')
-      .or(`name.ilike.%${query}%,address_id.street.ilike.%${query}%,address_id.city.ilike.%${query}%,address_id.formatted_address.ilike.%${query}%`)
+      .or(`name.ilike.%${sanitizeSearch(query)}%,address_id.street.ilike.%${sanitizeSearch(query)}%,address_id.city.ilike.%${sanitizeSearch(query)}%,address_id.formatted_address.ilike.%${sanitizeSearch(query)}%`)
 
     if (options?.teamId) {
       queryBuilder = queryBuilder.eq('team_id', options.teamId)
@@ -335,7 +336,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       const fallbackQuery = this.supabase
         .from(this.tableName)
         .select('*, address_record:address_id(*)')
-        .ilike('name', `%${query}%`)
+        .ilike('name', `%${sanitizeSearch(query)}%`)
 
       if (options?.teamId) {
         fallbackQuery.eq('team_id', options.teamId)
@@ -448,7 +449,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select('*, address_record:address_id!inner(*)')
-      .ilike('address_id.city', city)
+      .ilike('address_id.city', sanitizeSearch(city))
 
     if (options?.teamId) {
       queryBuilder = queryBuilder.eq('team_id', options.teamId)

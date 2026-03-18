@@ -3,7 +3,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { User } from 'lucide-react'
-import type { ContactWithCompany, RoleConfig, CategoryOption } from './types'
+import type { ContactWithCompany, RoleConfig } from './types'
+import { getProviderCategoryIcon } from './constants'
 
 interface ContactInfoCardProps {
   contact: ContactWithCompany
@@ -73,7 +74,8 @@ export function ContactInfoCard({
         {contact.provider_category && (
           <div className="flex justify-between">
             <span className="text-muted-foreground text-sm">Catégorie</span>
-            <Badge variant="outline" className="text-xs bg-muted text-foreground border-border">
+            <Badge variant="outline" className="text-xs bg-muted text-foreground border-border gap-1.5">
+              {(() => { const Icon = getProviderCategoryIcon(contact.provider_category); return <Icon className="h-3 w-3" /> })()}
               {getProviderCategoryLabel(contact.provider_category)}
             </Badge>
           </div>

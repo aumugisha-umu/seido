@@ -5,16 +5,10 @@ import { createAddressService, type GooglePlaceAddress } from '@/lib/services/do
 import { createServiceRoleSubscriptionService } from '@/lib/services/domain/subscription-helpers'
 import type { LotInsert, ContactInvitationData, Building } from '@/lib/services'
 import { logger } from '@/lib/logger'
-import { revalidateTag, revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 /**
  * Server Action pour assigner un contact à un lot
- * Utilise le contexte de requête serveur pour accéder aux cookies (auth session)
- *
- * @param lotId - ID du lot
- * @param userId - ID de l'utilisateur/contact
- * @param isPrimary - Si ce contact est le contact principal (défaut: false)
  */
 export async function assignContactToLotAction(
   lotId: string,
@@ -22,42 +16,12 @@ export async function assignContactToLotAction(
   isPrimary = false
 ) {
   try {
-    logger.info(`[SERVER-ACTION] Assigning contact ${userId} to lot ${lotId} (isPrimary: ${isPrimary})`)
-
-    // Créer le service avec le client Supabase Server Action (accès aux cookies)
     const contactService = await createServerActionContactService()
     const result = await contactService.addContactToLot(lotId, userId, isPrimary)
 
     if (!result.success) {
       logger.error(`[SERVER-ACTION] Failed to assign contact:`, result.error)
       return { success: false, error: result.error?.message || 'Assignment failed' }
-    }
-
-    logger.info(`[SERVER-ACTION] Contact assigned successfully`)
-
-    // ✅ Revalidate lot page cache
-    revalidatePath(`/gestionnaire/biens/lots/${lotId}`)
-    revalidateTag('lots')
-    revalidateTag(`lot-${lotId}`)
-
-    // ✅ Revalidate building page if lot belongs to a building
-    try {
-      const supabase = await createServerActionSupabaseClient()
-      const { data: lotData } = await supabase
-        .from('lots')
-        .select('building_id')
-        .eq('id', lotId)
-        .single()
-
-      if (lotData?.building_id) {
-        revalidatePath(`/gestionnaire/biens/immeubles/${lotData.building_id}`)
-        revalidateTag(`building-${lotData.building_id}`)
-        revalidateTag('buildings')
-        logger.info(`[SERVER-ACTION] Revalidated building cache: ${lotData.building_id}`)
-      }
-    } catch (error) {
-      logger.warn('[SERVER-ACTION] Could not revalidate building cache:', error)
-      // Don't fail the action if revalidation fails
     }
 
     return { success: true, data: result.data }
@@ -71,6 +35,45 @@ export async function assignContactToLotAction(
 }
 
 /**
+ * Server Action pour assigner plusieurs contacts à un lot en batch
+ * Évite N round-trips serveur (1 seul appel au lieu de N)
+ */
+export async function batchAssignContactsToLotAction(
+  assignments: Array<{ lotId: string; userId: string; isPrimary: boolean }>
+) {
+  if (assignments.length === 0) return { success: true, results: [] }
+
+  try {
+    const contactService = await createServerActionContactService()
+
+    const results = await Promise.allSettled(
+      assignments.map(({ lotId, userId, isPrimary }) =>
+        contactService.addContactToLot(lotId, userId, isPrimary)
+      )
+    )
+
+    const successCount = results.filter(r => r.status === 'fulfilled' && r.value?.success).length
+    logger.info(`[SERVER-ACTION] Batch assigned ${successCount}/${assignments.length} contacts`)
+
+    return {
+      success: true,
+      results: results.map((r, i) => ({
+        ...assignments[i],
+        success: r.status === 'fulfilled' && r.value?.success,
+        error: r.status === 'rejected' ? String(r.reason) : undefined,
+      })),
+    }
+  } catch (error) {
+    logger.error('[SERVER-ACTION] Exception in batchAssignContactsToLotAction:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      results: [],
+    }
+  }
+}
+
+/**
  * Server Action pour créer un lot
  * Utilise le contexte de requête serveur pour accéder aux cookies (auth session)
  *
@@ -79,11 +82,11 @@ export async function assignContactToLotAction(
  */
 export async function createLotAction(
   lotData: LotInsert,
-  options?: { redirectTo?: string }
+  options?: { redirectTo?: string; skipSubscriptionCheck?: boolean }
 ) {
   try {
-    // ── Subscription limit check (defense-in-depth) ────────────────────
-    if (lotData.team_id) {
+    // ── Subscription limit check (defense-in-depth, skippable for batch) ──
+    if (lotData.team_id && !options?.skipSubscriptionCheck) {
       const subService = createServiceRoleSubscriptionService()
       const canAdd = await subService.canAddProperty(lotData.team_id)
       if (!canAdd.allowed) {
@@ -101,9 +104,6 @@ export async function createLotAction(
       }
     }
 
-    logger.info('[SERVER-ACTION] Creating lot with data:', lotData)
-
-    // Créer le service avec le client Supabase Server Action (accès aux cookies)
     const lotService = await createServerActionLotService()
     const result = await lotService.create(lotData)
 
@@ -118,67 +118,14 @@ export async function createLotAction(
       }
     }
 
-    logger.info('[SERVER-ACTION] Lot created successfully:', result.data)
+    // Cache invalidation is handled client-side via realtime broadcastInvalidation
 
-    // ✅ Revalidate cache tags and paths after successful creation
-    const createdLot = result.data
-    const teamId = lotData.team_id
-
-    // Always revalidate lots cache
-    revalidateTag('lots')
-
-    // Revalidate team-specific cache if team_id is available
-    if (teamId) {
-      revalidateTag(`lots-team-${teamId}`)
-    }
-
-    // If lot is linked to a building, revalidate building caches
-    const buildingId = createdLot?.building_id || lotData.building_id
-    if (buildingId) {
-      revalidateTag('buildings')
-      revalidateTag(`building-${buildingId}`)
-
-      // Get building team_id to invalidate team-specific caches
-      try {
-        const supabase = await createServerActionSupabaseClient()
-        const { data: buildingData } = await supabase
-          .from('buildings')
-          .select('team_id')
-          .eq('id', buildingId)
-          .single()
-
-        if (buildingData?.team_id) {
-          revalidateTag(`buildings-team-${buildingData.team_id}`)
-          // Also revalidate lots cache for the building's team
-          if (buildingData.team_id !== teamId) {
-            revalidateTag(`lots-team-${buildingData.team_id}`)
-          }
-        }
-        revalidatePath(`/gestionnaire/biens/immeubles/${buildingId}`)
-      } catch (error) {
-        logger.warn('[SERVER-ACTION] Could not fetch building data for cache invalidation:', error)
-      }
-    }
-
-    // Revalidate main patrimoine pages
-    revalidatePath('/gestionnaire/biens')
-    revalidatePath('/gestionnaire/biens/lots')
-
-    // Revalidate lot detail page if lot ID is available
-    if (createdLot?.id) {
-      revalidatePath(`/gestionnaire/biens/lots/${createdLot.id}`)
-    }
-
-    logger.info('[SERVER-ACTION] Cache invalidated for lot creation')
-
-    // ✅ Redirection server-side si demandée (pattern Next.js 15)
     if (options?.redirectTo) {
       redirect(options.redirectTo)
     }
 
     return { success: true, data: result.data }
   } catch (error) {
-    // ✅ redirect() throws NEXT_REDIRECT - propager normalement
     if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
       throw error
     }
@@ -266,27 +213,21 @@ export async function getBuildingWithRelations(buildingId: string): Promise<{
       }
     }
 
+    const buildingWithContacts = result.data as Building & {
+      building_contacts?: Array<{
+        user: { id: string; name?: string; email: string; role: string; phone?: string; speciality?: string }
+      }>
+    }
+
     logger.info('✅ [SERVER-ACTION] Building loaded with relations:', {
-      buildingId: result.data.id,
-      buildingName: result.data.name,
-      contactsCount: (result.data as any).building_contacts?.length || 0,
-      buildingContacts: (result.data as any).building_contacts
+      buildingId: buildingWithContacts.id,
+      buildingName: buildingWithContacts.name,
+      contactsCount: buildingWithContacts.building_contacts?.length || 0,
     })
 
     return {
       success: true,
-      building: result.data as Building & {
-        building_contacts?: Array<{
-          user: {
-            id: string
-            name?: string
-            email: string
-            role: string
-            phone?: string
-            speciality?: string
-          }
-        }>
-      }
+      building: buildingWithContacts
     }
 
   } catch (error) {
@@ -295,6 +236,41 @@ export async function getBuildingWithRelations(buildingId: string): Promise<{
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
     }
+  }
+}
+
+/**
+ * Server Action pour récupérer les documents existants d'un immeuble
+ */
+export async function getBuildingExistingDocuments(buildingId: string): Promise<{
+  success: boolean
+  documents?: Array<{
+    id: string
+    document_type: string
+    original_filename: string
+    uploaded_at: string
+    storage_path: string
+  }>
+  error?: string
+}> {
+  try {
+    const supabase = await createServerActionSupabaseClient()
+    const { data, error } = await supabase
+      .from('property_documents')
+      .select('id, document_type, original_filename, uploaded_at, storage_path')
+      .eq('building_id', buildingId)
+      .is('deleted_at', null)
+      .order('uploaded_at', { ascending: false })
+
+    if (error) {
+      logger.error('❌ [SERVER-ACTION] Error fetching building documents:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, documents: data || [] }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Unexpected error fetching building documents:', error)
+    return { success: false, error: 'Unknown error' }
   }
 }
 

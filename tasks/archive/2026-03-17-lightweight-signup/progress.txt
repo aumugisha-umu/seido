@@ -1,0 +1,86 @@
+# Progress Log — Lightweight Signup + Deferred Profile Completion
+# Started: 2026-03-16
+# Stories: 5 total (lightweight signup) + ongoing fixes
+---
+
+## 2026-03-16 — US-001: Admin notification service core + MRR helper + HTML builder
+- Implemented: 3 files — service (4 methods), MRR calculator (individual + platform), HTML builder (colored badges, data tables)
+- Files: lib/services/domain/admin-notification/{admin-notification.service.ts, admin-mrr.helper.ts, admin-email-builder.ts}
+- Learnings: Used Resend directly for raw HTML (no React Email pipeline needed for internal alerts). Price constants initially duplicated from lib/stripe.ts — fixed in simplify.
+- Decision: Separate service from SubscriptionEmailService — different audience (platform owner vs team admin), different format (raw HTML vs React Email templates)
+
+## 2026-03-16 — US-002: Integrate signup flows (OAuth + Email)
+- Implemented: OAuth — fire-and-forget in completeOAuthProfileAction. Email — API route /api/internal/admin-signup-notification + set-password page fetch.
+- Files: app/auth/complete-profile/actions.ts, app/api/internal/admin-signup-notification/route.ts, app/auth/set-password/page.tsx
+- Learnings: Client Components can't call server-only code — API route bridge needed. Added 1-hour guard on created_at to prevent duplicate notifications.
+- Decision: API route with auth check vs cron polling — chose API route for real-time notification
+
+## 2026-03-16 — US-003: Integrate Stripe webhooks (created/updated/deleted)
+- Implemented: getTeamAdminDetails + sendSubscriptionAdminNotification helpers in webhook handler. Wired 3 events with MRR delta.
+- Files: lib/services/domain/stripe-webhook.handler.ts
+- Learnings: handleSubscriptionUpdated needs old lots BEFORE upsert — extra findByTeamId round-trip acceptable. Fire-and-forget must use void .catch(() => {}) in serverless.
+- Decision: Floating promises with .catch() over await — webhook response time matters more than guaranteed admin email delivery
+
+## 2026-03-16 — US-004: Integrate trial expiration cron
+- Implemented: Admin notification after each trial→free_tier/read_only transition. Includes intervention count.
+- Files: app/api/cron/trial-expiration/route.ts
+- Learnings: Service instantiation must be hoisted outside chunk loop. Intervention count query per subscription is N+1 but acceptable (max ~5 expirations/day).
+
+## 2026-03-16 — US-005: Env var + simplify review
+- Implemented: ADMIN_NOTIFICATION_EMAILS in .env.example. 8 fixes from simplify: price constants dedup, Resend singleton, floating promises, OAuth first_name/last_name, email null safety, service hoisting, type narrowing.
+- Files: .env.example, all 9 feature files
+- Learnings: Simplify review caught 6 critical issues (floating promises in serverless, 3rd Resend instance, duplicated constants, missing DB columns). Always run simplify after implementation.
+
+## 2026-03-16 — BUG: Subscription modal false-positive + full subscription gates audit
+- Implemented: Fixed loading race condition on canAddProperty (fail-open during loading), fixed UpgradeModal showing Stripe quantity as "Lots actuels" (now shows actual/subscribed), added try-catch fail-open on server-side lot page gate, applied `!subscriptionLoading && isReadOnly` pattern on contacts + interventions pages.
+- Files: biens-page-client.tsx, building-details-client.tsx, subscription.service.ts (previewUpgrade + UpgradePreview type), upgrade-modal.tsx, contacts-page-client.tsx, interventions-page-client.tsx, lots/nouveau/page.tsx
+- Learnings: Hook `?? false` defaults create invisible race conditions. Server actions provide defense-in-depth, so client gates should fail-open during loading. previewUpgrade() must distinguish actual DB count from Stripe subscription quantity.
+- Decision: Fail-open on loading for UX gates (server actions are the real security layer); fail-closed only after subscription data is fully loaded.
+
+## 2026-03-16 — UI: Confirmation Document List redesign (Material Design chips)
+- Implemented: Rewrote ConfirmationDocumentList from vertical list to horizontal flex-wrap chip layout. Unified supplier-confirmation-step.tsx to use shared component instead of custom Paperclip rendering.
+- Files: components/confirmation/confirmation-document-list.tsx, components/contract/supplier-confirmation-step.tsx
+- Learnings: Chip/pill pattern is much more space-efficient for document status display. Title attribute provides file details on hover without expanding layout.
+
+## 2026-03-17 — US-005: Complete-profile action (unified email + OAuth)
+- Implemented: Unified completeProfileAction handling both flows via isEmailSignup flag. Email: update name/phone on partial profile → create team → link+member+subscription (Promise.all). OAuth: preserved original create-all logic. Organization as team name. Admin notification fire-and-forget. Old export aliased.
+- Files: app/auth/complete-profile/actions.ts
+
+## 2026-03-17 — US-004: Unified complete-profile page
+- Implemented: Page checks team_id (not profile existence) to detect partial profiles. Form adds organization field + isEmailSignup hidden flag. Contextual title/subtitle per flow.
+- Files: app/auth/complete-profile/page.tsx, app/auth/complete-profile/complete-profile-form.tsx
+
+## 2026-03-17 — US-003: ConfirmFlow redirect to complete-profile
+- Implemented: Conditional redirect based on profileData.teamId — null → /auth/complete-profile, present → dashboard.
+- Files: components/auth/confirm-flow.tsx
+
+## 2026-03-17 — US-002: DB trigger handles partial profile
+- Implemented: Rewrote handle_new_user_confirmed() trigger with 3-branch IF: invitation → lightweight (partial) → full signup. Lightweight branch creates user with email prefix as name, NULL team_id, no subscription.
+- Files: supabase/migrations/20260317100000_team_name_from_organization.sql
+- Learnings: SPLIT_PART(email, '@', 1) is PostgreSQL-native email prefix extraction. ELSEIF cleaner than nested IF for 3-way branching.
+
+## 2026-03-17 — US-001: Lightweight signup form (email + password only)
+- Implemented: Stripped signup-form.tsx from 7 fields to 3 (email, password, confirmPassword) + terms checkbox. Simplified Zod schema in auth-actions.ts. Removed name/phone/org from auth metadata. Email prefix used as firstName fallback for confirmation email.
+- Files: app/auth/signup/signup-form.tsx, app/actions/auth-actions.ts
+- Cleaned: Removed unused imports (Phone, logError, useRouter, createServerTeamService)
+
+## 2026-03-17 — Feature: Rename contact type "autre" → "garant" + proprietaire fixes
+- Implemented: Replaced 'autre' contact type with 'garant' across wizard (4 files), API (Zod + mapping + contract linking), edit form, display constants. Added proprietaire to edit form + display constants. 0 migrations.
+- Files: lib/validation/schemas.ts, app/api/invite-user/route.ts, contact-creation-client.tsx, step-1-type.tsx, step-3-contact.tsx, step-4-confirmation.tsx, edit-contact-client.tsx, contact-details/constants.ts, lot-creation-form.tsx
+- Learnings: Zod schema is API contract layer independent of DB enums — garant accepted by Zod, mapped to prestataire in DB. Code review before implementation caught the critical Zod gap. User's "pas plus simple?" prevented over-engineering.
+- Decision: Keep same DB mapping (prestataire + provider_category='autre') for garant — no migration needed. Added 'garant' to Zod instead of hacking customRoleDescription as signal field.
+
+## 2026-03-17 — Feature: Avatar upload on complete-profile + avatar constants centralization
+- Implemented: Avatar upload in complete-profile form with client-side preview (Camera overlay on Avatar). Server-side upload via supabaseAdmin (bypasses RLS for just-created profiles). Centralized AVATAR_MAX_SIZE + AVATAR_ALLOWED_TYPES in lib/validation/schemas.ts.
+- Files: app/auth/complete-profile/complete-profile-form.tsx, app/auth/complete-profile/actions.ts, lib/validation/schemas.ts
+- Learnings: Avatar upload in server actions must use supabaseAdmin since RLS may not grant access to just-created profiles. URL.createObjectURL() leaks on re-upload without explicit revokeObjectURL.
+
+## 2026-03-17 — Feature: Three-layer incomplete profile guard
+- Implemented: Login action checks team_id, getServerAuthContext redirects when teams.length=0, getServerActionAuthContext redirects similarly. All redirect to /auth/complete-profile.
+- Files: app/actions/auth-actions.ts, lib/server-context.ts
+- Learnings: Defense-in-depth pattern — 3 independent checks at login, layout, and action level. Changed from /auth/unauthorized?reason=no_team to /auth/complete-profile for better UX.
+
+## 2026-03-17 — Simplify review: 8 fixes across lightweight signup files
+- Fixes: (1) `& {}` → NonNullable<> type annotations, (2) console.error → logger.error in confirm-flow, (3) avatar URL memory leak on re-upload, (4) avatar upload fire-and-forget (drop await), (5) comment on avatar ternary, (6) remove unused `name` column from page.tsx query, (7-8) avatar constants centralized from 3 locations → 1.
+- Files: actions.ts, complete-profile-form.tsx, confirm-flow.tsx, page.tsx
+- Learnings: Always run simplify after feature completion — caught 8 issues across 4 files including a memory leak and blocking I/O on redirect path.

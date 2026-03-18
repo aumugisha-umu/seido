@@ -9,7 +9,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Users, Home, User, Wrench, MoreHorizontal, Plus } from "lucide-react"
+import { Users, User, Wrench, MoreHorizontal, Plus } from "lucide-react"
 
 export interface ContactTypeOption {
   key: string
@@ -24,12 +24,6 @@ export const contactTypeOptions: ContactTypeOption[] = [
     label: "Gestionnaire",
     icon: Users,
     description: "Gestionnaire de l'immeuble ou du lot",
-  },
-  {
-    key: "owner",
-    label: "Propriétaire",
-    icon: Home,
-    description: "Propriétaire du bien immobilier",
   },
   {
     key: "tenant",
@@ -65,7 +59,7 @@ interface ContactTypeDropdownProps {
  * 📋 Contact Type Dropdown
  *
  * Dropdown menu pour sélectionner le type de contact avant d'ouvrir le ContactSelector.
- * Affiche les 5 types disponibles : Gestionnaire, Propriétaire, Locataire, Prestataire, Autre.
+ * Affiche les 4 types disponibles : Gestionnaire, Locataire, Prestataire, Autre.
  */
 export function ContactTypeDropdown({
   onTypeSelect,

@@ -19,12 +19,30 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 
-/**
- * Security headers pour les réponses HTML
- * - X-Content-Type-Options: Empêche le navigateur d'interpréter le type MIME différemment
- * - X-Frame-Options: Protège contre le clickjacking
- * - Referrer-Policy: Contrôle les informations Referer envoyées
- */
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 20
+const RATE_LIMIT_MAP_MAX = 1000
+
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+const checkRateLimit = (ip: string): boolean => {
+  const now = Date.now()
+
+  if (rateLimitMap.size > RATE_LIMIT_MAP_MAX) {
+    for (const [key, val] of rateLimitMap) {
+      if (val.resetAt < now) rateLimitMap.delete(key)
+    }
+  }
+
+  const entry = rateLimitMap.get(ip)
+  if (!entry || entry.resetAt < now) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS })
+    return true
+  }
+  entry.count++
+  return entry.count <= RATE_LIMIT_MAX
+}
+
 const SECURITY_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8',
   'X-Content-Type-Options': 'nosniff',
@@ -54,6 +72,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: documentId } = await params
+
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  if (!checkRateLimit(ip)) {
+    return new NextResponse('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } })
+  }
 
   logger.info({ documentId }, '📥 [DOWNLOAD-DOC] Direct download request')
 

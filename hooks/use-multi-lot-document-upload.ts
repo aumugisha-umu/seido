@@ -10,15 +10,11 @@ import { useState, useMemo, useCallback } from 'react'
 import { logger } from '@/lib/logger'
 import type { GenericFileWithPreview, GenericDocumentSlotConfig, GenericDocumentSlotState, DocumentProgress } from '@/components/documents/types'
 import type { UsePropertyDocumentUploadReturn } from '@/hooks/use-property-document-upload'
+import { computeExpiryDate } from '@/lib/constants/property-document-slots'
 
-const ALLOWED_MIME_TYPES = [
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-]
+import { ALLOWED_DOCUMENT_MIME_TYPES } from '@/lib/constants/mime-types'
+
+const ALLOWED_MIME_TYPES = ALLOWED_DOCUMENT_MIME_TYPES
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 interface UseMultiLotDocumentUploadOptions {
@@ -101,13 +97,22 @@ export const useMultiLotDocumentUpload = ({
           onUploadError?.(`"${file.name}" déjà ajouté`)
           return
         }
+        // Auto-fill documentDate + validityDuration for slots with expiry
+        const slotConfig = slotConfigs.find(s => s.type === slotType)
+        const hasSlotExpiry = slotConfig?.hasExpiry
+        const defaultDuration = slotConfig?.defaultValidityYears ? slotConfig.defaultValidityYears * 12 : undefined
+
         validated.push({
           id: `${lotId}-${slotType}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           file,
           documentType: slotType,
           progress: 0,
           status: 'pending',
-          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+          ...(hasSlotExpiry && {
+            documentDate: new Date().toISOString().split('T')[0],
+            validityDuration: defaultDuration
+          })
         })
       })
       if (validated.length > 0) {
@@ -130,20 +135,29 @@ export const useMultiLotDocumentUpload = ({
       })
     }
 
-    const setFileExpiryDate = (fileId: string, date: string | undefined) => {
+    const setSlotDocumentDate = (slotType: string, date: string | undefined) => {
       setFilesByLot(prev => {
         const next = new Map(prev)
         const current = next.get(lotId) || []
-        next.set(lotId, current.map(f => f.id === fileId ? { ...f, expiryDate: date } : f))
+        next.set(lotId, current.map(f => f.documentType === slotType ? { ...f, documentDate: date } : f))
         return next
       })
     }
 
-    const setSlotExpiryDate = (slotType: string, date: string | undefined) => {
+    const setSlotValidityDuration = (slotType: string, duration: number | undefined) => {
       setFilesByLot(prev => {
         const next = new Map(prev)
         const current = next.get(lotId) || []
-        next.set(lotId, current.map(f => f.documentType === slotType ? { ...f, expiryDate: date } : f))
+        next.set(lotId, current.map(f => f.documentType === slotType ? { ...f, validityDuration: duration } : f))
+        return next
+      })
+    }
+
+    const setSlotCustomExpiry = (slotType: string, date: string | undefined) => {
+      setFilesByLot(prev => {
+        const next = new Map(prev)
+        const current = next.get(lotId) || []
+        next.set(lotId, current.map(f => f.documentType === slotType ? { ...f, validityCustomExpiry: date } : f))
         return next
       })
     }
@@ -170,7 +184,9 @@ export const useMultiLotDocumentUpload = ({
           formData.append('team_id', effectiveTeamId)
           formData.append('document_type', fileState.documentType)
           formData.append('title', `${fileState.documentType} - ${fileState.file.name}`)
-          if (fileState.expiryDate) formData.append('expiry_date', fileState.expiryDate)
+          const computedExpiry = computeExpiryDate(fileState.documentDate, fileState.validityDuration, fileState.validityCustomExpiry)
+          if (computedExpiry) formData.append('expiry_date', computedExpiry)
+          if (fileState.documentDate) formData.append('document_date', fileState.documentDate)
 
           const res = await fetch('/api/property-documents/upload', { method: 'POST', body: formData })
           if (!res.ok) {
@@ -219,8 +235,9 @@ export const useMultiLotDocumentUpload = ({
       filesByType,
       addFilesToSlot,
       removeFileFromSlot,
-      setFileExpiryDate,
-      setSlotExpiryDate,
+      setSlotDocumentDate,
+      setSlotValidityDuration,
+      setSlotCustomExpiry,
       uploadFiles,
       clearFiles,
       progress,

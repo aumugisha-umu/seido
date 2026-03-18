@@ -3,7 +3,7 @@
 import React from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Building, Wrench, Home, UserCircle } from "lucide-react"
+import { Building, Wrench, Home } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { ContactSection } from "@/components/ui/contact-section"
 import type { User as UserType } from "@/lib/services/core/service-types"
@@ -30,8 +30,8 @@ interface Contact {
  *
  * Key Features:
  * ✅ Badge "Immeuble" + Nom + Badges colorés par type (style identique aux lots)
- * ✅ Badges colorés: Gestionnaires (violet), Prestataires (vert), Propriétaires (orange), Autres (gris)
- * ✅ Grid horizontal 4 colonnes sur desktop
+ * ✅ Badges colorés: Gestionnaires (violet), Prestataires (vert), Autres (gris)
+ * ✅ Grid horizontal 3 colonnes sur desktop
  * ✅ ContactSection réutilisable pour chaque type de contact
  * ✅ Scrollable après 3 contacts, bouton toujours visible
  * ✅ Typographie plus grande (text-base au lieu de text-sm)
@@ -50,9 +50,8 @@ interface BuildingContactCardV3Props {
 
   // Building contacts by type
   providers: Contact[]
-  owners: Contact[]
   others: Contact[]
-  onAddContact?: (contactType: 'provider' | 'owner' | 'other') => void
+  onAddContact?: (contactType: 'provider' | 'owner') => void
   onRemoveContact?: (contactId: string, contactType: string) => void
 
   // Read-only mode (for confirmation view)
@@ -68,7 +67,6 @@ export function BuildingContactCardV3({
   onAddManager,
   onRemoveManager,
   providers,
-  owners,
   others,
   onAddContact,
   onRemoveContact,
@@ -133,27 +131,15 @@ export function BuildingContactCardV3({
               </Tooltip>
             )}
 
-            {owners.length > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700 border border-orange-300 font-medium px-2 py-0.5 cursor-help">
-                    <Home className="w-3.5 h-3.5 mr-1" />
-                    {owners.length}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent side="top"><p className="text-xs">Propriétaires</p></TooltipContent>
-              </Tooltip>
-            )}
-
             {others.length > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700 border border-gray-300 font-medium px-2 py-0.5 cursor-help">
-                    <UserCircle className="w-3.5 h-3.5 mr-1" />
+                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border border-amber-300 font-medium px-2 py-0.5 cursor-help">
+                    <Home className="w-3.5 h-3.5 mr-1" />
                     {others.length}
                   </Badge>
                 </TooltipTrigger>
-                <TooltipContent side="top"><p className="text-xs">Autres contacts</p></TooltipContent>
+                <TooltipContent side="top"><p className="text-xs">Propriétaires</p></TooltipContent>
               </Tooltip>
             )}
           </div>
@@ -162,8 +148,8 @@ export function BuildingContactCardV3({
 
       {/* Content - Always Visible with Horizontal Grid on Desktop */}
       <CardContent className="p-3 pt-0">
-        {/* Responsive Grid: Vertical on mobile, 4 columns on desktop */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
+        {/* Responsive Grid: Vertical on mobile, 3 columns on desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
           {/* Building Managers Section */}
           <ContactSection
             sectionType="managers"
@@ -184,21 +170,12 @@ export function BuildingContactCardV3({
             readOnly={readOnly}
           />
 
-          {/* Owners Section */}
-          <ContactSection
-            sectionType="owners"
-            contacts={owners}
-            onAddContact={onAddContact ? () => onAddContact('owner') : undefined}
-            onRemoveContact={onRemoveContact ? (contactId) => onRemoveContact(contactId, 'owner') : undefined}
-            readOnly={readOnly}
-          />
-
           {/* Others Section */}
           <ContactSection
             sectionType="others"
             contacts={others}
-            onAddContact={onAddContact ? () => onAddContact('other') : undefined}
-            onRemoveContact={onRemoveContact ? (contactId) => onRemoveContact(contactId, 'other') : undefined}
+            onAddContact={onAddContact ? () => onAddContact('owner') : undefined}
+            onRemoveContact={onRemoveContact ? (contactId) => onRemoveContact(contactId, 'owner') : undefined}
             readOnly={readOnly}
           />
         </div>

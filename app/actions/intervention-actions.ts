@@ -312,7 +312,8 @@ export async function createInterventionAction(
           ? data.requested_date.toISOString().split('T')[0] + 'T09:00:00.000Z'
           : null,
         // ✅ Méthode de planification directe si pré-planifié (valeurs: 'direct', 'slots', 'flexible')
-        scheduling_method: isPreScheduled ? 'direct' : null
+        scheduling_method: isPreScheduled ? 'direct' : null,
+        creation_source: 'wizard'
       })
       .select()
       .single()

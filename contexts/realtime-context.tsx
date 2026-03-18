@@ -48,6 +48,8 @@ import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/
 import { createBrowserSupabaseClient } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { toast } from 'sonner'
+import type { DataEntity, InvalidationPayload } from '@/lib/data-invalidation'
+import { BROADCAST_EVENT } from '@/lib/data-invalidation'
 
 // ============================================================================
 // Types
@@ -93,6 +95,12 @@ interface RealtimeContextType {
 
   /** Se désabonner manuellement via l'ID du handler */
   unsubscribe: (handlerId: string) => void
+
+  /** Broadcast invalidation signal to all team members */
+  broadcastInvalidation: (entities: DataEntity[]) => void
+
+  /** Subscribe to invalidation events for specific entities. Returns cleanup. */
+  onInvalidation: (entities: DataEntity[], callback: () => void) => () => void
 }
 
 // ============================================================================
@@ -131,6 +139,10 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
   const disconnectedSinceRef = useRef<number | null>(null)
   const warningToastShownRef = useRef(false)
   const warningCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const teamChannelRef = useRef<RealtimeChannel | null>(null)
+  const invalidationHandlersRef = useRef<Map<string, { entities: DataEntity[]; callback: () => void }>>(new Map())
+  const pendingEntitiesRef = useRef<Set<DataEntity>>(new Set())
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const MAX_RECONNECT_ATTEMPTS = 5
   const DISCONNECTED_WARNING_THRESHOLD_MS = 5000 // 5 seconds
 
@@ -354,10 +366,107 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
   }, [userId, teamId, dispatchEvent])
 
   // ──────────────────────────────────────────────────────────────────────────
+  // Team broadcast channel for data invalidation
+  // ──────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!teamId) return
+
+    const supabase = supabaseRef.current
+
+    const teamChannel = supabase
+      .channel(`seido-team:${teamId}`)
+      .on('broadcast', { event: BROADCAST_EVENT }, (payload) => {
+        const data = payload.payload as InvalidationPayload
+        if (!data?.entities) return
+
+        logger.info(`[REALTIME] Received invalidation for: ${data.entities.join(', ')}`)
+
+        // Collect entities and debounce dispatch (500ms).
+        // This ensures each handler is called at most ONCE per debounce window,
+        // even if multiple entities match the same handler.
+        for (const entity of data.entities) {
+          pendingEntitiesRef.current.add(entity)
+        }
+
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+        debounceTimerRef.current = setTimeout(() => {
+          debounceTimerRef.current = null
+          const pending = new Set(pendingEntitiesRef.current)
+          pendingEntitiesRef.current.clear()
+
+          // Dispatch: each handler called at most once if ANY of its entities match
+          invalidationHandlersRef.current.forEach((handler) => {
+            const hasMatch = handler.entities.some((e) => pending.has(e))
+            if (hasMatch) {
+              try {
+                handler.callback()
+              } catch (err) {
+                logger.error('[REALTIME] Invalidation handler error', { err })
+              }
+            }
+          })
+        }, 500)
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          logger.info(`[REALTIME] Team broadcast channel connected: seido-team:${teamId}`)
+        }
+      })
+
+    teamChannelRef.current = teamChannel
+
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+      pendingEntitiesRef.current.clear()
+
+      supabase.removeChannel(teamChannel)
+      teamChannelRef.current = null
+    }
+  }, [teamId])
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Broadcast Invalidation - Signal all team members to refetch data
+  // ──────────────────────────────────────────────────────────────────────────
+  const broadcastInvalidation = useCallback((entities: DataEntity[]) => {
+    if (!teamChannelRef.current) {
+      logger.warn('[REALTIME] Cannot broadcast — team channel not connected')
+      return
+    }
+
+    const payload: InvalidationPayload = {
+      type: BROADCAST_EVENT,
+      entities,
+      triggeredBy: userId,
+      timestamp: Date.now()
+    }
+
+    teamChannelRef.current.send({
+      type: 'broadcast',
+      event: BROADCAST_EVENT,
+      payload
+    })
+
+    logger.info(`[REALTIME] Broadcasted invalidation: ${entities.join(', ')}`)
+  }, [userId])
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // On Invalidation - Subscribe to invalidation events for specific entities
+  // ──────────────────────────────────────────────────────────────────────────
+  const onInvalidation = useCallback((entities: DataEntity[], callback: () => void) => {
+    const id = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
+    invalidationHandlersRef.current.set(id, { entities, callback })
+
+    return () => {
+      invalidationHandlersRef.current.delete(id)
+    }
+  }, [])
+
+  // ──────────────────────────────────────────────────────────────────────────
   // Subscribe - Permet aux consumers de s'abonner à des événements
   // ──────────────────────────────────────────────────────────────────────────
   const subscribe = useCallback(<T,>(handler: Omit<RealtimeHandler<T>, 'id'>) => {
-    const id = `handler_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const id = `handler_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
 
     handlersRef.current.set(id, { ...handler, id } as RealtimeHandler)
 
@@ -387,8 +496,8 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
   // Without useMemo, a new object is created on every render, causing all
   // useContext consumers to re-render and re-subscribe in a loop.
   const contextValue = useMemo(
-    () => ({ isConnected, connectionStatus, subscribe, unsubscribe }),
-    [isConnected, connectionStatus, subscribe, unsubscribe]
+    () => ({ isConnected, connectionStatus, subscribe, unsubscribe, broadcastInvalidation, onInvalidation }),
+    [isConnected, connectionStatus, subscribe, unsubscribe, broadcastInvalidation, onInvalidation]
   )
 
   return (

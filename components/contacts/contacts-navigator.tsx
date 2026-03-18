@@ -15,7 +15,9 @@ import {
 } from '@/config/table-configs/contacts.config'
 import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
-import { Users, Send, Building2, Search, Filter, Archive, Mail, RefreshCw, XCircle, UserX } from 'lucide-react'
+import { DataCards } from '@/components/ui/data-table/data-cards'
+import { ContactCardMobile, InvitationCardMobile, CompanyCardMobile } from './contact-card-mobile'
+import { Users, Send, Building2, Search, Filter, LayoutGrid, List, Archive, Mail, RefreshCw, XCircle, UserX } from 'lucide-react'
 import {
     Popover,
     PopoverContent,
@@ -36,8 +38,8 @@ import { cn } from '@/lib/utils'
 // ============================================================================
 // Block:    contacts-section
 // Elements: contacts-section__content, __tabs, __tab, __controls, __search,
-//           __filter-btn, __add-btn, __data
-// Modifiers: contacts-section__tab--active, __filter-btn--active
+//           __filter-btn, __view-switcher, __view-btn, __add-btn, __data
+// Modifiers: contacts-section__tab--active, __view-btn--active, __filter-btn--active
 // ============================================================================
 
 interface ContactsNavigatorProps {
@@ -168,14 +170,32 @@ export function ContactsNavigator({
         handleFilterChange,
         resetFilters,
         activeFilterCount,
+        viewMode,
+        setViewMode,
         mounted,
         filteredData,
-        createRowClickHandler
+        createRowClickHandler,
+        createRowHoverHandler
     } = useDataNavigator({
         data: currentData,
         searchableFields: currentConfig.searchConfig.searchableFields as string[],
-        defaultView: 'list'
+        defaultView: 'cards'
     })
+
+    // Render mobile cards based on active tab
+    const renderMobileCards = (data: any[]) => {
+        if (data.length === 0 && !loading) {
+            return <p className="text-sm text-muted-foreground text-center py-8">Aucun élément à afficher</p>
+        }
+        switch (activeTab) {
+            case 'contacts':
+                return (data as ContactData[]).map(c => <ContactCardMobile key={c.id} contact={c} />)
+            case 'invitations':
+                return (data as InvitationData[]).map(i => <InvitationCardMobile key={i.id} invitation={i} />)
+            case 'companies':
+                return (data as CompanyData[]).map(c => <CompanyCardMobile key={c.id} company={c} />)
+        }
+    }
 
     // Render content based on view mode
     const renderContent = (data: any[], config: any) => {
@@ -194,14 +214,37 @@ export function ContactsNavigator({
             description: 'Aucun élément à afficher'
         }
 
+        if (viewMode === 'list') {
+            return (
+                <>
+                    {/* Mobile: compact cards */}
+                    <div className="block md:hidden space-y-2">
+                        {renderMobileCards(data)}
+                    </div>
+                    {/* Desktop: table */}
+                    <div className="hidden md:block">
+                        <DataTable
+                            data={data}
+                            columns={config.columns}
+                            actions={config.actions}
+                            loading={loading}
+                            emptyMessage={emptyConfig.description}
+                            onRowClick={createRowClickHandler(config.rowHref)}
+                            onRowHover={createRowHoverHandler(config.rowHref)}
+                        />
+                    </div>
+                </>
+            )
+        }
+
         return (
-            <DataTable
+            <DataCards
                 data={data}
-                columns={config.columns}
+                CardComponent={config.views.card.component}
                 actions={config.actions}
                 loading={loading}
                 emptyMessage={emptyConfig.description}
-                onRowClick={createRowClickHandler(config.rowHref)}
+                compact={config.views.card.compact}
             />
         )
     }
@@ -273,6 +316,19 @@ export function ContactsNavigator({
     const searchClass = cn(
         "contacts-section__search",
         "relative flex-1"
+    )
+
+    const viewSwitcherClass = cn(
+        "contacts-section__view-switcher",
+        "flex-shrink-0 inline-flex h-10 bg-slate-100 rounded-md p-1"
+    )
+
+    const getViewBtnClass = (isActive: boolean) => cn(
+        "contacts-section__view-btn",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all",
+        isActive
+            ? "contacts-section__view-btn--active bg-white text-slate-900 shadow-sm"
+            : "text-slate-600 hover:bg-slate-200/60"
     )
 
     const dataClass = cn(
@@ -417,6 +473,26 @@ export function ContactsNavigator({
                                     className="pl-9 h-10"
                                 />
                             </div>
+
+                            {/* View Mode Toggle (Cards/List) */}
+                            {mounted && (
+                                <div className={viewSwitcherClass}>
+                                    <button
+                                        onClick={() => setViewMode('list')}
+                                        className={getViewBtnClass(viewMode === 'list')}
+                                        title="Vue liste"
+                                    >
+                                        <List className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('cards')}
+                                        className={getViewBtnClass(viewMode === 'cards')}
+                                        title="Vue cartes"
+                                    >
+                                        <LayoutGrid className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            )}
 
                         </div>
                     </div>

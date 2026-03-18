@@ -7,7 +7,8 @@ import {
   createServerLotContactRepository,
   createServerBuildingRepository,
   createServerContractService,
-  createServerSupabaseClient
+  createServerSupabaseClient,
+  createServerSupplierContractService
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
@@ -124,9 +125,14 @@ export default async function LotDetailsPage({
     const subscriptionInfo = await subscriptionService.getSubscriptionInfo(team.id, serviceRoleRepo)
 
     if (subscriptionInfo) {
-      const accessibleLotIds = await subscriptionService.getAccessibleLotIds(team.id, subscriptionInfo, supabase)
-      if (accessibleLotIds && !accessibleLotIds.includes(id)) {
+      // Full blocked mode: redirect ALL detail pages when read_only
+      if (subscriptionInfo.is_read_only) {
         isLotLocked = true
+      } else {
+        const accessibleLotIds = await subscriptionService.getAccessibleLotIds(team.id, subscriptionInfo, supabase)
+        if (accessibleLotIds && !accessibleLotIds.includes(id)) {
+          isLotLocked = true
+        }
       }
     }
   } catch (error) {
@@ -146,11 +152,12 @@ export default async function LotDetailsPage({
 
   try {
     // Phase 1: Initialize all services in parallel
-    const [lotService, interventionService, lotContactRepository, contractService] = await Promise.all([
+    const [lotService, interventionService, lotContactRepository, contractService, supplierContractService] = await Promise.all([
       createServerLotService(),
       createServerInterventionService(),
       createServerLotContactRepository(),
-      createServerContractService()
+      createServerContractService(),
+      createServerSupplierContractService()
     ])
 
     // Phase 2: Load lot data WITH relations (building, etc.) — needed before parallel queries
@@ -191,8 +198,7 @@ export default async function LotDetailsPage({
                 lot_id: null,
                 type: bc.user?.role === 'locataire' ? 'tenant' :
                       bc.user?.role === 'prestataire' ? 'provider' :
-                      bc.user?.role === 'gestionnaire' || bc.user?.role === 'admin' ? 'manager' :
-                      bc.user?.role === 'proprietaire' ? 'owner' : 'tenant',
+                      bc.user?.role === 'gestionnaire' || bc.user?.role === 'admin' ? 'manager' : 'tenant',
                 status: 'active' as const,
                 created_at: bc.created_at || new Date().toISOString(),
                 updated_at: bc.updated_at || new Date().toISOString(),
@@ -223,7 +229,8 @@ export default async function LotDetailsPage({
       contactsResult,
       contractsResult,
       tenantsResult,
-      buildingContacts
+      buildingContacts,
+      supplierContracts
     ] = await Promise.all([
       // Interventions (graceful handling)
       interventionService.getByLot(id)
@@ -279,7 +286,13 @@ export default async function LotDetailsPage({
         }),
 
       // Building contacts
-      buildingContactsPromise
+      buildingContactsPromise,
+
+      // Supplier contracts for this lot
+      supplierContractService.getByLot(id).catch((error) => {
+        logger.warn('[LOT-PAGE-SERVER] Could not load supplier contracts', { error })
+        return [] as Awaited<ReturnType<typeof supplierContractService.getByLot>>
+      })
     ])
 
     // Check lot contacts result (critical — notFound if failed)
@@ -317,7 +330,7 @@ export default async function LotDetailsPage({
     }) => {
       // Determine contact type based on user role
       const userRole = lotContact.user?.role
-      let contactType: 'tenant' | 'owner' | 'manager' | 'provider' = 'tenant'
+      let contactType: 'tenant' | 'manager' | 'provider' = 'tenant'
       if (userRole === 'locataire') contactType = 'tenant'
       else if (userRole === 'gestionnaire' || userRole === 'admin') contactType = 'manager'
       else if (userRole === 'prestataire') contactType = 'provider'
@@ -475,6 +488,7 @@ export default async function LotDetailsPage({
         buildingContacts={buildingContacts}
         interventionsWithDocs={interventionsWithDocs}
         contracts={contracts}
+        supplierContracts={supplierContracts}
         isOccupied={hasTenant}
         teamId={team.id}
         lotAddress={lotAddress}

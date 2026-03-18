@@ -15,31 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 // Tab components
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 
-// ✅ LAZY LOADED: Heavy chat component loaded on demand (US-304)
-// Reduces initial bundle size and improves TTI by 200-500ms
-const InterventionChatTab = dynamic(
-  () => import('@/components/interventions/intervention-chat-tab').then(mod => ({ default: mod.InterventionChatTab })),
-  {
-    loading: () => (
-      <div className="flex-1 flex flex-col p-4 space-y-4">
-        <div className="flex gap-2">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-8 w-24 rounded-full" />
-          ))}
-        </div>
-        <div className="flex-1 space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
-              <Skeleton className={`h-16 ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'} rounded-lg`} />
-            </div>
-          ))}
-        </div>
-        <Skeleton className="h-12 w-full rounded-lg" />
-      </div>
-    ),
-    ssr: false
-  }
-)
+// Lazy-loaded chat component shared across all roles
+import { LazyInterventionChatTab as InterventionChatTab } from '@/components/interventions/lazy-intervention-chat-tab'
 
 // Modale d'upload de documents
 import { DocumentUploadDialog } from '@/components/interventions/document-upload-dialog'
@@ -131,6 +108,9 @@ import { useActivityLogs } from '@/hooks/use-activity-logs'
 
 // Activity tab (shared)
 import { ActivityTab } from '@/components/interventions/activity-tab'
+
+// Realtime invalidation
+import { useRealtimeOptional } from '@/contexts/realtime-context'
 
 // Contact selector
 import { ContactSelector, type ContactSelectorRef } from '@/components/contact-selector'
@@ -256,7 +236,7 @@ interface InterventionDetailClientProps {
   initialParticipantsByThread?: Record<string, any[]>
   comments: Comment[]
   // Server-provided user info to prevent hydration mismatch
-  serverUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
+  serverUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
   serverUserId: string
   // Multi-provider mode data
   assignmentMode?: AssignmentMode
@@ -315,6 +295,7 @@ export function InterventionDetailClient({
   interventionAddress
 }: InterventionDetailClientProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const { currentUserTeam } = useTeamStatus()
@@ -525,6 +506,7 @@ export function InterventionDetailClient({
   // Callback after confirmation/rejection
   const handleConfirmationResponse = () => {
     // Refresh the page to get updated data
+    realtime?.broadcastInvalidation(['interventions', 'stats'])
     router.refresh()
   }
 
@@ -761,7 +743,7 @@ export function InterventionDetailClient({
     // Ajouter les étapes selon le statut actuel
     // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
     const statusOrder = [
-      'demande', 'approuvee', 'demande_de_devis', 'planification',
+      'demande', 'approuvee', 'planification',
       'planifiee', 'cloturee_par_prestataire',
       'cloturee_par_locataire', 'cloturee_par_gestionnaire'
     ]
@@ -771,14 +753,6 @@ export function InterventionDetailClient({
     if (currentIndex > 0) {
       events.push({
         status: 'approuvee',
-        date: intervention.updated_at || new Date().toISOString(),
-        authorRole: 'manager'
-      })
-    }
-
-    if (requireQuote && currentIndex >= statusOrder.indexOf('demande_de_devis')) {
-      events.push({
-        status: 'demande_de_devis',
         date: intervention.updated_at || new Date().toISOString(),
         authorRole: 'manager'
       })
@@ -863,7 +837,10 @@ export function InterventionDetailClient({
     modalProviderInstructions,
     confirmationRequired,
     requiresConfirmation,
-    () => router.refresh(),
+    () => {
+      realtime?.broadcastInvalidation(['interventions', 'stats'])
+      router.refresh()
+    },
   )
 
   // Reset participant selection and pre-fill scheduling state when programming modal opens
@@ -920,6 +897,7 @@ export function InterventionDetailClient({
   // Handle refresh - défini avant approvalHook pour pouvoir être passé en callback
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true)
+    realtime?.broadcastInvalidation(['interventions', 'stats'])
     router.refresh()
     setTimeout(() => setIsRefreshing(false), 1000)
   }, [router])
@@ -1287,6 +1265,7 @@ export function InterventionDetailClient({
         toast('Contact créé et assigné', { description: 'Le nouveau contact a été créé et assigné avec succès' })
         // Clean URL params and refresh
         router.replace(`/gestionnaire/interventions/${intervention.id}`)
+        realtime?.broadcastInvalidation(['interventions', 'stats'])
         router.refresh()
       } else {
         toast.error('Erreur d\'assignation', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
@@ -1499,6 +1478,7 @@ export function InterventionDetailClient({
 
       if (result.success) {
         toast('Commentaire ajouté', { description: 'Votre commentaire a été enregistré' })
+        realtime?.broadcastInvalidation(['interventions', 'stats'])
         router.refresh()
       } else {
         toast.error('Erreur', { description: result.error || 'Impossible d\'ajouter le commentaire' })
@@ -1657,9 +1637,6 @@ export function InterventionDetailClient({
       case 'cloturee_par_prestataire':
       case 'cloturee_par_locataire':
         return true;
-
-      case 'demande_de_devis':
-        return quotes?.some(q => q.status === 'pending' || q.status === 'sent') ?? false;
 
       default:
         return false;
@@ -2363,6 +2340,7 @@ export function InterventionDetailClient({
           onOpenChange={setIsDocumentUploadOpen}
           onUploadComplete={() => {
             setIsDocumentUploadOpen(false)
+            realtime?.broadcastInvalidation(['interventions', 'stats'])
             router.refresh()
           }}
         />

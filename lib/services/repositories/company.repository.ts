@@ -17,6 +17,7 @@ import {
   validateEnum
 } from '../core/service-types'
 import { logger } from '@/lib/logger'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 
 type Company = Database['public']['Tables']['companies']['Row']
 type CompanyInsert = Database['public']['Tables']['companies']['Insert']
@@ -206,7 +207,7 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
       const { data, error } = await this.supabase
         .from(this.tableName)
         .select(SELECT_WITH_ADDRESS)
-        .ilike('name', name)
+        .ilike('name', sanitizeSearch(name))
         .eq('team_id', teamId)
         .is('deleted_at', null)
         .maybeSingle()

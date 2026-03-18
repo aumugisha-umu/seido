@@ -7,30 +7,36 @@ import { notFound, redirect } from 'next/navigation'
 import { getServerAuthContext } from '@/lib/server-context'
 import { createServerInterventionRepository, createServiceRoleSupabaseClient } from '@/lib/services'
 import { PrestataireInterventionDetailClient } from './components/intervention-detail-client'
+import { isTeamSubscriptionBlocked } from '@/lib/subscription-guard'
 import { logger } from '@/lib/logger'
+
+// In-progress statuses: prestataire can still access these even when team is blocked
+const IN_PROGRESS_STATUSES = new Set(['planifiee', 'planification', 'approuvee'])
 
 type PageProps = {
   params: Promise<{ id: string }>
 }
 
 export default async function PrestataireInterventionDetailPage({ params }: PageProps) {
-  const resolvedParams = await params
+  // Phase 0: Auth + params in parallel
+  const [resolvedParams, { profile: userData, supabase }] = await Promise.all([
+    params,
+    getServerAuthContext('prestataire')
+  ])
   const { id } = resolvedParams
-
-  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { profile: userData, supabase } = await getServerAuthContext('prestataire')
 
   logger.info('🔧 [PRESTATAIRE-INTERVENTION] Loading intervention', {
     interventionId: id,
     userId: userData.id
   })
 
-  // Check if this provider is assigned to the intervention + get provider instructions
+  // Phase 1: Assignment check (gate — must be assigned before loading data)
   const { data: assignment } = await supabase
     .from('intervention_assignments')
     .select('*, provider_instructions')
     .eq('intervention_id', id)
     .eq('user_id', userData.id)
+    .eq('role', 'prestataire')
     .single()
 
   if (!assignment) {
@@ -41,25 +47,44 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     redirect('/prestataire/dashboard')
   }
 
-  // Get assignment mode for filtering
-  const { data: interventionMeta } = await supabase
-    .from('interventions')
-    .select('assignment_mode')
-    .eq('id', id)
-    .single()
+  // Phase 1b: Subscription block check (prestataire exception: in-progress interventions allowed)
+  const isBlocked = await isTeamSubscriptionBlocked(userData.team_id)
+  if (isBlocked) {
+    // Check intervention status — only allow in-progress
+    const { data: statusCheck } = await supabase
+      .from('interventions')
+      .select('status')
+      .eq('id', id)
+      .single()
+
+    if (!statusCheck || !IN_PROGRESS_STATUSES.has(statusCheck.status)) {
+      logger.info('🚫 [PRESTATAIRE-INTERVENTION] Blocked — team subscription inactive, intervention not in-progress', {
+        interventionId: id,
+        status: statusCheck?.status
+      })
+      redirect('/prestataire/dashboard')
+    }
+  }
+
+  // Phase 2: Parallelize meta queries + repo creation (all independent after gate)
+  const [{ data: interventionMeta }, { data: parentLink }, interventionRepo] = await Promise.all([
+    supabase
+      .from('interventions')
+      .select('assignment_mode')
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('intervention_links')
+      .select('*, parent:interventions!parent_intervention_id(id, reference, title)')
+      .eq('child_intervention_id', id)
+      .single(),
+    createServerInterventionRepository()
+  ])
 
   const assignmentMode = interventionMeta?.assignment_mode || 'single'
   const isSeparateMode = assignmentMode === 'separate'
 
-  // Check if this is a child intervention (linked from a parent)
-  const { data: parentLink } = await supabase
-    .from('intervention_links')
-    .select('*, parent:interventions!parent_intervention_id(id, reference, title)')
-    .eq('child_intervention_id', id)
-    .single()
-
-  // Load intervention data using repository (includes relations: building, lot, creator)
-  const interventionRepo = await createServerInterventionRepository()
+  // Phase 3: Load intervention with relations (needs repo from Phase 2)
   const result = await interventionRepo.findByIdWithRelations(id)
 
   if (!result.success || !result.data) {

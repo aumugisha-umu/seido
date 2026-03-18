@@ -1,0 +1,96 @@
+{
+  "project": "SEIDO",
+  "featureName": "Admin Notification Emails",
+  "branchName": "preview",
+  "description": "Emails internes riches envoyés aux admins plateforme pour 4 événements : inscription, abonnement créé/modifié, abonnement annulé, trial expiré. Inclut MRR/ARR individuel + plateforme.",
+  "createdAt": "2026-03-16",
+  "prdSource": "docs/plans/2026-03-16-admin-notification-emails-design.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Admin notification service core + MRR helper + HTML builder",
+      "description": "As a platform admin, I want a core service that can send rich HTML emails with MRR/ARR calculations so that all 4 event types share common infrastructure.",
+      "acceptanceCriteria": [
+        "admin-notification.service.ts exists with 4 public methods (notifyNewSignup, notifySubscriptionChange, notifySubscriptionCancelled, notifyTrialExpired)",
+        "admin-mrr.helper.ts calculates individual MRR from lots+priceId and platform MRR from all active subscriptions",
+        "admin-email-builder.ts generates inline HTML with colored badge, data table, responsive layout",
+        "getAdminRecipients() parses ADMIN_NOTIFICATION_EMAILS env var (comma-separated, works with 1 or N)",
+        "Graceful degradation: no error if env var is empty",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "3 files created: admin-notification.service.ts (4 public methods + factory), admin-mrr.helper.ts (individual + platform MRR, formatEur, getPlanLabel), admin-email-builder.ts (inline HTML with colored badges per event type). Uses Resend directly for raw HTML (no React Email templates). Graceful: empty env var = early return."
+    },
+    {
+      "id": "US-002",
+      "title": "Integrate admin notification into signup flows (OAuth + Email)",
+      "description": "As a platform admin, I want to receive an email when a new user signs up, whether via Google OAuth or email confirmation.",
+      "acceptanceCriteria": [
+        "OAuth flow: completeOAuthProfileAction calls notifyNewSignup after successful profile creation (fire-and-forget)",
+        "Email flow: API route /api/internal/admin-signup-notification sends notification for email-confirmed users",
+        "set-password page calls the API route after successful password set",
+        "Email contains: name, email, method, date, total platform users count",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "OAuth: dynamic import in completeOAuthProfileAction (fire-and-forget). Email: API route /api/internal/admin-signup-notification with auth + 1-hour guard. set-password page calls fetch fire-and-forget after password set success."
+    },
+    {
+      "id": "US-003",
+      "title": "Integrate admin notification into Stripe webhooks (created/updated/deleted)",
+      "description": "As a platform admin, I want to receive emails with MRR/ARR impact when subscriptions are created, lots change, or subscriptions are cancelled.",
+      "acceptanceCriteria": [
+        "handleSubscriptionCreated sends notifySubscriptionChange with lots and priceId",
+        "handleSubscriptionUpdated sends notifySubscriptionChange only when subscribed_lots actually changes (compare old vs new)",
+        "handleSubscriptionDeleted sends notifySubscriptionCancelled with lost lots and MRR impact",
+        "Subject lines include MRR delta and color-coded emoji (blue upgrade, orange downgrade, red churn)",
+        "Email includes individual + platform MRR/ARR",
+        "All notifications are non-blocking (try/catch, no webhook failure)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added getTeamAdminDetails + sendSubscriptionAdminNotification helpers to StripeWebhookHandler. Created: fire-and-forget after upsert (oldLots=0). Updated: fetches old lots before upsert, only notifies if quantity changed. Deleted: captures lotsLost/priceId/startDate before transition, sends churn notification."
+    },
+    {
+      "id": "US-004",
+      "title": "Integrate admin notification into trial expiration cron",
+      "description": "As a platform admin, I want to receive an email when a user's trial expires, with their activity metrics.",
+      "acceptanceCriteria": [
+        "trial-expiration cron calls notifyTrialExpired after each status transition",
+        "Email contains: name, email, team, new status, lot count, usage duration, intervention count",
+        "Notification is fire-and-forget (does not block cron processing)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added import + admin notification after user email in cron loop. Expanded team_members select to include last_name/name. Intervention count via count-only query (head: true). Fire-and-forget with try/catch."
+    },
+    {
+      "id": "US-005",
+      "title": "Environment variable setup + integration smoke check",
+      "description": "As a developer, I want the env var documented and the service properly exported so it's easy to configure.",
+      "acceptanceCriteria": [
+        "ADMIN_NOTIFICATION_EMAILS added to .env.example with comment",
+        "Service exported via lib/services index if applicable",
+        "npm run lint passes on all changed files"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Added ADMIN_NOTIFICATION_EMAILS to .env.example with comment. Service uses direct import + factory pattern (same as subscription-email.service). No index export needed."
+    }
+  ]
+}

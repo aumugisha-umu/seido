@@ -5,15 +5,31 @@ import { unstable_cache } from 'next/cache'
 
 const ARTICLES_DIR = path.join(process.cwd(), 'blog', 'articles')
 
+const calculateReadingTime = (content: string): string => {
+  const stripped = content
+    .replace(/!\[.*?\]\(.*?\)/g, '')   // images
+    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1') // links (keep text)
+    .replace(/[#*>|`~-]/g, '')         // markdown syntax chars
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const wordCount = stripped.split(/\s+/).filter(Boolean).length
+  const minutes = Math.max(1, Math.ceil(wordCount / 200))
+  return `${minutes} min de lecture`
+}
+
 export interface ArticleMeta {
   slug: string
   title: string
   date: string
+  updated_at: string
   author: string
   category: string
   tags: string[]
   description: string
   reading_time: string
+  type: string
+  hub: string
 }
 
 export interface Article extends ArticleMeta {
@@ -33,11 +49,14 @@ const parseArticleFile = (filename: string): Article | null => {
     slug: data.slug,
     title: data.title,
     date: data.date,
+    updated_at: data.updated_at || data.date,
     author: data.author || 'Equipe Seido',
     category: data.category || 'General',
     tags: data.tags || [],
     description: data.description || '',
-    reading_time: data.reading_time || '5 min',
+    reading_time: calculateReadingTime(content),
+    type: data.type || 'article',
+    hub: data.hub || '',
     content,
   }
 }
@@ -73,7 +92,15 @@ export const getArticleBySlug = async (slug: string): Promise<Article | null> =>
 export const getLatestArticles = async (n: number): Promise<ArticleMeta[]> => {
   const articles = await getAllArticles()
   return articles
+    .filter((a) => a.type !== 'hub')
     .slice(0, n)
+    .map(({ content: _content, ...meta }) => meta)
+}
+
+export const getArticlesByHub = async (hubSlug: string): Promise<ArticleMeta[]> => {
+  const articles = await getAllArticles()
+  return articles
+    .filter((a) => a.hub === hubSlug)
     .map(({ content: _content, ...meta }) => meta)
 }
 
@@ -92,4 +119,20 @@ export const getAllTags = async (): Promise<string[]> => {
 export const getAllSlugs = async (): Promise<string[]> => {
   const articles = await getAllArticles()
   return articles.map((a) => a.slug)
+}
+
+export interface TagWithFrequency {
+  tag: string
+  count: number
+}
+
+export const getTagsWithFrequency = async (): Promise<TagWithFrequency[]> => {
+  const articles = await getAllArticles()
+  const freq = new Map<string, number>()
+  articles.flatMap((a) => a.tags).forEach((tag) => {
+    freq.set(tag, (freq.get(tag) || 0) + 1)
+  })
+  return Array.from(freq.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
 }

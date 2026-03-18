@@ -15,7 +15,7 @@ interface ContactDeleteConfirmModalProps {
   onConfirm: () => void
   contactName: string
   contactEmail: string
-  contactType: 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire' | 'autre'
+  contactType: 'gestionnaire' | 'locataire' | 'prestataire' | 'autre'
   context: 'immeuble' | 'lot'
   contextName?: string // Nom de l'immeuble ou référence du lot
   isLoading?: boolean
@@ -25,7 +25,6 @@ const CONTACT_TYPE_LABELS: Record<string, string> = {
   gestionnaire: 'Gestionnaire',
   locataire: 'Locataire',
   prestataire: 'Prestataire',
-  proprietaire: 'Propriétaire',
   autre: 'Autre contact'
 }
 

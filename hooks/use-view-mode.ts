@@ -170,11 +170,11 @@ export function useViewMode(options?: {
   /**
    * 🔄 TOGGLE VIEW MODE FUNCTION
    *
-   * Cycles through view modes in order: list → calendar → list
+   * Cycles through view modes in order: list → cards → calendar → list
    * Useful for keyboard shortcuts or quick toggle buttons
    */
   const toggleViewMode = useCallback(() => {
-    const modes: ViewMode[] = ['list', 'calendar']
+    const modes: ViewMode[] = ['list', 'cards', 'calendar']
     const currentIndex = modes.indexOf(viewMode)
     const nextIndex = (currentIndex + 1) % modes.length
     setViewMode(modes[nextIndex])
@@ -218,6 +218,12 @@ export const VIEW_MODE_CONFIG = {
     labelShort: 'Liste',
     icon: 'List',
     description: 'Vue en liste avec colonnes triables'
+  },
+  cards: {
+    label: 'Cartes',
+    labelShort: 'Cartes',
+    icon: 'LayoutGrid',
+    description: 'Vue en grille avec cartes interventions'
   },
   calendar: {
     label: 'Calendrier',

@@ -71,7 +71,6 @@ interface LotsWithContactsPreviewProps {
   buildingManagers?: Array<{ id: string; name: string; email: string; phone?: string; type: string }>
   buildingTenants?: Array<{ id: string; name: string; email: string; phone?: string; type: string }>
   buildingProviders?: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }>
-  buildingOwners?: Array<{ id: string; name: string; email: string; phone?: string; type: string }>
   buildingOthers?: Array<{ id: string; name: string; email: string; phone?: string; type: string }>
 }
 
@@ -93,7 +92,6 @@ export function LotsWithContactsPreview({
   buildingManagers = [],
   buildingTenants = [],
   buildingProviders = [],
-  buildingOwners = [],
   buildingOthers = []
 }: LotsWithContactsPreviewProps) {
   const router = useRouter()
@@ -122,7 +120,7 @@ export function LotsWithContactsPreview({
 
   // Handle contact removal
   const handleRemoveContact = (contact: { id: string; name: string; email: string; type: string }, lotId: string, lotReference: string) => {
-    const contactType = contact.type === 'tenant' ? 'locataire' : contact.type === 'provider' ? 'prestataire' : contact.type === 'owner' ? 'proprietaire' : 'autre'
+    const contactType = contact.type === 'tenant' ? 'locataire' : contact.type === 'provider' ? 'prestataire' : 'autre'
     setDeleteModal({
       isOpen: true,
       contact,
@@ -167,11 +165,10 @@ export function LotsWithContactsPreview({
       'gestionnaires': 'manager',
       'locataires': 'tenant',
       'prestataires': 'provider',
-      'propriétaires': 'owner',
-      'autres contacts': 'other'
+      'propriétaires': 'owner'
     }
 
-    const contactType = contactTypeMap[sectionType] || 'other'
+    const contactType = contactTypeMap[sectionType] || 'owner'
     setCurrentLotId(lotId)
     contactSelectorRef.current?.openContactModal(contactType, lotId)
   }
@@ -237,12 +234,11 @@ export function LotsWithContactsPreview({
     const assignments: { [lotId: string]: { [contactType: string]: Contact[] } } = {}
 
     lots.forEach(lot => {
-      const { tenants, providers, owners, others } = transformContactsByRole(lot.lot_contacts || [])
+      const { tenants, providers, others } = transformContactsByRole(lot.lot_contacts || [])
 
       assignments[lot.id] = {
         tenant: tenants.map(toContact),
         provider: providers.map(toContact),
-        owner: owners.map(toContact),
         other: others.map(toContact)
       }
     })
@@ -270,7 +266,7 @@ export function LotsWithContactsPreview({
   }
 
   // Format contacts by category for tooltip display
-  const formatContactsForTooltip = (managers: any[], tenants: any[], providers: any[], owners: any[], others: any[]) => {
+  const formatContactsForTooltip = (managers: any[], tenants: any[], providers: any[], others: any[]) => {
     const sections: Array<{ label: string; contacts: any[] }> = []
 
     if (managers.length > 0) {
@@ -281,9 +277,6 @@ export function LotsWithContactsPreview({
     }
     if (providers.length > 0) {
       sections.push({ label: 'Prestataires', contacts: providers })
-    }
-    if (owners.length > 0) {
-      sections.push({ label: 'Propriétaires', contacts: owners })
     }
     if (others.length > 0) {
       sections.push({ label: 'Autres', contacts: others })
@@ -297,7 +290,6 @@ export function LotsWithContactsPreview({
     const managers: Array<{ id: string; name: string; email: string; phone?: string; type: string }> = []
     const tenants: Array<{ id: string; name: string; email: string; phone?: string; type: string }> = []
     const providers: Array<{ id: string; name: string; email: string; phone?: string; type: string }> = []
-    const owners: Array<{ id: string; name: string; email: string; phone?: string; type: string }> = []
     const others: Array<{ id: string; name: string; email: string; phone?: string; type: string }> = []
 
     lotContacts.forEach((contact) => {
@@ -319,15 +311,12 @@ export function LotsWithContactsPreview({
         case 'prestataire':
           providers.push(transformedContact)
           break
-        case 'proprietaire':
-          owners.push(transformedContact)
-          break
         default:
           others.push(transformedContact)
       }
     })
 
-    return { managers, tenants, providers, owners, others }
+    return { managers, tenants, providers, others }
   }
 
   if (!lots || lots.length === 0) {
@@ -352,7 +341,7 @@ export function LotsWithContactsPreview({
           (sum, contract) => sum + (contract.contacts?.length || 0), 0
         ) || 0
         const contactsCount = lotContactsCount + contractContactsCount
-        const { managers, tenants, providers, owners, others } = transformContactsByRole(lot.lot_contacts || [])
+        const { managers, tenants, providers, others } = transformContactsByRole(lot.lot_contacts || [])
 
         return (
           <div
@@ -407,7 +396,7 @@ export function LotsWithContactsPreview({
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="space-y-2">
-                            {formatContactsForTooltip(managers, tenants, providers, owners, others).map((section) => (
+                            {formatContactsForTooltip(managers, tenants, providers, others).map((section) => (
                               <div key={section.label}>
                                 <div className="font-semibold text-xs text-gray-700 mb-1">
                                   {section.label} ({section.contacts.length})
@@ -469,8 +458,8 @@ export function LotsWithContactsPreview({
 
               {isExpanded && (
                 <CardContent className="pt-0 pb-4 px-0">
-                  {/* Grid layout for contacts - 5 columns on desktop (ajout gestionnaires) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+                  {/* Grid layout for contacts - 4 columns on desktop */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                     <ContactSection
                       sectionType="managers"
                       contacts={managers}
@@ -508,22 +497,10 @@ export function LotsWithContactsPreview({
                       showInheritedSummary={true}
                     />
                     <ContactSection
-                      sectionType="owners"
-                      contacts={owners}
-                      readOnly={false}
-                      onAddContact={() => handleAddContact('propriétaires', lot.reference, lot.id)}
-                      onRemoveContact={(id) => {
-                        const contact = owners.find(c => c.id === id)
-                        if (contact) handleRemoveContact(contact as any, lot.id, lot.reference)
-                      }}
-                      inheritedContacts={buildingOwners}
-                      showInheritedSummary={true}
-                    />
-                    <ContactSection
                       sectionType="others"
                       contacts={others}
                       readOnly={false}
-                      onAddContact={() => handleAddContact('autres contacts', lot.reference, lot.id)}
+                      onAddContact={() => handleAddContact('propriétaires', lot.reference, lot.id)}
                       onRemoveContact={(id) => {
                         const contact = others.find(c => c.id === id)
                         if (contact) handleRemoveContact(contact as any, lot.id, lot.reference)

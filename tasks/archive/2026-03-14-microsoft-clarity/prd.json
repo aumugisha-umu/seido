@@ -1,0 +1,78 @@
+{
+  "project": "SEIDO",
+  "featureName": "Microsoft Clarity Integration (replace Contentsquare)",
+  "branchName": "preview",
+  "description": "Replace Contentsquare analytics with Microsoft Clarity. Install npm package, configure GDPR consent, custom tags for B2B SaaS, update CSP headers.",
+  "createdAt": "2026-03-14",
+  "prdSource": "docs/plans/2026-03-14-microsoft-clarity-integration-design.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Install @microsoft/clarity + env variables",
+      "description": "As a developer, I want the Clarity npm package installed and env variables configured so that the app can initialize Clarity.",
+      "acceptanceCriteria": [
+        "npm install @microsoft/clarity succeeds",
+        "NEXT_PUBLIC_CLARITY_PROJECT_ID added to .env.local",
+        "NEXT_PUBLIC_CLARITY_PROJECT_ID documented in .env.example",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "@microsoft/clarity v1.0.2 installed. Env var added to .env.local (dev: uga8cs3xrq) and .env.example."
+    },
+    {
+      "id": "US-002",
+      "title": "CSP headers: contentsquare -> clarity.ms + c.bing.com",
+      "description": "As a security engineer, I want CSP headers updated to allow Clarity domains and block Contentsquare so that Clarity scripts load without violations.",
+      "acceptanceCriteria": [
+        "script-src: contentsquare domains replaced by https://*.clarity.ms",
+        "connect-src: contentsquare domains replaced by https://*.clarity.ms https://c.bing.com",
+        "img-src: https://*.clarity.ms added",
+        "Same changes in Content-Security-Policy-Report-Only block",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Both CSP blocks (enforced + report-only) updated. Zero contentsquare references remain."
+    },
+    {
+      "id": "US-003",
+      "title": "Rewrite analytics hooks for Clarity API",
+      "description": "As a product owner, I want analytics-provider to use Clarity.init + ConsentV2, identify hook to use Clarity.setTag + Clarity.identify per page, and remove the now-unnecessary SPA tracking hook.",
+      "acceptanceCriteria": [
+        "analytics-provider.tsx calls Clarity.init(projectId) when consent granted",
+        "analytics-provider.tsx calls Clarity.consentV2({ ad_Storage: denied, analytics_Storage: granted })",
+        "use-analytics-identify.ts uses Clarity.setTag for custom tags (user_role, subscription_status, subscription_plan)",
+        "use-analytics-identify.ts calls Clarity.identify(hashedUserId) per page change",
+        "use-analytics-tracking.ts deleted (Clarity handles SPA tracking automatically)",
+        "No window._uxa references remain",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "3 tags (role, sub status, sub plan) instead of 6 — YAGNI, others not available client-side without extra queries. ad_Storage denied (no ad tracking). pathname dep forces re-identify per navigation."
+    },
+    {
+      "id": "US-004",
+      "title": "Cleanup Contentsquare from layout.tsx",
+      "description": "As a developer, I want the Contentsquare script removed from the root layout so that no dead analytics code remains.",
+      "acceptanceCriteria": [
+        "Script tag for t.contentsquare.net removed from app/layout.tsx",
+        "next/script import removed if no longer used",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-003"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Script tag and unused next/script import both removed."
+    }
+  ]
+}

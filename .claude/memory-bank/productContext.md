@@ -144,21 +144,31 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - 11 UI components (billing settings, banners, cards)
 - 249 test cases (218 unit + 15 integration + 16 E2E)
 
-### Métriques Infrastructure (2026-02-22)
-- **381 composants** (UI + dashboards + workflow + blog + billing)
+### Phase 8 🚧 Content & Supplier Management (Mar 2026)
+- [x] **Email Section Refonte Phase 1** (12 stories: counts system, navigation, dead code cleanup)
+- [x] **AI Phone Assistant Phase 1** (13 stories: webhook hardening, email notifications)
+- [x] **Blog Hub/Cluster Architecture** (23 articles, sibling navigation, hub frontmatter)
+- [x] **Intervention Planner Refactoring** (6 stories: shared InterventionPlannerStep component)
+- [x] **Supplier Contracts** (new entity: DB tables, repository, service, card UI, wizard steps)
+- [ ] Landing page redesign (plan exists in docs/plans/)
+
+### Métriques Infrastructure (2026-03-11)
+- **440 composants** (UI + dashboards + workflow + blog + billing + contracts)
 - **70 hooks** custom
-- **21 repositories** + **34 domain services**
-- **120 API routes**
-- **174 migrations SQL**
-- **2 blog articles** (SEO-optimized, sourced)
+- **25 repositories** + **63 domain services**
+- **123 API routes**
+- **193 migrations SQL**
+- **23 blog articles** (SEO-optimized, sourced, hub-cluster architecture)
+- **134 AGENTS.md learnings**
 
 ## Fonctionnalités Prévues
-- [ ] Google Maps integration - Priorité: Haute (Phase 2-3 restantes)
+- [ ] AI Phone Assistant Phase 2 - Priorité: Haute
+- [ ] Supplier Contracts Phase 2 (documents, renewal alerts) - Priorité: Moyenne
 - [ ] Export PDF rapports - Priorité: Moyenne
 - [ ] Integration calendrier - Priorité: Moyenne
 - [ ] Dashboard analytics avancé - Priorité: Haute
 
 ---
-*Dernière mise à jour: 2026-02-22*
+*Dernière mise à jour: 2026-03-11*
 *Références: docs/design/persona-gestionnaire-unifie.md, persona-prestataire.md, persona-locataire.md*
 *Stripe: docs/stripe/admin-guide.md, docs/stripe/coupon-strategy.md, docs/stripe/production-checklist.md*

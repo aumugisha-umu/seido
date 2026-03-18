@@ -24,7 +24,7 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
    - Answer questions if any
    - Implementer implements, tests, commits, self-reviews
    - Dispatch spec reviewer → fixes if needed
-   - Dispatch code quality reviewer → fixes if needed
+   - Dispatch code quality reviewer (include Code Craftsmanship Standards checks) → fixes if needed
    - Mark task complete
 4. **After all tasks** - Final code review
 5. **Use sp-finishing-a-development-branch**
@@ -57,3 +57,4 @@ Execute plan by dispatching fresh subagent per task, with two-stage review after
 
 **Subagents should use:**
 - **sp-test-driven-development** - TDD for each task
+- **Code Craftsmanship Standards** from CLAUDE.md: reuse search before writing, efficiency self-check after

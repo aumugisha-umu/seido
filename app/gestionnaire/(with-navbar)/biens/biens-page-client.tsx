@@ -3,6 +3,7 @@
 import { Plus, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { useFABActions } from "@/components/ui/fab"
 import { PageActions } from "@/components/page-actions"
 import { PatrimoineNavigator } from "@/components/patrimoine/patrimoine-navigator"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
@@ -10,6 +11,7 @@ import { logger } from '@/lib/logger'
 import { useSubscription } from "@/hooks/use-subscription"
 import { UpgradeModal } from "@/components/billing/upgrade-modal"
 import { UpgradePrompt } from "@/components/billing/upgrade-prompt"
+import { BlockedListOverlay } from "@/components/billing/blocked-list-overlay"
 import { getAccessibleLots } from "@/app/actions/subscription-actions"
 
 interface BiensPageClientProps {
@@ -29,10 +31,20 @@ function createDataHash(buildings: any[], lots: any[], teamId: string | null): s
 
 export function BiensPageClient({ initialBuildings, initialLots, teamId }: BiensPageClientProps) {
   const router = useRouter()
+
+  useFABActions([
+    {
+      id: 'import-biens',
+      label: 'Importer',
+      icon: Upload,
+      onClick: () => router.push('/gestionnaire/import'),
+    }
+  ])
+
   const [isRefreshing, setIsRefreshing] = useState(false)
   const previousDataHashRef = useRef<string>('')
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
-  const { canAddProperty, isReadOnly, status, refresh: refreshSubscription } = useSubscription()
+  const { canAddProperty, isReadOnly, status, loading: subscriptionLoading, refresh: refreshSubscription } = useSubscription()
 
   // ✅ Accessible lot IDs (null = all accessible, string[] = only these are accessible)
   const [accessibleLotIds, setAccessibleLotIds] = useState<string[] | null>(null)
@@ -159,6 +171,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
             className="flex items-center space-x-2"
             disabled={isReadOnly}
             onClick={() => {
+              if (subscriptionLoading) { router.push('/gestionnaire/biens/lots/nouveau'); return }
               if (!canAddProperty) { setUpgradeModalOpen(true); return }
               router.push('/gestionnaire/biens/lots/nouveau')
             }}
@@ -169,6 +182,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
             className="flex items-center space-x-2"
             disabled={isReadOnly}
             onClick={() => {
+              if (subscriptionLoading) { router.push('/gestionnaire/biens/immeubles/nouveau'); return }
               if (!canAddProperty) { setUpgradeModalOpen(true); return }
               router.push('/gestionnaire/biens/immeubles/nouveau')
             }}
@@ -187,14 +201,16 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
           <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Content wrapper avec padding */}
             <div className="flex-1 flex flex-col min-h-0 p-4">
-              <PatrimoineNavigator
-                buildings={buildings}
-                lots={lots}
-                loading={isRefreshing}
-                onRefresh={handleRefresh}
-                className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
-                lockedLotIds={lockedLotIds}
-              />
+              <BlockedListOverlay isBlocked={isReadOnly}>
+                <PatrimoineNavigator
+                  buildings={buildings}
+                  lots={lots}
+                  loading={isRefreshing}
+                  onRefresh={handleRefresh}
+                  className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
+                  lockedLotIds={lockedLotIds}
+                />
+              </BlockedListOverlay>
             </div>
           </div>
         </div>
@@ -203,7 +219,8 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
         <UpgradeModal
           open={upgradeModalOpen}
           onOpenChange={setUpgradeModalOpen}
-          currentLots={status?.actual_lots ?? lots.length}
+          currentLots={status?.actual_lots ?? 0}
+          subscribedLots={status?.subscribed_lots}
           onUpgradeComplete={() => { refreshSubscription(); handleRefresh() }}
         />
       </div>

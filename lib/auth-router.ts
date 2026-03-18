@@ -33,8 +33,8 @@ export const ROLE_ROUTES = {
     allowed: ['/prestataire']
   },
   proprietaire: {
-    dashboard: '/proprietaire',
-    default: '/proprietaire/dashboard',
+    dashboard: '/',
+    default: '/',
     allowed: ['/proprietaire']
   },
   locataire: {

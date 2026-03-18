@@ -10,14 +10,14 @@
 |  - Page data loading          |  - Interactive forms         |
 |  - Auth via getServerAuth()   |  - Real-time updates         |
 +-------------------------------------------------------------+
-|                    Domain Services (34)                      |
+|                    Domain Services (63)                      |
 |  intervention, notification, email, scheduling, subscription |
 +-------------------------------------------------------------+
-|                    Repositories (21)                         |
+|                    Repositories (25)                         |
 |  intervention, notification, user, building, subscription    |
 +-------------------------------------------------------------+
 |                    Supabase (PostgreSQL + RLS)               |
-|  44 tables | 80 fonctions | 210 indexes | 47 triggers       |
+|  46 tables | 80 fonctions | 210 indexes | 47 triggers       |
 +-------------------------------------------------------------+
 ```
 
@@ -64,7 +64,7 @@ const interventions = await repository.findAll()
 const { data } = await supabase.from('interventions').select('*')
 ```
 
-> Source: lib/services/README.md - 21 repositories implementes (incl. subscription, stripe-customer)
+> Source: lib/services/README.md - 25 repositories implementes (incl. subscription, stripe-customer, supplier-contract)
 
 ### 3. Notification Architecture
 
@@ -93,6 +93,70 @@ await createInterventionNotification(interventionId)
 ```
 
 > Source: app/actions/notification-actions.ts (1249 lignes)
+
+### 3b. Admin Notification Service (NOUVEAU 2026-03-16)
+
+Platform owner email alerts for user lifecycle events (separate from team-level notifications):
+
+```
+Event (signup/sub change/churn/trial) → AdminNotificationService
+    → getAdminRecipients() (ADMIN_NOTIFICATION_EMAILS env var)
+    → calculatePlatformMrrCents() (on-the-fly from DB)
+    → buildAdminEmailHtml() (colored badges, data tables)
+    → Resend singleton (lib/email/resend-client.ts)
+```
+
+**Key differences from team notifications:**
+- Recipients: env var (fixed), not DB query (dynamic)
+- Format: raw HTML builder, not React Email templates
+- Delivery: fire-and-forget `void .catch(() => {})` (serverless-safe)
+- Audience: platform owner, not team admins/members
+
+**Integration points:**
+- OAuth signup: `completeOAuthProfileAction` (dynamic import)
+- Email signup: `/api/internal/admin-signup-notification` (API route bridge)
+- Stripe webhooks: `stripe-webhook.handler.ts` (3 event types)
+- Trial cron: `api/cron/trial-expiration/route.ts`
+
+> Source: lib/services/domain/admin-notification/ (3 files)
+
+### 4. Data Invalidation Broadcast (NOUVEAU 2026-03-15)
+
+Cross-team real-time cache sync via Supabase Broadcast (zero DB overhead):
+
+```
+Mutation (any client) → broadcastInvalidation(['buildings', 'stats'])
+                              ↓ WebSocket (Supabase Broadcast)
+Team Channel (seido-team:{teamId}) → all connected team members
+                              ↓ 500ms batch debounce
+Hooks (useBuildings, useManagerStats, etc.) → auto-refetch
+```
+
+**Entity types:** `buildings | lots | contacts | interventions | contracts | stats`
+
+```typescript
+// Emit (in mutation components):
+const realtime = useRealtimeOptional()
+realtime?.broadcastInvalidation(['buildings', 'stats'])
+
+// Subscribe (in data hooks):
+useEffect(() => {
+  if (!realtime?.onInvalidation) return
+  return realtime.onInvalidation(['buildings', 'lots'], () => refetch())
+}, [realtime, refetch])
+```
+
+**Key files:**
+- `lib/data-invalidation.ts` — types + constants
+- `contexts/realtime-context.tsx` — team channel + broadcastInvalidation/onInvalidation API
+- 5 hooks subscribe; 12+ mutation sites emit
+
+**Design decisions:**
+- Separate channel from per-user `seido:{userId}:{teamId}` (postgres_changes)
+- Batch debounce (Set + single timer) to prevent N+1 callback storms
+- `useRealtimeOptional()` for graceful degradation outside provider
+
+> Source: contexts/realtime-context.tsx, lib/data-invalidation.ts
 
 ### 30. Shared Cards Pattern for Consistent UI (NOUVEAU 2026-02-12)
 
@@ -191,9 +255,26 @@ checkCanAddProperty()           Server gate on lot edit
   → block operation               → prevent data loss
 ```
 
+**Client-side hook loading pattern (NOUVEAU 2026-03-16):**
+
+```typescript
+// useSubscription() returns false for all booleans while loading
+const { canAddProperty, isReadOnly, loading: subscriptionLoading } = useSubscription()
+
+// WRONG — blocks valid users during loading (~500ms):
+if (!canAddProperty) { openUpgradeModal() }
+disabled={isReadOnly}
+
+// CORRECT — fail-open during loading, fail-closed after:
+if (subscriptionLoading) { navigateDirectly(); return }
+if (!canAddProperty) { openUpgradeModal() }
+disabled={!subscriptionLoading && isReadOnly}
+```
+
 **Key principles:**
 - **Service layer**: Fail-closed (security first) — errors block operations
 - **Page layer**: Fail-open (UX first) — errors show graceful degradation
+- **Client hook layer**: Fail-open during loading (server actions provide defense-in-depth)
 - **CRUD checklist**: When restricting entities, check ALL 5 operations (List, View, Create, Edit, Delete)
 - **CSS overlay**: Use CSS overlay for locked cards (not parent opacity) to preserve button visibility
 
@@ -374,14 +455,15 @@ const { data } = await supabase.from('lots').select('*').eq('team_id', teamId)
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
   - 89 pages (5+ route groups)
   - 120 API routes (10 domaines + billing CRON)
-components/          # 381 composants (22 directories)
+components/          # 440 composants (22 directories)
   billing/           # 11 billing UI components (NEW 2026-02-22)
+  contracts/         # Supplier contract cards + building contracts tab
 hooks/               # 70 custom hooks (+useSubscription, useStrategicNotification)
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
-  repositories/      # 21 repositories (acces donnees + subscription + stripe-customer)
-  domain/            # 34 services (logique metier + subscription + subscription-email)
-app/actions/         # 17 server action files (+subscription-actions)
+  repositories/      # 25 repositories (+ supplier-contract, supplier-contract-document)
+  domain/            # 63 services (logique metier + subscription + supplier-contract)
+app/actions/         # 21 server action files (+subscription, supplier-contract)
 contexts/            # 3 React contexts (auth, team, realtime)
 tests/               # Infrastructure E2E
 ```
@@ -405,7 +487,7 @@ tests/               # Infrastructure E2E
 - `stripe-webhook.handler.ts` - Webhook event processing (8 event types)
 
 ---
-*Derniere mise a jour: 2026-02-22*
-*Analyse approfondie: 381 composants, 70 hooks, 34 services, 21 repositories*
-*Total patterns: 31 (+1: Subscription Service Pattern with Layered Fail)*
+*Derniere mise a jour: 2026-03-11*
+*Analyse approfondie: 440 composants, 70 hooks, 63 services, 25 repositories*
+*Total patterns: 34 (+3: Parallelization, after(), RLS-as-auth)*
 *References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*

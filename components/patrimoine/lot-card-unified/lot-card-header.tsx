@@ -18,7 +18,6 @@ export function transformContactsByRole(lotContacts: LotContact[]) {
   const managers: BaseContact[] = []
   const tenants: BaseContact[] = []
   const providers: BaseContact[] = []
-  const owners: BaseContact[] = []
   const others: BaseContact[] = []
 
   lotContacts.forEach((contact) => {
@@ -40,15 +39,12 @@ export function transformContactsByRole(lotContacts: LotContact[]) {
       case 'prestataire':
         providers.push(transformedContact)
         break
-      case 'proprietaire':
-        owners.push(transformedContact)
-        break
       default:
         others.push(transformedContact)
     }
   })
 
-  return { managers, tenants, providers, owners, others }
+  return { managers, tenants, providers, others }
 }
 
 /**
@@ -79,13 +75,12 @@ export function calculateOccupancy(lot: LotData): { isOccupied: boolean; tenantN
 /**
  * Format contacts for tooltip display
  */
-function formatContactsForTooltip(managers: BaseContact[], tenants: BaseContact[], providers: BaseContact[], owners: BaseContact[], others: BaseContact[]) {
+function formatContactsForTooltip(managers: BaseContact[], tenants: BaseContact[], providers: BaseContact[], others: BaseContact[]) {
   const sections: Array<{ label: string; contacts: BaseContact[] }> = []
 
   if (managers.length > 0) sections.push({ label: 'Gestionnaires', contacts: managers })
   if (tenants.length > 0) sections.push({ label: 'Locataires', contacts: tenants })
   if (providers.length > 0) sections.push({ label: 'Prestataires', contacts: providers })
-  if (owners.length > 0) sections.push({ label: 'Propriétaires', contacts: owners })
   if (others.length > 0) sections.push({ label: 'Autres', contacts: others })
 
   return sections
@@ -211,8 +206,8 @@ export function LotCardBadges({
     ? getLotCategoryConfig(lot.category as LotCategory)
     : null
 
-  const { managers, tenants, providers, owners, others } = transformContactsByRole(lot.lot_contacts || [])
-  const tooltipSections = formatContactsForTooltip(managers, tenants, providers, owners, others)
+  const { managers, tenants, providers, others } = transformContactsByRole(lot.lot_contacts || [])
+  const tooltipSections = formatContactsForTooltip(managers, tenants, providers, others)
 
   return (
     <div className="flex items-center flex-wrap gap-2 pt-2 mt-2 border-t border-slate-100">

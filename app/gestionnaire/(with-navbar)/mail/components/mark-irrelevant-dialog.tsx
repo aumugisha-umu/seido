@@ -30,7 +30,6 @@ interface MarkAsIrrelevantDialogProps {
   onOpenChange: (open: boolean) => void
   onSoftDelete: (emailId: string) => void
   onBlacklist: (emailId: string, senderEmail: string, reason?: string, archiveExisting?: boolean) => void
-  onArchive?: () => void
 }
 
 export function MarkAsIrrelevantDialog({
@@ -38,8 +37,7 @@ export function MarkAsIrrelevantDialog({
   open,
   onOpenChange,
   onSoftDelete,
-  onBlacklist,
-  onArchive
+  onBlacklist
 }: MarkAsIrrelevantDialogProps) {
   const [action, setAction] = useState<ActionType>('soft_delete')
   const [reason, setReason] = useState('')
@@ -51,8 +49,7 @@ export function MarkAsIrrelevantDialog({
     try {
       if (action === 'soft_delete') {
         onSoftDelete(email.id)
-        onArchive?.() // Auto-archive when marked as irrelevant
-        toast.success('Email masqué et archivé')
+        toast.success('Email masqué')
       } else {
         onBlacklist(email.id, email.sender_email, reason, archiveExisting)
         toast.success(

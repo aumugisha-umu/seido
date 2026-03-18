@@ -87,7 +87,7 @@ interface OverviewTabProps {
   timeSlots: TimeSlot[]
   comments: Comment[]
   currentUserId: string
-  currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
+  currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
   onRefresh: () => void
   onOpenProgrammingModal?: () => void
   onCancelSlot?: (slot: TimeSlot) => void
@@ -165,7 +165,7 @@ export function OverviewTab({
   const schedulingType = intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null
 
   // Check if quote is required (status or active quotes)
-  const requireQuote = intervention.status === 'demande_de_devis' ||
+  const requireQuote = intervention.requires_quote ||
     quotes.some(q => ['pending', 'sent', 'accepted'].includes(q.status))
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState('')
@@ -306,7 +306,7 @@ export function OverviewTab({
             onApproveSlot={onApproveSlot}
             onRejectSlot={onRejectSlot}
             onEditSlot={onEditSlot}
-            canManageSlots={['approuvee', 'demande_de_devis', 'planification'].includes(intervention.status)}
+            canManageSlots={['approuvee', 'planification'].includes(intervention.status)}
             currentUserId={currentUserId}
             currentUserRole={currentUserRole}
             onEditParticipants={onEditParticipants}

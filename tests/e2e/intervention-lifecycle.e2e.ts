@@ -9,7 +9,7 @@
  *    - Time slots for planning
  *
  * 2. Gestionnaire views detail page — verifies contacts, conversations, action buttons
- * 3. Gestionnaire clicks "Traiter la demande" → "Approuver" (UI → DB transition)
+ * 3. Gestionnaire clicks "Traiter demande" → "Approuver" (UI → DB transition)
  * 4. Cross-role: locataire + prestataire view assigned intervention detail
  *
  * NOTE: Requires running dev server + .env.local with Supabase creds.
@@ -73,7 +73,7 @@ describe('Intervention Lifecycle (Multi-Role)', () => {
   // ═══════════════════════════════════════════════════════════
 
   describe('Gestionnaire view with assigned contacts', () => {
-    it('demande: shows "Traiter la demande" + assigned contacts visible', async () => {
+    it('demande: shows "Traiter demande" + assigned contacts visible', async () => {
       try {
         const intervention = await createFullTestIntervention({
           teamId,
@@ -87,7 +87,7 @@ describe('Intervention Lifecycle (Multi-Role)', () => {
         })
 
         await gestDetail.navigateTo('gestionnaire', intervention.id)
-        const hasAction = await gestDetail.hasContent('Traiter la demande')
+        const hasAction = await gestDetail.hasContent('Traiter demande')
         expect(hasAction).toBe(true)
 
         // Verify the Contacts tab exists and page shows contact count
@@ -190,7 +190,7 @@ describe('Intervention Lifecycle (Multi-Role)', () => {
 
         const hasPlanifier = await gestDetail.hasContent('Planifier')
         const hasCloturer = await gestDetail.hasContent('Clôturer')
-        const hasTraiter = await gestDetail.hasContent('Traiter la demande')
+        const hasTraiter = await gestDetail.hasContent('Traiter demande')
         expect(hasPlanifier).toBe(false)
         expect(hasCloturer).toBe(false)
         expect(hasTraiter).toBe(false)
@@ -206,7 +206,7 @@ describe('Intervention Lifecycle (Multi-Role)', () => {
   // ═══════════════════════════════════════════════════════════
 
   describe('Gestionnaire approve action (UI → DB)', () => {
-    it('clicking "Traiter la demande" → "Approuver" → "Confirmer" changes status to approuvee', async () => {
+    it('clicking "Traiter demande" → "Approuver" → "Confirmer" changes status to approuvee', async () => {
       try {
         const intervention = await createFullTestIntervention({
           teamId,
@@ -221,13 +221,13 @@ describe('Intervention Lifecycle (Multi-Role)', () => {
 
         await gestDetail.navigateTo('gestionnaire', intervention.id)
 
-        // Wait for "Traiter la demande" button to render (action buttons stream after shell)
+        // Wait for "Traiter demande" button to render (action buttons stream after shell)
         await gestPage.waitForFunction(
           () => document.body.innerText.toLowerCase().includes('traiter la demande'),
           { timeout: 15_000, polling: 500 },
         )
 
-        // Click "Traiter la demande"
+        // Click "Traiter demande"
         await gestDetail.clickProcessRequest()
         await gestDetail.waitForDialog(10_000)
 

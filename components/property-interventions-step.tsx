@@ -144,6 +144,8 @@ export function PropertyInterventionsStep({
     return { customInterventions: custom, standardInterventions: standard, documentInterventions: documents }
   }, [scheduledInterventions])
 
+  const hasEmptyCustomTitle = customInterventions.some(i => i.enabled && !i.title.trim())
+
   // Toggle une intervention
   const handleToggle = (key: string, enabled: boolean) => {
     onInterventionsChange(prev =>
@@ -197,10 +199,10 @@ export function PropertyInterventionsStep({
 
   const handleAddCustomIntervention = () => {
     onInterventionsChange(prev => {
-      const lastCustomIdx = prev.reduce((acc, item, idx) => item.key.startsWith('custom_') ? idx : acc, -1)
+      const firstCustomIdx = prev.findIndex(i => i.key.startsWith('custom_'))
       const newCustom = createEmptyCustomIntervention(currentUser)
       const result = [...prev]
-      result.splice(lastCustomIdx + 1, 0, newCustom)
+      result.splice(firstCustomIdx >= 0 ? firstCustomIdx : 0, 0, newCustom)
       return result
     })
   }
@@ -297,34 +299,48 @@ export function PropertyInterventionsStep({
       <div className="max-w-4xl mx-auto">
         <div className="space-y-6 py-2">
             {/* Custom interventions */}
-            <div className="space-y-3">
+            <div className="rounded-lg border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <PenLine className="h-4 w-4 text-indigo-500" />
+                <h3 className="text-sm font-semibold text-indigo-700 flex items-center gap-2">
+                  <PenLine className="h-4 w-4" />
                   Interventions personnalisées
                 </h3>
-                <Button variant="outline" size="sm" onClick={handleAddCustomIntervention} className="h-7 text-xs gap-1">
-                  <Plus className="h-3.5 w-3.5" />
-                  Ajouter
-                </Button>
+                {customInterventions.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={handleAddCustomIntervention} disabled={hasEmptyCustomTitle} className="h-7 text-xs gap-1 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700">
+                    <Plus className="h-3.5 w-3.5" />
+                    Ajouter
+                  </Button>
+                )}
               </div>
-              <div className="space-y-2">
-                {customInterventions.map((intervention, index) => (
-                  <InterventionScheduleRow
-                    key={intervention.key}
-                    intervention={intervention}
-                    isEditable
-                    onTitleChange={(title) => handleCustomTitleChange(intervention.key, title)}
-                    onDescriptionChange={(desc) => handleCustomDescriptionChange(intervention.key, desc)}
-                    onToggle={(enabled) => handleToggle(intervention.key, enabled)}
-                    onDateChange={(date) => handleDateChange(intervention.key, date)}
-                    onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
-                    onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
-                    onDelete={() => handleDeleteCustomIntervention(intervention.key)}
-                    showDelete={true}
-                  />
-                ))}
-              </div>
+              {customInterventions.length > 0 ? (
+                <div className="space-y-2">
+                  {customInterventions.map((intervention) => (
+                    <InterventionScheduleRow
+                      key={intervention.key}
+                      intervention={intervention}
+                      isEditable
+                      onTitleChange={(title) => handleCustomTitleChange(intervention.key, title)}
+                      onDescriptionChange={(desc) => handleCustomDescriptionChange(intervention.key, desc)}
+                      onToggle={(enabled) => handleToggle(intervention.key, enabled)}
+                      onDateChange={(date) => handleDateChange(intervention.key, date)}
+                      onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
+                      onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
+                      onDelete={() => handleDeleteCustomIntervention(intervention.key)}
+                      showDelete={true}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAddCustomIntervention}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md hover:bg-indigo-50/50 transition-colors cursor-pointer text-sm text-indigo-600"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="font-medium">Planifier une intervention</span>
+                  <span className="text-muted-foreground text-xs">— entretien, réparation, visite...</span>
+                </button>
+              )}
             </div>
 
             {(standardInterventions.length > 0 || documentInterventions.length > 0) && <Separator />}

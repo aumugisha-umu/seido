@@ -15,6 +15,7 @@ import {
   VALIDATION_CONSTRAINTS,
   SHEET_NAMES,
 } from '../constants';
+import { mapZodErrorToCode, normalizeCountry, normalizePhone } from './utils';
 
 // ============================================================================
 // Zod Schema
@@ -261,53 +262,6 @@ function normalizeVatNumber(value: unknown): string | undefined {
 }
 
 /**
- * Normalize country value
- */
-function normalizeCountry(value: unknown): string | undefined {
-  if (!value) return undefined;
-
-  const str = String(value).toLowerCase().trim();
-
-  // Handle common variations
-  const mappings: Record<string, string> = {
-    'belgique': 'belgique',
-    'belgium': 'belgique',
-    'be': 'belgique',
-    'france': 'france',
-    'fr': 'france',
-    'suisse': 'suisse',
-    'switzerland': 'suisse',
-    'ch': 'suisse',
-    'luxembourg': 'luxembourg',
-    'lu': 'luxembourg',
-    'allemagne': 'allemagne',
-    'germany': 'allemagne',
-    'de': 'allemagne',
-    'pays-bas': 'pays-bas',
-    'netherlands': 'pays-bas',
-    'nl': 'pays-bas',
-    'autre': 'autre',
-    'other': 'autre',
-  };
-
-  return mappings[str] || str;
-}
-
-/**
- * Normalize phone number
- */
-function normalizePhone(value: unknown): string | undefined {
-  if (!value) return undefined;
-
-  let phone = String(value).trim();
-
-  // Remove common separators
-  phone = phone.replace(/[\s.-]/g, '');
-
-  return phone || undefined;
-}
-
-/**
  * Normalize website URL
  */
 function normalizeWebsite(value: unknown): string | undefined {
@@ -325,23 +279,3 @@ function normalizeWebsite(value: unknown): string | undefined {
   return url;
 }
 
-/**
- * Map Zod error code to import error code
- */
-function mapZodErrorToCode(
-  zodCode: z.ZodIssueCode
-): ImportRowError['code'] {
-  switch (zodCode) {
-    case 'too_small':
-    case 'too_big':
-      return 'REQUIRED_FIELD';
-    case 'invalid_type':
-      return 'INVALID_FORMAT';
-    case 'invalid_enum_value':
-      return 'INVALID_ENUM';
-    case 'invalid_string':
-      return 'INVALID_FORMAT';
-    default:
-      return 'UNKNOWN';
-  }
-}

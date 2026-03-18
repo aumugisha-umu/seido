@@ -387,7 +387,8 @@ export async function POST(request: NextRequest) {
       // Multi-provider mode
       assignment_mode: assignmentMode || 'single',
       // ✅ FIX 2025-12-24: Ajout created_by pour exclure le créateur des notifications email
-      created_by: user.id
+      created_by: user.id,
+      creation_source: 'manual'
     }
 
     // Add lot_id only if it exists (for lot-specific interventions)

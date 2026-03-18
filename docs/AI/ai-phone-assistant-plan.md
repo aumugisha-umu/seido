@@ -84,104 +84,338 @@ ELEVENLABS_API_KEY=sk_xxxxxxxxxxxxxxxxxxxxxxxx
 
 ---
 
-### Etape 3 : Compte Telnyx + SIP Trunk
+### Etape 3 : Compte Telnyx + SIP Trunk + ElevenLabs Agent
 
-> **Ref :** [SIP Trunking — ElevenLabs Documentation](https://elevenlabs.io/docs/eleven-agents/phone-numbers/sip-trunking)
+> **Ref officielles :**
+> - [Telnyx SIP trunking — ElevenLabs Docs](https://elevenlabs.io/docs/eleven-agents/phone-numbers/telephony/telnyx)
+> - [SIP trunking general — ElevenLabs Docs](https://elevenlabs.io/docs/agents-platform/phone-numbers/sip-trunking)
+> - [SIP Connection Settings — Telnyx Help](https://support.telnyx.com/en/articles/4404448-sip-connection-inbound-outbound-settings)
+> - [Troubleshooting Call Completion — Telnyx Help](https://support.telnyx.com/en/articles/5025298-troubleshooting-call-completion)
 
-**STATUT : ✅ DEJA FAIT** — Compte Telnyx cree, numero belge +32 4 260 08 08 achete, SIP Connection configuree.
+**STATUT :** Configuration partiellement faite. Nouveau numero **+32 2 601 07 84** a configurer.
+
+> **ANCIEN numero :** +32 4 260 08 08 (plus utilise)
+> **NOUVEAU numero :** +32 2 601 07 84 (`+3226010784` en E.164)
+
+---
+
+#### DIAGNOSTIC — Pourquoi "le correspondant n'est pas disponible"
+
+Quand tu appelles et que tu tombes sur le repondeur Telnyx, ca signifie que l'appel arrive chez Telnyx mais n'est **PAS correctement route vers ElevenLabs**. Les causes possibles (par ordre de probabilite) :
+
+| # | Cause | Probabilite | Comment verifier |
+|---|-------|-------------|------------------|
+| 1 | **Agent non assigne au numero** dans ElevenLabs | **TRES HAUTE** | Dashboard ElevenLabs → Phone Numbers → verifier la colonne "Agent" |
+| 2 | **Numero non importe** dans ElevenLabs | HAUTE (nouveau numero) | Dashboard ElevenLabs → Phone Numbers → chercher +3226010784 |
+| 3 | **Numero non assigne** a la SIP Connection Telnyx | HAUTE (nouveau numero) | Telnyx Mission Control → SIP Connection → onglet Numbers |
+| 4 | **No Answer Timeout trop court** (defaut 5s) | MOYENNE | Telnyx → SIP Connection → Inbound → "No Answer Timeout" |
+| 5 | **SIP region non selectionnee** | MOYENNE | Telnyx → SIP Connection → Inbound → "SIP Region" |
+| 6 | **Credentials SIP mismatch** | FAIBLE | Comparer username/password Telnyx ↔ ElevenLabs |
+| 7 | **Plan ElevenLabs insuffisant** | FAIBLE | Plan Free/Starter ne supporte pas les appels telephoniques |
+
+---
 
 #### 3A — Configuration SIP Connection Telnyx (cote Telnyx Mission Control)
 
 **Connexion existante :** "Seido inbound SIP" — Connection ID: `2905402867672155412`
 
-**Onglet "Configuration" :**
+##### ETAPE 3A-1 : Ouvrir la SIP Connection
 
-| Setting | Valeur | Statut |
-|---------|--------|--------|
-| Connection Name | Seido inbound SIP | ✅ |
-| Type | FQDN Connection | ✅ |
-| AnchorSite | Latency | ✅ |
-| DTMF type | RFC 2833 | ✅ |
-| Encode contact header | **Cocher** | ⚠️ A verifier |
-| Webhook API Version | API v2 | ✅ |
-| Generate comfort noise | Coche | ✅ |
+1. Ouvrir **[portal.telnyx.com](https://portal.telnyx.com)** → se connecter
+2. Menu gauche → **Voice** → **SIP Trunking**
+3. Cliquer sur la connexion **"Seido inbound SIP"**
+4. Tu arrives sur la page de configuration avec les onglets : Configuration, Authentication, Inbound, Outbound, Numbers
 
-**Onglet "Authentication and routing" :**
+##### ETAPE 3A-2 : Onglet "Configuration" — Verifier les settings
 
-| Setting | Valeur | Statut |
-|---------|--------|--------|
-| FQDN | `sip.rtc.elevenlabs.io` port 5060 (DNS: A) | ✅ |
-| Routing Method | Round-robin | ✅ |
-| Auth Method (Outbound) | Credentials | ✅ |
-| Username | `seido-elevenlabs` | ✅ |
-| Password | (defini) | ✅ |
+Cliquer sur l'onglet **"Configuration"** (normalement affiche par defaut).
 
-**Onglet "Inbound" :**
+| Setting | Valeur attendue | Ou le trouver | Action |
+|---------|-----------------|---------------|--------|
+| Connection Name | `Seido inbound SIP` | En haut de la page | Deja OK |
+| Type | `FQDN Connection` | Sous le nom | Deja OK |
+| AnchorSite | `Latency` | Section "General" | Deja OK |
+| DTMF type | `RFC 2833` | Section "General" | Deja OK |
+| **Encode contact header** | **COCHER** | Section "General", checkbox | **CLIQUER pour cocher si pas deja fait** |
+| Webhook API Version | `API v2` | Section "Webhooks" | Deja OK |
+| Generate comfort noise | Coche | Section "Media" | Deja OK |
 
-| Setting | Valeur | Statut |
-|---------|--------|--------|
-| Destination number format | E.164 | ✅ |
-| SIP transport protocol | TCP | ✅ |
-| SIP region | **Europe (Amsterdam)** | ⚠️ A selectionner |
-| No answer timeout | **30 secondes** | ⚠️ A modifier (defaut 5s trop court) |
-| Channel limit | **10** | ⚠️ A definir (protection couts) |
-| Encrypted media | Disabled | ✅ |
-| Codecs | G722 ✅, G711U ✅, G711A ✅ | ✅ |
-| Codec G729 | **Decocher** | ⚠️ Non supporte par ElevenLabs |
+> **TEST CHECKPOINT 1 :** Apres avoir coche "Encode contact header", cliquer **"Save"** en bas de page. Un message vert "Connection updated" doit apparaitre.
 
-**Onglet "Numbers" :**
-- Numero +32 4 260 08 08 assigne a la connexion SIP ✅
+##### ETAPE 3A-3 : Onglet "Authentication and Routing" — Verifier FQDN et credentials
+
+Cliquer sur l'onglet **"Authentication and Routing"**.
+
+| Setting | Valeur attendue | Ou le trouver | Action |
+|---------|-----------------|---------------|--------|
+| FQDN | `sip.rtc.elevenlabs.io` | Section "FQDN Authentication" | Deja OK — **VERIFIER que le port est `5060` et le type DNS est `A`** |
+| Routing Method | `Round-robin` | Sous la liste des FQDN | Deja OK |
+| Auth Method | `Credentials` | Section "Outbound Calls Authentication" | Deja OK |
+| Username | `seido-elevenlabs` | Champ username | Deja OK |
+| Password | (defini) | Champ password | **NOTER CE PASSWORD — tu en auras besoin cote ElevenLabs** |
+
+> **IMPORTANT :** Le username/password ici est ce que Telnyx utilise pour s'authentifier AUPRES de ElevenLabs quand il envoie un appel. Le meme username/password doit etre configure cote ElevenLabs dans la section "Inbound SIP Trunk" → credentials.
+
+##### ETAPE 3A-4 : Onglet "Inbound" — CORRECTIONS CRITIQUES
+
+Cliquer sur l'onglet **"Inbound"**. **C'est ici que se trouvent probablement les problemes.**
+
+| Setting | Valeur actuelle | Valeur correcte | Action detaillee |
+|---------|----------------|-----------------|------------------|
+| Destination number format | E.164 | `+E.164` | Dropdown → selectionner **`+E.164`** |
+| SIP transport protocol | TCP | `TCP` | Deja OK |
+| **SIP region** | _(non selectionne?)_ | **`Europe (Amsterdam)`** | **Dropdown → selectionner `Europe (Amsterdam)`** — CRITIQUE pour la latence |
+| **No Ringback Timeout** | 5s (defaut) | **`30 secondes`** | **Changer la valeur a `30`** — Le defaut de 5s est TROP COURT, ElevenLabs met ~2-3s pour initialiser l'agent |
+| **No Answer Timeout** | 5s (defaut) | **`30 secondes`** | **Changer la valeur a `30`** — Meme raison |
+| **Channel limit** | _(illimite)_ | **`10`** | **Entrer `10`** — Protection contre les couts excessifs |
+| Encrypted media | Disabled | `Disabled` | Deja OK (coherent avec ElevenLabs) |
+| **Codecs** | _(verifier)_ | **G722 ✅, G711U ✅, G711A ✅** | **Cocher** G722, G711 u-law, G711 a-law |
+| **Codec G729** | _(verifier)_ | **DECOCHER** | **DECOCHER G729** — Non supporte par ElevenLabs |
+
+> **TEST CHECKPOINT 2 :** Cliquer **"Save"**. Message vert "Connection updated". Puis verifier visuellement que :
+> - SIP Region = Europe (Amsterdam)
+> - No Ringback Timeout = 30s
+> - No Answer Timeout = 30s
+> - G729 est DECOCHE
+
+##### ETAPE 3A-5 : Onglet "Numbers" — Assigner le NOUVEAU numero
+
+Cliquer sur l'onglet **"Numbers"**.
+
+1. **Verifier les numeros actuels :** Tu devrais voir +32 4 260 08 08 dans la liste
+2. **Ajouter le nouveau numero :**
+   - Cliquer sur **"Add Number"** ou **"Assign Number"** (bouton en haut a droite de la liste)
+   - Dans le dropdown/recherche, taper **`+3226010784`** ou **`26010784`**
+   - Selectionner le numero **+32 2 601 07 84**
+   - Cliquer **"Add"** ou **"Assign"**
+3. **Verifier :** Le numero doit maintenant apparaitre dans la liste
+
+> **Si le numero n'apparait PAS dans le dropdown :**
+> - Il n'est peut-etre pas encore achete sur Telnyx
+> - Aller dans **Numbers** → **My Numbers** dans le menu principal pour verifier
+> - Si absent : **Numbers** → **Search & Buy** → chercher `+3226010784` → acheter
+
+> **TEST CHECKPOINT 3 :** Le numero +32 2 601 07 84 apparait dans la liste des numeros de la SIP Connection "Seido inbound SIP".
+
+##### ETAPE 3A-6 : Test rapide cote Telnyx — Web Dialer
+
+1. Dans le menu Telnyx, aller dans **Voice** → **Web Dialer** (ou utiliser la barre de recherche en haut)
+2. Composer **+3226010784**
+3. **Resultat attendu :** L'appel part et tu entends une sonnerie (pas encore l'agent, car ElevenLabs n'est pas configure — mais tu verifies que Telnyx TENTE de router l'appel)
+4. **Verifier les logs :** Retourner dans la SIP Connection → onglet **"Debugging"** ou **"Logs"**
+   - Tu dois voir un SIP INVITE sortant vers `sip.rtc.elevenlabs.io`
+   - Si tu vois un `CANCEL` ou `487` apres quelques secondes → c'est normal (ElevenLabs n'a pas encore d'agent assigne)
+   - Si tu vois `403 Forbidden` → probleme d'authentification (verifier credentials)
+
+---
 
 #### 3B — Import du numero dans ElevenLabs (cote ElevenLabs)
 
-**STATUT : ✅ DEJA FAIT** — Numero importe, SIP trunk configure.
+> **Note :** L'ancien numero (+32 4 260 08 08) a deja ete importe. On doit maintenant importer le **nouveau numero +32 2 601 07 84**.
 
-**Phone Number ID ElevenLabs :** `phnum_0601kjmp9a5ae2d8qt149c1bmr7h`
+##### ETAPE 3B-1 : Creer un agent (si pas deja fait)
 
-**Inbound SIP Trunk Configuration (validee) :**
+1. Ouvrir **[elevenlabs.io](https://elevenlabs.io)** → se connecter
+2. Menu gauche → **Conversational AI** (ou **Agents**)
+3. **Si aucun agent n'existe :**
+   - Cliquer **"Create Agent"** (bouton bleu en haut a droite)
+   - Nom : `SEIDO - Intake Maintenance`
+   - LLM Provider : cliquer le dropdown → selectionner **Anthropic**
+   - Model : selectionner **Claude Haiku 4.5**
+   - Temperature : **0.3**
+   - Dans la section "First Message", entrer :
+     ```
+     Bonjour, bienvenue sur le service de maintenance SEIDO. Je suis l'assistant vocal. Comment puis-je vous aider ?
+     ```
+   - Dans la section "System Prompt", entrer un prompt basique de test :
+     ```
+     Tu es un assistant vocal pour le service de maintenance immobiliere SEIDO.
+     Tu aides les locataires a signaler des problemes dans leur logement.
+     Reponds en francais par defaut. Si l'interlocuteur parle neerlandais, reponds en neerlandais.
+     Sois poli, concis et professionnel.
+     ```
+   - Cliquer **"Save"** ou **"Create"**
+   - **NOTER l'Agent ID** (visible dans l'URL : `elevenlabs.io/app/conversational-ai/agents/{AGENT_ID}`)
+4. **Si un agent existe deja :** noter son Agent ID
 
-| Champ | Valeur | Statut |
-|-------|--------|--------|
-| SIP Server TCP | `sip:sip.rtc.elevenlabs.io:5060;transport=tcp` | ✅ Auto-genere |
-| SIP Server TLS | `sip:sip.rtc.elevenlabs.io:5061;transport=tls` | ✅ Auto-genere |
-| Media Encryption | Disabled | ✅ |
-| Allowed Addresses | All addresses (`0.0.0.0/0`) | ✅ (restreindre en prod) |
-| Allowed Numbers | All numbers | ✅ |
-| Remote Domains | `sip.telnyx.com` | ✅ |
-| Username | `seido11labs` | ✅ |
-| Password | (defini) | ✅ |
+> **TEST CHECKPOINT 4 :** Tester l'agent directement dans le dashboard ElevenLabs :
+> - Sur la page de l'agent, il y a un **widget de test** (icone microphone ou bouton "Test")
+> - Cliquer dessus et parler : "Bonjour, j'ai un probleme de fuite d'eau"
+> - L'agent doit repondre vocalement
+> - Si ca ne marche pas ici, le probleme est dans la config de l'agent (pas dans le SIP)
 
-**Outbound SIP Trunk Configuration :**
+##### ETAPE 3B-2 : Importer le nouveau numero via SIP Trunk
 
-| Champ | Valeur | Statut |
-|-------|--------|--------|
-| Address | `sip.telnyx.com` | ✅ Corrige (etait `example.pstn.twilio.com`) |
-| Transport Protocol | TLS (Secure) | ✅ |
-| Media Encryption | Disabled | ✅ |
-| Authentication | **A configurer** | ⚠️ Ajouter `seido-elevenlabs` + password Telnyx |
+1. Dans ElevenLabs, menu gauche → **Phone Numbers** (sous "Conversational AI" ou "Agents")
+2. Cliquer **"+ Add Phone Number"** (bouton en haut)
+3. Selectionner **"Import from SIP Trunk"** (PAS "Buy from ElevenLabs")
+4. Remplir les champs :
 
-**Agent assignee au numero :**
+   | Champ | Valeur a entrer | Notes |
+   |-------|-----------------|-------|
+   | **Label** | `SEIDO Belgium +3226010784` | Nom descriptif |
+   | **Phone Number** | `3226010784` | **Format E.164 SANS le `+`** — c'est critique ! |
 
-| Champ | Valeur | Statut |
-|-------|--------|--------|
-| Agent | **A assigner** | ⚠️ Selectionner l'agent SEIDO dans le dropdown |
+5. Cliquer **"Next"** ou descendre vers la configuration SIP
 
-#### 3C — Test de validation
+##### ETAPE 3B-3 : Configurer l'Inbound SIP Trunk (dans ElevenLabs)
 
-1. Assigner l'agent ElevenLabs au numero +32 4 260 08 08
-2. Appeler le numero depuis un telephone
-3. L'agent IA doit repondre et mener la conversation
-4. Si pas de reponse : verifier les logs Telnyx (SIP Connection → Logs) et ElevenLabs (Conversations)
+> **C'est ici que tu dis a ElevenLabs comment recevoir les appels entrants de Telnyx.**
 
-**Troubleshooting courant :**
+Dans la section **"Inbound"** du formulaire d'import :
 
-| Probleme | Cause probable | Solution |
-|----------|---------------|----------|
-| Pas de reponse | Agent non assigne | Assigner l'agent au numero |
-| Audio unidirectionnel | NAT/ALG reecrit les headers SDP | Cocher "Encode contact header" dans Telnyx Config |
-| Appel raccroche apres 5s | No answer timeout trop court | Augmenter a 30s dans Telnyx Inbound |
-| Codec mismatch | G729 active | Decocher G729, garder G722 + G711 |
-| Call rejected | Plan ElevenLabs gratuit | Plan Pro requis ($99/mo) |
+| Champ | Valeur a entrer | Explication |
+|-------|-----------------|-------------|
+| **Media Encryption** | `Disabled` | Doit matcher le setting Telnyx (Disabled des deux cotes) |
+| **Allowed Addresses** | `0.0.0.0/0` (dev) ou IPs Telnyx (prod) | Voir note ACL ci-dessous |
+| **Allowed Numbers** | `All numbers` | Accepter de tous les numeros |
+| **Remote Domains** | `sip.telnyx.com` | Le domaine depuis lequel Telnyx envoie les SIP INVITE |
+| **Username** | _(laisser vide)_ | On utilise l'authentification par IP, pas Digest |
+| **Password** | _(laisser vide)_ | On utilise l'authentification par IP, pas Digest |
+
+> **IMPORTANT — Utiliser l'authentification par IP (ACL), PAS Digest Auth :**
+>
+> Telnyx en mode FQDN ne gere PAS correctement le challenge `407 Proxy-Authenticate` d'ElevenLabs
+> (realm "LiveKit"). Telnyx recoit le 407, envoie un ACK, mais ne re-envoie jamais l'INVITE avec
+> les credentials Digest. **Resultat : appel rejete.**
+>
+> **Solution validee (2026-03-05) :** Passer a l'authentification par **IP whitelist (ACL)** :
+> - **Dev :** `0.0.0.0/0` (accepter tout)
+> - **Production :** Whitelister les IPs Telnyx Europe :
+>   - `185.246.41.0/24` (SIP signaling EU)
+>   - `185.246.40.0/24` (SIP signaling EU backup)
+>   - `64.16.229.0/24` (RTP media)
+>   - Consulter [Telnyx IP ranges](https://support.telnyx.com/en/articles/4407082) pour la liste complete
+
+##### ETAPE 3B-4 : Configurer l'Outbound SIP Trunk (dans ElevenLabs)
+
+> **C'est ici que tu dis a ElevenLabs comment ENVOYER des appels sortants via Telnyx (pour les callbacks futurs).**
+
+Dans la section **"Outbound"** :
+
+| Champ | Valeur a entrer | Explication |
+|-------|-----------------|-------------|
+| **Address** | `sip.telnyx.com` | **JUSTE le hostname**, pas de `sip:` prefix ni port |
+| **Transport Protocol** | `TLS (Secure)` | Port 5061, chiffre le SIP signaling |
+| **Media Encryption** | `Disabled` | Doit matcher le setting Telnyx |
+| **Username** | `seido-elevenlabs` | Meme credentials que dans Telnyx |
+| **Password** | (meme password) | Meme credentials que dans Telnyx |
+
+> **IMPORTANT :** L'address outbound etait `example.pstn.twilio.com` par defaut — il FAUT la changer a `sip.telnyx.com`.
+
+##### ETAPE 3B-5 : Assigner l'agent au numero — ETAPE LA PLUS CRITIQUE
+
+> **C'est l'etape manquante la plus probable pour "correspondant non disponible".**
+
+1. Apres avoir sauve la config SIP, tu reviens sur la page **Phone Numbers**
+2. Trouver le numero **+32 2 601 07 84** dans la liste
+3. Cliquer sur le numero (ou sur le bouton "Edit" / icone crayon)
+4. **Chercher le champ "Agent"** — c'est un dropdown
+5. **Selectionner l'agent** `SEIDO - Intake Maintenance` dans le dropdown
+6. Cliquer **"Save"**
+
+> **TEST CHECKPOINT 5 :** Verifier dans la liste des Phone Numbers que :
+> - Le numero +32 2 601 07 84 est present
+> - La colonne "Agent" affiche `SEIDO - Intake Maintenance` (et PAS "None" ou vide)
+> - Le statut est "Active" ou equivalent
+
+**Si tu ne vois PAS de dropdown "Agent" :**
+- Verifie que tu es sur un plan ElevenLabs **Pro** ou superieur (le plan gratuit/Starter ne supporte pas les appels)
+- Verifie qu'au moins un agent a ete cree (Etape 3B-1)
+
+---
+
+#### 3C — Test de validation complet
+
+##### Test 1 : Appel depuis un telephone mobile
+
+1. Prendre ton telephone portable
+2. Composer **+32 2 601 07 84**
+3. **Resultat attendu :** Apres 2-5 secondes de sonnerie, l'agent IA repond avec le message d'accueil
+4. Dire : "Bonjour, j'ai un probleme de fuite d'eau dans ma salle de bain"
+5. L'agent doit poser des questions de suivi
+
+**Si l'agent repond = SUCCES** — passer a l'Etape 4.
+
+##### Test 2 : Si "le correspondant n'est pas disponible" persiste
+
+Suivre cette checklist dans l'ordre :
+
+**A. Verifier cote Telnyx (logs SIP) :**
+1. Telnyx Mission Control → SIP Connection "Seido inbound SIP"
+2. Onglet **"Debugging"** (ou parfois accessible via Voice → Debugging)
+3. Chercher l'appel recent (par numero source ou timestamp)
+4. Analyser le flux SIP :
+
+| Ce que tu vois | Signification | Action |
+|----------------|---------------|--------|
+| `INVITE` → `100 Trying` → `180 Ringing` → `CANCEL` → `487` | ElevenLabs recoit l'appel mais ne repond pas | **Agent non assigne** (Etape 3B-5) OU timeout trop court |
+| `INVITE` → `403 Forbidden` | Authentification rejetee | **Credentials mismatch** — verifier username/password Telnyx ↔ ElevenLabs |
+| `INVITE` → `404 Not Found` | Numero non reconnu par ElevenLabs | **Numero non importe** dans ElevenLabs (Etape 3B-2) ou format incorrect |
+| `INVITE` → `480 Temporarily Unavailable` | ElevenLabs down ou agent inactif | Verifier status ElevenLabs sur status.elevenlabs.io |
+| `INVITE` → `503 Service Unavailable` | Probleme de routage Telnyx | Contacter support Telnyx |
+| Aucun log | Numero pas assigne a la SIP Connection | **Retourner a Etape 3A-5** |
+
+**B. Verifier cote ElevenLabs (logs conversations) :**
+1. ElevenLabs → **Conversational AI** → **Conversations** (ou **Call History**)
+2. Si l'appel apparait ici mais avec erreur → probleme cote agent (system prompt, LLM key)
+3. Si l'appel n'apparait PAS ici → le SIP INVITE n'arrive pas jusqu'a ElevenLabs (probleme Telnyx)
+
+**C. Verifier le format du numero :**
+- Le numero dans ElevenLabs doit etre en format E.164 **SANS le +** : `3226010784`
+- Le numero dans Telnyx (onglet Numbers) doit etre en format +E.164 : `+3226010784`
+- **Piege courant :** si tu as entre `+3226010784` AVEC le `+` dans ElevenLabs, ca peut causer un mismatch de routing
+
+**D. Verifier la correspondance des credentials :**
+
+| Plateforme | Ou trouver | Username | Password |
+|------------|------------|----------|----------|
+| **Telnyx** | SIP Connection → Auth and Routing → Outbound Calls Auth | `seido-elevenlabs` | `***` |
+| **ElevenLabs** | Phone Numbers → +3226010784 → Inbound SIP → Credentials | `seido-elevenlabs` | `***` |
+
+> Les deux lignes **DOIVENT** avoir les memes valeurs. Si un seul caractere differe = `403 Forbidden`.
+
+##### Troubleshooting complet
+
+| # | Probleme | Cause probable | Solution detaillee |
+|---|----------|---------------|-------------------|
+| 1 | "Correspondant non disponible" | Agent non assigne OU numero pas route | Etapes 3B-5 (agent) + 3A-5 (numero dans SIP Connection) |
+| 2 | Sonnerie puis raccrochage apres 5s | No Answer/Ringback Timeout = 5s (defaut) | Telnyx → SIP Connection → Inbound → mettre les DEUX a **30s** |
+| 3 | `403 Forbidden` dans les logs SIP | Credentials mismatch | Comparer username/password Telnyx Auth ↔ ElevenLabs Inbound |
+| 4 | `404 Not Found` dans les logs SIP | Numero non importe dans ElevenLabs | Refaire Etape 3B-2 avec le bon format (`3226010784` sans `+`) |
+| 5 | Audio unidirectionnel (tu entends l'agent mais pas l'inverse) | NAT/ALG reecrit les headers SDP | Telnyx Config → cocher **"Encode contact header"** |
+| 6 | Voix saccadee/robot | Codec incompatible | Telnyx Inbound → **decocher G729**, garder G722 + G711U + G711A |
+| 7 | Appel rejete immediatement | Plan ElevenLabs gratuit/Starter | Passer au plan **Pro** ($99/mo) — requis pour les appels telephoniques |
+| 8 | `RECOVERY_ON_TIMER_EXPIRE (102)` dans logs Telnyx | Firewall bloque le SIP | Verifier que `sip.rtc.elevenlabs.io:5060` (TCP) est accessible |
+| 9 | Appel OK mais agent ne parle pas | System prompt vide ou LLM API key invalide | ElevenLabs → Agent → verifier system prompt + LLM config |
+| 10 | Echo / feedback audio | Comfort noise + media settings | Telnyx Config → essayer de decocher "Generate comfort noise" |
+
+---
+
+#### 3D — Recapitulatif des IDs et credentials (a mettre a jour)
+
+**Telnyx :**
+
+| Element | Valeur |
+|---------|--------|
+| SIP Connection Name | Seido inbound SIP |
+| SIP Connection ID | `2905402867672155412` |
+| Nouveau numero | `+3226010784` (+32 2 601 07 84) |
+| SIP Auth Username | `seido-elevenlabs` |
+| SIP Auth Password | (defini dans Telnyx) |
+| FQDN | `sip.rtc.elevenlabs.io:5060` |
+
+**ElevenLabs :**
+
+| Element | Valeur |
+|---------|--------|
+| Ancien Phone Number ID | `phnum_0601kjmp9a5ae2d8qt149c1bmr7h` (ancien numero) |
+| Nouveau Phone Number ID | _(a noter apres import)_ |
+| Agent ID | _(a noter apres creation/assignation)_ |
+| Agent Name | `SEIDO - Intake Maintenance` |
+| Inbound SIP Username | `seido-elevenlabs` (doit matcher Telnyx) |
+| Inbound SIP Password | (doit matcher Telnyx) |
+| Outbound Address | `sip.telnyx.com` |
 
 ---
 
@@ -271,7 +505,7 @@ META_WHATSAPP_BUSINESS_ID=123456789012345          # WABA ID (1 pour toutes les 
 META_WHATSAPP_PHONE_NUMBER_ID=987654321098765      # Phone Number ID dev (premier numero)
 
 # Dev uniquement (mode manual)
-DEV_PHONE_NUMBER=+3242600808                       # Numero existant
+DEV_PHONE_NUMBER=+3226010784                       # Nouveau numero belge
 DEV_ELEVENLABS_AGENT_ID=xxxxxxxxxxxxxx             # Agent configure manuellement
 DEV_ELEVENLABS_PHONE_ID=phnum_0601kjmp9a5ae2d8qt149c1bmr7h  # Phone ID ElevenLabs
 ```
@@ -287,26 +521,50 @@ DEV_ELEVENLABS_PHONE_ID=phnum_0601kjmp9a5ae2d8qt149c1bmr7h  # Phone ID ElevenLab
 
 Avant de commencer US-001, verifier que :
 
-- [x] Compte Telnyx cree + numero belge achete (+32 4 260 08 08)
+**--- Telnyx (cote telephonie) ---**
+- [x] Compte Telnyx cree
+- [x] Nouveau numero +3226010784 achete sur Telnyx
 - [x] SIP Connection FQDN configuree vers `sip.rtc.elevenlabs.io`
-- [x] Numero importe dans ElevenLabs (SIP trunk)
-- [ ] Ajustements Telnyx Inbound (SIP region, timeout 30s, decocher G729)
-- [ ] "Encode contact header" coche dans Telnyx Config
-- [ ] Outbound auth configuree dans ElevenLabs (credentials Telnyx)
-- [ ] Agent ElevenLabs assigne au numero
-- [ ] **Test d'appel reussi** (appeler le numero → l'agent repond)
+- [x] Nouveau numero assigne a la SIP Connection (Etape 3A-5)
+- [ ] "Encode contact header" coche dans Config (Etape 3A-2) — a verifier
+- [ ] **SIP Region = Europe (Amsterdam)** (Etape 3A-4) — a verifier
+- [ ] **No Ringback Timeout = 30s** (Etape 3A-4) — a verifier
+- [ ] **No Answer Timeout = 30s** (Etape 3A-4) — a verifier
+- [ ] **Channel limit = 10** (Etape 3A-4) — a verifier
+- [ ] **G729 decoche** dans les codecs (Etape 3A-4) — a verifier
+
+**--- ElevenLabs (cote agent IA) ---**
+- [x] Agent "Intake maintenance" cree
+- [x] Nouveau numero +3226010784 importe via SIP Trunk
+- [x] **Inbound SIP : authentification par IP (ACL)** — Digest auth 407 ne fonctionnait pas avec Telnyx FQDN, passe en IP whitelist
+- [x] Outbound SIP Address = `sip.telnyx.com`
+- [ ] Outbound SIP credentials configurees (Etape 3B-4) — a verifier
+- [x] **Agent assigne au numero** — **FAIT**
+- [x] **Test d'appel telephonique reussi** (2026-03-05 19:01, duree 2:18, status Successful)
+
+**--- Lecon apprise : Authentification SIP ---**
+> **Telnyx FQDN + ElevenLabs Digest Auth (407) ne fonctionne pas out-of-the-box.**
+> Telnyx recoit le challenge `407 Proxy-Authenticate (realm="LiveKit")` mais ne re-envoie pas l'INVITE avec les credentials.
+> **Solution qui marche :** passer a l'authentification par **IP whitelist (ACL)** dans ElevenLabs Inbound SIP.
+> IPs Telnyx Europe a whitelister : `185.246.41.0/24`, `64.16.229.0/24` (ou `0.0.0.0/0` en dev).
+
+**--- Comptes & API keys ---**
 - [ ] Compte Anthropic cree + API key active
-- [ ] Compte ElevenLabs Pro actif + API key active
+- [x] Compte ElevenLabs Pro actif + API key active
 - [ ] Les API keys ajoutees dans `.env.local`
 - [ ] Les API keys ajoutees dans Vercel (preview + production)
+
+**--- Dependances ---**
 - [ ] `npm install ai @ai-sdk/anthropic @react-pdf/renderer elevenlabs telnyx` execute
 - [ ] `npm run lint` passe apres installation
+
+**--- WhatsApp (Phase 2 — pas bloquant pour le MVP telephonique) ---**
 - [ ] Meta Business Manager cree + entreprise verifiee
 - [ ] WABA cree + numero ajoute
 - [ ] WABA connecte a ElevenLabs (Settings → Integrations → WhatsApp)
 - [ ] **Test WhatsApp reussi** (envoyer un message → l'agent repond)
 
-**Temps total estime :** ~15 min de setup restant (ajustements + test d'appel) + 1-2 jours pour verification Meta Business
+**Temps restant estime :** Verifications mineures Telnyx (~5 min) + API keys (~10 min) + npm install (~5 min) + 1-2 jours pour verification Meta Business
 
 ---
 

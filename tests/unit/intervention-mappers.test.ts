@@ -244,7 +244,6 @@ describe('statusRequiresManagerAction', () => {
   it('identifies statuses requiring manager action', () => {
     expect(statusRequiresManagerAction('demande')).toBe(true)
     expect(statusRequiresManagerAction('approuvee')).toBe(true)
-    expect(statusRequiresManagerAction('demande_de_devis')).toBe(true)
     expect(statusRequiresManagerAction('planification')).toBe(true)
     expect(statusRequiresManagerAction('planifiee')).toBe(true)
   })

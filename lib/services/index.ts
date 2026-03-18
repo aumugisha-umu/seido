@@ -436,6 +436,25 @@ export {
   createServerActionContractService
 } from './domain/contract.service'
 
+// Supplier Contract Service
+export {
+  SupplierContractRepository,
+  SupplierContractDocumentRepository,
+  createSupplierContractRepository,
+  createServerSupplierContractRepository,
+  createServerActionSupplierContractRepository,
+  createSupplierContractDocumentRepository,
+  createServerSupplierContractDocumentRepository,
+  createServerActionSupplierContractDocumentRepository
+} from './repositories/supplier-contract.repository'
+
+export {
+  SupplierContractService,
+  createSupplierContractService,
+  createServerSupplierContractService,
+  createServerActionSupplierContractService
+} from './domain/supplier-contract.service'
+
 // Assignment Utilities
 export {
   determineAssignmentType,

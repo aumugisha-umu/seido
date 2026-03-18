@@ -4,18 +4,12 @@
 /**
  * Intervention Confirmation Summary
  *
- * Features:
- * - Refined Header with clear information hierarchy
- * - Participant list using Avatars for quick recognition
- * - distinct grouping of information fields
- * - Accessible contrast and spacing
+ * Refactored to use reusable confirmation components from @/components/confirmation.
+ * Preserves the same props interface and data flow.
  */
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   CheckCircle2,
   Building2,
@@ -25,95 +19,32 @@ import {
   FileText,
   Paperclip,
   ArrowLeft,
-  AlertTriangle,
-  MapPin,
-  UserCog,
+  Wrench,
   UserCheck,
-  Clock,
-  Briefcase
+  Settings2,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
 import { cn } from '@/lib/utils'
 
-// New confirmation sub-components
+// New reusable confirmation components
+import {
+  ConfirmationPageShell,
+  ConfirmationEntityHeader,
+  ConfirmationSummaryBanner,
+  ConfirmationSection,
+  ConfirmationKeyValueGrid,
+  ConfirmationContactGrid,
+} from '@/components/confirmation'
+
+// Existing sub-components
 import { SuccessHeader } from './confirmation/success-header'
 import { FilePreviewGallery, type PreviewFile } from './confirmation/file-preview-gallery'
 import { NextStepsTimeline } from './confirmation/next-steps-timeline'
 
 // ============================================================================
-// Helper Functions & Constants
+// Types (unchanged public interface)
 // ============================================================================
-
-function nameToInitials(name: string) {
-  if (!name) return '?'
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-// Badge style: light background + darker text/icon
-const CATEGORY_BADGE_STYLES: Record<string, string> = {
-  bien: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
-  bail: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
-  locataire: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100',
-}
-
-// Map type codes to their category
-const TYPE_TO_CATEGORY: Record<string, string> = {
-  // Bien (20 types)
-  plomberie: 'bien',
-  electricite: 'bien',
-  chauffage: 'bien',
-  climatisation: 'bien',
-  serrurerie: 'bien',
-  menuiserie: 'bien',
-  vitrerie: 'bien',
-  peinture: 'bien',
-  revetements_sols: 'bien',
-  toiture: 'bien',
-  facade: 'bien',
-  espaces_verts: 'bien',
-  parties_communes: 'bien',
-  ascenseur: 'bien',
-  securite_incendie: 'bien',
-  nettoyage: 'bien',
-  deratisation: 'bien',
-  demenagement: 'bien',
-  travaux_gros_oeuvre: 'bien',
-  autre_technique: 'bien',
-  // Legacy mappings
-  jardinage: 'bien',
-  menage: 'bien',
-  autre: 'bien',
-  // Bail (9 types)
-  etat_des_lieux_entree: 'bail',
-  etat_des_lieux_sortie: 'bail',
-  renouvellement_bail: 'bail',
-  revision_loyer: 'bail',
-  regularisation_charges: 'bail',
-  resiliation_bail: 'bail',
-  caution: 'bail',
-  assurance: 'bail',
-  autre_administratif: 'bail',
-  // Locataire (7 types)
-  reclamation: 'locataire',
-  demande_information: 'locataire',
-  nuisances: 'locataire',
-  demande_travaux: 'locataire',
-  changement_situation: 'locataire',
-  urgence_locataire: 'locataire',
-  autre_locataire: 'locataire',
-}
-
-// Helper to get category code from type code
-function getCategoryFromType(typeCode: string): string {
-  return TYPE_TO_CATEGORY[typeCode] || 'bien'
-}
 
 export interface InterventionConfirmationData {
   logement: {
@@ -160,16 +91,13 @@ export interface InterventionConfirmationData {
     name: string
     size: string
     type?: string
-    previewUrl?: string // Base64 or blob URL for image preview
-    category?: string // Document category (e.g., "Photo avant travaux")
+    previewUrl?: string
+    category?: string
   }>
   expectsQuote?: boolean
-  /** Variant for conditional display - tenant has simplified view with timeline */
   variant?: 'tenant' | 'manager'
-  // Multi-provider mode
   assignmentMode?: 'single' | 'group' | 'separate'
   providerInstructions?: Record<string, string>
-  // Participant confirmation
   requiresParticipantConfirmation?: boolean
   confirmationRequiredUserIds?: string[]
 }
@@ -182,18 +110,15 @@ interface InterventionConfirmationSummaryProps {
   totalSteps?: number
   isLoading?: boolean
   showFooter?: boolean
-  /** Hide the Planning section - useful for tenant creation flow where scheduling is not relevant */
   showPlanning?: boolean
-  /** Show animated success header instead of static header */
   showSuccessHeader?: boolean
-  /** Callback for quick action: go to dashboard */
   onGoToDashboard?: () => void
 }
 
-// Helper to format slot date
-// ✅ FIX: Utiliser parseISO pour éviter les décalages de timezone
-// new Date("YYYY-MM-DD") traite comme UTC minuit → peut décaler d'un jour en heure locale
-// parseISO traite la date comme locale, ce qui est le comportement attendu
+// ============================================================================
+// Helpers
+// ============================================================================
+
 function formatSlotDate(dateStr: string): string {
   if (!dateStr) return ''
   try {
@@ -204,27 +129,35 @@ function formatSlotDate(dateStr: string): string {
   }
 }
 
-// Helper to capitalize first letter
 function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
 }
 
-// Helper to get urgency badge class
-function getUrgencyBadgeClass(urgency: string): string {
-  switch (urgency.toLowerCase()) {
-    case 'urgente':
-    case 'haute':
-    case 'critique':
-      return 'border-destructive/30 text-destructive bg-destructive/5 hover:bg-destructive/10'
-    case 'normale':
-    case 'moyenne':
-      return 'border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100'
-    case 'basse':
-      return 'border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100'
-    default:
-      return 'border-primary/20 text-primary bg-primary/5'
+function getUrgencyBadgeProps(urgency: string): { label: string; className: string } {
+  const label = capitalizeFirst(urgency)
+  const lower = urgency.toLowerCase()
+  if (['urgente', 'haute', 'critique', 'tres_urgent'].includes(lower)) {
+    return { label, className: 'bg-red-50 text-red-700 border-red-200' }
+  }
+  if (['urgent'].includes(lower)) {
+    return { label, className: 'bg-amber-50 text-amber-700 border-amber-200' }
+  }
+  // normale / basse / default
+  return { label, className: '' }
+}
+
+function getPlanningTypeLabel(type?: string): string {
+  switch (type) {
+    case 'immediate': return 'Date fixe'
+    case 'slots': return 'Creneaux'
+    case 'flexible': return 'Flexible'
+    default: return 'Non defini'
   }
 }
+
+// ============================================================================
+// Component
+// ============================================================================
 
 export function InterventionConfirmationSummary({
   data,
@@ -234,13 +167,10 @@ export function InterventionConfirmationSummary({
   showFooter = true,
   showPlanning = true,
   showSuccessHeader = false,
-  onGoToDashboard,
 }: InterventionConfirmationSummaryProps) {
   const variant = data.variant || 'manager'
-  const isUrgent = ['urgente', 'haute', 'critique'].includes(data.intervention.urgency.toLowerCase())
-  const urgencyBadgeClass = getUrgencyBadgeClass(data.intervention.urgency)
 
-  // Convert files to PreviewFile format for FilePreviewGallery
+  // Convert files to PreviewFile format
   const previewFiles: PreviewFile[] = (data.files || []).map(f => ({
     id: f.id,
     name: f.name,
@@ -250,12 +180,12 @@ export function InterventionConfirmationSummary({
     category: f.category,
   }))
 
-  // Contacts Filtering
+  // Contact groups
   const gestionnaires = data.contacts.filter(c => c.role.toLowerCase().includes('gestionnaire'))
   const prestataires = data.contacts.filter(c => c.role.toLowerCase().includes('prestataire'))
   let locataires = data.contacts.filter(c => c.role.toLowerCase().includes('locataire'))
 
-  // Fallback Locataire
+  // Fallback locataire from logement
   if (locataires.length === 0 && data.logement.tenant) {
     locataires = [{
       id: 'tenant-from-logement',
@@ -264,340 +194,310 @@ export function InterventionConfirmationSummary({
     }]
   }
 
-  // Compact Contact List Renderer
-  const renderContactList = (contacts: typeof data.contacts) => (
-    <div className="flex flex-col gap-2">
-      {contacts.map((contact) => (
-        <div key={contact.id} className="flex items-center gap-2.5 p-1.5 rounded-md hover:bg-slate-50 transition-colors -ml-1.5">
-          <Avatar className="h-7 w-7 border border-slate-100">
-            <AvatarImage src={contact.avatarUrl} alt={contact.name} />
-            <AvatarFallback className="text-[10px] font-medium text-slate-600 bg-slate-100">
-              {nameToInitials(contact.name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-medium truncate flex items-center gap-1.5 leading-none mb-0.5">
-              {contact.name}
-              {contact.isCurrentUser && (
-                <Badge variant="secondary" className="text-[9px] h-3.5 px-0.5 pointer-events-none">
-                  Vous
-                </Badge>
-              )}
-              {contact.has_account === true && (
-                <Badge variant="outline" className="text-[9px] h-3.5 px-1 bg-green-50 text-green-700 border-green-300 pointer-events-none">
-                  Compte Seido
-                </Badge>
-              )}
-            </span>
-            <span className="text-[10px] text-muted-foreground truncate leading-none">
-              {contact.speciality || contact.role}
-            </span>
+  // Urgency badge
+  const urgencyBadge = getUrgencyBadgeProps(data.intervention.urgency)
+  // Build entity header badges
+  const headerBadges: Array<{ label: string; variant?: 'default' | 'secondary' | 'outline'; className?: string }> = [
+    { label: urgencyBadge.label, variant: 'outline', className: urgencyBadge.className },
+    { label: data.intervention.category, variant: 'outline' },
+  ]
+  if (data.expectsQuote) {
+    headerBadges.push({ label: 'Estimation demandee', variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' })
+  }
+
+  // Build subtitle
+  const subtitleParts = [data.logement.name]
+  if (data.logement.building) subtitleParts.push(data.logement.building)
+  if (data.logement.address) subtitleParts.push(data.logement.address)
+  const subtitle = subtitleParts.join(' - ')
+
+  // Summary banner metrics
+  const bannerMetrics = [
+    { label: 'Prestataires', value: prestataires.length, icon: <Users className="h-3.5 w-3.5" /> },
+    { label: 'Planning', value: getPlanningTypeLabel(data.scheduling?.type), icon: <Calendar className="h-3.5 w-3.5" /> },
+    { label: 'Devis', value: data.expectsQuote ? 'Demande' : 'Non', icon: <FileText className="h-3.5 w-3.5" /> },
+    {
+      label: 'Confirmation',
+      value: data.requiresParticipantConfirmation ? 'Requise' : 'Non',
+      icon: <UserCheck className="h-3.5 w-3.5" />,
+      highlight: data.requiresParticipantConfirmation,
+    },
+  ]
+
+  // Planning section value pairs
+  const buildPlanningPairs = () => {
+    const pairs: Array<{ label: string; value: React.ReactNode; empty?: boolean; fullWidth?: boolean }> = []
+
+    pairs.push({ label: 'Type de planning', value: getPlanningTypeLabel(data.scheduling?.type) })
+
+    if (data.scheduling?.type === 'immediate' && data.scheduling.slots?.[0]) {
+      const slot = data.scheduling.slots[0]
+      pairs.push({
+        label: 'Date & heure',
+        value: `${formatSlotDate(slot.date)} a ${slot.startTime}`,
+      })
+    } else if (data.scheduling?.type === 'slots' && data.scheduling.slots && data.scheduling.slots.length > 0) {
+      pairs.push({
+        label: 'Creneaux proposes',
+        fullWidth: true,
+        value: (
+          <div className="flex flex-col gap-1">
+            {data.scheduling.slots.map((slot, idx) => (
+              <span key={idx} className="text-sm">
+                {formatSlotDate(slot.date)} {slot.startTime === slot.endTime ? slot.startTime : `${slot.startTime} - ${slot.endTime}`}
+              </span>
+            ))}
           </div>
-        </div>
-      ))}
-    </div>
-  )
+        ),
+      })
+    } else {
+      pairs.push({
+        label: 'Date',
+        value: data.scheduling?.message || 'Flexible — aucune date imposee',
+        empty: !data.scheduling?.message && data.scheduling?.type === 'flexible',
+      })
+    }
 
-  const categoryCode = getCategoryFromType(data.intervention.category)
-  const TypeIcon = getTypeIcon(data.intervention.category)
+    // Confirmation info
+    if (data.requiresParticipantConfirmation) {
+      const confirmNames = data.contacts
+        .filter(c => data.confirmationRequiredUserIds?.includes(c.id))
+        .map(c => c.name)
+        .join(', ')
+      pairs.push({
+        label: 'Confirmation requise',
+        value: `Oui — ${confirmNames || 'participants selectionnes'}`,
+      })
+    } else {
+      pairs.push({ label: 'Confirmation requise', value: 'Non' })
+    }
 
+    pairs.push({ label: 'Devis demande', value: data.expectsQuote ? 'Oui' : 'Non' })
+
+    return pairs
+  }
+
+  // Instructions section pairs
+  const buildInstructionsPairs = () => {
+    const pairs: Array<{ label: string; value: React.ReactNode; empty?: boolean; fullWidth?: boolean }> = []
+
+    pairs.push({
+      label: 'Message global',
+      value: data.instructions?.globalMessage || undefined,
+      empty: !data.instructions?.globalMessage,
+      fullWidth: true,
+    })
+
+    if (data.assignmentMode === 'separate' && data.providerInstructions) {
+      prestataires.forEach(provider => {
+        const msg = data.providerInstructions?.[provider.id]
+        pairs.push({
+          label: `Instructions — ${provider.name}`,
+          value: msg || undefined,
+          empty: !msg,
+          fullWidth: true,
+        })
+      })
+    }
+
+    return pairs
+  }
+
+  // --- Success header variant (unchanged) ---
+  if (showSuccessHeader) {
+    return (
+      <ConfirmationPageShell maxWidth="5xl">
+        <SuccessHeader
+          variant={variant}
+          interventionTitle={data.intervention.title}
+        />
+        {/* Render the same content below success header */}
+        {renderContent()}
+        {variant === 'tenant' && <NextStepsTimeline variant="tenant" />}
+      </ConfirmationPageShell>
+    )
+  }
+
+  // --- Standard confirmation view ---
   return (
-    <div className="w-full max-w-5xl mx-auto animate-in fade-in-50 duration-500">
+    <ConfirmationPageShell maxWidth="5xl">
+      <ConfirmationEntityHeader
+        icon={Wrench}
+        iconColor="primary"
+        title={data.intervention.title}
+        subtitle={subtitle}
+        badges={headerBadges}
+      />
 
-      {/* Main Card - Compact View */}
-      <Card className="overflow-hidden border-slate-200 shadow-sm flex flex-col h-full max-h-[80vh] sm:max-h-[85vh]">
+      <ConfirmationSummaryBanner metrics={bannerMetrics} />
 
-        {/* SUCCESS HEADER (animated) or COMPACT HEADER (static) */}
-        {showSuccessHeader ? (
-          <SuccessHeader
-            variant={variant}
-            interventionTitle={data.intervention.title}
-          />
-        ) : (
-          <CardHeader className="border-b bg-slate-50/50 py-3 px-3 sm:px-5 flex-shrink-0">
-            <div className="flex flex-col gap-2">
-              {/* Row 1: Title + Status indicator (desktop only) */}
-              <div className="flex items-start justify-between gap-2">
-                <CardTitle className="text-base sm:text-lg font-bold leading-tight tracking-tight text-slate-900 line-clamp-2 sm:line-clamp-1">
-                  {data.intervention.title}
-                </CardTitle>
-                {/* Status Indicator - Hidden on mobile */}
-                <div className="hidden sm:flex flex-shrink-0">
-                  {data.expectsQuote ? (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full">
-                      <FileText className="h-3 w-3 text-amber-600" />
-                      <span className="text-[10px] font-semibold text-amber-700">Estimation demandée</span>
-                    </div>
-                  ) : (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-full">
-                      <CheckCircle2 className="h-3 w-3 text-green-600" />
-                      <span className="text-[10px] font-semibold text-green-700">Direct</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+      {renderContent()}
 
-              {/* Row 2: Badges */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <Badge
-                  variant="outline"
-                  className={cn("uppercase text-[9px] h-5 px-1.5 tracking-wider font-semibold", urgencyBadgeClass)}
-                >
-                  {data.intervention.urgency}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={cn("flex items-center gap-1 font-normal bg-white h-5 px-1.5 text-[10px]", CATEGORY_BADGE_STYLES[categoryCode])}
-                >
-                  <TypeIcon className="h-2.5 w-2.5" />
-                  {data.intervention.category}
-                </Badge>
-              </div>
-
-              {/* Row 3: Location */}
-              <CardDescription className="flex items-start gap-1.5 text-xs">
-                <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
-                <span className="line-clamp-2">
-                  <span className="font-medium">{data.logement.name}</span>
-                  {data.logement.building && <span className="text-muted-foreground"> • {data.logement.building}</span>}
-                  {data.logement.address && <span className="text-muted-foreground"> • {data.logement.address}</span>}
-                </span>
-              </CardDescription>
-            </div>
-          </CardHeader>
-        )}
-
-        {/* SCROLLABLE CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <div className={cn(
-            "grid grid-cols-1 divide-y lg:divide-y-0 min-h-full",
-            variant !== 'tenant' && "lg:grid-cols-12 lg:divide-x divide-slate-100"
-          )}>
-
-            {/* COLUMN 1: Details - Full width for tenant, 8/12 for manager */}
-            <div className={cn(
-              "p-4 lg:p-5 space-y-5",
-              variant === 'tenant' ? "lg:col-span-12" : "lg:col-span-8"
-            )}>
-
-              {/* Description Block */}
-              <section className="space-y-2">
-                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <FileText className="h-3.5 w-3.5" /> Détails
-                </h4>
-                <div className="bg-slate-50 rounded-md p-3 text-sm text-slate-700 leading-snug border border-slate-100">
-                  {data.intervention.description || <span className="text-muted-foreground italic">Aucune description.</span>}
-                </div>
-                {data.intervention.room && (
-                  <div className="text-xs text-slate-600 pl-1">
-                    Lieu : <span className="font-medium text-slate-900">{data.intervention.room}</span>
-                  </div>
-                )}
-              </section>
-
-              {/* Planning Block - Hidden for tenant flow */}
-              {showPlanning && (
-                <section className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5" /> Planning
-                    </h4>
-                    {data.scheduling?.type && (
-                      <Badge variant="outline" className={cn(
-                        "text-[9px] h-4 px-1.5 border",
-                        data.scheduling.type === 'immediate' && "bg-sky-100 text-sky-700 border-sky-200",
-                        data.scheduling.type === 'slots' && "bg-purple-100 text-purple-700 border-purple-200",
-                        data.scheduling.type === 'flexible' && "bg-slate-100 text-slate-600 border-slate-200"
-                      )}>
-                        {data.scheduling.type === 'flexible' && 'Laissé libre'}
-                        {data.scheduling.type === 'slots' && 'Créneau proposé'}
-                        {data.scheduling.type === 'immediate' && 'Date fixe'}
-                      </Badge>
-                    )}
-                  </div>
-                  {data.scheduling?.type === 'immediate' && data.scheduling.slots?.[0] ? (
-                    // DATE FIXE - Box bleue, heure unique
-                    <div className="flex items-center gap-2 px-2.5 py-1.5 bg-sky-50 text-sky-700 rounded-md border border-sky-100 text-xs">
-                      <span className="font-semibold">{formatSlotDate(data.scheduling.slots[0].date)}</span>
-                      <span className="opacity-75">{data.scheduling.slots[0].startTime}</span>
-                    </div>
-                  ) : data.scheduling?.slots && data.scheduling.slots.length > 0 ? (
-                    // CRÉNEAUX PROPOSÉS - Boxes violettes, time range
-                    <div className="flex flex-col gap-1.5">
-                      {data.scheduling.slots.map((slot, idx) => (
-                        <div key={idx} className="flex items-center gap-2 px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-md border border-purple-100 text-xs">
-                          <span className="font-semibold">{formatSlotDate(slot.date)}</span>
-                          <span className="opacity-75">
-                            {slot.startTime === slot.endTime ? slot.startTime : `${slot.startTime}-${slot.endTime}`}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    // FLEXIBLE ou vide
-                    <div className="text-xs text-slate-500 italic bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
-                      {data.scheduling?.message || "À définir"}
-                    </div>
-                  )}
-                </section>
-              )}
-
-              {/* Files Block - FULL WIDTH Visual Preview Gallery */}
-              {previewFiles.length > 0 && (
-                <section className="space-y-3">
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <Paperclip className="h-3.5 w-3.5" /> Fichiers joints ({previewFiles.length})
-                  </h4>
-                  <FilePreviewGallery files={previewFiles} />
-                </section>
-              )}
-
-              {/* Instructions - Full Width if present */}
-              {(data.instructions?.globalMessage || (data.providerInstructions && Object.keys(data.providerInstructions).length > 0)) && (
-                <>
-                  <Separator className="bg-slate-100" />
-                  <section className="space-y-2">
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <MessageSquareText className="h-3.5 w-3.5" /> Instructions
-                    </h4>
-
-                    {data.instructions?.globalMessage && (
-                      <div className="bg-blue-50/50 p-2.5 rounded-md border border-blue-100 text-xs text-slate-700">
-                        <span className="font-semibold text-blue-800 mr-1">Global:</span>
-                        {data.instructions.globalMessage}
-                      </div>
-                    )}
-
-                    {data.assignmentMode === 'separate' && data.providerInstructions && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                        {prestataires.map(provider => {
-                          const msg = data.providerInstructions?.[provider.id]
-                          if (!msg) return null;
-                          return (
-                            <div key={provider.id} className="flex flex-col gap-1 text-xs bg-slate-50 p-2 rounded-md border border-slate-100">
-                              <div className="flex items-center gap-1.5 font-medium text-slate-900">
-                                <Avatar className="h-4 w-4"><AvatarFallback className="text-[8px]">{nameToInitials(provider.name)}</AvatarFallback></Avatar>
-                                {provider.name}
-                              </div>
-                              <p className="text-slate-600 pl-5.5">{msg}</p>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </section>
-                </>
-              )}
-
-              {/* TIMELINE: Prochaines étapes (tenant variant only) */}
-              {variant === 'tenant' && (
-                <>
-                  <Separator className="bg-slate-100" />
-                  <NextStepsTimeline variant="tenant" />
-                </>
-              )}
-
-            </div>
-
-            {/* COLUMN 2: Participants & Confirmation (Smaller) - 4/12 - Only for manager variant */}
-            {variant !== 'tenant' && (
-            <div className="bg-slate-50/40 p-4 lg:p-5 lg:col-span-4 flex flex-col gap-5 overflow-y-auto max-h-full">
-
-              {/* Participants Group - Tighter */}
-              <div className="space-y-4 flex-1">
-
-                {/* Gestionnaires */}
-                {gestionnaires.length > 0 && (
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestion</span>
-                    {renderContactList(gestionnaires)}
-                  </div>
-                )}
-
-                {/* Locataires */}
-                {locataires.length > 0 && (
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Locataires</span>
-                    {renderContactList(locataires)}
-                  </div>
-                )}
-
-                {/* Prestataires */}
-                {prestataires.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Prestataires</span>
-                      {prestataires.length > 1 && data.assignmentMode && (
-                        <Badge variant="outline" className="text-[9px] h-4 px-1 bg-white">
-                          {data.assignmentMode === 'separate' ? 'Séparé' : 'Groupe'}
-                        </Badge>
-                      )}
-                    </div>
-                    {renderContactList(prestataires)}
-                  </div>
-                )}
-              </div>
-
-              {/* Confirmation Block - Compact */}
-              {data.requiresParticipantConfirmation && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2 mt-auto">
-                  <div className="flex items-center gap-2 text-amber-900">
-                    <UserCheck className="h-4 w-4" />
-                    <span className="text-xs font-bold">Confirmation requise</span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1">
-                    {data.contacts
-                      .filter(c => data.confirmationRequiredUserIds?.includes(c.id))
-                      .map(contact => (
-                        <Badge key={contact.id} variant="secondary" className="bg-white border-amber-100 text-amber-900 hover:bg-amber-50 text-[10px] h-5 px-1.5">
-                          {contact.name}
-                        </Badge>
-                      ))
-                    }
-                  </div>
-                </div>
-              )}
-
-            </div>
+      {/* Footer */}
+      {showFooter && (
+        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-between pt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            disabled={isLoading}
+            className="w-full sm:w-auto text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 mr-2" />
+            Retour
+          </Button>
+          <Button
+            size="sm"
+            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 shadow-sm"
+            onClick={onConfirm}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                Creation...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 mr-2" />
+                Confirmer l'intervention
+              </>
             )}
-          </div>
+          </Button>
+        </div>
+      )}
+    </ConfirmationPageShell>
+  )
+
+  // ============================================================================
+  // Shared content renderer (used by both success and standard views)
+  // ============================================================================
+  function renderContent() {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* LEFT COLUMN */}
+        <div className={cn("space-y-5", variant === 'tenant' && "lg:col-span-2")}>
+          {/* Bien & occupant */}
+          <ConfirmationSection title="Bien & occupant" icon={<Building2 className="h-3.5 w-3.5" />}>
+            <ConfirmationKeyValueGrid pairs={[
+              { label: 'Type', value: data.logement.type === 'lot' ? 'Lot' : 'Immeuble' },
+              { label: 'Nom', value: data.logement.name },
+              { label: 'Adresse', value: data.logement.address || undefined, empty: !data.logement.address },
+              {
+                label: 'Locataire',
+                value: data.logement.tenant || undefined,
+                empty: !data.logement.tenant,
+              },
+            ]} />
+            {!data.logement.tenant && (
+              <p className="text-sm text-muted-foreground/60 italic">Vacant</p>
+            )}
+          </ConfirmationSection>
+
+          {/* Details */}
+          <ConfirmationSection title="Details" icon={<FileText className="h-3.5 w-3.5" />}>
+            <ConfirmationKeyValueGrid pairs={[
+              { label: 'Titre', value: data.intervention.title },
+              {
+                label: 'Description',
+                value: data.intervention.description || undefined,
+                empty: !data.intervention.description,
+                fullWidth: true,
+              },
+              { label: 'Categorie / Type', value: data.intervention.category },
+              {
+                label: 'Urgence',
+                value: (
+                  <Badge variant="outline" className={cn('text-xs', urgencyBadge.className)}>
+                    {urgencyBadge.label}
+                  </Badge>
+                ),
+              },
+            ]} />
+          </ConfirmationSection>
+
+          {/* Planning */}
+          {showPlanning && (
+            <ConfirmationSection title="Planning" icon={<Calendar className="h-3.5 w-3.5" />}>
+              <ConfirmationKeyValueGrid pairs={buildPlanningPairs()} />
+            </ConfirmationSection>
+          )}
+
+          {/* Instructions */}
+          <ConfirmationSection title="Instructions" icon={<MessageSquareText className="h-3.5 w-3.5" />}>
+            <ConfirmationKeyValueGrid columns={1} pairs={buildInstructionsPairs()} />
+          </ConfirmationSection>
+
+          {/* Fichiers joints */}
+          <ConfirmationSection title="Fichiers joints" icon={<Paperclip className="h-3.5 w-3.5" />}>
+            {previewFiles.length > 0 ? (
+              <FilePreviewGallery files={previewFiles} />
+            ) : (
+              <p className="text-sm text-muted-foreground/60 italic">Aucun fichier joint</p>
+            )}
+          </ConfirmationSection>
         </div>
 
-        {/* FOOTER - Compact */}
-        {showFooter && (
-          <CardFooter className="flex-shrink-0 flex flex-col-reverse sm:flex-row gap-3 sm:justify-between border-t bg-white p-3 lg:px-5">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              disabled={isLoading}
-              className="w-full sm:w-auto text-slate-500 hover:text-slate-900"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 mr-2" />
-              Retour
-            </Button>
-            <Button
-              size="sm"
-              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 shadow-sm"
-              onClick={onConfirm}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                  Création...
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 mr-2" />
-                  Confirmer l'intervention
-                </>
-              )}
-            </Button>
-          </CardFooter>
+        {/* RIGHT COLUMN (manager only) */}
+        {variant !== 'tenant' && (
+          <div className="space-y-5">
+            {/* Contacts assignes */}
+            <ConfirmationSection title="Contacts assignes" icon={<Users className="h-3.5 w-3.5" />}>
+              <ConfirmationContactGrid
+                columns={2}
+                groups={[
+                  {
+                    type: 'Gestionnaires',
+                    contacts: gestionnaires.map(c => ({
+                      id: c.id,
+                      name: c.name,
+                      email: c.email,
+                      sublabel: c.speciality || c.role,
+                    })),
+                    emptyLabel: 'Aucun',
+                  },
+                  {
+                    type: 'Prestataires',
+                    contacts: prestataires.map(c => ({
+                      id: c.id,
+                      name: c.name,
+                      email: c.email,
+                      sublabel: c.speciality || c.role,
+                    })),
+                    emptyLabel: 'Aucun',
+                  },
+                  {
+                    type: 'Locataires',
+                    contacts: locataires.map(c => ({
+                      id: c.id,
+                      name: c.name,
+                      email: c.email,
+                      sublabel: c.speciality || c.role,
+                    })),
+                    emptyLabel: 'Aucun (vacant)',
+                  },
+                ]}
+              />
+            </ConfirmationSection>
+
+            {/* Options */}
+            <ConfirmationSection title="Options" icon={<Settings2 className="h-3.5 w-3.5" />}>
+              <ConfirmationKeyValueGrid
+                columns={1}
+                pairs={[
+                  ...(prestataires.length > 1 && data.assignmentMode
+                    ? [{
+                        label: 'Mode assignation',
+                        value: data.assignmentMode === 'separate' ? 'Separe' : data.assignmentMode === 'group' ? 'Groupe' : 'Unique',
+                      }]
+                    : []),
+                  { label: 'Devis requis', value: data.expectsQuote ? 'Oui' : 'Non' },
+                ]}
+              />
+            </ConfirmationSection>
+          </div>
         )}
-      </Card>
-    </div>
-  )
+      </div>
+    )
+  }
 }

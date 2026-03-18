@@ -96,7 +96,7 @@ const getGestionnaireActions = (
     case 'demande':
       return [
         {
-          label: 'Traiter la demande',
+          label: 'Traiter demande',
           icon: FileText,
           variant: 'primary',
           actionType: 'process_request',
@@ -387,7 +387,7 @@ export const toButtonVariant = (
  * Retourne les actions du menu contextuel (⋮) pour une intervention
  * Ces actions secondaires (Modifier, Annuler) sont disponibles uniquement pour:
  * - Le gestionnaire
- * - Les statuts intermédiaires: approuvee, planification, planifiee
+ * - Tous les statuts SAUF terminaux: cloturee_par_gestionnaire, annulee
  *
  * @param interventionId - ID de l'intervention
  * @param status - Statut actuel de l'intervention
@@ -397,8 +397,8 @@ export const toButtonVariant = (
  * @example
  * ```tsx
  * const dotMenuActions = getDotMenuActions(intervention.id, intervention.status, 'gestionnaire')
- * // Pour 'approuvee': [{ label: 'Modifier', ... }, { label: 'Annuler', ... }]
- * // Pour 'demande': [] (pas de dot menu)
+ * // Pour 'demande': [{ label: 'Modifier', ... }, { label: 'Annuler', ... }]
+ * // Pour 'annulee': [] (pas de dot menu)
  * ```
  */
 export const getDotMenuActions = (
@@ -406,10 +406,10 @@ export const getDotMenuActions = (
   status: string,
   userRole: UserRole
 ): RoleBasedAction[] => {
-  // Dot menu only for gestionnaire on intermediate statuses
-  const intermediateStatuses = ['approuvee', 'planification', 'planifiee']
+  // Dot menu for gestionnaire on all non-terminal statuses
+  const terminalStatuses = ['cloturee_par_gestionnaire', 'annulee']
 
-  if (userRole !== 'gestionnaire' || !intermediateStatuses.includes(status)) {
+  if (userRole !== 'gestionnaire' || terminalStatuses.includes(status)) {
     return []
   }
 

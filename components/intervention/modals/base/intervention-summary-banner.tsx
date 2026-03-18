@@ -13,6 +13,7 @@
 import { Badge } from '@/components/ui/badge'
 import { Building2, MapPin, User, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getPriorityColor } from '@/lib/intervention-utils'
 import type { InterventionData, ModalBadge, ContextInfoItem, SummaryVariant } from './types'
 
 interface InterventionSummaryBannerProps {
@@ -33,15 +34,6 @@ interface InterventionSummaryBannerProps {
   showDescription?: boolean
   compact?: boolean
   className?: string
-}
-
-// Helper: Get priority colors
-const getPriorityColor = (priority: string) => {
-  const p = priority?.toLowerCase() || 'normale'
-  if (p === 'urgente') return 'bg-red-100 text-red-800 border-red-200'
-  if (p === 'haute') return 'bg-orange-100 text-orange-800 border-orange-200'
-  if (p === 'normale') return 'bg-blue-100 text-blue-800 border-blue-200'
-  return 'bg-slate-100 text-slate-800 border-slate-200'
 }
 
 // Helper: Get priority label

@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from "react"
-import type { User, Team, Contact } from "@/lib/services/core/service-types"
+import { useRealtimeOptional } from "@/contexts/realtime-context"
+import type { User, Team } from "@/lib/services/core/service-types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -59,7 +60,7 @@ import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lo
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import { logger, logError } from '@/lib/logger'
 import { usePropertyDocumentUpload } from '@/hooks/use-property-document-upload'
-import { BUILDING_DOCUMENT_SLOTS, LOT_IN_BUILDING_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
+import { BUILDING_DOCUMENT_SLOTS, LOT_IN_BUILDING_DOCUMENT_SLOTS, computeExpiryDate } from '@/lib/constants/property-document-slots'
 import { useMultiLotDocumentUpload } from '@/hooks/use-multi-lot-document-upload'
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
 import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
@@ -119,7 +120,6 @@ interface Contact {
 const contactTypes = [
   { key: "tenant", label: "Locataire", icon: User, color: "text-blue-600" },
   { key: "provider", label: "Prestataire", icon: Briefcase, color: "text-green-600" },
-  { key: "owner", label: "Propriétaire", icon: Shield, color: "text-amber-600" },
   { key: "other", label: "Autre", icon: MoreHorizontal, color: "text-gray-600" },
 ]
 
@@ -157,6 +157,7 @@ export default function NewImmeubleePage({
   initialCategoryCounts
 }: NewImmeublePageProps) {
   const router = useRouter()
+  const realtime = useRealtimeOptional()
   const searchParams = useSearchParams()
   const { data: managerData } = useManagerStats()
 
@@ -172,12 +173,10 @@ export default function NewImmeubleePage({
     description: "",
   })
   const [lots, setLots] = useState<Lot[]>([])
-  const [contacts, setContacts] = useState<Contact[]>([])
   // Contacts assignes au niveau de l'immeuble (format pour ContactSelector)
   const [buildingContacts, setBuildingContacts] = useState<{[contactType: string]: Contact[]}>({
     tenant: [],
     provider: [],
-    owner: [],
     other: [],
   })
   const [buildingManagers, setBuildingManagers] = useState<User[]>([]) // gestionnaires de l'immeuble
@@ -340,7 +339,6 @@ export default function NewImmeubleePage({
     const categoryMap: Record<string, string> = {
       'prestataire': 'provider',
       'locataire': 'tenant',
-      'proprietaire': 'owner',
       'gestionnaire': 'other',
       'autre': 'other'
     }
@@ -641,11 +639,6 @@ export default function NewImmeubleePage({
       [contactType]: [...prev[contactType], contact],
     }))
     }
-    
-    // Ajouter aussi a la liste globale des contacts si pas deja present
-    if (!contacts.some(c => c.id === contact.id)) {
-      setContacts([...contacts, contact])
-    }
   }
 
   const handleBuildingContactRemove = (contactId: string, contactType: string) => {
@@ -653,17 +646,6 @@ export default function NewImmeubleePage({
       ...prev,
       [contactType]: prev[contactType].filter(contact => contact.id !== contactId),
     }))
-    
-    // Retirer aussi de la liste globale des contacts si plus utilise
-    const isContactUsedElsewhere = Object.entries(buildingContacts).some(([type, contactsArray]) => 
-      type !== contactType && contactsArray.some(c => c.id === contactId)
-    ) || Object.values(lotContactAssignments).some(assignments => 
-      Object.values(assignments).some(contactsArray => contactsArray.some(c => c.id === contactId))
-    )
-    
-    if (!isContactUsedElsewhere) {
-      setContacts(contacts.filter(c => c.id !== contactId))
-    }
   }
 
   // Fonction pour ouvrir le ContactSelector avec un type specifique (pour les boutons individuels)
@@ -676,20 +658,7 @@ export default function NewImmeubleePage({
     }
   }
 
-  // [SUPPRIME] addContact maintenant gere dans ContactSelector
-
-  const _removeContact = (_id: string) => {
-    setContacts(contacts.filter((contact) => contact.id !== _id))
-
-    // Aussi retirer ce contact de toutes les assignations de lots
-    const newLotContactAssignments = { ...lotContactAssignments }
-    Object.keys(newLotContactAssignments).forEach(lotId => {
-      Object.keys(newLotContactAssignments[lotId]).forEach(contactType => {
-        newLotContactAssignments[lotId][contactType] = newLotContactAssignments[lotId][contactType].filter(c => c.id !== _id)
-      })
-    })
-    setLotContactAssignments(newLotContactAssignments)
-  }
+  // [SUPPRIME] addContact et _removeContact — contacts geres via buildingContacts et lotContactAssignments
 
   // Fonction pour assigner un contact a un lot specifique
   // const _assignContactToLot = (lotId: string, contactType: string, contact: Contact) => {
@@ -754,7 +723,10 @@ export default function NewImmeubleePage({
       return true // L'assignation des contacts est optionnelle
     }
     if (currentStep === 4) {
-      return true // Les interventions sont optionnelles
+      const hasEmptyCustomTitle = scheduledInterventions.some(
+        i => i.key.startsWith('custom_') && i.enabled && !i.title.trim()
+      )
+      return !hasEmptyCustomTitle
     }
     return true
   }
@@ -819,7 +791,7 @@ export default function NewImmeubleePage({
 
       // ✅ Preparer les building_contacts (contacts de l'immeuble)
       const contactsData = [
-        // Contacts de l'immeuble (provider, owner, other)
+        // Contacts de l'immeuble (provider, other)
         ...Object.entries(buildingContacts).flatMap(([contactType, contactArray]) =>
           contactArray
             .filter(contact => contact.id) // ✅ Filtrer les contacts sans ID valide
@@ -900,11 +872,18 @@ export default function NewImmeubleePage({
         )
       }
 
-      // Per-lot docs — all in parallel
+      // Per-lot docs — all in parallel (match by reference, not array index)
       for (let i = 0; i < lots.length; i++) {
         const tempLotId = lots[i].id
-        const realLotId = result.data.lots[i]?.id
-        if (realLotId && lotDocUploads[tempLotId]?.hasFiles) {
+        const realLot = result.data.lots.find((rl: { reference?: string }) => rl.reference === lots[i].reference)
+        const realLotId = realLot?.id
+        if (!realLotId) {
+          if (lotDocUploads[tempLotId]?.hasFiles) {
+            logger.warn(`[BUILDING-CREATION] No matching server lot for client lot ${lots[i].reference} — skipping doc upload`)
+          }
+          continue
+        }
+        if (lotDocUploads[tempLotId]?.hasFiles) {
           allPostCreationPromises.push(
             uploadLotDocs(tempLotId, realLotId, userTeam!.id)
               .then(() => logger.info(`✅ Lot documents uploaded for lot ${realLotId}`))
@@ -937,11 +916,18 @@ export default function NewImmeubleePage({
           )
         }
 
-        // Per-lot interventions — flattened into the same batch
+        // Per-lot interventions — flattened into the same batch (match by reference, not array index)
         for (let i = 0; i < lots.length; i++) {
           const tempLotId = lots[i].id
-          const realLotId = result.data.lots[i]?.id
-          if (!realLotId) continue
+          const realLot = result.data.lots.find((rl: { reference?: string }) => rl.reference === lots[i].reference)
+          const realLotId = realLot?.id
+          if (!realLotId) {
+            const lotIntervs = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
+            if (lotIntervs.length > 0) {
+              logger.warn(`[BUILDING-CREATION] No matching server lot for client lot ${lots[i].reference} — skipping ${lotIntervs.length} intervention(s)`)
+            }
+            continue
+          }
 
           const lotIntervs = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
           for (const intervention of lotIntervs) {
@@ -975,6 +961,7 @@ export default function NewImmeubleePage({
       toast.success("Immeuble créé avec succès", {
         description: `L'immeuble "${result.data.building.name}" a été créé avec ${result.data.lots.length} lot(s).`
       })
+      realtime?.broadcastInvalidation(['buildings', 'lots', 'stats'])
       router.push(`/gestionnaire/biens/immeubles/${result.data.building.id}`)
 
     } catch (err) {
@@ -1180,8 +1167,9 @@ export default function NewImmeubleePage({
                   documentExpiryDates={
                     Object.fromEntries(
                       buildingDocUpload.slots
-                        .filter(s => s.files.length > 0 && s.files[0]?.expiryDate)
-                        .map(s => [s.type, s.files[0].expiryDate!])
+                        .filter(s => s.files.length > 0)
+                        .map(s => [s.type, computeExpiryDate(s.files[0].documentDate, s.files[0].validityDuration, s.files[0].validityCustomExpiry)])
+                        .filter(([, expiry]) => expiry != null) as [string, string][]
                     )
                   }
                   teamId={userTeam?.id || ''}
@@ -1210,7 +1198,7 @@ export default function NewImmeubleePage({
                   if (!lotUpload) return null
 
                   const lotNumber = lots.length - index
-                  const isExpanded = expandedInterventionLots[lot.id] || false
+                  const isExpanded = expandedInterventionLots[lot.id] !== false
                   const categoryConfig = getLotCategoryConfig(lot.category)
 
                   // Count enabled interventions for this lot
@@ -1255,8 +1243,9 @@ export default function NewImmeubleePage({
                             documentExpiryDates={
                               Object.fromEntries(
                                 lotUpload.slots
-                                  .filter(s => s.files.length > 0 && s.files[0]?.expiryDate)
-                                  .map(s => [s.type, s.files[0].expiryDate!])
+                                  .filter(s => s.files.length > 0)
+                                  .map(s => [s.type, computeExpiryDate(s.files[0].documentDate, s.files[0].validityDuration, s.files[0].validityCustomExpiry)])
+                                  .filter(([, expiry]) => expiry != null) as [string, string][]
                               )
                             }
                             teamId={userTeam?.id || ''}
@@ -1329,8 +1318,8 @@ export default function NewImmeubleePage({
                 {isCreating && currentStep === 5 && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {currentStep === 1 && "Continuer vers les lots"}
                 {currentStep === 2 && "Continuer vers les contacts"}
-                {currentStep === 3 && "Planifier les interventions"}
-                {currentStep === 4 && "Voir la confirmation"}
+                {currentStep === 3 && "Continuer vers les interventions"}
+                {currentStep === 4 && "Continuer vers la confirmation"}
                 {currentStep === 5 && (isCreating ? "Création en cours..." : "Confirmer la création")}
                 {currentStep < 5 && <ChevronDown className="w-4 h-4 ml-2 rotate-[-90deg]" />}
               </Button>

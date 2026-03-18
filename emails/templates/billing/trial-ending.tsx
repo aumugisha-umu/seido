@@ -116,14 +116,18 @@ export const TrialEndingEmail = ({
         </div>
 
         <EmailButton href={billingUrl}>
-          {isLastDay ? 'S\'abonner maintenant' : 'Choisir le plan annuel'}
+          {isLastDay
+            ? 'Activer maintenant \u2014 0 EUR aujourd\u2019hui'
+            : isUrgent
+              ? 'Continuer avec SEIDO \u2014 0 EUR aujourd\u2019hui'
+              : 'Ajouter mon moyen de paiement \u2014 0 EUR aujourd\u2019hui'}
         </EmailButton>
 
-        {isLastDay && (
-          <Text className="text-gray-500 text-sm leading-relaxed text-center mt-4 mb-0">
-            Vos donnees ne seront pas supprimees. Vous pourrez reactiver votre compte a tout moment.
-          </Text>
-        )}
+        <Text className="text-gray-500 text-sm leading-relaxed text-center mt-4 mb-0">
+          {isLastDay
+            ? 'Vos donnees ne seront pas supprimees. Aucun debit avant la fin de l\u2019essai.'
+            : 'Annulation en 1 clic - Sans engagement'}
+        </Text>
       </Section>
 
       <EmailFooter />

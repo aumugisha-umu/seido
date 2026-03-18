@@ -135,3 +135,10 @@ Synchronisation: [DATE]
     ↓
 sp-verification-before-completion → Timestamps corrects
 ```
+
+## Integration with sp-compound
+
+When invoked by sp-compound after a feature completion:
+1. Run standard sync (metrics audit)
+2. Update `activeContext.md` with new feature status
+3. Verify `progress.md` reflects the milestone

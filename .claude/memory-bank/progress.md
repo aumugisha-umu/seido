@@ -84,6 +84,123 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-18 - Contact Role Rename "Autre" → "Propriétaire"
+
+**Ce qui a été fait:**
+- Renamed "Autre" contact category to "Propriétaire" across entire app (labels, icons, colors)
+- Changed color scheme from gray to amber (matching garant/proprietaire pattern)
+- Fixed critical bug: proprietaire contacts invisible in selector modal (key mismatch `other` vs `owner`)
+- Fixed "Non défini" display in contacts list (missing `proprietaire`/`garant` in lookup tables)
+- Hidden invite button for proprietaire/garant contacts (no app interface)
+- Changed lot creation default to "Laisser le lot indépendant"
+
+**Fichiers clés modifiés:**
+- `components/contact-selector.tsx` — tab key `other`→`owner`, role switch, icon
+- `config/table-configs/contacts.config.tsx` — added proprietaire/garant to label+badge maps
+- `components/ui/contact-section.tsx` — others config: labels, icon, amber colors
+- `components/ui/lot-contact-card-v4.tsx` — section header, tooltip, badge, items, button
+- `app/gestionnaire/(no-navbar)/biens/lots/nouveau/lot-creation-form.tsx` — boundary mapping owner↔other
+- `app/gestionnaire/(no-navbar)/contacts/details/[id]/contact-details-client.tsx` — hide invite for proprietaire/garant
+
+**Learnings:** #157 (contact type key mismatch), #158 (missing role entries in lookups)
+
+### 2026-03-16 - Admin Notification Emails (5 stories via Ralph)
+
+**Session: Platform owner email notifications for 4 user lifecycle events**
+
+| Story | Title | Impact |
+|-------|-------|--------|
+| US-001 | Admin notification service core + MRR helper + HTML builder | 3 new files, 4 methods, colored badges, MRR calculation |
+| US-002 | Integrate signup flows (OAuth + Email) | OAuth fire-and-forget + API route bridge for email signup |
+| US-003 | Integrate Stripe webhooks (created/updated/deleted) | 3 event types with MRR delta, old-vs-new lot comparison |
+| US-004 | Integrate trial expiration cron | Admin notification after each trial→free_tier/read_only transition |
+| US-005 | Env var + simplify review | 8 fixes: Resend singleton, floating promises, constant dedup, type narrowing |
+
+**New files:** `lib/services/domain/admin-notification/` (3 files), `app/api/internal/admin-signup-notification/route.ts`
+**Modified files:** `complete-profile/actions.ts`, `set-password/page.tsx`, `stripe-webhook.handler.ts`, `trial-expiration/route.ts`, `lib/stripe.ts`, `.env.example`
+**Learnings:** AGENTS.md #145-148 (Resend singleton, floating promises, Client→Server bridge, MRR on-the-fly)
+**Retrospective:** `docs/learnings/2026-03-16-admin-notification-emails-retrospective.md`
+
+---
+
+### 2026-03-15 - Data Invalidation Broadcast + UX Improvements
+
+**Session: Cross-team real-time cache sync via Supabase Broadcast + onboarding UX**
+
+| Change | Description |
+|--------|-------------|
+| **Data invalidation system** | `lib/data-invalidation.ts` (types) + team broadcast channel in `realtime-context.tsx` |
+| **5 hooks wired** | use-buildings, use-manager-stats, use-team-contacts, use-contacts-data, use-interventions auto-refetch on invalidation |
+| **12+ mutation sites** | Building/lot/contact/intervention/contract creation + status changes broadcast invalidation |
+| **Batch debounce** | Single 500ms timer collects entities in Set, dispatches once per handler (fixed N+1 bug) |
+| **Onboarding auto-expand** | Checklist auto-expands on dashboard until user has 1 lot + 1 contact |
+| **Sticky tabs** | Contacts/Documents tabs float on scroll in building + lot creation wizards |
+
+**Fichiers cles modifies:** lib/data-invalidation.ts, contexts/realtime-context.tsx, 5 hooks, 10+ form/detail components
+**AGENTS.md learnings:** #142-144 (batch debounce, broadcast vs postgres_changes, channel scoping)
+**Retrospective:** `docs/learnings/2026-03-15-data-invalidation-broadcast-retrospective.md`
+
+---
+
+### 2026-03-14 - Claude Code Ecosystem Optimization
+
+**Session: Full .claude/ restructuring for consistency, reliability, and replicability**
+
+| Change | Description |
+|--------|-------------|
+| **CLAUDE.md restructured** | 487→164 lines: INTERDICTIONS at top, skill routing with validation, commit workflow, parallel execution protocol |
+| **23 skills enriched** | Code Craftsmanship Standards hooks added to all implementation/review/design skills |
+| **8 agents enriched** | SEIDO-specific learnings, AGENTS.md references, anti-patterns added |
+| **4 new skills** | sp-release (deployment), sp-monitoring (error budgets), sp-a11y (WCAG), sp-analytics (KPIs) |
+| **Safety hooks** | block-dangerous-commands.js, block-secret-writes.js (PreToolUse deterministic) |
+| **Quality gate enhanced** | Step 2.5 Simplify Quick-Scan + Step 4.5 Knowledge Capture |
+| **Parallel execution** | sp-dispatching-parallel-agents rewritten with full worktree lifecycle |
+| **Content extracted** | seido-reference.md, feature-reference.md (conditional rules), sp-orchestration (skill) |
+| **Global blueprint** | `.claude/claude-code-global-blueprint.md` — full template for replication to other projects |
+
+**Fichiers cles modifies:** CLAUDE.md, 23 skills, 8 agents, 2 rules, 2 scripts, settings.local.json
+**No AGENTS.md learnings** — meta/process work, not codebase patterns
+
+---
+
+### 2026-03-14 - Import Review + Simplify + Deferred Geocoding (3 stories)
+
+**Session: Import wizard bug fixes, code simplification, geocoding optimization**
+
+| Story | Title | Impact |
+|-------|-------|--------|
+| US-001 | Bug fixes (7 bugs) | Auth wrapper, SSE errors, AbortController, setMonth overflow, phase index |
+| US-002 | Simplify | Shared validators/utils.ts, ~150 lines dead code removed, N+1 batched |
+| US-003 | Deferred geocoding | Phase 0 removed, after() post-response, rate-limited batch (40/sec) |
+
+**Fichiers cles modifies:** import.service.ts, address.service.ts, execute-stream/route.ts, 5 validators, import-step-progress.tsx
+**Learnings:** JS setMonth overflow, after() for non-blocking geocoding
+
+---
+
+### 2026-03-11 - Supplier Contracts + Blog Hub/Cluster + Intervention Planner
+
+**Session: Multi-feature work — new entity, content architecture, bug fixes**
+
+| Change | Description |
+|--------|-------------|
+| **Supplier Contracts** | New `supplier_contracts` + `supplier_contract_documents` tables, repository, service, card UI, wizard steps |
+| **Blog Hub/Cluster** | 23 articles (Jan/Feb/Mar 2026), hub-cluster architecture with sibling navigation |
+| **PostgREST FK Fix** | `!fk_users_company` hint on 4 repository queries to resolve PGRST201 ambiguous FK |
+| **Card Display Fix** | Supplier cards show person name + purple company badge (matching contact-card-compact pattern) |
+| **Intervention Planner** | Refactoring in progress (6 stories in prd.json) |
+
+**Fichiers cles modifies:**
+- `lib/services/repositories/supplier-contract.repository.ts` — FK hint fix
+- `components/contracts/supplier-contract-card.tsx` — person name + company badge
+- `components/contract/contract-form-container.tsx` — supplier contracts wizard integration
+- `lib/database.types.ts` — new table types
+- 23 blog articles in `blog/articles/`
+
+**Learnings:** AGENTS.md #130-#134
+
+---
+
 ### 2026-03-02 - Performance Optimization TIER 1+2 (13 stories)
 
 **Session: Comprehensive app-wide performance optimization from 6-agent audit**
@@ -462,43 +579,43 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-03-02)
+## Metriques Projet (2026-03-14)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | **21** |
-| Domain Services | **34** |
-| API Routes | **120** |
+| Repositories | **23** |
+| Domain Services | **35** |
+| API Routes | **121** |
 | Hooks | **71** |
-| Components | **381** |
+| Components | **390+** |
 | Pages | **90** |
-| Blog Articles | **2** (Jan 2026, Feb 2026) |
-| DB Tables | **44** |
+| Blog Articles | **23** |
+| DB Tables | **46** |
 | DB Enums | 39 |
-| DB Functions | **80** (+1: get_thread_unread_counts) |
-| Migrations | **178** (+2: conversation_participants index, unread counts RPC) |
+| DB Functions | **80** |
+| Migrations | **193** |
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **110** (+15: #096-#103 slot/billing, #104 redirect, #105-#110 perf) |
-| **systemPatterns.md Patterns** | **32** (+3: parallelization, after(), RLS-as-auth) |
+| **AGENTS.md Learnings** | **148** |
+| **systemPatterns.md Patterns** | **32** |
 | **Shared Cards** | **15** |
-| **Quote Status Enum (DB)** | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
-| **E2E Test Files** | **8** (smoke, building, lot, contract, 4 intervention) |
-| **E2E Page Objects** | **8** (dashboard, login, 3 wizards, 3 intervention) |
-| **E2E Total Tests** | **25+** (wizards) + intervention workflow |
+| **E2E Test Files** | **8** |
+| **E2E Page Objects** | **8** |
 | **Unit Test Files** | **12** |
 | **Integration Test Files** | **5** |
 
-### Metriques Ecosysteme .claude/ (2026-01-23)
+### Metriques Ecosysteme .claude/ (2026-03-14)
 
-| Categorie | Lignes |
-|-----------|--------|
-| CLAUDE.md | 269 |
-| Agents (11 fichiers) | 1,492 |
-| Memory Bank (6 fichiers) | 798 |
-| Rules (3 fichiers) | 347 |
-| **Total** | ~3,363 |
+| Categorie | Count | Lignes |
+|-----------|-------|--------|
+| CLAUDE.md | 1 | 164 |
+| Skills | 23 | ~2,800 |
+| Agents | 15 | ~4,200 |
+| Rules | 5 | ~450 |
+| Scripts | 5 | ~363 |
+| Memory Bank | 6 | ~800 |
+| **Total** | 55 | ~8,777 |
 
 ## Historique des Decisions Techniques
 
@@ -560,7 +677,13 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | **2026-03-02** | **SECURITY DEFINER RPC batch** | **Single SQL function for N×M cross-RLS queries** | **Thread unread: 15 queries → 1 RPC, AGENTS.md #109** |
 | **2026-03-02** | **Supabase bulk patterns** | **Array .insert() + { head: true } for counts** | **Rent reminders 72→18 queries, stats zero data transfer, AGENTS.md #110** |
 | **2026-03-02** | **Post-creation redirect** | **Entity creation → detail page, not list** | **4 entities fixed, router.refresh() removed, AGENTS.md #104** |
+| **2026-03-14** | **Import deferred geocoding** | **Non-blocking geocoding via after()** | **Phase 0 removed, batch 10 parallel, 40/sec rate limit** |
+| **2026-03-14** | **CLAUDE.md INTERDICTIONS at top** | **Critical rules get followed more reliably** | **487→164 lines, INTERDICTIONS section first, skill routing with validation** |
+| **2026-03-14** | **Parallel Execution Protocol** | **Worktree-based parallelization for multi-task work** | **Branch awareness, simplify self-check, merge+cleanup lifecycle** |
+| **2026-03-14** | **Quality Gate Knowledge Capture** | **Persist learnings BEFORE commit, not after** | **Step 4.5: compound, memory bank, CLAUDE.md, agents/skills check** |
+| **2026-03-14** | **PreToolUse safety hooks** | **Deterministic blocking (not advisory)** | **block-dangerous-commands.js + block-secret-writes.js** |
+| **2026-03-14** | **Global blueprint** | **Replicable .claude/ ecosystem for any project** | **.claude/claude-code-global-blueprint.md — 33 global + 20-30 per project files** |
 
 ---
-*Derniere mise a jour: 2026-03-02*
-*Session: Performance optimization TIER 1+2 (13 stories) + post-creation redirect UX, 110 learnings in AGENTS.md*
+*Derniere mise a jour: 2026-03-16*
+*Session: Admin notification emails (5 stories), 148 learnings in AGENTS.md*

@@ -1,0 +1,111 @@
+# Progress Log — AI Phone Assistant Phase 1 (Phone Calls)
+# Started: 2026-03-09
+# Stories: 13 total (US-001 to US-013)
+# Branch: feature/ai-phone-assistant
+# PRD: docs/AI/ai-phone-assistant-plan.md
+# Design: docs/AI/ai-phone-self-service-design.md
+---
+
+## US-001: Schema DB + migrations + NPM deps ✅
+- **Date**: 2026-03-09
+- **Files**: supabase/migrations/20260309100000_create_ai_phone_assistant_schema.sql, lib/database.types.ts, package.json, .env.example
+- **Tables**: ai_phone_numbers (team config), ai_phone_calls (conversation log), ai_phone_usage (billing)
+- **Modifications**: interventions.source column, rapport_appel_ia enum value
+- **NPM**: ai@6.0.116, @ai-sdk/anthropic@3.0.58, @react-pdf/renderer@4.3.2, elevenlabs@1.59.0, telnyx@6.5.0
+- **Learning**: zod needed bump 3.25.67→3.25.76 for AI SDK 6.x peer dep. users.phone already existed (plan error caught in verification).
+- **Decision**: CHECK constraints over enums for channel/tier/status — easier to extend for WhatsApp Phase 2 without ALTER TYPE.
+
+## US-002: Telnyx phone provisioning service ✅
+- **Date**: 2026-03-09
+- **Files**: lib/services/domain/ai-phone/telnyx-phone.service.ts
+- **Functions**: searchAvailableNumbers, purchaseNumber, assignToConnection, releaseNumber, searchAndPurchase
+- **Learning**: Telnyx SDK has Issue #289 (filters ignored) — use native fetch with Bearer auth instead.
+- **Decision**: requirement_group_id goes INSIDE each phone_number object in purchase payload.
+
+## US-003: ElevenLabs agent provisioning service ✅
+- **Date**: 2026-03-09
+- **Files**: lib/services/domain/ai-phone/elevenlabs-agent.service.ts
+- **Functions**: createAgent, updateAgent, deleteAgent, importPhoneNumber, assignAgentToNumber, deletePhoneNumber
+- **Learning**: Phone number import strips '+' prefix. Agent assignment is a SEPARATE PATCH call, not part of import.
+- **Decision**: Full 4-step system prompt template embedded as constant with {{team_name}} and {{custom_instructions}} placeholders.
+
+## US-004: Phone provisioning orchestrator ✅
+- **Date**: 2026-03-09
+- **Files**: lib/services/domain/ai-phone/phone-provisioning.service.ts
+- **Functions**: provision, deprovision, updateCustomInstructions
+- **Learning**: Rollback chain must be best-effort (log errors, don't throw) — a failed rollback is better than no rollback.
+- **Decision**: Upsert on team_id conflict for idempotent provisioning. Manual mode reads DEV_* env vars.
+
+## US-005: AI transcript extraction service ✅
+- **Date**: 2026-03-09
+- **Files**: lib/services/domain/ai-phone/call-transcript-analyzer.service.ts
+- **Functions**: extractInterventionSummary, normalizePhoneE164
+- **Learning**: AI SDK 6.x generateObject() still valid (Output.object is alternative). Destructured { object } return.
+- **Decision**: problem_description always translated to French regardless of input language.
+
+## US-006: PDF call report generation ✅
+- **Date**: 2026-03-09
+- **Files**: lib/services/domain/ai-phone/call-report-pdf.service.tsx
+- **Functions**: generateCallReportPDF, CallReportPDF component
+- **Learning**: @react-pdf/renderer uses JSX — file MUST be .tsx, not .ts. Named exports in barrel to avoid leaking React components.
+- **Decision**: Storage path {team_id}/ai-calls/{call_id}.pdf. Signed URL with 1h TTL. Urgency color-coded badges.
+
+## US-007: ElevenLabs webhook handler ✅
+- **Date**: 2026-03-09
+- **Files**: app/api/webhooks/elevenlabs/route.ts
+- **Functions**: POST handler, verifySignature, processPostCallAsync, saveCallLog
+- **Learning**: ElevenLabs SDK v1.59 has NO webhooks.constructEvent() method — must implement manual HMAC-SHA256 verification. Format: t=timestamp,v0=hmac_hex, signed as SHA256(timestamp.body, secret). timingSafeEqual for comparison.
+- **Learning**: ElevenLabs has ZERO retry — return 200 even on internal errors. Use after() for all heavy processing.
+- **Learning**: Intervention creation in webhooks uses service role client directly (no user session). Pass InterventionRepository(supabase) with service role client.
+- **Decision**: Email recap reuses existing EmailNotificationService (eventType: 'created') — no need for separate email template (US-008 partially absorbed into US-007).
+- **Decision**: Usage counter uses upsert pattern (check existing → update or insert) rather than ON CONFLICT because ai_phone_usage composite key (team_id, month) needs checking.
+
+## US-008: Email recap for gestionnaire ✅
+- **Date**: 2026-03-09
+- **Files**: (absorbed into US-007)
+- **Decision**: Standard intervention email via EmailNotificationService sufficient for MVP. Custom AI call report email template deferred to Phase 2.
+
+## US-009: Stripe AI add-on billing ✅
+- **Date**: 2026-03-09
+- **Files**: lib/stripe.ts, lib/services/domain/stripe-webhook.handler.ts, app/actions/ai-subscription-actions.ts, supabase/migrations/20260309110000_add_ai_phone_stripe_columns.sql
+- **Functions**: createAiCheckoutAction, getAiSubscriptionStatus, updateAiCustomInstructionsAction, toggleAiAutoTopupAction, createAiTopupAction
+- **Learning**: Stripe Billing Meters are NOT needed for MVP — flat-rate pricing per tier with usage tracked in our own table. Meters add complexity without value when pricing isn't usage-based.
+- **Learning**: Metadata routing pattern: check `metadata.addon_type === 'ai_voice'` INSIDE existing webhook handlers to route to AI-specific logic. No need for a separate webhook endpoint.
+- **Learning**: AI subscription stored in ai_phone_numbers (not a separate table) — keeps billing + config co-located. Added stripe_ai_subscription_id + stripe_ai_price_id columns.
+- **Decision**: Top-up uses one-time payment checkout with price_data (dynamic), not a pre-created Stripe Price — allows flexible pricing per tier without creating 3 separate topup products.
+
+## US-010: Settings page — AI assistant ✅
+- **Date**: 2026-03-09
+- **Files**: app/gestionnaire/(with-navbar)/parametres/assistant-ia/page.tsx, assistant-ia-settings-client.tsx
+- **Learning**: Settings page is 19KB client component — works for MVP but could be split into sub-components later.
+- **Decision**: Two distinct states (not subscribed vs active) in one component with conditional rendering.
+
+## US-011: Call history page ✅
+- **Date**: 2026-03-09
+- **Files**: app/gestionnaire/(with-navbar)/parametres/assistant-ia/historique/page.tsx
+- **Learning**: Pure Server Component works well for read-only pages. Batch signed URL generation for PDFs.
+- **Decision**: Pagination and date filters deferred to Phase 2 (limit 50 sufficient for MVP).
+
+## US-012: AI badge in intervention detail ✅
+- **Date**: 2026-03-09
+- **Files**: components/interventions/ai-source-badge.tsx
+- **Decision**: Simple/detailed modes. Integration into existing intervention detail pages deferred to when those pages are next modified.
+
+## US-013: Usage counter component ✅
+- **Date**: 2026-03-09
+- **Files**: components/ai-phone/phone-usage-counter.tsx
+- **Decision**: Full/compact modes. Alert webhook and in-app notifications deferred to Phase 2.
+
+## POST-RELEASE FIX: AI extraction fallback + location constraint
+- **Date**: 2026-03-09
+- **Files**: app/api/webhooks/elevenlabs/route.ts, supabase/migrations/20260309120000_relax_intervention_location_constraint.sql
+- **Problem**: Anthropic API credit error (HTTP 400) aborted entire webhook pipeline. Then, fallback summary with no address hit XOR constraint on building_id/lot_id.
+- **Fix 1**: try/catch around extractInterventionSummary() with raw transcript fallback
+- **Fix 2**: Relaxed valid_intervention_location from XOR to "at most one" (both NULL OK)
+- **Learning**: External AI enrichment in webhooks must ALWAYS be optional. CHECK constraints designed for web flows break when new creation channels are added.
+- **Decision**: Gestionnaire assigns property manually for unlocated AI interventions.
+
+---
+# FEATURE COMPLETE: AI Phone Assistant Phase 1
+# All 13 stories passed + post-release fix
+# Date: 2026-03-09

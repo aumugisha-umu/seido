@@ -153,7 +153,7 @@ export function IntegratedQuotesCard({
   const approvedQuotes = quotes.filter(q => q.status === 'accepted')
 
   // Si l'intervention n'est pas en phase d'estimation
-  if (intervention.status !== 'demande_de_devis' && quotes.length === 0) {
+  if (!intervention.requires_quote && quotes.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -225,7 +225,7 @@ export function IntegratedQuotesCard({
               <Badge className={getStatusColor(intervention.status)}>
                 {intervention.status}
               </Badge>
-              {userRole === 'gestionnaire' && intervention.status === 'demande_de_devis' && (
+              {userRole === 'gestionnaire' && intervention.requires_quote && (
                 <Button
                   variant="outline"
                   size="sm"

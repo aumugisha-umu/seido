@@ -130,7 +130,7 @@ export function GoogleMapPreview({
   // Show fallback if no Map ID configured or map failed to load
   if (!mapId || mapError) {
     return (
-      <div className={cn('space-y-2', className)}>
+      <div className={cn('space-y-2 flex flex-col', className)}>
         {!mapId && (
           <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
             <AlertTriangle className="h-3 w-3" />
@@ -154,7 +154,7 @@ export function GoogleMapPreview({
   }
 
   return (
-    <div className={cn('space-y-2', className)}>
+    <div className={cn('space-y-2 flex flex-col', className)}>
       <div style={{ width: '100%', height }} className="rounded-lg overflow-hidden border bg-muted">
         <Map
           style={{ width: '100%', height: '100%' }}
@@ -180,7 +180,7 @@ export function GoogleMapPreview({
           variant="ghost"
           size="sm"
           onClick={openInGoogleMaps}
-          className="w-full"
+          className="w-full flex-shrink-0"
         >
           <ExternalLink className="mr-2 h-4 w-4" />
           Ouvrir dans Google Maps

@@ -21,7 +21,6 @@ import { logger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
 import { loadMultiTeamData, createTeamNameMap } from "@/lib/multi-team-helpers"
 import { ManagerDashboardV2 } from "@/components/dashboards/manager/manager-dashboard-v2"
-import type { OnboardingProgress } from "@/app/actions/subscription-actions"
 
 // ✅ PERF: React cache() deduplicates service creation within a single request render tree.
 // If the layout or other server components call the same factories, they reuse this instance.
@@ -48,15 +47,16 @@ export async function AsyncDashboardContent({
   sameRoleTeams,
 }: AsyncDashboardContentProps) {
   const teamNameMap = createTeamNameMap(sameRoleTeams)
-  const effectiveTeamId = team.id
 
-  // Initialize all services (cache()-wrapped for request deduplication)
-  const userService = await getCachedUserService()
-  const buildingService = await getCachedBuildingService()
-  const lotService = await getCachedLotService()
-  const interventionService = await getCachedInterventionService()
-  const contractService = await getCachedContractService()
-  const supabase = await getCachedSupabaseClient()
+  // Initialize all services in parallel (cache()-wrapped for request deduplication)
+  const [userService, buildingService, lotService, interventionService, contractService, supabase] = await Promise.all([
+    getCachedUserService(),
+    getCachedBuildingService(),
+    getCachedLotService(),
+    getCachedInterventionService(),
+    getCachedContractService(),
+    getCachedSupabaseClient(),
+  ])
 
   let stats = {
     buildingsCount: 0,
@@ -66,12 +66,7 @@ export async function AsyncDashboardContent({
     interventionsCount: 0
   }
 
-  let contactStats = {
-    totalContacts: 0,
-    totalActiveAccounts: 0,
-    invitationsPending: 0,
-    contactsByType: {} as Record<string, { total: number; active: number }>
-  }
+  let tenantCount = 0
 
   let contractStats: ContractStats = {
     totalActive: 0,
@@ -121,10 +116,10 @@ export async function AsyncDashboardContent({
     } else {
       // Single team parallel loading
       const [buildingsResult, usersResult, interventionsResult, lotsResult] = await Promise.all([
-        buildingService.getBuildingsByTeam(effectiveTeamId),
-        userService.getUsersByTeam(effectiveTeamId, profile.id),
-        interventionService.getByTeam(effectiveTeamId),
-        lotService.getLotsByTeam(effectiveTeamId)
+        buildingService.getBuildingsByTeam(team.id),
+        userService.getUsersByTeam(team.id, profile.id),
+        interventionService.getByTeam(team.id),
+        lotService.getLotsByTeam(team.id)
       ])
 
       buildings = buildingsResult.success ? (buildingsResult.data || []) : []
@@ -189,7 +184,7 @@ export async function AsyncDashboardContent({
       })
       occupiedLotsCount = allOccupiedIds.size
     } else {
-      const occupiedResult = await contractService.getOccupiedLotIdsByTeam(effectiveTeamId)
+      const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
       occupiedLotsCount = occupiedResult.success ? occupiedResult.data.size : 0
     }
 
@@ -226,25 +221,12 @@ export async function AsyncDashboardContent({
       })
       contractStats.averageRent = totalLotsWithRent > 0 ? Math.round(totalRentSum / totalLotsWithRent) : 0
     } else {
-      contractStats = await contractService.getStats(effectiveTeamId)
+      contractStats = await contractService.getStats(team.id)
     }
 
-    // Contact stats
+    // Tenant count (only value used from contacts data)
     const safeUsers = Array.isArray(users) ? users : []
-    const activeUsers = safeUsers.filter((u: any) => u.auth_user_id)
-    const contactsByType = safeUsers.reduce((acc: Record<string, { total: number; active: number }>, user: any) => {
-      if (!acc[user.role]) acc[user.role] = { total: 0, active: 0 }
-      acc[user.role].total++
-      if (user.auth_user_id) acc[user.role].active++
-      return acc
-    }, {})
-
-    contactStats = {
-      totalContacts: safeUsers.length,
-      totalActiveAccounts: activeUsers.length,
-      invitationsPending: safeUsers.filter((u: any) => !u.auth_user_id).length,
-      contactsByType
-    }
+    tenantCount = safeUsers.filter((u: any) => u.role === 'locataire').length
 
     // Sort by date and calculate pending actions
     allInterventions = allInterventions
@@ -262,42 +244,7 @@ export async function AsyncDashboardContent({
     logger.error('❌ [ASYNC-DASHBOARD] Error loading data', { error })
   }
 
-  // Onboarding data: fetch subscription status + progress (separate try/catch to not break dashboard)
-  let onboardingProgress: OnboardingProgress | null = null
-  let isTrialing = false
-
-  try {
-    const { data: sub } = await supabase
-      .from('subscriptions')
-      .select('status')
-      .eq('team_id', effectiveTeamId)
-      .limit(1)
-
-    isTrialing = sub?.[0]?.status === 'trialing'
-
-    if (isTrialing) {
-      const [obLots, obTenants, obProviders, obContracts, obInterventions, obClosed] = await Promise.all([
-        supabase.from('lots').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
-        supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId).eq('role', 'locataire'),
-        supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId).eq('role', 'prestataire'),
-        supabase.from('contracts').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
-        supabase.from('interventions').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
-        supabase.from('interventions').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId)
-          .in('status', ['cloturee_par_gestionnaire', 'cloturee_par_prestataire', 'cloturee_par_locataire']),
-      ])
-
-      onboardingProgress = {
-        hasLot: (obLots.count ?? 0) > 0,
-        hasAddedTenant: (obTenants.count ?? 0) > 0,
-        hasInvitedProvider: (obProviders.count ?? 0) > 0,
-        hasContract: (obContracts.count ?? 0) > 0,
-        hasIntervention: (obInterventions.count ?? 0) > 0,
-        hasClosedIntervention: (obClosed.count ?? 0) > 0,
-      }
-    }
-  } catch (error) {
-    logger.warn('[ASYNC-DASHBOARD] Onboarding check failed, skipping', { error })
-  }
+  // Onboarding checklist is now handled by GestionnaireTopbar (self-contained)
 
   // Fetch unread conversation threads for dashboard (separate try/catch to not break dashboard)
   let unreadThreads: Awaited<ReturnType<ConversationRepository['getUnreadThreadsForDashboard']>>['data'] = { threads: [], totalCount: 0 }
@@ -314,12 +261,10 @@ export async function AsyncDashboardContent({
   return (
     <ManagerDashboardV2
       stats={stats}
-      contactStats={contactStats}
+      tenantCount={tenantCount}
       contractStats={contractStats}
       interventions={allInterventions}
       pendingCount={pendingActionsCount}
-      onboardingProgress={onboardingProgress}
-      isTrialing={isTrialing}
       unreadThreads={unreadThreads?.threads}
       unreadThreadsTotalCount={unreadThreads?.totalCount}
     />

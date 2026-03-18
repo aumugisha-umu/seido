@@ -171,11 +171,12 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
     }
 
     if (teams.length === 0) {
-      logger.error('❌ [SERVER-CONTEXT] User has no team in profiles:', {
+      // Partial profile (lightweight signup or incomplete OAuth) → complete profile
+      logger.info('[SERVER-CONTEXT] User has no team, redirecting to complete-profile:', {
         userId: profile.id,
         email: profile.email
       })
-      redirect('/auth/unauthorized?reason=no_team')
+      redirect('/auth/complete-profile')
     }
 
     if (!isBuildPhase) {
@@ -263,6 +264,11 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
       supabase
     }
   } catch (error) {
+    // Re-throw Next.js redirect errors — they must NOT be caught
+    if (error instanceof Error && 'digest' in error && typeof (error as any).digest === 'string' && (error as any).digest.startsWith('NEXT_REDIRECT')) {
+      throw error
+    }
+
     // During build phase, auth errors are expected (no session) - don't log as errors
     const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
     if (!isBuildPhase) {
@@ -355,11 +361,12 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
     }
 
     if (teams.length === 0) {
-      logger.error('❌ [SERVER-ACTION-CONTEXT] User has no team in profiles:', {
+      // Partial profile (lightweight signup or incomplete OAuth) → complete profile
+      logger.info('[SERVER-ACTION-CONTEXT] User has no team, redirecting to complete-profile:', {
         userId: profile.id,
         email: profile.email
       })
-      redirect('/auth/unauthorized?reason=no_team')
+      redirect('/auth/complete-profile')
     }
 
     // ✅ MULTI-ÉQUIPE: Filtrer les équipes avec le même rôle
@@ -423,6 +430,11 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
       supabase
     }
   } catch (error) {
+    // Re-throw Next.js redirect errors — they must NOT be caught
+    if (error instanceof Error && 'digest' in error && typeof (error as any).digest === 'string' && (error as any).digest.startsWith('NEXT_REDIRECT')) {
+      throw error
+    }
+
     // During build phase, auth errors are expected (no session) - don't log as errors
     const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
     if (!isBuildPhase) {

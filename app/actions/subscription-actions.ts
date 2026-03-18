@@ -24,11 +24,12 @@ import { logger } from '@/lib/logger'
 
 export interface OnboardingProgress {
   hasLot: boolean
-  hasAddedTenant: boolean
-  hasInvitedProvider: boolean
+  hasContact: boolean
   hasContract: boolean
   hasIntervention: boolean
   hasClosedIntervention: boolean
+  hasEmail: boolean
+  hasImportedData: boolean
 }
 
 // =============================================================================
@@ -184,12 +185,26 @@ export async function createCheckoutSessionAction(params: {
       return { success: false, error: 'Failed to create Stripe customer' }
     }
 
+    // If user is trialing, pass trial_end so Stripe shows "0 EUR today"
+    // and doesn't charge until trial expires
+    const subRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
+    const { data: sub } = await subRepo.findByTeamId(auth.team.id)
+    let trialEnd: number | undefined
+    if (sub?.status === 'trialing' && sub.trial_end) {
+      const trialEndTs = Math.floor(new Date(sub.trial_end).getTime() / 1000)
+      // Only pass if trial_end is in the future
+      if (trialEndTs > Math.floor(Date.now() / 1000)) {
+        trialEnd = trialEndTs
+      }
+    }
+
     const baseUrl = getBaseUrl()
     const session = await service.createCheckoutSession({
       teamId: auth.team.id,
       customerId,
       priceId,
       quantity,
+      trialEnd,
       successUrl: `${baseUrl}/gestionnaire/settings/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/gestionnaire/settings/billing?checkout=cancelled`,
     })
@@ -291,7 +306,8 @@ export async function verifyCheckoutSession(
     }
 
     // Verify payment completed
-    if (session.payment_status !== 'paid') {
+    // 'paid' = normal checkout, 'no_payment_required' = trial with 0 EUR
+    if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
       return { success: true, data: { verified: false } }
     }
 
@@ -304,8 +320,9 @@ export async function verifyCheckoutSession(
       const item = subscription.items?.data?.[0]
       const quantity = item?.quantity ?? 0
 
-      const subRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
-      const custRepo = new StripeCustomerRepository(createServiceRoleSupabaseClient())
+      const serviceClient = createServiceRoleSupabaseClient()
+      const subRepo = new SubscriptionRepository(serviceClient)
+      const custRepo = new StripeCustomerRepository(serviceClient)
 
       // Ensure customer mapping exists
       const customerId = typeof subscription.customer === 'string'
@@ -370,6 +387,7 @@ export async function verifyCheckoutSession(
         current_period_start: periodStartIso,
         current_period_end: periodEndIso,
         cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+        payment_method_added: true,
       })
 
       if (upsertError) {
@@ -414,51 +432,52 @@ export async function getOnboardingProgress(): Promise<ActionResult<OnboardingPr
     const { supabase, team } = auth
 
     // Run all 6 checks in parallel for performance
-    const [lots, tenants, providers, contracts, interventions, closedInterventions] = await Promise.all([
+    const [lots, contacts, contracts, interventions, closedInterventions, emails] = await Promise.all([
       // 1. Has at least one lot
       supabase
         .from('lots')
         .select('id', { count: 'exact', head: true })
         .eq('team_id', team.id),
-      // 2. Has added at least one locataire (team_member with role locataire)
+      // 2. Has at least one contact (team_members count > 1, since the gestionnaire themselves is always a member)
       supabase
         .from('team_members')
         .select('id', { count: 'exact', head: true })
-        .eq('team_id', team.id)
-        .eq('role', 'locataire'),
-      // 3. Has invited at least one prestataire (team_member with role prestataire)
-      supabase
-        .from('team_members')
-        .select('id', { count: 'exact', head: true })
-        .eq('team_id', team.id)
-        .eq('role', 'prestataire'),
-      // 4. Has created at least one contract
+        .eq('team_id', team.id),
+      // 3. Has created at least one contract
       supabase
         .from('contracts')
         .select('id', { count: 'exact', head: true })
         .eq('team_id', team.id),
-      // 5. Has at least one intervention
+      // 4. Has at least one manually-created intervention by gestionnaire
       supabase
         .from('interventions')
         .select('id', { count: 'exact', head: true })
-        .eq('team_id', team.id),
-      // 6. Has closed at least one intervention
+        .eq('team_id', team.id)
+        .eq('creation_source', 'manual'),
+      // 5. Has closed at least one intervention
       supabase
         .from('interventions')
         .select('id', { count: 'exact', head: true })
         .eq('team_id', team.id)
         .in('status', ['cloturee_par_gestionnaire', 'cloturee_par_prestataire', 'cloturee_par_locataire']),
+      // 6. Has connected at least one email account
+      supabase
+        .from('team_email_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('team_id', team.id)
+        .eq('is_active', true),
     ])
 
     return {
       success: true,
       data: {
         hasLot: (lots.count ?? 0) > 0,
-        hasAddedTenant: (tenants.count ?? 0) > 0,
-        hasInvitedProvider: (providers.count ?? 0) > 0,
+        hasContact: (contacts.count ?? 0) > 1,
         hasContract: (contracts.count ?? 0) > 0,
         hasIntervention: (interventions.count ?? 0) > 0,
         hasClosedIntervention: (closedInterventions.count ?? 0) > 0,
+        hasEmail: (emails.count ?? 0) > 0,
+        hasImportedData: false, // Optional step — tracked via localStorage skip
       },
     }
   } catch (error) {

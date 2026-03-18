@@ -78,7 +78,6 @@ export class NotificationService {
     demande: 'Demande',
     rejetee: 'Rejetée',
     approuvee: 'Approuvée',
-    demande_de_devis: 'Demande de devis',
     planification: 'Planification',
     planifiee: 'Planifiée',
     cloturee_par_prestataire: 'Clôturée par prestataire',

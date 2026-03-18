@@ -1,53 +1,154 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Performance Optimization TIER 1+2 complete + Post-creation redirect UX + Compound learnings
+**Objectif:** Contact role terminology alignment + UX refinements
 **Branch:** `preview`
-**Sprint:** Performance optimization + UX polish (Mar 2026)
-**Derniere analyse:** 13 stories performance optimization + 7 new AGENTS.md learnings (#104-#110) — 2026-03-02
+**Sprint:** Platform monitoring + UX improvements (Mar 2026)
+**Derniere analyse:** Contact "Autre" → "Propriétaire" rename + role key alignment — 2026-03-18
+
+---
+
+## ✅ COMPLETE: Contact Role Rename "Autre" → "Propriétaire" (2026-03-18)
+
+Full rename of the "Autre" contact category to "Propriétaire" across the app:
+- **UI labels:** "Autres" → "Propriétaires" in lot/building contact cards, section headers, tooltips, empty states, buttons
+- **Color scheme:** gray → amber (matching garant/proprietaire pattern)
+- **Icon:** UserCircle → Home (lucide-react)
+- **Contact selector key alignment:** `"other"` → `"owner"` to match `determineAssignmentType()` output
+- **Role lookups:** Added `proprietaire`/`garant` to `getContactTypeLabel()` and `getContactTypeBadgeStyle()`
+- **Invite button:** Hidden for proprietaire/garant contacts (no app interface yet)
+- **Lot creation default:** "Laisser le lot indépendant" now selected by default (was "Créer un immeuble")
+- **Boundary mapping:** `owner` ↔ `other` at ContactSelector callback boundaries (internal state bucket stays `other`)
+- **Files:** 18 files modified across contact cards, selectors, configs, wizards
+- **Learnings:** #157-#158 (contact type key mismatch, missing role entries in lookup tables)
+
+---
+
+## ✅ COMPLETE: Subscription Loading Race Conditions + Audit (2026-03-16)
+
+Critical bug: "Nouvel immeuble" button opened upgrade modal for user with 14/50 lots (valid subscription).
+- **Root cause:** `canAddProperty ?? false` during useSubscription loading → blocks valid users
+- **Secondary:** `previewUpgrade()` returned Stripe quantity (50) as "Lots actuels" instead of actual DB count (14)
+- **Fix:** Fail-open during loading on ALL client gates (biens, contacts, interventions, building details)
+- **UpgradePreview** now has `current_lots` (actual) + `subscribed_lots` (Stripe capacity), displayed as "14 / 50"
+- **Server page gate** wrapped in try-catch fail-open (lots/nouveau/page.tsx)
+- **Pattern:** `!subscriptionLoading && isReadOnly` for disabled buttons, `if (subscriptionLoading) navigateDirectly()` for canAddProperty
+- **Files:** 7 files (biens-page-client, building-details-client, contacts-page-client, interventions-page-client, lots/nouveau/page, subscription.service, upgrade-modal)
+- **Audit scope:** 200+ files, 72 hooks, all subscription gates catalogued
+- **Learnings:** #149-151 (hook loading race, preview actual vs subscribed, server gate fail-open)
+- **Retrospective:** `docs/learnings/2026-03-16-subscription-loading-race-condition-retrospective.md`
+
+---
+
+## ✅ COMPLETE: ConfirmationDocumentList Redesign (2026-03-16)
+
+Material Design chip/wrap layout replacing vertical document list in wizard confirmation steps.
+- **Before:** Vertical list with CheckCircle2 per slot, amber alert box for missing docs
+- **After:** Horizontal flex-wrap chips (emerald pills for uploaded, dashed-border for missing), Eye preview on hover
+- **Unified:** supplier-confirmation-step.tsx now uses shared ConfirmationDocumentList (was custom rendering)
+- **Files:** confirmation-document-list.tsx, supplier-confirmation-step.tsx
+
+---
+
+## ✅ COMPLETE: Admin Notification Emails (2026-03-16)
+
+Platform owner email notifications for 4 user lifecycle events via Resend.
+- **Service:** `lib/services/domain/admin-notification/` (service + MRR helper + HTML builder)
+- **Events:** New signup (OAuth+email), subscription change (upgrade/downgrade), subscription cancelled (churn), trial expired
+- **Integration points:** OAuth action, set-password page (via API route bridge), Stripe webhook handler, trial expiration cron
+- **MRR/ARR:** On-the-fly calculation from DB (individual + platform totals), color-coded badges
+- **Recipients:** `ADMIN_NOTIFICATION_EMAILS` env var (comma-separated)
+- **Pattern:** Fire-and-forget with `void .catch(() => {})` for serverless safety
+- **Learnings:** #145-148 (Resend singleton, floating promises, Client→Server bridge, MRR calculation)
+- **Retrospective:** `docs/learnings/2026-03-16-admin-notification-emails-retrospective.md`
+
+---
+
+## ✅ COMPLETE: Data Invalidation Broadcast (2026-03-15)
+
+Supabase Broadcast-based system for real-time cross-team data synchronization.
+- **Architecture:** Team channel `seido-team:{teamId}` for invalidation broadcasts (separate from per-user channel)
+- **Core:** `lib/data-invalidation.ts` (types) + `contexts/realtime-context.tsx` (channel + API)
+- **Hooks wired:** use-buildings, use-manager-stats, use-team-contacts, use-contacts-data, use-interventions
+- **Mutation sites:** 12+ forms/detail pages broadcast invalidation (buildings, lots, contacts, interventions, contracts)
+- **Debounce:** Batch-debounced dispatch (500ms window, handler called at most once per batch)
+- **UX:** Onboarding auto-expand on dashboard, sticky tabs in creation wizards
+- **Learnings:** #142-144 (batch debounce, broadcast vs postgres_changes, channel scoping)
+- **Remaining:** Task 10 — remove 68 dead revalidatePath/revalidateTag calls (deferred)
+
+---
+
+## ✅ COMPLETE: Claude Code Ecosystem Optimization (2026-03-14)
+
+Major restructuring of the entire `.claude/` ecosystem for consistency and reliability:
+- **CLAUDE.md compressed** from 487→164 lines (INTERDICTIONS at top, skill routing, parallel execution protocol)
+- **23 skills enriched** with Code Craftsmanship Standards hooks (before/while/after writing code)
+- **8 agents enriched** with SEIDO-specific learnings and AGENTS.md references
+- **4 new skills** created: sp-release, sp-monitoring, sp-a11y, sp-analytics
+- **Safety hooks**: block-dangerous-commands.js, block-secret-writes.js (PreToolUse)
+- **Quality gate**: Added Step 2.5 (Simplify Quick-Scan) + Step 4.5 (Knowledge Capture)
+- **Parallel execution**: sp-dispatching-parallel-agents rewritten with full worktree lifecycle
+- **Global blueprint**: `.claude/claude-code-global-blueprint.md` for replication to other projects
+- **Extracted to rules/**: seido-reference.md, feature-reference.md (conditional loading)
+- **Extracted to skill**: sp-orchestration (trigger matrix, chains, compound methodology)
+
+---
+
+## ✅ COMPLETE: Import Review + Simplify + Deferred Geocoding (2026-03-14)
+
+3/3 stories passed. Import wizard bug fixes, code simplification, geocoding deferred to after().
+- 7 bugs fixed (auth wrapper, SSE error handling, AbortController, setMonth overflow, phase index)
+- Shared validators/utils.ts extracted (mapZodErrorToCode, normalizeCountry, normalizePhone)
+- Dead code removed (~150 lines COLUMN_MAPPING, /api/import/execute/ route)
+- Geocoding moved to next/server after() — non-blocking post-response
+
+---
+
+## ✅ COMPLETE: Supplier Contracts (2026-03-11)
+
+Supplier contracts linked to buildings/lots with full CRUD.
+- DB: `supplier_contracts` + `supplier_contract_documents` tables (3 migrations)
+- Repository: `supplier-contract.repository.ts` (4 query methods with FK-disambiguated nested selects)
+- UI: `supplier-contract-card.tsx` (person name + purple company badge)
+
+---
+
+## ✅ COMPLETE: Intervention Planner Refactoring (2026-03-11)
+
+Extracted shared `InterventionPlannerStep` from `LeaseInterventionsStep` (540→345 lines).
+6/6 stories passed. Reusable for supplier contract reminders with configurable roles.
+- Design: `docs/plans/2026-03-11-intervention-planner-refactoring.md`
+- New files: `intervention-planner-step.tsx`, `intervention-planner.types.ts`, `assignable-roles.ts`, `supplier-interventions.ts`
+
+---
+
+## ✅ COMPLETE: Blog Hub/Cluster Redesign (2026-03-11)
+
+23 blog articles (Jan/Feb/Mar 2026 Belgian real estate news).
+Hub-cluster architecture with `hub` field linking cluster articles to their hub.
+AGENTS.md learnings #130-#132.
+
+---
+
+## ✅ COMPLETE: AI Phone Assistant Phase 1 (2026-03-09)
+
+13 stories: webhook hardening, email notifications, AI phone call integration.
+Retrospective: `docs/learnings/2026-03-09-ai-phone-webhook-fallback-retrospective.md`
+
+---
+
+## ✅ COMPLETE: Email Section Refonte Phase 1 (2026-03-06)
+
+12 stories: counts system, navigation, dead code cleanup.
+Retrospective: `docs/learnings/2026-03-06-email-refonte-phase1-retrospective.md`
 
 ---
 
 ## ✅ COMPLETE: Performance Optimization TIER 1+2 (2026-03-02)
 
-13 stories from 6-agent audit (96 findings consolidated):
-- **US-001**: Composite index on conversation_participants (thread_id, user_id)
-- **US-002**: Removed redundant auth checks in 4 server action files (~80 lines, ~16 queries/action)
-- **US-003/004/006**: Parallelized 11 Server Component pages (Phase 0 → Wave 1 → Wave 2 pattern)
-- **US-005**: Parallelized create-manager-intervention API
-- **US-007/008**: Batch operations (contract rent reminders 72→18 queries, contact insertion N→1)
-- **US-009**: Deferred invitation emails via `after()` from next/server
-- **US-010**: Removed ~85 dead revalidation calls (~120 lines)
-- **US-011**: Cached Stripe subscription info (unstable_cache, 15min TTL, webhook invalidation)
-- **US-012**: RPC for thread unread counts (15 queries → 1 RPC call)
-- **US-013**: Stats head:true optimization + contrats page after()
-
-New AGENTS.md learnings: #105-#110
+13 stories from 6-agent audit (96 findings consolidated).
+New AGENTS.md learnings: #105-#110.
 Retrospective: `docs/learnings/2026-03-02-performance-optimization-tier1-tier2-retrospective.md`
-
----
-
-## ✅ COMPLETE: Post-Creation Redirect UX (2026-03-02)
-
-4 one-line edits: immeuble, lot (single+multi), contact standalone now redirect to detail page after creation.
-Removed redundant `router.refresh()` after `router.push()`.
-AGENTS.md learning #104.
-
----
-
-## ✅ COMPLETE: Slot-Count Business Logic + Confirmation Fix (2026-03-01)
-
-`isMultiSlot` derivation: 1 slot = optional confirmation (Date fixe behavior), 2+ = mandatory.
-Non-invited contacts: confirmation logic fix.
-AGENTS.md learnings #101-#103.
-
----
-
-## ✅ COMPLETE: Subscription Billing + Onboarding Polish (2026-03-01)
-
-- Enhanced billing interval handling (monthly/yearly display)
-- Onboarding checklist: swapped steps 2↔3, hid useless building option
-- Removed beta access gate from signup page
 
 ---
 
@@ -79,41 +180,45 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
-- [ ] Commit + push preview branch (git*)
-- [ ] Merge preview to main (PR creation)
-- [ ] Deploy + verify performance improvements in production
+- [ ] Add `ADMIN_NOTIFICATION_EMAILS=arthur@seido-app.pm` to `.env.local` (production)
+- [ ] Dead revalidation cleanup — remove 68 dead revalidatePath/revalidateTag calls (9 files)
+- [ ] Manual testing: verify invalidation broadcast works across 2 tabs/devices
+- [ ] Deploy preview branch and validate data sync in production
 
 ### Fonctionnalites a Venir
 - [ ] Google Maps Integration Phase 2-3
-- [ ] AI Phone Assistant (design doc in docs/AI/)
 - [ ] Locataire lot details page (plan in docs/plans/)
 - [ ] Landing page AI redesign (plan in docs/plans/)
 - [ ] More blog articles (content marketing pipeline)
 - [ ] PPR activation quand Next.js canary disponible
 - [ ] Dashboard analytics avance
+- [ ] WhatsApp agent integration (plan in docs/AI/)
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-03-02)
+## Metriques Systeme (Mise a jour 2026-03-15)
 
 | Composant | Valeur |
 |-----------|--------|
-| **Tables DB** | **44** |
-| **Migrations** | **178** (+2: conversation_participants index, unread counts RPC) |
-| **API Routes** | **120** |
+| **Tables DB** | **46** |
+| **Migrations** | **193** |
+| **API Routes** | **121** |
 | **Pages** | **90** |
-| **Composants** | **381** |
+| **Composants** | **390+** |
 | **Hooks** | **71** |
-| **Services domain** | **34** |
-| **Repositories** | **21** |
-| **DB Functions** | **80** (+1: get_thread_unread_counts) |
+| **Services domain** | **35** |
+| **Repositories** | **23** |
+| **DB Functions** | **80** |
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **110** (+15: #096-#103 slot/billing, #104 redirect, #105-#110 perf) |
-| **systemPatterns.md Patterns** | **32** (+3: parallelization, after(), RLS-as-auth) |
-| **E2E Test Files** | **8** |
-| **Blog articles** | **2** |
+| **AGENTS.md Learnings** | **158** (+9 since Mar 15: #145-#158) |
+| **Blog articles** | **23** |
+| **Retrospectives** | **43** |
+| **.claude/ Skills** | **23** |
+| **.claude/ Agents** | **15** |
+| **.claude/ Rules** | **5** |
+| **.claude/ Scripts** | **5** |
 
 ---
 
@@ -121,17 +226,18 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
-| `82869f1` | feat(subscription): enhance billing interval handling and update UI components |
-| `6d3077f` | fix(onboarding+lots): swap checklist steps 2↔3 and hide useless building option |
-| `27ffa30` | fix(auth): remove beta access gate from signup page |
-| `89cea06` | fix(interventions): confirmation logic for non-invited contacts + slot-count business rules |
-| `e16cbe7` | fix(billing+mail+auth+storage): subscription limit fix, mail cleanup, auth migration, bucket unification |
+| `039b4d0` | update: contact role terminology "Autre" → "Propriétaire" + key alignment |
+| `0107fb9` | update: enhance email connection testing |
+| `c3876c5` | update: modify signup page |
+| `0941d9d` | update: refine gestionnaire-header styles |
+| `a1d2bb9` | update: refine gestionnaire-header styles |
 
 ---
 
-*Derniere mise a jour: 2026-03-02 (performance optimization TIER 1+2 complete)*
-*Focus: 13 stories perf optimization + post-creation redirect UX + 110 learnings in AGENTS.md*
+*Derniere mise a jour: 2026-03-18 (contact role rename "Autre" → "Propriétaire")*
+*Focus: Contact terminology alignment + UX refinements*
 
 ## Files Recently Modified
-### 2026-03-04 15:38:40 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/next.config.js`
+### 2026-03-18 18:25:32 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`

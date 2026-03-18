@@ -1,0 +1,91 @@
+{
+  "project": "SEIDO",
+  "featureName": "Remove Card Views from Gestionnaire",
+  "branchName": "preview",
+  "description": "Remove card view toggle and card rendering from all gestionnaire list pages. Keep list + calendar for interventions, list-only for biens/contacts/contrats. B2B SaaS best practice: tables for data-dense scanning, no card toggle.",
+  "createdAt": "2026-03-04",
+  "prdSource": "docs/plans/2026-03-04-remove-card-views-gestionnaire.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Remove card view from Interventions",
+      "description": "Remove cards button from ViewModeSwitcherV1, remove renderCardsView from InterventionsViewContainer, change default to 'list'. Keep list + calendar.",
+      "acceptanceCriteria": [
+        "ViewModeSwitcherV1 shows only List + Calendar buttons",
+        "InterventionsViewContainer has no cards rendering branch",
+        "Default view mode is 'list' in interventions-navigator.tsx",
+        "Lint passes on all modified files"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Removed cards button from ViewModeSwitcherV1, removed renderCardsView + cardsPagination from InterventionsViewContainer, changed defaults to 'list'."
+    },
+    {
+      "id": "US-002",
+      "title": "Remove card view from Patrimoine (Biens)",
+      "description": "Remove view toggle entirely from PatrimoineNavigator, remove BuildingCardExpandable and LotCardUnified card grid rendering, always show DataTable.",
+      "acceptanceCriteria": [
+        "No view toggle buttons in PatrimoineNavigator",
+        "Buildings and lots always render as DataTable",
+        "Card component imports removed",
+        "Lint passes on all modified files"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Removed BuildingCardExpandable, LotCardUnified, LayoutGrid, List imports. Removed expandedBuildings state. Changed defaultView to 'list'. Removed view toggle UI and BEM classes."
+    },
+    {
+      "id": "US-003",
+      "title": "Remove card view from Contacts",
+      "description": "Remove view toggle from ContactsNavigator, remove DataCards rendering, always show DataTable.",
+      "acceptanceCriteria": [
+        "No view toggle buttons in ContactsNavigator",
+        "All tabs always render as DataTable",
+        "DataCards import removed",
+        "Lint passes on all modified files"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Removed DataCards import, LayoutGrid/List icons. Removed viewMode/setViewMode from useDataNavigator. Changed defaultView to 'list'. Removed view toggle UI and BEM classes. renderContent always returns DataTable."
+    },
+    {
+      "id": "US-004",
+      "title": "Remove card view from Contrats",
+      "description": "Remove view toggle from ContractsNavigator, remove ContractCard grid rendering, always show ContractsListView.",
+      "acceptanceCriteria": [
+        "No view toggle buttons in ContractsNavigator",
+        "Contracts always render as list view",
+        "ContractCard import removed",
+        "Lint passes on all modified files"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Removed ContractCard import, LayoutGrid/List icons, useViewMode hook. Removed view toggle UI, gridClass, mounted skeleton. Always renders ContractsListView. Removed BEM classes."
+    },
+    {
+      "id": "US-005",
+      "title": "Update ViewMode type + cleanup defaults",
+      "description": "Remove 'cards' from ViewMode type union, update all defaultMode from 'cards' to 'list', remove unused LayoutGrid imports across navigators.",
+      "acceptanceCriteria": [
+        "ViewMode type is 'list' | 'calendar' (no 'cards')",
+        "All defaultMode values changed to 'list'",
+        "No unused imports remain",
+        "Full lint passes on all modified files"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-002", "US-003", "US-004"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "ViewMode type kept with 'cards' (still used by property-selector + intervention-contacts). Default changed from 'cards' to 'list' in use-view-mode.ts, use-data-navigator.ts, patrimoine.config.tsx (x2), contacts.config.tsx (x2). Removed VIEW_MODE_CONFIG.cards dead config. Updated toggle cycle to list↔calendar. Simplified responsive default logic."
+    }
+  ]
+}

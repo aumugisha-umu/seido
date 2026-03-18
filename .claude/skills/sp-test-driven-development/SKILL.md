@@ -50,6 +50,7 @@ Confirm:
 
 ### GREEN - Minimal Code
 
+Before writing implementation: search for existing functions to reuse (Code Craftsmanship Standards > Before Writing Code).
 Write simplest code to pass the test. Don't add features beyond the test.
 
 ### Verify GREEN - Watch It Pass
@@ -62,6 +63,7 @@ Write simplest code to pass the test. Don't add features beyond the test.
 ### REFACTOR - Clean Up
 
 After green only: remove duplication, improve names, extract helpers.
+Apply Code Craftsmanship Standards > While Writing Code table (redundant state, parameter sprawl, stringly-typed, etc.).
 Keep tests green. Don't add behavior.
 
 ## Common Rationalizations

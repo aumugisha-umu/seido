@@ -25,8 +25,7 @@ import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-st
 import { UnreadMessagesSection } from "@/components/dashboards/shared/unread-messages-section"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
-import { GestionnaireFAB } from "@/components/ui/fab"
-import { OnboardingChecklist } from "@/components/billing/onboarding-checklist"
+import { TrialUpgradeModal } from "@/components/billing/trial-upgrade-modal"
 import { useSubscription } from "@/hooks/use-subscription"
 import { useStrategicNotification } from "@/hooks/use-strategic-notification"
 import { FREE_TIER_LIMIT } from "@/lib/stripe"
@@ -34,39 +33,45 @@ import { PageActions } from "@/components/page-actions"
 
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
-import type { OnboardingProgress } from "@/app/actions/subscription-actions"
 import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 
 // Type for intervention row from Supabase (used in realtime callback)
 type DbIntervention = Database['public']['Tables']['interventions']['Row']
 
+const closedStatuses = ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']
+
+interface DashboardStats {
+    buildingsCount: number
+    lotsCount: number
+    occupiedLotsCount: number
+    occupancyRate: number
+    interventionsCount: number
+    buildingLotsCount?: number
+    independentLotsCount?: number
+}
+
 interface ManagerDashboardProps {
-    stats: any
-    contactStats: any
+    stats: DashboardStats
+    tenantCount: number
     contractStats: ContractStats
     interventions: any[]
     pendingCount: number
-    onboardingProgress?: OnboardingProgress | null
-    isTrialing?: boolean
     unreadThreads?: UnreadThread[]
     unreadThreadsTotalCount?: number
 }
 
-export function ManagerDashboardV2({ stats, contactStats, contractStats, interventions: initialInterventions, pendingCount, onboardingProgress, isTrialing, unreadThreads, unreadThreadsTotalCount }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount }: ManagerDashboardProps) {
     const router = useRouter()
     // Local state for interventions (enables realtime updates)
     const [interventions, setInterventions] = useState(initialInterventions)
 
     // Strategic notification hook (upgrade prompts at positive moments)
-    const { daysLeftTrial } = useSubscription()
+    const { daysLeftTrial, status: subscriptionStatus } = useSubscription()
     const { onInterventionClosed, checkQuotaWarning } = useStrategicNotification({
         daysLeftTrial,
-        lotCount: stats.lotsCount ?? 0,
+        lotCount: stats.lotsCount,
         freeTierLimit: FREE_TIER_LIMIT,
     })
-
-    // Calculate tenant count from contactStats
-    const tenantCount = contactStats?.contactsByType?.locataire?.total || 0
 
     // Calculate active and completed intervention counts
     // ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote
@@ -92,7 +97,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     const navigateToContracts = useCallback(() => router.push('/gestionnaire/biens/contrats'), [router])
 
     // Realtime updates for interventions
-    const closedStatuses = ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']
     useRealtimeInterventions({
         interventionCallbacks: {
             onUpdate: useCallback((updatedIntervention: DbIntervention) => {
@@ -246,11 +250,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                     />
                 </div>
 
-                {/* Onboarding Checklist — trialing users only (SSR data) */}
-                <div className="lg:order-2">
-                    <OnboardingChecklist className="mb-4" progress={onboardingProgress} isTrialing={isTrialing ?? false} />
-                </div>
-
                 {/* Unread Messages Section */}
                 {unreadThreads && unreadThreads.length > 0 && (
                     <div className="lg:order-2 mb-4">
@@ -287,13 +286,13 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                 </div>
             </div>
 
-            {/* Mobile FAB - Quick Actions */}
-            <GestionnaireFAB
-                onCreateIntervention={navigateToNewIntervention}
-                onCreateContract={navigateToNewContract}
-                onCreateBuilding={navigateToNewBuilding}
-                onCreateLot={navigateToNewLot}
-                onCreateContact={navigateToNewContact}
+            {/* Trial upgrade modal — shown once per session when <=2 days left */}
+            <TrialUpgradeModal
+                daysLeft={daysLeftTrial}
+                paymentMethodAdded={subscriptionStatus?.payment_method_added ?? false}
+                trialEndDate={subscriptionStatus?.trial_end ?? null}
+                lotCount={stats.lotsCount}
+                interventionCount={activeInterventionsCount + completedInterventionsCount}
             />
         </div>
     )

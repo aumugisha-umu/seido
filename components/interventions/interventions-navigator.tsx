@@ -204,7 +204,7 @@ export function InterventionsNavigator({
 
   // View mode state (list, calendar)
   const { viewMode, setViewMode, mounted } = useViewMode({
-    defaultMode: 'list',
+    defaultMode: 'cards',
     syncWithUrl: false
   })
 
@@ -365,7 +365,7 @@ export function InterventionsNavigator({
     toutes: () => filteredInterventions,
     demandes_group: () => filteredInterventions.filter(i => ["demande", "approuvee"].includes(i.status)),
     en_cours_group: () => filteredInterventions.filter(i => [
-      "demande_de_devis", "planification", "planifiee", "cloturee_par_prestataire"
+      "planification", "planifiee", "cloturee_par_prestataire"
     ].includes(i.status)),
     cloturees_group: () => filteredInterventions.filter(i => [
       "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"
@@ -380,7 +380,7 @@ export function InterventionsNavigator({
       return isActive && !hasScheduledDate && !isPendingAction
     }),
     en_cours: () => filteredInterventions.filter(i => [
-      "demande", "approuvee", "demande_de_devis", "planification", "planifiee"
+      "demande", "approuvee", "planification", "planifiee"
     ].includes(i.status)),
     terminees: () => filteredInterventions.filter(i => [
       "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"
@@ -388,7 +388,7 @@ export function InterventionsNavigator({
 
     // Prestataire preset filters (specific order: en_cours, terminees, toutes)
     prestataire_en_cours: () => filteredInterventions.filter(i => [
-      "demande_de_devis", "planification", "planifiee", "approuvee"
+      "planification", "planifiee", "approuvee"
     ].includes(i.status)),
     prestataire_terminees: () => filteredInterventions.filter(i => [
       "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire"
@@ -428,33 +428,28 @@ export function InterventionsNavigator({
     return configs[tabId] || { title: "Aucune donnée", description: "" }
   }
 
-  // ✅ Load More button component
-  const LoadMoreButton = () => {
-    if (!hasMore || !onLoadMore) return null
-
-    return (
-      <div className="flex justify-center py-4">
-        <Button
-          variant="outline"
-          onClick={onLoadMore}
-          disabled={isLoadingMore}
-          className="gap-2"
-        >
-          {isLoadingMore ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Chargement...
-            </>
-          ) : (
-            <>
-              <ChevronDown className="h-4 w-4" />
-              Charger plus ({interventions.length}/{total || '?'})
-            </>
-          )}
-        </Button>
-      </div>
-    )
-  }
+  // ✅ Load More button (rendered inline in pagination via loadMoreSlot)
+  const loadMoreButton = (hasMore && onLoadMore) ? (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={onLoadMore}
+      disabled={isLoadingMore}
+      className="gap-2 h-8"
+    >
+      {isLoadingMore ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Chargement...
+        </>
+      ) : (
+        <>
+          <ChevronDown className="h-4 w-4" />
+          Charger plus ({interventions.length}/{total || '?'})
+        </>
+      )}
+    </Button>
+  ) : null
 
   // Render content for each tab
   const renderTabContent = (tabId: string) => {
@@ -471,20 +466,17 @@ export function InterventionsNavigator({
     }
 
     return (
-      <>
-        <InterventionsViewContainer
-          interventions={tabData}
-          userContext={userContext}
-          loading={loading}
-          emptyStateConfig={getEmptyStateForTab(tabId)}
-          showStatusActions={true}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          hideViewSwitcher={true}
-        />
-        {/* ✅ Load More button - only show on "toutes" tab to avoid confusion with filtered tabs */}
-        {tabId === 'toutes' && <LoadMoreButton />}
-      </>
+      <InterventionsViewContainer
+        interventions={tabData}
+        userContext={userContext}
+        loading={loading}
+        emptyStateConfig={getEmptyStateForTab(tabId)}
+        showStatusActions={true}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        hideViewSwitcher={true}
+        loadMoreSlot={tabId === 'toutes' ? loadMoreButton : undefined}
+      />
     )
   }
 

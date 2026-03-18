@@ -13,6 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Lot, LotInsert, LotUpdate, User } from '../core/service-types'
 import { NotFoundException, handleError, createErrorResponse } from '../core/error-handler'
 import { logger } from '@/lib/logger'
+import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 import {
   validateRequired,
   validateLength,
@@ -552,7 +553,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
           user:user_id!inner(role)
         )
       `)
-      .eq('lot_contacts.user.role', 'tenant')
+      .eq('lot_contacts.user.role', 'locataire')
 
     if (buildingId) {
       queryBuilder = queryBuilder.eq('building_id', buildingId)
@@ -646,7 +647,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         *,
         building:building_id(id, name, team_id)
       `)
-      .or(`reference.ilike.%${query}%`)
+      .or(`reference.ilike.%${sanitizeSearch(query)}%`)
 
     if (options?.buildingId) {
       queryBuilder = queryBuilder.eq('building_id', options.buildingId)
@@ -672,13 +673,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     try {
       // ✅ PERF: Use DB-level grouping via RPC or multiple head:true queries
       // Supabase JS doesn't support GROUP BY directly, so we use head:true per category
-      const categories = ['habitation', 'commerce', 'bureau', 'parking', 'cave', 'autre']
+      const categories = ['appartement', 'maison', 'garage', 'local_commercial', 'autre']
 
       const countPromises = categories.map(async (category) => {
         const { count, error } = await this.supabase
           .from(this.tableName)
-          .select('id, buildings!inner(team_id)', { count: 'exact', head: true })
-          .eq('buildings.team_id', teamId)
+          .select('id', { count: 'exact', head: true })
+          .eq('team_id', teamId)
+          .is('deleted_at', null)
           .eq('category', category)
 
         return { category, count: error ? 0 : (count ?? 0) }

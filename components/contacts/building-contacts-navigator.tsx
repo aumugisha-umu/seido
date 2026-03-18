@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { usePrefetchHandler } from '@/hooks/use-prefetch'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -102,6 +103,8 @@ export function BuildingContactsNavigator({
   isEmbeddedInCard = false
 }: BuildingContactsNavigatorProps) {
   const router = useRouter()
+  const handlePrefetch = usePrefetchHandler()
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -338,7 +341,6 @@ export function BuildingContactsNavigator({
 
     const types: Record<string, string> = {
       'tenant': 'Locataire',
-      'owner': 'Propriétaire',
       'provider': 'Prestataire',
       'manager': 'Gestionnaire',
       'other': 'Autre'
@@ -357,7 +359,6 @@ export function BuildingContactsNavigator({
 
     const styles: Record<string, string> = {
       'tenant': 'bg-blue-100 text-blue-800',
-      'owner': 'bg-emerald-100 text-emerald-800',
       'provider': 'bg-green-100 text-green-800',
       'manager': 'bg-purple-100 text-purple-800',
       'other': 'bg-gray-100 text-gray-600'
@@ -482,6 +483,7 @@ export function BuildingContactsNavigator({
                           variant="outline"
                           className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
                           onClick={() => router.push(`/gestionnaire/contacts/details/${contact.user.id}`)}
+                          onMouseEnter={() => handlePrefetch(`/gestionnaire/contacts/details/${contact.user.id}`)}
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           Détails
@@ -648,6 +650,7 @@ export function BuildingContactsNavigator({
                                     variant="ghost"
                                     className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
                                     onClick={() => router.push(`/gestionnaire/contacts/details/${contact.user.id}`)}
+                                    onMouseEnter={() => handlePrefetch(`/gestionnaire/contacts/details/${contact.user.id}`)}
                                   >
                                     <Eye className="h-3 w-3" />
                                   </Button>
@@ -692,7 +695,6 @@ export function BuildingContactsNavigator({
             { value: "all", label: "Tous les rôles" },
             { value: "gestionnaire", label: "Gestionnaire" },
             { value: "locataire", label: "Locataire" },
-            { value: "proprietaire", label: "Propriétaire" },
             { value: "prestataire", label: "Prestataire" }
           ],
           defaultValue: "all"

@@ -3,12 +3,15 @@
  * POST /api/import/execute-stream
  *
  * Uses Server-Sent Events (SSE) to stream progress updates in real-time.
- * The client receives progress events after each import phase completes.
+ * After import completes, geocoding runs in background via after().
  */
 
 import { NextRequest } from 'next/server';
+import { after } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { createServerActionImportService } from '@/lib/services/domain/import.service';
+import { createAddressService } from '@/lib/services/domain/address.service';
+import { createServerSupabaseClient } from '@/lib/services/core/supabase-client';
 import type { ParsedData, ImportMode, ErrorMode, ImportProgressEvent, ImportResult } from '@/lib/import/types';
 import { logger } from '@/lib/logger';
 
@@ -110,10 +113,33 @@ export async function POST(request: NextRequest) {
         teamId,
         jobId: finalResult.jobId,
         success: finalResult.success,
+        addressesToGeocode: finalResult.addressIdsToGeocode?.length || 0,
       });
 
-      // Send final result
-      await sendEvent('result', finalResult);
+      // Send final result (strip internal server-side data)
+      const { addressIdsToGeocode: _, ...clientResult } = finalResult;
+      await sendEvent('result', clientResult);
+
+      // Defer geocoding to run after response is sent to client
+      const addressIds = finalResult.addressIdsToGeocode || [];
+      if (addressIds.length > 0) {
+        after(async () => {
+          try {
+            logger.info('[API:import/execute-stream] Starting deferred geocoding', {
+              count: addressIds.length,
+              teamId,
+            });
+            const supabase = await createServerSupabaseClient();
+            const addressService = createAddressService(supabase);
+            await addressService.geocodePendingAddresses(addressIds);
+          } catch (error) {
+            logger.error('[API:import/execute-stream] Deferred geocoding failed', {
+              error: error instanceof Error ? error.message : 'Unknown error',
+              teamId,
+            });
+          }
+        });
+      }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';

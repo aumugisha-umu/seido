@@ -269,15 +269,6 @@ export default function LotEditClient({
         })
       })
 
-      // Add owners
-      lotContacts.owner?.forEach(contact => {
-        contacts.push({
-          contactId: contact.id,
-          contactType: "proprietaire",
-          isPrimary: false
-        })
-      })
-
       // Add managers (gestionnaires)
       lotManagers.forEach(manager => {
         contacts.push({
@@ -300,7 +291,6 @@ export default function LotEditClient({
 
         // Redirect to lot details page
         router.push(`/gestionnaire/biens/lots/${lotId}`)
-        router.refresh()
       } else {
         logger.error("❌ [LOT-EDIT] Update failed:", result.error)
         setError(result.error || "Erreur lors de la modification du lot")
@@ -481,7 +471,7 @@ export default function LotEditClient({
                 category: lotInfo.category
               }]}
               expandedLots={expandedLots}
-              buildingContacts={{ provider: [], owner: [], other: [] }}
+              buildingContacts={{ provider: [], other: [] }}
               lotContactAssignments={{
                 [lotId]: lotContacts
               }}
@@ -526,7 +516,7 @@ export default function LotEditClient({
                 category: lotInfo.category
               }]}
               buildingManagers={[]}
-              buildingContacts={{ provider: [], owner: [], other: [] }}
+              buildingContacts={{ provider: [], other: [] }}
               lotContactAssignments={{
                 [lotId]: lotContacts
               }}

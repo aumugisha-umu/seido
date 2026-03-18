@@ -29,10 +29,11 @@ BEFORE claiming any status:
 1. IDENTIFY: What command proves this claim?
 2. RUN: Execute the FULL command (fresh, complete)
 3. READ: Full output, check exit code, count failures
-4. VERIFY: Does output confirm the claim?
+4. CRAFTSMANSHIP: Run Code Craftsmanship Standards checklist against changed files
+5. VERIFY: Does output confirm the claim?
    - If NO: State actual status with evidence
    - If YES: State claim WITH evidence
-5. ONLY THEN: Make the claim
+6. ONLY THEN: Make the claim
 ```
 
 ## Common Failures
@@ -67,3 +68,16 @@ BEFORE claiming any status:
 Run the command. Read the output. THEN claim the result.
 
 This is non-negotiable.
+
+## Post-Verification
+
+After successful verification, before committing:
+
+1. **Knowledge Capture:** Review work for persistable learnings:
+   - New pitfall/pattern discovered? → `sp-compound` (AGENTS.md)
+   - User/project/reference insight? → Memory Bank (`.claude/projects/.../memory/`)
+   - CLAUDE.md instruction missing or wrong? → Update CLAUDE.md
+   - Agent/skill behaved incorrectly? → Update the relevant `.claude/agents/` or `.claude/skills/` file
+   - If nothing to persist → skip silently
+
+2. **Suggest:** "Run /compound to capture learnings from this work."

@@ -5,17 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useSaveFormState, useRestoreFormState } from '@/hooks/use-form-persistence'
 import { toast } from 'sonner'
 import { StepProgressHeader } from '@/components/ui/step-progress-header'
-import { contractSteps } from '@/lib/step-configurations'
+import { contractSteps, supplierContractSteps } from '@/lib/step-configurations'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { ContactSection } from '@/components/ui/contact-section'
-import ContactSelector, { ContactSelectorRef } from '@/components/contact-selector'
+import { Card, CardContent } from '@/components/ui/card'
+import type { ContactSelectorRef } from '@/components/contact-selector'
 import PropertySelector from '@/components/property-selector'
 import LeaseFormDetailsMerged from '@/components/contract/lease-form-details-merged-v1'
 import { DocumentChecklist } from '@/components/contract/document-checklist'
@@ -26,7 +19,6 @@ import {
   LEASE_INTERVENTION_TEMPLATES,
   createMissingDocumentIntervention,
   resolveTemplateText,
-  CUSTOM_DATE_VALUE,
   INSURANCE_EXPIRY_NEXT_DAY_VALUE,
   type SchedulingOption
 } from '@/lib/constants/lease-interventions'
@@ -45,19 +37,30 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Building2,
-  Home,
   Euro,
   Calendar,
-  Users,
-  Shield,
   FileText,
   Save,
-  Paperclip,
   CalendarCheck,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Bell
 } from 'lucide-react'
+import { InterventionPlannerStep } from '@/components/contract/intervention-planner-step'
+import { SUPPLIER_ASSIGNABLE_ROLES } from '@/lib/constants/assignable-roles'
+import { createSupplierReminderIntervention, createEmptySupplierCustomIntervention } from '@/lib/constants/supplier-interventions'
+import type { InterventionPlannerSection } from '@/lib/types/intervention-planner.types'
+import { SupplierContractsStep } from '@/components/contract/supplier-contracts-step'
+import { SupplierConfirmationStep } from '@/components/contract/supplier-confirmation-step'
+import type {
+  SupplierContractFormItem,
+  SupplierContractReminderConfig
+} from '@/lib/types/supplier-contract.types'
+import { createEmptySupplierContractItem } from '@/lib/types/supplier-contract.types'
+import { createBrowserSupabaseClient } from '@/lib/services'
+import {
+  createSupplierContractsAction,
+} from '@/app/actions/supplier-contract-actions'
 import { logger } from '@/lib/logger'
 import { useContractUploadByCategory } from '@/hooks/use-contract-upload-by-category'
 import type {
@@ -66,14 +69,24 @@ import type {
   GuaranteeType,
   ContractContactRole,
   ContractWithRelations,
-  ContractDocumentType,
   ChargesType
 } from '@/lib/types/contract.types'
 import {
   GUARANTEE_TYPE_LABELS,
   CONTRACT_DURATION_OPTIONS,
-  CONTRACT_CONTACT_ROLE_LABELS
+  CONTRACT_CONTACT_ROLE_LABELS,
+  PAYMENT_FREQUENCY_LABELS,
+  CHARGES_TYPE_LABELS
 } from '@/lib/types/contract.types'
+import {
+  ConfirmationPageShell,
+  ConfirmationEntityHeader,
+  ConfirmationSection,
+  ConfirmationKeyValueGrid,
+  ConfirmationFinancialHighlight,
+  ConfirmationContactGrid,
+  ConfirmationDocumentList,
+} from '@/components/confirmation'
 
 // ============================================================================
 // TYPES
@@ -95,6 +108,7 @@ interface BuildingsData {
 
 export interface ContractFormContainerProps {
   mode: 'create' | 'edit'
+  contractMode?: 'bail' | 'fournisseur'
   teamId: string
   initialBuildingsData: BuildingsData
   initialContacts: Contact[]
@@ -207,6 +221,7 @@ function mapContractToFormData(contract: ContractWithRelations): Partial<Contrac
 
 export default function ContractFormContainer({
   mode,
+  contractMode = 'bail',
   teamId,
   initialBuildingsData,
   initialContacts,
@@ -219,6 +234,8 @@ export default function ContractFormContainer({
 }: ContractFormContainerProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const isSupplierMode = contractMode === 'fournisseur'
+  const activeSteps = isSupplierMode ? supplierContractSteps : contractSteps
 
   // Read step and returnTo from URL params (for deep linking from lot card)
   const stepParam = searchParams.get('step')
@@ -264,6 +281,92 @@ export default function ContractFormContainer({
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
+  // ── Supplier mode state ──
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null)
+  const selectedBuildingName = useMemo(() => {
+    if (!selectedBuildingId) return ''
+    return initialBuildingsData.buildings.find((b: any) => b.id === selectedBuildingId)?.name || ''
+  }, [selectedBuildingId, initialBuildingsData.buildings])
+  const [supplierContracts, setSupplierContracts] = useState<SupplierContractFormItem[]>(() => {
+    if (isSupplierMode) return [createEmptySupplierContractItem('', 1)]
+    return []
+  })
+  const [supplierScheduledInterventions, setSupplierScheduledInterventions] = useState<ScheduledInterventionData[]>([])
+  // Number of existing supplier contracts in DB for the selected property (offset for reference numbering)
+  const [existingContractCount, setExistingContractCount] = useState(0)
+
+  // Sync supplier interventions when contracts change (add/remove/update end dates)
+  useEffect(() => {
+    if (!isSupplierMode) return
+    setSupplierScheduledInterventions(prev => {
+      const contractsWithEndDate = supplierContracts.filter(c => c.endDate)
+      const existingByKey = new Map(prev.filter(i => !i.key.startsWith('custom_')).map(i => [i.key, i]))
+      const customInterventions = prev.filter(i => i.key.startsWith('custom_'))
+
+      const contractInterventions = contractsWithEndDate.map(contract => {
+        const existing = existingByKey.get(contract.tempId)
+        if (existing) {
+          // Preserve user edits (enabled, assignedUsers, custom date) but update options
+          const endDateObj = new Date(contract.endDate)
+          const fresh = createSupplierReminderIntervention(contract, currentUser)
+
+          // Detect if selectedSchedulingOption was still on a "default" value
+          // (end_date or notice_date) vs a manual pick (ref_minus_1m, etc.)
+          const wasOnDefaultValue = existing.selectedSchedulingOption === 'end_date'
+            || existing.selectedSchedulingOption === 'notice_date'
+          const shouldUpdateDefault = wasOnDefaultValue
+            && existing.selectedSchedulingOption !== fresh.selectedSchedulingOption
+
+          const effectiveOption = shouldUpdateDefault
+            ? fresh.selectedSchedulingOption
+            : existing.selectedSchedulingOption
+
+          return {
+            ...existing,
+            title: fresh.title,
+            description: fresh.description,
+            availableOptions: fresh.availableOptions,
+            selectedSchedulingOption: effectiveOption,
+            // Recalculate date if auto-calculated or default changed
+            scheduledDate: (shouldUpdateDefault || existing.isAutoCalculated)
+              ? (fresh.availableOptions.find(o => o.value === effectiveOption)?.calculateDate(endDateObj, endDateObj) ?? existing.scheduledDate)
+              : existing.scheduledDate,
+          }
+        }
+        return createSupplierReminderIntervention(contract, currentUser)
+      })
+
+      return [...customInterventions, ...contractInterventions]
+    })
+  }, [isSupplierMode, supplierContracts, currentUser])
+
+  // ─── Supplier custom intervention handlers ─────────────────
+  const handleSupplierAddCustom = useCallback(() => {
+    setSupplierScheduledInterventions(prev => {
+      const lastCustomIdx = prev.reduce((acc, item, idx) => item.key.startsWith('custom_') ? idx : acc, -1)
+      const newCustom = createEmptySupplierCustomIntervention(currentUser)
+      const result = [...prev]
+      result.splice(lastCustomIdx + 1, 0, newCustom)
+      return result
+    })
+  }, [currentUser])
+
+  const handleSupplierDeleteCustom = useCallback((key: string) => {
+    setSupplierScheduledInterventions(prev => prev.filter(i => i.key !== key))
+  }, [])
+
+  const handleSupplierCustomTitleChange = useCallback((key: string, title: string) => {
+    setSupplierScheduledInterventions(prev =>
+      prev.map(i => i.key === key ? { ...i, title, enabled: title.trim().length > 0 } : i)
+    )
+  }, [])
+
+  const handleSupplierCustomDescriptionChange = useCallback((key: string, description: string) => {
+    setSupplierScheduledInterventions(prev =>
+      prev.map(i => i.key === key ? { ...i, description } : i)
+    )
+  }, [])
 
   // Interventions planifiées (étape 3)
   const [scheduledInterventions, setScheduledInterventions] = useState<ScheduledInterventionData[]>([])
@@ -316,6 +419,7 @@ export default function ContractFormContainer({
 
   // Initialiser les interventions quand les données du bail changent
   useEffect(() => {
+    if (isSupplierMode) return
     if (!formData.startDate || !formData.durationMonths || !formData.chargesType) {
       setScheduledInterventions([])
       return
@@ -404,7 +508,7 @@ export default function ContractFormContainer({
     })
 
     setScheduledInterventions([...standardInterventions, ...documentInterventions])
-  }, [formData.startDate, formData.durationMonths, formData.chargesType, missingRecommendedDocuments, slots, currentUser])
+  }, [isSupplierMode, formData.startDate, formData.durationMonths, formData.chargesType, missingRecommendedDocuments, slots, currentUser])
 
   // Track original contacts for edit mode (to determine adds/removes/updates)
   const [originalContacts] = useState<FormContact[]>(() => {
@@ -423,8 +527,9 @@ export default function ContractFormContainer({
   const formState = useMemo(() => ({
     currentStep,
     formData,
-    uploadedFiles: []
-  }), [currentStep, formData])
+    uploadedFiles: [],
+    supplierContracts,
+  }), [currentStep, formData, supplierContracts])
 
   // Hook for save and redirect (create mode)
   const { saveAndRedirect } = useSaveFormState(formState)
@@ -435,6 +540,9 @@ export default function ContractFormContainer({
       logger.info(`📥 [CONTRACT-FORM] Restoring form state after contact creation`)
       setCurrentStep(restoredState.currentStep)
       setFormData(restoredState.formData)
+      if (restoredState.supplierContracts?.length) {
+        setSupplierContracts(restoredState.supplierContracts)
+      }
     }
   })
 
@@ -462,9 +570,58 @@ export default function ContractFormContainer({
   const monthlyTotal = (formData.rentAmount || 0) + (formData.chargesAmount || 0)
 
   // Handle lot selection
-  const handleLotSelect = useCallback((lotId: string | null) => {
+  const handleLotSelect = useCallback(async (lotId: string | null) => {
     setFormData(prev => ({ ...prev, lotId: lotId || '' }))
-  }, [])
+    // In supplier mode, clear building if selecting lot
+    if (isSupplierMode && lotId) {
+      setSelectedBuildingId(null)
+      // Fetch count of existing supplier contracts for this lot
+      let offset = 0
+      try {
+        const supabase = createBrowserSupabaseClient()
+        const { count } = await supabase
+          .from('supplier_contracts')
+          .select('*', { count: 'exact', head: true })
+          .eq('lot_id', lotId)
+          .is('deleted_at', null)
+        offset = count || 0
+      } catch { /* fallback to 0 */ }
+      setExistingContractCount(offset)
+      // Update references on existing supplier contracts
+      const lotRef = initialBuildingsData.lots.find((l: any) => l.id === lotId)?.reference || ''
+      setSupplierContracts(prev => prev.map((c, i) => ({
+        ...c,
+        reference: c.reference.startsWith('CF-') ? `CF-${lotRef}-${String(offset + i + 1).padStart(3, '0')}` : c.reference
+      })))
+    }
+  }, [isSupplierMode, initialBuildingsData.lots])
+
+  const handleBuildingSelect = useCallback(async (buildingId: string | null) => {
+    setSelectedBuildingId(buildingId)
+    if (buildingId) {
+      setFormData(prev => ({ ...prev, lotId: '' }))
+      // Fetch count of existing supplier contracts for this building
+      let offset = 0
+      try {
+        const supabase = createBrowserSupabaseClient()
+        const { count } = await supabase
+          .from('supplier_contracts')
+          .select('*', { count: 'exact', head: true })
+          .eq('building_id', buildingId)
+          .is('deleted_at', null)
+        offset = count || 0
+      } catch { /* fallback to 0 */ }
+      setExistingContractCount(offset)
+      const building = initialBuildingsData.buildings.find((b: any) => b.id === buildingId)
+      const buildingName = building?.name || ''
+      // Generate a short ref from building name (first 4 chars uppercase)
+      const ref = buildingName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase() || 'IMM'
+      setSupplierContracts(prev => prev.map((c, i) => ({
+        ...c,
+        reference: c.reference.startsWith('CF-') ? `CF-${ref}-${String(offset + i + 1).padStart(3, '0')}` : c.reference
+      })))
+    }
+  }, [initialBuildingsData.buildings])
 
   // Update form field
   const updateField = useCallback(<K extends keyof ContractFormData>(
@@ -516,13 +673,31 @@ export default function ContractFormContainer({
     try {
       const contactData = JSON.parse(contactDataStr)
 
+      // Handle supplier mode: assign to first unassigned supplier contract
+      if (isSupplierMode && (contactTypeParam === 'provider' || contactTypeParam === 'prestataire')) {
+        const unassignedContract = supplierContracts.find(c => !c.supplierId)
+        if (unassignedContract) {
+          setSupplierContracts(prev => prev.map(c =>
+            c.tempId === unassignedContract.tempId
+              ? { ...c, supplierId: contactId, supplierName: contactData.name }
+              : c
+          ))
+          toast.success(`${contactData.name} assigné automatiquement !`)
+        } else {
+          toast.info(`${contactData.name} créé. Assignez-le manuellement.`)
+        }
+        sessionStorage.removeItem(`contact-data-${sessionKeyParam}`)
+        return
+      }
+
       const roleMap: Record<string, ContractContactRole> = {
         'tenant': 'locataire',
         'locataire': 'locataire',
         'guarantor': 'garant',
         'garant': 'garant'
       }
-      const role = roleMap[contactTypeParam || ''] || 'locataire'
+      const role = roleMap[contactTypeParam || '']
+      if (!role) return // Don't auto-assign if no valid type param
 
       const alreadySelected = formData.contacts?.some(c => c.userId === contactId)
       if (alreadySelected) {
@@ -542,6 +717,20 @@ export default function ContractFormContainer({
 
   // Validation per step (5 steps total - ajout Interventions)
   const validateStep = useCallback((step: number): boolean => {
+    if (isSupplierMode) {
+      switch (step) {
+        case 0: // Property selection (building or lot)
+          return !!selectedBuildingId || !!formData.lotId
+        case 1: // Supplier contracts form
+          return supplierContracts.length > 0 && supplierContracts.every(c => c.reference.trim() !== '' && c.supplierId)
+        case 2: // Interventions
+          return !supplierScheduledInterventions.some(i => i.key.startsWith('custom_') && i.enabled && !i.title.trim())
+        case 3: // Confirmation
+          return true
+        default:
+          return false
+      }
+    }
     switch (step) {
       case 0: // Lot selection
         return !!formData.lotId
@@ -555,14 +744,14 @@ export default function ContractFormContainer({
         return hasStartDate && hasDuration && hasRent && hasLocataire && noDuplicateTenant
       case 2: // Documents (optionnel - toujours valide)
         return true
-      case 3: // Interventions (optionnel - toujours valide)
-        return true
+      case 3: // Interventions
+        return !scheduledInterventions.some(i => i.key.startsWith('custom_') && i.enabled && !i.title.trim())
       case 4: // Confirmation
         return true
       default:
         return false
     }
-  }, [formData, overlapCheckResult])
+  }, [formData, overlapCheckResult, isSupplierMode, selectedBuildingId, supplierContracts, scheduledInterventions, supplierScheduledInterventions])
 
   // Navigation
   const handleNext = useCallback(() => {
@@ -570,8 +759,8 @@ export default function ContractFormContainer({
       toast.error('Veuillez compléter tous les champs requis')
       return
     }
-    setCurrentStep(prev => Math.min(prev + 1, contractSteps.length - 1))
-  }, [currentStep, validateStep])
+    setCurrentStep(prev => Math.min(prev + 1, activeSteps.length - 1))
+  }, [currentStep, validateStep, activeSteps.length])
 
   const handlePrevious = useCallback(() => {
     setCurrentStep(prev => Math.max(prev - 1, 0))
@@ -632,8 +821,100 @@ export default function ContractFormContainer({
     }
   }, [formData.contacts, originalContacts])
 
+  // Submit supplier contracts
+  const handleSupplierSubmit = useCallback(async () => {
+    if (!validateStep(currentStep)) {
+      toast.error('Veuillez compléter tous les champs requis')
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const result = await createSupplierContractsAction({
+        buildingId: selectedBuildingId,
+        lotId: formData.lotId || null,
+        teamId,
+        contracts: supplierContracts.map(c => ({
+          reference: c.reference,
+          supplierId: c.supplierId,
+          cost: c.cost,
+          costFrequency: c.costFrequency,
+          startDate: c.startDate,
+          endDate: c.endDate,
+          noticePeriodValue: c.noticePeriodValue,
+          noticePeriodUnit: c.noticePeriodUnit,
+          description: c.description,
+        })),
+        // Custom reminders (custom_*) are excluded — server action only handles contract-linked reminders for now
+        reminders: supplierScheduledInterventions
+          .filter(i => !i.key.startsWith('custom_'))
+          .reduce((acc, i) => {
+            acc[i.key] = {
+              enabled: i.enabled,
+              assignedUsers: i.assignedUsers.map(u => ({ userId: u.userId, role: u.role, name: u.name })),
+            }
+            return acc
+          }, {} as Record<string, SupplierContractReminderConfig>),
+      })
+
+      if (!result.success) {
+        toast.error(result.error || 'Erreur lors de la création')
+        return
+      }
+
+      // Upload documents for each contract via API route (per-file, no size limit)
+      const contractIds = result.data!.contractIds
+      const uploadResults = await Promise.allSettled(
+        supplierContracts.flatMap((contract, i) =>
+          contractIds[i]
+            ? contract.files.map(async file => {
+                const fd = new FormData()
+                fd.append('file', file)
+                fd.append('supplierContractId', contractIds[i])
+                fd.append('teamId', teamId)
+                const response = await fetch('/api/upload-supplier-contract-document', {
+                  method: 'POST',
+                  body: fd,
+                })
+                if (!response.ok) {
+                  const body = await response.json().catch(() => ({}))
+                  throw new Error(body.error || `Upload failed: ${response.status}`)
+                }
+                return response.json()
+              })
+            : []
+        )
+      )
+
+      const failedUploads = uploadResults.filter(r => r.status === 'rejected')
+      if (failedUploads.length > 0) {
+        logger.error({ failedUploads }, 'Some supplier contract document uploads failed')
+        toast.warning(`${result.data!.count} contrat(s) créé(s), mais ${failedUploads.length} document(s) n'ont pas pu être uploadé(s)`)
+      } else {
+        toast.success(`${result.data!.count} contrat(s) fournisseur(s) créé(s)`)
+      }
+
+      // Redirect to building or lot detail
+      if (selectedBuildingId) {
+        router.push(`/gestionnaire/biens/immeubles/${selectedBuildingId}`)
+      } else if (formData.lotId) {
+        router.push(`/gestionnaire/biens/lots/${formData.lotId}`)
+      } else {
+        router.push('/gestionnaire/contrats')
+      }
+    } catch (error) {
+      logger.error({ error }, 'Error submitting supplier contracts')
+      toast.error('Erreur inattendue')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [currentStep, validateStep, selectedBuildingId, formData.lotId, teamId, supplierContracts, supplierScheduledInterventions, router])
+
   // Submit form
   const handleSubmit = useCallback(async () => {
+    if (isSupplierMode) {
+      return handleSupplierSubmit()
+    }
+
     if (!validateStep(currentStep)) {
       toast.error('Veuillez compléter tous les champs requis')
       return
@@ -686,69 +967,63 @@ export default function ContractFormContainer({
           )
         }
 
-        // Upload documents with their categories
-        if (hasPendingUploads) {
-          logger.info('[CONTRACT-FORM] Uploading documents...')
-          await uploadDocumentFiles(contractId)
+        // Compute rent reminder dates synchronously before parallel phase (pure date math)
+        const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+        let reminderDates: Date[] = []
+        if (rentReminderConfig.enabled && formData.startDate && formData.durationMonths) {
+          const leaseStart = parseLocalDate(formData.startDate)
+          const leaseEnd = calculateContractEndDate(formData.startDate, formData.durationMonths)
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const current = new Date(leaseStart.getFullYear(), leaseStart.getMonth(), 1)
+          const endMonth = new Date(leaseEnd.getFullYear(), leaseEnd.getMonth(), 1)
+          while (current <= endMonth) {
+            const d = new Date(current.getFullYear(), current.getMonth(), rentReminderConfig.dayOfMonth)
+            if (d >= today) reminderDates.push(d)
+            current.setMonth(current.getMonth() + 1)
+          }
         }
 
-        // Create scheduled interventions
-        const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
-        if (toCreate.length > 0) {
-          logger.info(`[CONTRACT-FORM] Creating ${toCreate.length} interventions...`)
-          const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+        // Parallelize: documents + interventions + reminders (US-E02)
+        await Promise.all([
+          // Op 1: Upload documents
+          hasPendingUploads ? (async () => {
+            logger.info('[CONTRACT-FORM] Uploading documents...')
+            await uploadDocumentFiles(contractId)
+          })() : Promise.resolve(),
 
-          const results = await Promise.allSettled(
-            toCreate.map(async (intervention) => {
-              return createInterventionAction({
+          // Op 2: Create scheduled interventions
+          toCreate.length > 0 ? (async () => {
+            logger.info(`[CONTRACT-FORM] Creating ${toCreate.length} interventions...`)
+            const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+            const results = await Promise.allSettled(
+              toCreate.map(async (intervention) => createInterventionAction({
                 title: intervention.title,
                 description: intervention.description,
                 type: intervention.interventionTypeCode,
                 urgency: 'basse',
                 lot_id: formData.lotId!,
                 team_id: teamId,
-                contract_id: contractId,  // Lier l'intervention au contrat
+                contract_id: contractId,
                 requested_date: intervention.scheduledDate || undefined
               }, {
-                useServiceRole: true,  // Bypass RLS pour création batch
+                useServiceRole: true,
                 assignments: intervention.assignedUsers.length > 0
                   ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
                   : undefined
-              })
-            })
-          )
-
-          const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length
-          const failedCount = results.length - successCount
-
-          if (successCount > 0) {
-            logger.info({ successCount, failedCount, contractId }, 'Lease interventions created')
-          }
-        }
-
-        // Create rent payment reminders (batch: 1 auth + 1 subscription check + 1 bulk insert)
-        if (rentReminderConfig.enabled && formData.startDate && formData.durationMonths) {
-          const leaseStart = parseLocalDate(formData.startDate)
-          const leaseEnd = calculateContractEndDate(formData.startDate, formData.durationMonths)
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-
-          const reminderDates: Date[] = []
-          const current = new Date(leaseStart.getFullYear(), leaseStart.getMonth(), 1)
-          const endMonth = new Date(leaseEnd.getFullYear(), leaseEnd.getMonth(), 1)
-
-          while (current <= endMonth) {
-            const reminderDate = new Date(current.getFullYear(), current.getMonth(), rentReminderConfig.dayOfMonth)
-            if (reminderDate >= today) {
-              reminderDates.push(reminderDate)
+              }))
+            )
+            const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length
+            const failedCount = results.length - successCount
+            if (successCount > 0) {
+              logger.info({ successCount, failedCount, contractId }, 'Lease interventions created')
             }
-            current.setMonth(current.getMonth() + 1)
-          }
+          })() : Promise.resolve(),
 
-          if (reminderDates.length > 0) {
+          // Op 3: Create rent payment reminders
+          reminderDates.length > 0 ? (async () => {
             logger.info(`[CONTRACT-FORM] Creating ${reminderDates.length} rent payment reminders (batch)...`)
             const { createBatchRentRemindersAction } = await import('@/app/actions/intervention-actions')
-
             const reminders = reminderDates.map(date => {
               const monthLabel = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
               const capitalizedMonth = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
@@ -757,7 +1032,6 @@ export default function ContractFormContainer({
                 scheduledDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
               }
             })
-
             const batchResult = await createBatchRentRemindersAction(reminders, {
               lot_id: formData.lotId!,
               team_id: teamId,
@@ -766,14 +1040,13 @@ export default function ContractFormContainer({
                 ? rentReminderConfig.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
                 : undefined
             })
-
             if (batchResult.success && batchResult.data) {
               logger.info({ ...batchResult.data, contractId }, 'Rent payment reminders created (batch)')
             } else {
               logger.warn({ error: batchResult.error, contractId }, 'Batch rent reminders failed')
             }
-          }
-        }
+          })() : Promise.resolve(),
+        ])
 
         // Send notification (fire-and-forget — non-critical for user flow)
         createContractNotification(contractId).catch(() => {})
@@ -827,8 +1100,12 @@ export default function ContractFormContainer({
   }, [mode, formData, teamId, existingContract, router, currentStep, validateStep, selectedLot, syncContacts, hasPendingUploads, uploadDocumentFiles, returnTo])
 
   // Page title based on mode
-  const pageTitle = mode === 'create' ? 'Nouveau bail' : 'Modifier le contrat'
-  const submitLabel = mode === 'create' ? 'Créer le bail' : 'Enregistrer les modifications'
+  const pageTitle = isSupplierMode
+    ? 'Contrats fournisseurs'
+    : mode === 'create' ? 'Nouveau bail' : 'Modifier le contrat'
+  const submitLabel = isSupplierMode
+    ? 'Créer les contrats'
+    : mode === 'create' ? 'Créer le bail' : 'Enregistrer les modifications'
   const submitIcon = mode === 'create' ? Check : Save
   const SubmitIcon = submitIcon
 
@@ -842,6 +1119,102 @@ export default function ContractFormContainer({
 
   // Render step content
   const renderStepContent = () => {
+    // ── SUPPLIER MODE ──
+    if (isSupplierMode) {
+      switch (currentStep) {
+        case 0: // Property selection (building or lot)
+          return (
+            <div className="flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="text-center max-w-2xl mx-auto mb-4 flex-shrink-0">
+                <h2 className="text-2xl font-bold mb-2">Sélectionnez le bien</h2>
+                <p className="text-muted-foreground">
+                  Choisissez l&apos;immeuble ou le lot auquel rattacher les contrats fournisseurs.
+                </p>
+              </div>
+              <div className="flex-1 flex flex-col min-h-0">
+                <PropertySelector
+                  mode="select"
+                  onBuildingSelect={handleBuildingSelect}
+                  onLotSelect={handleLotSelect}
+                  selectedBuildingId={selectedBuildingId || undefined}
+                  selectedLotId={formData.lotId}
+                  initialData={initialBuildingsData}
+                  showViewToggle={true}
+                  compactCards={true}
+                  hideBuildingSelect={false}
+                />
+              </div>
+            </div>
+          )
+        case 1: // Supplier contracts form
+          return (
+            <SupplierContractsStep
+              contracts={supplierContracts}
+              onContractsChange={setSupplierContracts}
+              propertyReference={selectedBuildingName || (initialBuildingsData.lots.find((l: any) => l.id === formData.lotId)?.reference) || ''}
+              teamId={teamId}
+              existingContractCount={existingContractCount}
+              onRequestContactCreation={(contactType) => {
+                saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
+              }}
+            />
+          )
+        case 2: { // Interventions — Reminder configuration via shared planner
+          const customInterventions = supplierScheduledInterventions.filter(i => i.key.startsWith('custom_'))
+          const contractInterventions = supplierScheduledInterventions.filter(i => !i.key.startsWith('custom_'))
+
+          const supplierSections: InterventionPlannerSection[] = [
+            {
+              id: 'custom',
+              title: 'Rappels personnalisés',
+              icon: Calendar,
+              iconColorClass: 'text-indigo-500',
+              rows: customInterventions,
+              allowCustomAdd: true,
+            },
+            {
+              id: 'contract_reminders',
+              title: 'Rappels de fin de contrat',
+              icon: Bell,
+              iconColorClass: 'text-amber-500',
+              rows: contractInterventions,
+            },
+          ]
+
+          return (
+            <InterventionPlannerStep
+              title="Rappels d'échéance"
+              subtitle="Programmez des rappels avant les dates d'échéance de vos contrats fournisseurs. Cette étape est optionnelle."
+              headerIcon={CalendarCheck}
+              sections={supplierSections}
+              scheduledInterventions={supplierScheduledInterventions}
+              onInterventionsChange={setSupplierScheduledInterventions}
+              teamId={teamId}
+              assignableRoles={SUPPLIER_ASSIGNABLE_ROLES}
+              allowedContactTypes={['manager', 'provider']}
+              onAddCustomIntervention={handleSupplierAddCustom}
+              onDeleteCustomIntervention={handleSupplierDeleteCustom}
+              onCustomTitleChange={handleSupplierCustomTitleChange}
+              onCustomDescriptionChange={handleSupplierCustomDescriptionChange}
+            />
+          )
+        }
+        case 3: // Confirmation
+          return (
+            <SupplierConfirmationStep
+              contracts={supplierContracts}
+              buildingName={selectedBuildingName}
+              lotReference={initialBuildingsData.lots.find((l: any) => l.id === formData.lotId)?.reference}
+              contacts={initialContacts}
+              scheduledInterventions={supplierScheduledInterventions}
+            />
+          )
+        default:
+          return null
+      }
+    }
+
+    // ── BAIL MODE (existing) ──
     switch (currentStep) {
       // Step 0: Lot Selection - Layout style Patrimoine avec tabs Immeubles/Lots
       case 0:
@@ -952,231 +1325,133 @@ export default function ContractFormContainer({
           formData.startDate!,
           formData.durationMonths || 12
         )
+        const endDate = formData.startDate && formData.durationMonths
+          ? calculateContractEndDate(formData.startDate, formData.durationMonths)
+          : null
+        const durationLabel = CONTRACT_DURATION_OPTIONS.find(o => o.value === formData.durationMonths)?.label || `${formData.durationMonths} mois`
+        const chargesTypeLabel = formData.chargesType ? CHARGES_TYPE_LABELS[formData.chargesType] : ''
+        const frequencyLabel = formData.paymentFrequency ? PAYMENT_FREQUENCY_LABELS[formData.paymentFrequency] : ''
+        const enabledInterventions = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+        const disabledInterventions = scheduledInterventions.filter(i => !i.enabled)
+
+        // Map document slots for ConfirmationDocumentList
+        const documentSlotsSummary = slots.map(slot => {
+          const slotConfig = LEASE_DOCUMENT_SLOTS.find(s => s.type === slot.type)
+          return {
+            label: slotConfig?.label || slot.type,
+            fileCount: slot.files.length,
+            fileNames: slot.files.map((f: any) => ({ name: f.name || f.fileName || '', url: f.signedUrl })),
+            recommended: slotConfig?.recommended ?? false,
+          }
+        })
+
+        // Map contacts into groups for ConfirmationContactGrid
+        const tenantContacts = (formData.contacts || [])
+          .filter(c => c.role === 'locataire')
+          .map(c => {
+            const info = initialContacts.find(ic => ic.id === c.userId)
+            return { id: c.userId, name: info?.name || 'Inconnu', email: info?.email || undefined, sublabel: CONTRACT_CONTACT_ROLE_LABELS[c.role] }
+          })
+        const guarantorContacts = (formData.contacts || [])
+          .filter(c => c.role === 'garant')
+          .map(c => {
+            const info = initialContacts.find(ic => ic.id === c.userId)
+            return { id: c.userId, name: info?.name || 'Inconnu', email: info?.email || undefined, sublabel: CONTRACT_CONTACT_ROLE_LABELS[c.role] }
+          })
+
+        // Guarantee pairs
+        const guaranteePairs = (() => {
+          if (formData.guaranteeType === 'pas_de_garantie' || !formData.guaranteeType) {
+            return [{ label: 'Type', value: 'Aucune garantie' }]
+          }
+          const pairs: { label: string; value: React.ReactNode; empty?: boolean }[] = [
+            { label: 'Type', value: GUARANTEE_TYPE_LABELS[formData.guaranteeType] },
+            { label: 'Montant', value: formData.guaranteeAmount ? `${formData.guaranteeAmount.toLocaleString('fr-FR')} €` : undefined, empty: !formData.guaranteeAmount },
+            { label: 'Notes', value: formData.guaranteeNotes || undefined, empty: !formData.guaranteeNotes },
+          ]
+          return pairs
+        })()
+
         return (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="text-center max-w-2xl mx-auto">
-              <h2 className="text-2xl font-bold mb-2">Récapitulatif</h2>
-              <p className="text-muted-foreground">
-                {mode === 'create'
-                  ? 'Vérifiez les informations avant de créer le bail.'
-                  : 'Vérifiez les modifications avant d\'enregistrer.'}
-              </p>
-            </div>
+          <ConfirmationPageShell maxWidth="5xl">
+            <ConfirmationEntityHeader
+              icon={FileText}
+              title={displayRef}
+              subtitle={selectedLot ? `${selectedLot.building?.name || 'Lot'} · Lot ${selectedLot.reference}` : undefined}
+              badges={[
+                { label: durationLabel },
+                { label: formData.startDate ? parseLocalDate(formData.startDate).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : '' },
+              ]}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Lot info - Large Card */}
-              <Card className="md:col-span-2 overflow-hidden border-border/60 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Home className="h-4 w-4 text-primary" />
-                    Lot concerné
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  {selectedLot && (
-                    <div className="flex items-start gap-4">
-                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Building2 className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-lg font-semibold">
-                          {selectedLot.building ? `${selectedLot.building.name}` : `Lot ${selectedLot.reference}`}
-                        </p>
-                        {selectedLot.building && <p className="text-muted-foreground">Lot {selectedLot.reference}</p>}
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {selectedLot.street || selectedLot.city}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
+              {/* RIGHT COLUMN (sidebar) - order-first on mobile */}
+              <div className="order-first lg:order-none lg:col-start-2">
+                <ConfirmationFinancialHighlight
+                  title="Finances"
+                  icon={Euro}
+                  lines={[
+                    { label: 'Loyer HC', value: `${(formData.rentAmount || 0).toLocaleString('fr-FR')} €` },
+                    { label: 'Charges', value: `${(formData.chargesAmount || 0).toLocaleString('fr-FR')} €` },
+                    { label: 'Type charges', value: chargesTypeLabel, muted: true },
+                    { label: 'Frequence', value: frequencyLabel, muted: true },
+                  ]}
+                  totalLabel="Total mensuel"
+                  totalValue={`${monthlyTotal.toLocaleString('fr-FR')} €`}
+                />
+              </div>
 
-              {/* Financial info - Highlight Card */}
-              <Card className="bg-primary/5 border-primary/20 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2 text-primary">
-                    <Euro className="h-4 w-4" />
-                    Finances
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Loyer HC</span>
-                      <span className="font-medium">{formData.rentAmount?.toLocaleString('fr-FR')} €</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Charges</span>
-                      <span className="font-medium">{(formData.chargesAmount || 0).toLocaleString('fr-FR')} €</span>
-                    </div>
-                  </div>
-                  <Separator className="bg-primary/20" />
-                  <div className="flex justify-between items-end">
-                    <span className="font-medium text-sm">Total mensuel</span>
-                    <span className="text-3xl font-bold text-primary tracking-tight">{monthlyTotal.toLocaleString('fr-FR')} €</span>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* LEFT COLUMN */}
+              <div className="space-y-5 lg:col-start-1 lg:row-start-1">
+                <ConfirmationSection title="Lot concerne">
+                  <ConfirmationKeyValueGrid pairs={[
+                    { label: 'Immeuble', value: selectedLot?.building?.name || 'N/A', empty: !selectedLot?.building?.name },
+                    { label: 'Reference lot', value: selectedLot?.reference || 'N/A', empty: !selectedLot?.reference },
+                    { label: 'Adresse', value: selectedLot?.street || selectedLot?.city || undefined, empty: !selectedLot?.street && !selectedLot?.city },
+                    { label: 'Etage', value: selectedLot?.floor != null ? `${selectedLot.floor}` : undefined, empty: selectedLot?.floor == null },
+                  ]} />
+                </ConfirmationSection>
 
-              {/* Guarantee info - Only show if guarantee is defined */}
-              {formData.guaranteeType && formData.guaranteeType !== 'pas_de_garantie' && (
-                <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-primary" />
-                      Garantie locative
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-3">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</p>
-                      <p className="font-medium mt-1">{GUARANTEE_TYPE_LABELS[formData.guaranteeType]}</p>
-                    </div>
-                    {formData.guaranteeAmount && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Montant</p>
-                        <p className="font-medium mt-1 text-primary">{formData.guaranteeAmount.toLocaleString('fr-FR')} €</p>
-                      </div>
-                    )}
-                    {formData.guaranteeNotes && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</p>
-                        <p className="text-sm mt-1 text-muted-foreground">{formData.guaranteeNotes}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+                <ConfirmationSection title="Details du bail">
+                  <ConfirmationKeyValueGrid pairs={[
+                    { label: 'Reference', value: <span className="font-mono text-primary">{displayRef}</span> },
+                    { label: "Date d'effet", value: formData.startDate ? parseLocalDate(formData.startDate).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : undefined, empty: !formData.startDate },
+                    { label: 'Date de fin', value: endDate ? endDate.toLocaleDateString('fr-FR', { dateStyle: 'long' }) : undefined, empty: !endDate },
+                    { label: 'Duree', value: durationLabel },
+                    { label: 'Type de charges', value: chargesTypeLabel, empty: !chargesTypeLabel },
+                    { label: 'Frequence de paiement', value: frequencyLabel, empty: !frequencyLabel },
+                    ...(formData.comments ? [{ label: 'Commentaires', value: formData.comments, fullWidth: true }] : []),
+                  ]} />
+                </ConfirmationSection>
 
-              {/* Contract info */}
-              <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    Détails du bail
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Référence</p>
-                    <p className="font-mono font-medium mt-1 text-primary">{displayRef}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date d'effet</p>
-                      <p className="text-sm mt-1 flex items-center gap-2">
-                        <Calendar className="h-3 w-3" />
-                        {parseLocalDate(formData.startDate!).toLocaleDateString('fr-FR', { dateStyle: 'long' })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Durée</p>
-                      <p className="text-sm mt-1">{CONTRACT_DURATION_OPTIONS.find(o => o.value === formData.durationMonths)?.label || `${formData.durationMonths} mois`}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                <ConfirmationSection title="Garantie">
+                  <ConfirmationKeyValueGrid pairs={guaranteePairs} />
+                </ConfirmationSection>
 
-              {/* Contacts info */}
-              <Card className="md:col-span-2 border-border/60 shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Users className="h-4 w-4 text-primary" />
-                    Signataires ({(formData.contacts || []).length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {(formData.contacts || []).map((contact, index) => {
-                      const info = initialContacts.find(c => c.id === contact.userId)
-                      return (
-                        <div key={index} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/50">
-                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                            {info?.name?.[0] || 'C'}
-                          </div>
-                          <div>
-                            <p className="font-medium text-sm">{info?.name}</p>
-                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 mt-1">
-                              {CONTRACT_CONTACT_ROLE_LABELS[contact.role]}
-                            </Badge>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                <ConfirmationSection title="Signataires">
+                  <ConfirmationContactGrid
+                    groups={[
+                      { type: 'Locataires', contacts: tenantContacts, emptyLabel: 'Aucun locataire' },
+                      { type: 'Garants', contacts: guarantorContacts, emptyLabel: 'Aucun garant' },
+                    ]}
+                    columns={2}
+                  />
+                </ConfirmationSection>
 
-            {/* Section Documents */}
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Paperclip className="h-4 w-4 text-primary" />
-                  Documents ajoutés
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                {hasDocuments ? (
-                  <div className="space-y-2">
-                    {slots.filter(slot => slot.files.length > 0).map((slot, index) => {
-                      const slotConfig = LEASE_DOCUMENT_SLOTS.find(s => s.type === slot.type)
-                      return (
-                        <div key={index} className="flex items-center gap-2 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                          <span className="font-medium">{slotConfig?.label || slot.type}</span>
-                          <span className="text-muted-foreground">
-                            - {slot.files.length} fichier{slot.files.length > 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      )
-                    })}
-                    {missingRecommendedDocuments.length > 0 && (
-                      <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                          <div className="text-xs text-amber-700">
-                            <p className="font-medium mb-1">Documents recommandés manquants:</p>
-                            <ul className="list-disc list-inside space-y-0.5">
-                              {missingRecommendedDocuments.map((docType, idx) => {
-                                const slotConfig = LEASE_DOCUMENT_SLOTS.find(s => s.type === docType)
-                                return (
-                                  <li key={idx}>{slotConfig?.label || docType}</li>
-                                )
-                              })}
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Aucun document ajouté</p>
-                )}
-              </CardContent>
-            </Card>
+                <ConfirmationSection title="Documents">
+                  <ConfirmationDocumentList slots={documentSlotsSummary} />
+                </ConfirmationSection>
 
-            {/* Section Interventions */}
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CalendarCheck className="h-4 w-4 text-primary" />
-                  Interventions planifiées
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                {(scheduledInterventions.filter(i => i.enabled && i.scheduledDate).length > 0 || rentReminderConfig.enabled) ? (
-                  <div className="space-y-2">
-                    {scheduledInterventions
-                      .filter(i => i.enabled && i.scheduledDate)
-                      .map((intervention, index) => (
+                <ConfirmationSection title="Interventions & rappels">
+                  {(enabledInterventions.length > 0 || rentReminderConfig.enabled) ? (
+                    <div className="space-y-2">
+                      {enabledInterventions.map((intervention, index) => (
                         <div key={index} className="flex items-start gap-2 text-sm">
                           <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium">{intervention.title}</span>
                             <span className="text-muted-foreground">
-                              - {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '—'}
+                              - {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '\u2014'}
                             </span>
                             {intervention.assignedUsers.length > 0 && (
                               <div className="flex items-center gap-1 flex-wrap">
@@ -1192,27 +1467,28 @@ export default function ContractFormContainer({
                           </div>
                         </div>
                       ))}
-                    {scheduledInterventions.filter(i => !i.enabled).length > 0 && (
-                      <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>
-                          {scheduledInterventions.filter(i => !i.enabled).length} intervention(s) désactivée(s)
-                        </span>
-                      </div>
-                    )}
-                    {rentReminderConfig.enabled && (
-                      <div className="mt-4 flex items-center gap-2 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                        <span className="font-medium">Rappels de paiement du loyer</span>
-                        <span className="text-muted-foreground">— le {rentReminderConfig.dayOfMonth} de chaque mois</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Aucune intervention planifiée</p>
-                )}
-              </CardContent>
-            </Card>
+                      {disabledInterventions.length > 0 && (
+                        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          <span>
+                            {disabledInterventions.length} intervention(s) desactivee(s)
+                          </span>
+                        </div>
+                      )}
+                      {rentReminderConfig.enabled && (
+                        <div className="mt-4 flex items-center gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                          <span className="font-medium">Rappels de paiement du loyer</span>
+                          <span className="text-muted-foreground">&mdash; le {rentReminderConfig.dayOfMonth} de chaque mois</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Aucune intervention planifiee</p>
+                  )}
+                </ConfirmationSection>
+              </div>
+            </div>
 
             {/* Changes summary (edit mode only) */}
             {mode === 'edit' && (() => {
@@ -1227,10 +1503,10 @@ export default function ContractFormContainer({
                     <CardContent className="p-4">
                       <h4 className="font-medium text-amber-800 mb-2">Modifications des contacts</h4>
                       {toRemove > 0 && (
-                        <p className="text-sm text-amber-700">- {toRemove} contact(s) seront retirés</p>
+                        <p className="text-sm text-amber-700">- {toRemove} contact(s) seront retires</p>
                       )}
                       {toAdd > 0 && (
-                        <p className="text-sm text-amber-700">+ {toAdd} contact(s) seront ajoutés</p>
+                        <p className="text-sm text-amber-700">+ {toAdd} contact(s) seront ajoutes</p>
                       )}
                     </CardContent>
                   </Card>
@@ -1238,7 +1514,7 @@ export default function ContractFormContainer({
               }
               return null
             })()}
-          </div>
+          </ConfirmationPageShell>
         )
 
       default:
@@ -1250,7 +1526,7 @@ export default function ContractFormContainer({
     <div className="flex flex-col flex-1 min-h-0 bg-background">
       {/* HEADER - StepProgressHeader */}
       <StepProgressHeader
-        steps={contractSteps}
+        steps={activeSteps}
         currentStep={currentStep + 1}  // Convertir 0-indexed → 1-indexed pour le header
         title={pageTitle}
         backButtonText="Retour"
@@ -1302,7 +1578,7 @@ export default function ContractFormContainer({
             </Button>
           )}
 
-          {currentStep < contractSteps.length - 1 ? (
+          {currentStep < activeSteps.length - 1 ? (
             <Button
               onClick={handleNext}
               disabled={!validateStep(currentStep)}

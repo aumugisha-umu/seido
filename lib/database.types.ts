@@ -210,6 +210,212 @@ export type Database = {
           },
         ]
       }
+      ai_phone_calls: {
+        Row: {
+          call_status: string
+          caller_phone: string | null
+          channel: string
+          created_at: string
+          duration_seconds: number | null
+          elevenlabs_conversation_id: string
+          id: string
+          identified_user_id: string | null
+          intervention_id: string | null
+          language: string
+          media_urls: Json
+          pdf_document_id: string | null
+          phone_number_id: string | null
+          structured_summary: Json | null
+          team_id: string
+          transcript: string | null
+        }
+        Insert: {
+          call_status?: string
+          caller_phone?: string | null
+          channel?: string
+          created_at?: string
+          duration_seconds?: number | null
+          elevenlabs_conversation_id: string
+          id?: string
+          identified_user_id?: string | null
+          intervention_id?: string | null
+          language?: string
+          media_urls?: Json
+          pdf_document_id?: string | null
+          phone_number_id?: string | null
+          structured_summary?: Json | null
+          team_id: string
+          transcript?: string | null
+        }
+        Update: {
+          call_status?: string
+          caller_phone?: string | null
+          channel?: string
+          created_at?: string
+          duration_seconds?: number | null
+          elevenlabs_conversation_id?: string
+          id?: string
+          identified_user_id?: string | null
+          intervention_id?: string | null
+          language?: string
+          media_urls?: Json
+          pdf_document_id?: string | null
+          phone_number_id?: string | null
+          structured_summary?: Json | null
+          team_id?: string
+          transcript?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_phone_calls_identified_user_id_fkey"
+            columns: ["identified_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_phone_calls_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_phone_calls_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_phone_calls_pdf_document_id_fkey"
+            columns: ["pdf_document_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_phone_calls_phone_number_id_fkey"
+            columns: ["phone_number_id"]
+            isOneToOne: false
+            referencedRelation: "ai_phone_numbers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_phone_calls_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_phone_numbers: {
+        Row: {
+          ai_tier: string
+          auto_topup: boolean
+          created_at: string
+          custom_instructions: string | null
+          elevenlabs_agent_id: string | null
+          elevenlabs_phone_number_id: string | null
+          id: string
+          is_active: boolean
+          phone_number: string
+          stripe_ai_price_id: string | null
+          stripe_ai_subscription_id: string | null
+          stripe_subscription_id: string | null
+          team_id: string
+          telnyx_connection_id: string | null
+          telnyx_phone_number_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ai_tier?: string
+          auto_topup?: boolean
+          created_at?: string
+          custom_instructions?: string | null
+          elevenlabs_agent_id?: string | null
+          elevenlabs_phone_number_id?: string | null
+          id?: string
+          is_active?: boolean
+          phone_number: string
+          stripe_ai_price_id?: string | null
+          stripe_ai_subscription_id?: string | null
+          stripe_subscription_id?: string | null
+          team_id: string
+          telnyx_connection_id?: string | null
+          telnyx_phone_number_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ai_tier?: string
+          auto_topup?: boolean
+          created_at?: string
+          custom_instructions?: string | null
+          elevenlabs_agent_id?: string | null
+          elevenlabs_phone_number_id?: string | null
+          id?: string
+          is_active?: boolean
+          phone_number?: string
+          stripe_ai_price_id?: string | null
+          stripe_ai_subscription_id?: string | null
+          stripe_subscription_id?: string | null
+          team_id?: string
+          telnyx_connection_id?: string | null
+          telnyx_phone_number_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_phone_numbers_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_phone_usage: {
+        Row: {
+          calls_count: number
+          created_at: string
+          id: string
+          minutes_used: number
+          month: string
+          overage_minutes: number
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          calls_count?: number
+          created_at?: string
+          id?: string
+          minutes_used?: number
+          month: string
+          overage_minutes?: number
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          calls_count?: number
+          created_at?: string
+          id?: string
+          minutes_used?: number
+          month?: string
+          overage_minutes?: number
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_phone_usage_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       building_contacts: {
         Row: {
           building_id: string
@@ -2191,6 +2397,7 @@ export type Database = {
           contract_id: string | null
           created_at: string
           created_by: string | null
+          creation_source: string | null
           deleted_at: string | null
           deleted_by: string | null
           description: string
@@ -2210,6 +2417,7 @@ export type Database = {
           scheduling_method: string | null
           scheduling_type: Database["public"]["Enums"]["intervention_scheduling_type"]
           selected_slot_id: string | null
+          source: string | null
           specific_location: string | null
           status: Database["public"]["Enums"]["intervention_status"]
           team_id: string
@@ -2225,6 +2433,7 @@ export type Database = {
           contract_id?: string | null
           created_at?: string
           created_by?: string | null
+          creation_source?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description: string
@@ -2244,6 +2453,7 @@ export type Database = {
           scheduling_method?: string | null
           scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
           selected_slot_id?: string | null
+          source?: string | null
           specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id: string
@@ -2259,6 +2469,7 @@ export type Database = {
           contract_id?: string | null
           created_at?: string
           created_by?: string | null
+          creation_source?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string
@@ -2278,6 +2489,7 @@ export type Database = {
           scheduling_method?: string | null
           scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
           selected_slot_id?: string | null
+          source?: string | null
           specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id?: string
@@ -2924,6 +3136,7 @@ export type Database = {
           notification_j1_sent: boolean
           notification_j3_sent: boolean
           notification_j7_sent: boolean
+          payment_method_added: boolean
           price_id: string | null
           status: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id: string | null
@@ -2949,6 +3162,7 @@ export type Database = {
           notification_j1_sent?: boolean
           notification_j3_sent?: boolean
           notification_j7_sent?: boolean
+          payment_method_added?: boolean
           price_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
@@ -2974,6 +3188,7 @@ export type Database = {
           notification_j1_sent?: boolean
           notification_j3_sent?: boolean
           notification_j7_sent?: boolean
+          payment_method_added?: boolean
           price_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
@@ -2990,6 +3205,203 @@ export type Database = {
             foreignKeyName: "subscriptions_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_contract_documents: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          file_size: number | null
+          filename: string
+          id: string
+          mime_type: string | null
+          original_filename: string
+          storage_bucket: string
+          storage_path: string
+          supplier_contract_id: string
+          team_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          file_size?: number | null
+          filename: string
+          id?: string
+          mime_type?: string | null
+          original_filename: string
+          storage_bucket?: string
+          storage_path: string
+          supplier_contract_id: string
+          team_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          file_size?: number | null
+          filename?: string
+          id?: string
+          mime_type?: string | null
+          original_filename?: string
+          storage_bucket?: string
+          storage_path?: string
+          supplier_contract_id?: string
+          team_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_contract_documents_supplier_contract_id_fkey"
+            columns: ["supplier_contract_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contract_documents_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contract_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_contracts: {
+        Row: {
+          building_id: string | null
+          cost: number | null
+          cost_frequency: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          lot_id: string | null
+          metadata: Json | null
+          notice_date: string | null
+          notice_period: string | null
+          reference: string
+          status: string
+          supplier_id: string | null
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          building_id?: string | null
+          cost?: number | null
+          cost_frequency?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          lot_id?: string | null
+          metadata?: Json | null
+          notice_date?: string | null
+          notice_period?: string | null
+          reference: string
+          status?: string
+          supplier_id?: string | null
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string | null
+          cost?: number | null
+          cost_frequency?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          lot_id?: string | null
+          metadata?: Json | null
+          notice_date?: string | null
+          notice_period?: string | null
+          reference?: string
+          status?: string
+          supplier_id?: string | null
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_contracts_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_contracts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -4225,6 +4637,16 @@ export type Database = {
           entity_type: Database["public"]["Enums"]["email_link_entity_type"]
         }[]
       }
+      get_email_counts: {
+        Args: { p_team_id: string }
+        Returns: {
+          archive: number
+          inbox: number
+          processed: number
+          sent: number
+          source_counts: Json
+        }[]
+      }
       get_entity_activity_logs: {
         Args: {
           p_entity_id: string
@@ -4286,6 +4708,10 @@ export type Database = {
           intervention_title: string
         }[]
       }
+      get_supplier_contract_team_id: {
+        Args: { sc_id: string }
+        Returns: string
+      }
       get_team_id_from_document_path: {
         Args: { storage_path: string }
         Returns: string
@@ -4293,6 +4719,13 @@ export type Database = {
       get_team_id_from_storage_path: {
         Args: { storage_path: string }
         Returns: string
+      }
+      get_thread_unread_counts: {
+        Args: { p_thread_ids: string[]; p_user_id: string }
+        Returns: {
+          thread_id: string
+          unread_count: number
+        }[]
       }
       get_user_id_from_auth: { Args: never; Returns: string }
       get_user_teams_v2: {
@@ -4366,6 +4799,10 @@ export type Database = {
           p_team_id: string
         }
         Returns: Json
+      }
+      upsert_ai_phone_usage: {
+        Args: { p_minutes: number; p_month: string; p_team_id: string }
+        Returns: undefined
       }
       user_belongs_to_team_v2: {
         Args: { check_team_id: string }
@@ -4481,6 +4918,7 @@ export type Database = {
         | "autre"
         | "email"
         | "note_vocale"
+        | "rapport_appel_ia"
       intervention_scheduling_type: "flexible" | "fixed" | "slots"
       intervention_status:
         | "demande"
@@ -4543,7 +4981,14 @@ export type Database = {
         | "citerne_mazout"
         | "inventaire_amiante"
         | "audit_energetique"
-      provider_category: "prestataire" | "autre"
+      provider_category:
+        | "prestataire"
+        | "autre"
+        | "artisan"
+        | "services"
+        | "energie"
+        | "administration"
+        | "juridique"
       response_type: "accepted" | "rejected" | "pending"
       subscription_status:
         | "trialing"
@@ -4562,6 +5007,7 @@ export type Database = {
         | "locataire"
         | "prestataire"
         | "proprietaire"
+        | "garant"
       time_slot_status:
         | "requested"
         | "pending"
@@ -4574,6 +5020,7 @@ export type Database = {
         | "locataire"
         | "prestataire"
         | "proprietaire"
+        | "garant"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4818,6 +5265,7 @@ export const Constants = {
         "autre",
         "email",
         "note_vocale",
+        "rapport_appel_ia",
       ],
       intervention_scheduling_type: ["flexible", "fixed", "slots"],
       intervention_status: [
@@ -4886,7 +5334,15 @@ export const Constants = {
         "inventaire_amiante",
         "audit_energetique",
       ],
-      provider_category: ["prestataire", "autre"],
+      provider_category: [
+        "prestataire",
+        "autre",
+        "artisan",
+        "services",
+        "energie",
+        "administration",
+        "juridique",
+      ],
       response_type: ["accepted", "rejected", "pending"],
       subscription_status: [
         "trialing",
@@ -4906,6 +5362,7 @@ export const Constants = {
         "locataire",
         "prestataire",
         "proprietaire",
+        "garant",
       ],
       time_slot_status: [
         "requested",
@@ -4920,6 +5377,7 @@ export const Constants = {
         "locataire",
         "prestataire",
         "proprietaire",
+        "garant",
       ],
     },
   },

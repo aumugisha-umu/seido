@@ -1,24 +1,18 @@
-'use client';
+import { getServerAuthContext } from '@/lib/server-context'
+import { ImportPageClient } from './import-page-client'
 
 /**
- * Import Page
- * Page for bulk importing buildings, lots, contacts, and contracts
+ * Import Page (Server Component)
+ * Auth-protected page for bulk importing buildings, lots, contacts, and contracts
  * Located in (no-navbar) group for full-page wizard experience
  */
-
-import { useRouter } from 'next/navigation';
-import { ImportWizard } from '@/components/import';
-
-export default function ImportPage() {
-  const router = useRouter();
-
-  const handleClose = () => {
-    router.push('/gestionnaire/dashboard');
-  };
+export default async function ImportPage() {
+  // Auth guard — only gestionnaires can import
+  await getServerAuthContext('gestionnaire')
 
   return (
     <div className="container py-8 max-w-4xl mx-auto">
-      <ImportWizard onClose={handleClose} />
+      <ImportPageClient />
     </div>
-  );
+  )
 }

@@ -61,8 +61,8 @@ export function CookieConsentBanner() {
                   Nous utilisons des cookies
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Ce site utilise des cookies pour améliorer votre expérience et analyser le trafic.
-                  Vous pouvez personnaliser vos préférences ou consulter notre{' '}
+                  Ce site utilise des cookies pour améliorer votre expérience.
+                  Pour plus d'informations, vous pouvez consulter notre{' '}
                   <Link
                     href="/cookies"
                     className="text-primary hover:underline underline-offset-2"

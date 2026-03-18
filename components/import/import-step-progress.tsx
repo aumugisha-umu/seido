@@ -28,7 +28,7 @@ export function ImportStepProgress({ wizard }: ImportStepProgressProps) {
   const { stats, importProgress } = wizard;
   const total = stats?.total || 0;
 
-  // Determine current phase index (0-4, or -1 if not started)
+  // Phase index from server (0-4 for 5 phases, matches PHASES array directly)
   const currentPhaseIndex = importProgress?.phaseIndex ?? -1;
 
   return (

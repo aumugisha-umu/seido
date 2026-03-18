@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import Imap from 'node-imap';
+import nodemailer from 'nodemailer';
 
 export async function POST(request: Request) {
     try {
@@ -18,7 +20,6 @@ export async function POST(request: Request) {
 
         // Test IMAP connection
         try {
-            const Imap = require('node-imap');
             await new Promise((resolve, reject) => {
                 const imap = new Imap({
                     user: imapUsername,
@@ -51,7 +52,6 @@ export async function POST(request: Request) {
 
         // Test SMTP connection
         try {
-            const nodemailer = require('nodemailer');
             const transporter = nodemailer.createTransport({
                 host: smtpHost,
                 port: smtpPort,

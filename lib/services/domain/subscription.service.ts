@@ -25,10 +25,12 @@ export interface SubscriptionInfo {
   has_stripe_subscription: boolean
   days_left_trial: number | null
   billing_interval: 'month' | 'year' | null
+  payment_method_added: boolean
 }
 
 export interface UpgradePreview {
   current_lots: number
+  subscribed_lots: number
   new_lots: number
   proration_amount: number
   recurring_change: number
@@ -130,6 +132,7 @@ export class SubscriptionService {
       has_stripe_subscription: !!sub.stripe_subscription_id,
       days_left_trial: daysLeftTrial,
       billing_interval: billingInterval,
+      payment_method_added: sub.payment_method_added ?? false,
     }
   }
 
@@ -271,8 +274,9 @@ export class SubscriptionService {
     quantity: number
     successUrl: string
     cancelUrl: string
+    trialEnd?: number // Unix timestamp — Stripe collects payment method but charges 0 EUR until this date
   }): Promise<Stripe.Checkout.Session> {
-    const { teamId, customerId, quantity, successUrl, cancelUrl } = params
+    const { teamId, customerId, quantity, successUrl, cancelUrl, trialEnd } = params
     const priceId = params.priceId || STRIPE_PRICES.annual
 
     // Minimum 3 lots (since 1-2 is free tier)
@@ -282,6 +286,7 @@ export class SubscriptionService {
       customer: customerId,
       mode: 'subscription',
       allow_promotion_codes: true,
+      payment_method_collection: 'always',
       metadata: { team_id: teamId },
       line_items: [
         {
@@ -291,6 +296,7 @@ export class SubscriptionService {
       ],
       subscription_data: {
         metadata: { team_id: teamId },
+        ...(trialEnd ? { trial_end: trialEnd } : {}),
       },
       success_url: successUrl,
       cancel_url: cancelUrl,
@@ -356,6 +362,7 @@ export class SubscriptionService {
       const newLots = additionalLots
       return {
         current_lots: 0,
+        subscribed_lots: 0,
         new_lots: newLots,
         proration_amount: 0,
         recurring_change: 0,
@@ -364,6 +371,9 @@ export class SubscriptionService {
         is_estimate: true,
       }
     }
+
+    // Fetch actual lot count for display (not Stripe quantity)
+    const { data: actualLots } = await this.subscriptionRepo.getLotCount(teamId)
 
     try {
       const stripeSub = await this.stripe.subscriptions.retrieve(sub.stripe_subscription_id)
@@ -388,7 +398,8 @@ export class SubscriptionService {
       const pricePerLot = interval === 'year' ? 5000 : 500
 
       return {
-        current_lots: currentQuantity,
+        current_lots: actualLots,
+        subscribed_lots: currentQuantity,
         new_lots: newQuantity,
         proration_amount: preview.amount_due,
         recurring_change: additionalLots * pricePerLot,
@@ -398,12 +409,13 @@ export class SubscriptionService {
       }
     } catch {
       // Fallback to rough estimate
-      const currentLots = sub.subscribed_lots
-      const newLots = currentLots + additionalLots
+      const subscribedLots = sub.subscribed_lots
+      const newLots = subscribedLots + additionalLots
       const pricePerLot = 5000 // Default to annual
 
       return {
-        current_lots: currentLots,
+        current_lots: actualLots,
+        subscribed_lots: subscribedLots,
         new_lots: newLots,
         proration_amount: additionalLots * pricePerLot,
         recurring_change: additionalLots * pricePerLot,

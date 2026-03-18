@@ -26,7 +26,9 @@ import type { Lot } from '@/lib/services'
 import { LotContactsGridPreview } from '@/components/ui/lot-contacts-grid-preview'
 import { ContractsNavigator } from '@/components/contracts/contracts-navigator'
 import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
+import { SupplierContractCard } from '@/components/contracts/supplier-contract-card'
 import type { ContractWithRelations } from '@/lib/types/contract.types'
+import type { SupplierContractWithRelations } from '@/lib/types/supplier-contract.types'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 import { PropertyDocumentsPanel } from '@/components/documents'
@@ -49,7 +51,7 @@ interface LotContact {
   user_id: string
   lot_id: string
   building_id: string | null
-  type: 'tenant' | 'owner' | 'manager' | 'provider'
+  type: 'tenant' | 'manager' | 'provider'
   status: 'active'
   created_at: string
   updated_at: string
@@ -109,6 +111,7 @@ interface LotDetailsClientProps {
   buildingContacts?: LotContact[]
   interventionsWithDocs: Intervention[]
   contracts: ContractWithRelations[]
+  supplierContracts: SupplierContractWithRelations[]
   isOccupied: boolean
   teamId: string
   lotAddress?: LotAddress | null
@@ -122,6 +125,7 @@ export default function LotDetailsClient({
   buildingContacts = [],
   interventionsWithDocs,
   contracts,
+  supplierContracts,
   isOccupied: initialIsOccupied,
   teamId,
   lotAddress,
@@ -269,7 +273,6 @@ export default function LotDetailsClient({
     const managers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
     const tenants: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
     const providers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
-    const owners: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
     const others: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
 
     contacts.forEach((contact) => {
@@ -293,25 +296,21 @@ export default function LotDetailsClient({
         case 'prestataire':
           providers.push(transformedContact)
           break
-        case 'proprietaire':
-          owners.push(transformedContact)
-          break
         default:
           others.push(transformedContact)
       }
     })
 
-    return { managers, tenants, providers, owners, others }
+    return { managers, tenants, providers, others }
   }
 
-  const { managers, tenants, providers, owners, others } = transformContactsByRole()
+  const { managers, tenants, providers, others } = transformContactsByRole()
 
   // Transform building contacts by role for inheritance display
   const transformBuildingContactsByRole = () => {
     const buildingManagers: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
     const buildingTenants: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
     const buildingProviders: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
-    const buildingOwners: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
     const buildingOthers: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
 
     buildingContacts.forEach((contact) => {
@@ -336,18 +335,15 @@ export default function LotDetailsClient({
         case 'prestataire':
           buildingProviders.push(transformedContact)
           break
-        case 'proprietaire':
-          buildingOwners.push(transformedContact)
-          break
         default:
           buildingOthers.push(transformedContact)
       }
     })
 
-    return { buildingManagers, buildingTenants, buildingProviders, buildingOwners, buildingOthers }
+    return { buildingManagers, buildingTenants, buildingProviders, buildingOthers }
   }
 
-  const { buildingManagers, buildingTenants, buildingProviders, buildingOwners, buildingOthers } = transformBuildingContactsByRole()
+  const { buildingManagers, buildingTenants, buildingProviders, buildingOthers } = transformBuildingContactsByRole()
 
   // Extract contracts with their contacts (tenants and guarantors) grouped by contract
   const getContractsWithContacts = () => {
@@ -412,7 +408,7 @@ export default function LotDetailsClient({
   const allTabs: TabConfig[] = [
     { value: "general", label: "Général" },
     { value: "contacts", label: "Contacts" },
-    { value: "contracts", label: "Contrats", count: contracts.length },
+    { value: "contracts", label: "Contrats", count: contracts.length + supplierContracts.length },
     { value: "interventions", label: "Interventions", count: interventionStats.total },
     { value: "documents", label: "Documents" },
     { value: "emails", label: "Emails" },
@@ -618,12 +614,10 @@ export default function LotDetailsClient({
                 managers={managers}
                 tenants={tenants}
                 providers={providers}
-                owners={owners}
                 others={others}
                 buildingManagers={buildingManagers}
                 buildingTenants={buildingTenants}
                 buildingProviders={buildingProviders}
-                buildingOwners={buildingOwners}
                 buildingOthers={buildingOthers}
                 lotContactIds={lotContactIds}
                 teamId={teamId}
@@ -742,7 +736,7 @@ export default function LotDetailsClient({
 
             {/* Contracts Tab */}
             <TabContentWrapper value="contracts">
-            {contracts.length === 0 ? (
+            {contracts.length === 0 && supplierContracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <ScrollText className="h-12 w-12 text-muted-foreground/30 mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-1">Aucun contrat</h3>
@@ -757,11 +751,43 @@ export default function LotDetailsClient({
                 )}
               </div>
             ) : (
-              <ContractsNavigator
-                contracts={contracts}
-                loading={false}
-                className="border-0 shadow-none bg-transparent"
-              />
+              <>
+                {/* Supplier contracts section */}
+                {supplierContracts.length > 0 && (
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold">Contrats fournisseurs</h3>
+                      <Badge variant="secondary">{supplierContracts.length}</Badge>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {supplierContracts.map(sc => (
+                        <SupplierContractCard
+                          key={sc.id}
+                          contract={sc}
+                          onView={() => router.push(`/gestionnaire/contrats/fournisseur/${sc.id}`)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Labeled separator */}
+                {supplierContracts.length > 0 && contracts.length > 0 && (
+                  <div className="flex items-center gap-3 my-4">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Baux</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                )}
+
+                {/* Existing ContractsNavigator */}
+                {contracts.length > 0 && (
+                  <ContractsNavigator
+                    contracts={contracts}
+                    loading={false}
+                    className="border-0 shadow-none bg-transparent"
+                  />
+                )}
+              </>
             )}
             </TabContentWrapper>
 

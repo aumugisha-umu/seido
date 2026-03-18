@@ -25,10 +25,21 @@ export default async function NewLotPage({
   const { profile, team, teams, supabase } = await getServerAuthContext('gestionnaire')
   const params = await searchParams
 
-  // ── Subscription limit gate ──────────────────────────────────────────
+  // ── Phase 0: Service instantiation + ALL queries in parallel (including subscription) ──
   const subscriptionService = createSubscriptionService(supabase)
-  const canAddResult = await subscriptionService.canAddProperty(team.id)
+  const [teamService, lotService] = await Promise.all([
+    createServerTeamService(),
+    createServerLotService(),
+  ])
 
+  const [canAddResult, membersResult, categoryCountsResult, buildingCountResult] = await Promise.all([
+    subscriptionService.canAddProperty(team.id).catch(() => ({ allowed: true, upgrade_needed: false } as const)),
+    teamService.getTeamMembers(team.id),
+    lotService.getLotStatsByCategory(team.id).catch(() => ({ data: {} as Record<string, number> })),
+    supabase.from('buildings').select('*', { count: 'exact', head: true }).eq('team_id', team.id).is('deleted_at', null),
+  ])
+
+  // ── Subscription limit gate (fail-open: if check fails, allow creation)
   if (!canAddResult.allowed && canAddResult.upgrade_needed) {
     const info = await subscriptionService.getSubscriptionInfo(team.id)
     return (
@@ -39,19 +50,9 @@ export default async function NewLotPage({
     )
   }
 
-  // ── Phase 0: Service instantiation + all queries in parallel ──────────
-  const [teamService, lotService] = await Promise.all([
-    createServerTeamService(),
-    createServerLotService(),
-  ])
-
-  const [membersResult, categoryCountsResult] = await Promise.all([
-    teamService.getTeamMembers(team.id),
-    lotService.getLotStatsByCategory(team.id).catch(() => ({ data: {} as Record<string, number> })),
-  ])
-
   const teamMembers = membersResult?.data || []
   const categoryCountsByTeam: Record<string, number> = categoryCountsResult?.data || {}
+  const initialHasBuildings = (buildingCountResult.count ?? 0) > 0
 
   // Filter for managers only - Use member.role (team role) not member.user.role (global user role)
   const teamManagers = teamMembers.filter(
@@ -84,6 +85,7 @@ export default async function NewLotPage({
       initialTeamManagers={teamManagers}
       initialCategoryCounts={categoryCountsByTeam}
       prefillBuildingId={params.buildingId || null}
+      initialHasBuildings={initialHasBuildings}
     />
   )
 }

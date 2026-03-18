@@ -16,6 +16,7 @@ import {
   VALIDATION_CONSTRAINTS,
   SHEET_NAMES,
 } from '../constants';
+import { mapZodErrorToCode, normalizePhone } from './utils';
 
 // ============================================================================
 // Zod Schema
@@ -215,35 +216,9 @@ function normalizeRole(value: unknown): string | undefined {
     'provider': 'prestataire',
     'fournisseur': 'prestataire',
     'artisan': 'prestataire',
-    'proprietaire': 'proprietaire',
-    'propriétaire': 'proprietaire',
-    'owner': 'proprietaire',
   };
 
   return mappings[str];
-}
-
-/**
- * Normalize phone number
- */
-function normalizePhone(value: unknown): string | undefined {
-  if (!value) return undefined;
-
-  let phone = String(value).trim();
-
-  // Remove common separators
-  phone = phone.replace(/[\s.-]/g, '');
-
-  // Add French prefix if needed
-  if (phone.startsWith('0') && phone.length === 10) {
-    // Keep as is
-  } else if (phone.startsWith('+33')) {
-    // Already has country code
-  } else if (phone.length === 9 && !phone.startsWith('0')) {
-    phone = '0' + phone;
-  }
-
-  return phone;
 }
 
 /**
@@ -286,23 +261,3 @@ function normalizeSpeciality(value: unknown): string | undefined {
   return mappings[normalized] || normalized;
 }
 
-/**
- * Map Zod error code to import error code
- */
-function mapZodErrorToCode(
-  zodCode: z.ZodIssueCode
-): ImportRowError['code'] {
-  switch (zodCode) {
-    case 'too_small':
-    case 'too_big':
-      return 'REQUIRED_FIELD';
-    case 'invalid_type':
-      return 'INVALID_FORMAT';
-    case 'invalid_enum_value':
-      return 'INVALID_ENUM';
-    case 'invalid_string':
-      return 'INVALID_FORMAT';
-    default:
-      return 'UNKNOWN';
-  }
-}

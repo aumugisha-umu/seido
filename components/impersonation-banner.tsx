@@ -4,11 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { LogOut, User, AlertTriangle, Loader2, ChevronUp, ChevronDown } from 'lucide-react'
-import { stopImpersonationAction } from '@/app/actions/impersonation-actions'
-import {
-  IMPERSONATION_COOKIE_NAME,
-  decodeImpersonationToken
-} from '@/lib/impersonation-jwt'
+import { stopImpersonationAction, checkImpersonationAction } from '@/app/actions/impersonation-actions'
+import { IMPERSONATION_FLAG_COOKIE_NAME } from '@/lib/impersonation-jwt'
 import { useAuth } from '@/hooks/use-auth'
 
 /**
@@ -23,39 +20,36 @@ export function ImpersonationBanner() {
   const [isExiting, setIsExiting] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
 
-  // Detecter si on est en mode impersonation via le cookie
   useEffect(() => {
-    const checkImpersonation = () => {
-      // Lire le cookie cote client
-      const cookies = document.cookie.split(';')
-      const impersonationCookie = cookies.find(c =>
-        c.trim().startsWith(`${IMPERSONATION_COOKIE_NAME}=`)
+    const checkImpersonation = async () => {
+      const hasFlag = document.cookie.split(';').some(c =>
+        c.trim().startsWith(`${IMPERSONATION_FLAG_COOKIE_NAME}=`)
       )
 
-      if (impersonationCookie) {
-        const token = impersonationCookie.split('=')[1]
-        const decoded = decodeImpersonationToken(token)
-        if (decoded) {
-          setIsImpersonating(true)
-          setAdminInfo({
-            email: decoded.admin_email,
-            name: decoded.admin_name
-          })
-          // Reset l'etat de sortie quand on detecte une session d'impersonation
-          setIsExiting(false)
-          return
-        }
+      if (!hasFlag) {
+        setIsImpersonating(false)
+        setAdminInfo(null)
+        setIsExiting(false)
+        return
       }
 
-      setIsImpersonating(false)
-      setAdminInfo(null)
-      setIsExiting(false)
+      const result = await checkImpersonationAction()
+      if (result.success && result.data?.isActive) {
+        setIsImpersonating(true)
+        setAdminInfo({
+          email: result.data.adminEmail || '',
+          name: result.data.adminName
+        })
+        setIsExiting(false)
+      } else {
+        setIsImpersonating(false)
+        setAdminInfo(null)
+      }
     }
 
     checkImpersonation()
 
-    // Re-verifier si les cookies changent (navigation)
-    const interval = setInterval(checkImpersonation, 2000)
+    const interval = setInterval(checkImpersonation, 5000)
     return () => clearInterval(interval)
   }, [])
 

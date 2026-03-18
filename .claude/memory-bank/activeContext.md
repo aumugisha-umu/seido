@@ -222,7 +222,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Platform monitoring emails + gestionnaire contact creation flow*
 
 ## Files Recently Modified
-### 2026-03-18 10:52:51 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/gestionnaire-topbar.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/billing/onboarding-checklist.tsx`
+### 2026-03-18 11:17:50 (Auto-updated)
 - `C:/Users/arthu/Desktop/Coding/Seido-app/components/gestionnaire-header.tsx`

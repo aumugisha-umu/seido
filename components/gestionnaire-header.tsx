@@ -61,8 +61,12 @@ export function GestionnaireHeader() {
       {/* Left section — width matches sidebar for vertical alignment */}
       <div
         className={cn(
-          "flex items-center gap-3 px-4 flex-shrink-0 transition-[width] duration-200 ease-linear",
-          isMobile ? "w-auto" : open ? "w-(--sidebar-width)" : "w-(--sidebar-width-icon)"
+          "flex items-center flex-shrink-0 transition-[width] duration-200 ease-linear",
+          isMobile
+            ? "w-auto px-3 gap-3"
+            : open
+              ? "w-(--sidebar-width) pl-2 pr-4 gap-3"
+              : "w-(--sidebar-width-icon) pl-2"
         )}
       >
         {/* Sidebar toggle */}
@@ -70,18 +74,19 @@ export function GestionnaireHeader() {
           onClick={toggleSidebar}
           className={cn(
             "flex items-center justify-center rounded-md flex-shrink-0",
-            "text-muted-foreground hover:text-foreground hover:bg-muted",
             "transition-colors",
-            open || isMobile ? "h-8 w-8" : "h-7 w-7"
+            open || isMobile
+              ? "h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+              : "h-8 w-8 text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
           )}
           aria-label={isMobile ? "Menu de navigation" : open ? "Réduire le menu" : "Ouvrir le menu"}
         >
           {isMobile ? (
             <Menu className="size-5" />
           ) : open ? (
-            <PanelLeftClose className="size-4.5" />
+            <PanelLeftClose className="size-5" />
           ) : (
-            <PanelLeft className="size-4" />
+            <PanelLeft className="size-5" />
           )}
         </button>
 

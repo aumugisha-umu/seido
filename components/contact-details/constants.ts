@@ -37,7 +37,6 @@ export const PROVIDER_CATEGORIES: CategoryOption[] = [
   { value: "juridique", label: "Juridique" },
   { value: "notaire", label: "Notaire" },
   { value: "syndic", label: "Syndic" },
-  { value: "proprietaire", label: "Propriétaire" },
   { value: "prestataire", label: "Prestataire (général)" },
   { value: "autre", label: "Autre" },
 ]

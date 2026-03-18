@@ -1,10 +1,26 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Subscription UX hardening + UI refinements
+**Objectif:** Contact role terminology alignment + UX refinements
 **Branch:** `preview`
 **Sprint:** Platform monitoring + UX improvements (Mar 2026)
-**Derniere analyse:** Subscription loading race conditions audit + ConfirmationDocumentList redesign — 2026-03-16
+**Derniere analyse:** Contact "Autre" → "Propriétaire" rename + role key alignment — 2026-03-18
+
+---
+
+## ✅ COMPLETE: Contact Role Rename "Autre" → "Propriétaire" (2026-03-18)
+
+Full rename of the "Autre" contact category to "Propriétaire" across the app:
+- **UI labels:** "Autres" → "Propriétaires" in lot/building contact cards, section headers, tooltips, empty states, buttons
+- **Color scheme:** gray → amber (matching garant/proprietaire pattern)
+- **Icon:** UserCircle → Home (lucide-react)
+- **Contact selector key alignment:** `"other"` → `"owner"` to match `determineAssignmentType()` output
+- **Role lookups:** Added `proprietaire`/`garant` to `getContactTypeLabel()` and `getContactTypeBadgeStyle()`
+- **Invite button:** Hidden for proprietaire/garant contacts (no app interface yet)
+- **Lot creation default:** "Laisser le lot indépendant" now selected by default (was "Créer un immeuble")
+- **Boundary mapping:** `owner` ↔ `other` at ContactSelector callback boundaries (internal state bucket stays `other`)
+- **Files:** 18 files modified across contact cards, selectors, configs, wizards
+- **Learnings:** #157-#158 (contact type key mismatch, missing role entries in lookup tables)
 
 ---
 
@@ -196,9 +212,9 @@ draft -> pending -> sent -> accepted (terminal positif)
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **151** (+7 since Mar 15: #145-#151) |
+| **AGENTS.md Learnings** | **158** (+9 since Mar 15: #145-#158) |
 | **Blog articles** | **23** |
-| **Retrospectives** | **42** |
+| **Retrospectives** | **43** |
 | **.claude/ Skills** | **23** |
 | **.claude/ Agents** | **15** |
 | **.claude/ Rules** | **5** |
@@ -210,29 +226,18 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
-| `f87f091` | fix: lot creation in existing building flow + creation_source tracking |
-| `b3d2337` | feat: enhance data invalidation broadcast system and UX improvements |
-| `0be45d6` | feat: data invalidation broadcast + onboarding auto-expand + sticky tabs |
-| `f82240f` | feat: onboarding topbar lift-up + WhatsApp webhook scaffold + Google Maps layout fix |
-| `d157c0e` | feat(claude): ecosystem optimization + import review + deferred geocoding |
+| `039b4d0` | update: contact role terminology "Autre" → "Propriétaire" + key alignment |
+| `0107fb9` | update: enhance email connection testing |
+| `c3876c5` | update: modify signup page |
+| `0941d9d` | update: refine gestionnaire-header styles |
+| `a1d2bb9` | update: refine gestionnaire-header styles |
 
 ---
 
-*Derniere mise a jour: 2026-03-16 (admin notification emails + contact flow)*
-*Focus: Platform monitoring emails + gestionnaire contact creation flow*
+*Derniere mise a jour: 2026-03-18 (contact role rename "Autre" → "Propriétaire")*
+*Focus: Contact terminology alignment + UX refinements*
 
 ## Files Recently Modified
-### 2026-03-18 16:18:29 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/config/table-configs/contacts.config.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/contact-selector.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/lot-contact-card-v4.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/building-contact-card-v3.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/contacts-grid-preview.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/lots-with-contacts-preview.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/lot-contacts-grid-preview.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/patrimoine/lot-card-unified/building-lots-grid.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/patrimoine/lot-card-unified/lot-card-expanded-content.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/gestionnaire/(no-navbar)/biens/lots/nouveau/lot-creation-form.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/property-creation/pages/LotCreationWizard.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/property-creation/pages/BuildingCreationWizard.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/building-contacts-tab.tsx`
+### 2026-03-18 18:25:32 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`

@@ -1159,6 +1159,20 @@
 **When to Use:** Any component with file preview that allows re-selection (avatar, document upload, image picker)
 **Added:** 2026-03-17 | **Source:** Lightweight Signup — simplify review
 
+#### Learning #157: Contact type key mismatch — `determineAssignmentType` vs ContactSelector tab keys
+**Problem:** ContactSelector used `key: "other"` for the propriétaire tab, but `determineAssignmentType()` returns `"owner"` for `role='proprietaire'`. The filtering comparison `assignmentType === selectedContactType` silently returned zero results — propriétaire contacts were invisible in the selector modal.
+**Solution:** Align all external-facing contact type keys with `determineAssignmentType()` output: `owner` for propriétaire, `guarantor` for garant. Keep internal state bucket keys (e.g. `buildingContacts.other`) as-is and map at the boundary (`const bucketKey = contactType === 'owner' ? 'other' : contactType`).
+**Example:** `components/contact-selector.tsx` contactTypes[].key, `app/gestionnaire/(no-navbar)/biens/lots/nouveau/lot-creation-form.tsx` handleContactAdd
+**When to Use:** Any time you rename or remap contact roles/types — always verify the full chain: DB role → role switch → determineAssignmentType → tab key → selectedContacts keys → callback contactType → state bucket key
+**Added:** 2026-03-18 | **Source:** Propriétaire role rename — "Autre" → "Propriétaire"
+
+#### Learning #158: Missing role entries in label/badge lookup tables cause silent "Non défini" display
+**Problem:** `getContactTypeLabel()` and `getContactTypeBadgeStyle()` in `contacts.config.tsx` only had entries for locataire/prestataire/gestionnaire. When DB stores `role='proprietaire'`, the lookup falls through to `'Non défini'` — no error, just wrong display.
+**Solution:** Always add BOTH the French DB value (`proprietaire`, `garant`) AND the English interface value (`owner`, `guarantor`) to ALL role lookup tables. Grep for `getContactTypeLabel` and `getContactTypeBadgeStyle` after adding new roles.
+**Example:** `config/table-configs/contacts.config.tsx` lines 72-110
+**When to Use:** When adding or renaming any contact role — check ALL lookup maps across the codebase
+**Added:** 2026-03-18 | **Source:** Propriétaire role rename — contacts list showing "Non défini"
+
 ### Email Template Rendering
 **Symptom:** Email looks correct in preview but broken in actual email clients.
 **Cause:** React Email components have different rendering in preview vs production.

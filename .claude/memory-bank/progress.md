@@ -84,6 +84,26 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-18 - Contact Role Rename "Autre" → "Propriétaire"
+
+**Ce qui a été fait:**
+- Renamed "Autre" contact category to "Propriétaire" across entire app (labels, icons, colors)
+- Changed color scheme from gray to amber (matching garant/proprietaire pattern)
+- Fixed critical bug: proprietaire contacts invisible in selector modal (key mismatch `other` vs `owner`)
+- Fixed "Non défini" display in contacts list (missing `proprietaire`/`garant` in lookup tables)
+- Hidden invite button for proprietaire/garant contacts (no app interface)
+- Changed lot creation default to "Laisser le lot indépendant"
+
+**Fichiers clés modifiés:**
+- `components/contact-selector.tsx` — tab key `other`→`owner`, role switch, icon
+- `config/table-configs/contacts.config.tsx` — added proprietaire/garant to label+badge maps
+- `components/ui/contact-section.tsx` — others config: labels, icon, amber colors
+- `components/ui/lot-contact-card-v4.tsx` — section header, tooltip, badge, items, button
+- `app/gestionnaire/(no-navbar)/biens/lots/nouveau/lot-creation-form.tsx` — boundary mapping owner↔other
+- `app/gestionnaire/(no-navbar)/contacts/details/[id]/contact-details-client.tsx` — hide invite for proprietaire/garant
+
+**Learnings:** #157 (contact type key mismatch), #158 (missing role entries in lookups)
+
 ### 2026-03-16 - Admin Notification Emails (5 stories via Ralph)
 
 **Session: Platform owner email notifications for 4 user lifecycle events**

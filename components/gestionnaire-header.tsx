@@ -107,7 +107,7 @@ export function GestionnaireHeader() {
       {/* Portal target — page-specific header content renders here */}
       <div
         id={HEADER_PORTAL_ID}
-        className="flex-1 flex items-center min-w-0 h-full overflow-hidden px-3 sm:px-6"
+        className="flex-1 flex items-center min-w-0 h-full px-3 sm:px-6"
       />
     </header>
   )

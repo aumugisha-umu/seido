@@ -1779,26 +1779,34 @@ export default function LotCreationForm({
         </div>
         )}
 
-        <div className={`ml-4 pl-4 border-l-2 border-sky-200 ${lotData.buildingAssociation !== "existing" ? "hidden" : ""}`}>
-          <PropertySelector
-            mode="select"
-            onBuildingSelect={(buildingId) => {
-              setLotData(prev => ({
-                ...prev,
-                selectedBuilding: buildingId || undefined
-              }))
-            }}
-            selectedBuildingId={lotData.selectedBuilding}
-            showActions={false}
-            showOnlyBuildings={true}
-            hideLotsSelect={true}
-            initialData={managerData ? {
-              buildings: managerData.buildings as Building[],
-              lots: managerData.lots as Lot[],
-              teamId: null
-            } : undefined}
-          />
-        </div>
+        {lotData.buildingAssociation === "existing" && (
+          <div className="ml-4 pl-4 border-l-2 border-sky-200">
+            {managerData ? (
+              <PropertySelector
+                mode="select"
+                onBuildingSelect={(buildingId) => {
+                  setLotData(prev => ({
+                    ...prev,
+                    selectedBuilding: buildingId || undefined
+                  }))
+                }}
+                selectedBuildingId={lotData.selectedBuilding}
+                showActions={false}
+                showOnlyBuildings={true}
+                hideLotsSelect={true}
+                initialData={{
+                  buildings: managerData.buildings as Building[],
+                  lots: managerData.lots as Lot[],
+                  teamId: null
+                }}
+              />
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        )}
       </RadioGroup>
 
 

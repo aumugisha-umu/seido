@@ -181,7 +181,7 @@ export function BuildingConfirmationStep({
 }: BuildingConfirmationStepProps) {
   // State to manage lot expansion (collapsed by default in confirmation)
   const [expandedLots, setExpandedLots] = React.useState<{ [key: string]: boolean }>(() => {
-    const newLotsEntries = lots.map((lot) => [lot.id, false])
+    const newLotsEntries = lots.map((lot) => [lot.id, true])
     const existingLotsEntries = existingLots.map((lot) => [lot.id, false])
     return Object.fromEntries([...newLotsEntries, ...existingLotsEntries])
   })
@@ -235,6 +235,82 @@ export function BuildingConfirmationStep({
           { label: "Interventions", value: enabledInterventions.length, icon: <CalendarCheck className="h-3.5 w-3.5" /> },
         ]}
       />
+
+      {/* New Lots — positioned first for immediate visibility */}
+      {lots.length > 0 && (
+        <ConfirmationSection title={existingLots.length > 0 ? `${lots.length} nouveau${lots.length > 1 ? "x" : ""} lot${lots.length > 1 ? "s" : ""} a creer` : `${lots.length} lot${lots.length > 1 ? "s" : ""} a creer`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {lots.map((lot, index) => {
+              const isExpanded = expandedLots[lot.id] || false
+              const lotManagers = getAssignedManagers(lot.id)
+              const tenants = getLotContactsByType(lot.id, "tenant")
+              const lotProviders = getLotContactsByType(lot.id, "provider")
+              const lotOthers = getLotContactsByType(lot.id, "other")
+              const lotDocs = lotDocSlots[lot.id] || []
+              const lotIntv = lotInterventions[lot.id] || []
+              const catConfig = getLotCategoryConfig(lot.category)
+
+              return (
+                <div key={lot.id} className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}>
+                  <div className="rounded-xl border border-l-2 border-l-primary bg-primary/5 p-4 space-y-3">
+                    {/* Lot header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleLotExpansion(lot.id)}
+                      className="flex items-center gap-2 w-full text-left"
+                    >
+                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                      <span className="text-sm font-semibold text-foreground flex-1 truncate">
+                        #{index + 1} — {lot.reference || "Sans reference"}
+                      </span>
+                      <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${catConfig.bgColor} ${catConfig.color} border-0`}>
+                        {catConfig.label}
+                      </Badge>
+                    </button>
+
+                    {/* Always show key info even when collapsed */}
+                    {!isExpanded && (
+                      <div className="pl-6 flex items-center gap-3 text-xs text-muted-foreground">
+                        {lot.floor && <span>Etage {lot.floor}</span>}
+                        {lot.doorNumber && <span>Porte {lot.doorNumber}</span>}
+                        <span>{lotManagers.length + tenants.length + lotProviders.length + lotOthers.length} contacts</span>
+                      </div>
+                    )}
+
+                    {/* Expanded details */}
+                    {isExpanded && (
+                      <div className="space-y-4 pl-6">
+                        <ConfirmationKeyValueGrid
+                          pairs={[
+                            { label: "Etage", value: lot.floor || undefined, empty: !lot.floor },
+                            { label: "Porte", value: lot.doorNumber || undefined, empty: !lot.doorNumber },
+                            { label: "Description", value: lot.description || undefined, empty: !lot.description, fullWidth: true },
+                          ]}
+                          columns={2}
+                        />
+
+                        <ConfirmationContactGrid
+                          groups={[
+                            mapManagerGroup(lotManagers),
+                            mapContactGroup("Locataires", tenants, "Aucun locataire"),
+                            mapContactGroup("Prestataires", lotProviders, "Aucun prestataire"),
+                            mapContactGroup("Autres", lotOthers, "Aucun autre contact"),
+                          ]}
+                          columns={4}
+                        />
+
+                        {lotDocs.length > 0 && <ConfirmationDocumentList slots={mapDocSlots(lotDocs)} />}
+
+                        {lotIntv.length > 0 && <InterventionsSummary interventions={lotIntv} />}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </ConfirmationSection>
+      )}
 
       {/* General Information */}
       <ConfirmationSection title="Informations generales" card>
@@ -345,81 +421,6 @@ export function BuildingConfirmationStep({
         </ConfirmationSection>
       )}
 
-      {/* New Lots */}
-      {lots.length > 0 && (
-        <ConfirmationSection title={existingLots.length > 0 ? "Nouveaux lots ajoutes" : "Lots"}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {lots.map((lot, index) => {
-              const isExpanded = expandedLots[lot.id] || false
-              const lotManagers = getAssignedManagers(lot.id)
-              const tenants = getLotContactsByType(lot.id, "tenant")
-              const lotProviders = getLotContactsByType(lot.id, "provider")
-              const lotOthers = getLotContactsByType(lot.id, "other")
-              const lotDocs = lotDocSlots[lot.id] || []
-              const lotIntv = lotInterventions[lot.id] || []
-              const catConfig = getLotCategoryConfig(lot.category)
-
-              return (
-                <div key={lot.id} className={isExpanded ? "md:col-span-2 lg:col-span-3" : ""}>
-                  <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
-                    {/* Lot header */}
-                    <button
-                      type="button"
-                      onClick={() => toggleLotExpansion(lot.id)}
-                      className="flex items-center gap-2 w-full text-left"
-                    >
-                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                      <span className="text-sm font-semibold text-foreground flex-1 truncate">
-                        #{index + 1} — {lot.reference || "Sans reference"}
-                      </span>
-                      <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${catConfig.bgColor} ${catConfig.color} border-0`}>
-                        {catConfig.label}
-                      </Badge>
-                    </button>
-
-                    {/* Always show key info even when collapsed */}
-                    {!isExpanded && (
-                      <div className="pl-6 flex items-center gap-3 text-xs text-muted-foreground">
-                        {lot.floor && <span>Etage {lot.floor}</span>}
-                        {lot.doorNumber && <span>Porte {lot.doorNumber}</span>}
-                        <span>{lotManagers.length + tenants.length + lotProviders.length + lotOthers.length} contacts</span>
-                      </div>
-                    )}
-
-                    {/* Expanded details */}
-                    {isExpanded && (
-                      <div className="space-y-4 pl-6">
-                        <ConfirmationKeyValueGrid
-                          pairs={[
-                            { label: "Etage", value: lot.floor || undefined, empty: !lot.floor },
-                            { label: "Porte", value: lot.doorNumber || undefined, empty: !lot.doorNumber },
-                            { label: "Description", value: lot.description || undefined, empty: !lot.description, fullWidth: true },
-                          ]}
-                          columns={2}
-                        />
-
-                        <ConfirmationContactGrid
-                          groups={[
-                            mapManagerGroup(lotManagers),
-                            mapContactGroup("Locataires", tenants, "Aucun locataire"),
-                            mapContactGroup("Prestataires", lotProviders, "Aucun prestataire"),
-                            mapContactGroup("Autres", lotOthers, "Aucun autre contact"),
-                          ]}
-                          columns={4}
-                        />
-
-                        {lotDocs.length > 0 && <ConfirmationDocumentList slots={mapDocSlots(lotDocs)} />}
-
-                        {lotIntv.length > 0 && <InterventionsSummary interventions={lotIntv} />}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </ConfirmationSection>
-      )}
     </ConfirmationPageShell>
   )
 }

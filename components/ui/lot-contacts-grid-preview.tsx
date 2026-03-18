@@ -116,10 +116,10 @@ export function LotContactsGridPreview({
       'gestionnaires': 'manager',
       'locataires': 'tenant',
       'prestataires': 'provider',
-      'autres contacts': 'other'
+      'propriétaires': 'owner'
     }
 
-    const contactType = contactTypeMap[sectionType] || 'other'
+    const contactType = contactTypeMap[sectionType] || 'owner'
     contactSelectorRef.current?.openContactModal(contactType, lotId)
   }
 
@@ -240,7 +240,7 @@ export function LotContactsGridPreview({
           sectionType="others"
           contacts={others}
           readOnly={false}
-          onAddContact={() => handleAddContact('autres contacts')}
+          onAddContact={() => handleAddContact('propriétaires')}
           onRemoveContact={(id) => {
             const contact = others.find(c => c.id === id)
             if (contact) handleRemoveContact(contact)

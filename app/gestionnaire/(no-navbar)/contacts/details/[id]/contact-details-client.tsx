@@ -170,6 +170,12 @@ export function ContactDetailsClient({
   }
 
   const getAccessActions = () => {
+    // Propriétaires et garants n'ont pas d'interface — pas d'invitation possible
+    const noInviteRoles = ['proprietaire', 'garant']
+    if (contact?.role && noInviteRoles.includes(contact.role)) {
+      return null
+    }
+
     if (invitation.invitationLoading) {
       return (
         <Button disabled className="w-full" size="sm" variant="outline">

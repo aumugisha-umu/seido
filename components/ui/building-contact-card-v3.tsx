@@ -3,7 +3,7 @@
 import React from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Building, Wrench, UserCircle } from "lucide-react"
+import { Building, Wrench, Home } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { ContactSection } from "@/components/ui/contact-section"
 import type { User as UserType } from "@/lib/services/core/service-types"
@@ -51,7 +51,7 @@ interface BuildingContactCardV3Props {
   // Building contacts by type
   providers: Contact[]
   others: Contact[]
-  onAddContact?: (contactType: 'provider' | 'other') => void
+  onAddContact?: (contactType: 'provider' | 'owner') => void
   onRemoveContact?: (contactId: string, contactType: string) => void
 
   // Read-only mode (for confirmation view)
@@ -134,12 +134,12 @@ export function BuildingContactCardV3({
             {others.length > 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700 border border-gray-300 font-medium px-2 py-0.5 cursor-help">
-                    <UserCircle className="w-3.5 h-3.5 mr-1" />
+                  <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border border-amber-300 font-medium px-2 py-0.5 cursor-help">
+                    <Home className="w-3.5 h-3.5 mr-1" />
                     {others.length}
                   </Badge>
                 </TooltipTrigger>
-                <TooltipContent side="top"><p className="text-xs">Autres contacts</p></TooltipContent>
+                <TooltipContent side="top"><p className="text-xs">Propriétaires</p></TooltipContent>
               </Tooltip>
             )}
           </div>
@@ -174,8 +174,8 @@ export function BuildingContactCardV3({
           <ContactSection
             sectionType="others"
             contacts={others}
-            onAddContact={onAddContact ? () => onAddContact('other') : undefined}
-            onRemoveContact={onRemoveContact ? (contactId) => onRemoveContact(contactId, 'other') : undefined}
+            onAddContact={onAddContact ? () => onAddContact('owner') : undefined}
+            onRemoveContact={onRemoveContact ? (contactId) => onRemoveContact(contactId, 'owner') : undefined}
             readOnly={readOnly}
           />
         </div>

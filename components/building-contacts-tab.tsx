@@ -246,7 +246,8 @@ export function BuildingContactsTab({
     buildingContacts.forEach(bc => {
       const contact = toContact(bc.user)
       const type = bc.user.role === 'gestionnaire' ? 'manager' :
-                   bc.user.role === 'prestataire' ? 'provider' : 'other'
+                   bc.user.role === 'prestataire' ? 'provider' :
+                   bc.user.role === 'proprietaire' ? 'owner' : 'owner'
 
       if (!formattedContacts[type]) formattedContacts[type] = []
       formattedContacts[type].push(contact)
@@ -268,7 +269,7 @@ export function BuildingContactsTab({
         const contact = toContact(lc.user)
         const type = lc.user.role === 'gestionnaire' ? 'manager' :
                      lc.user.role === 'locataire' ? 'tenant' :
-                     lc.user.role === 'prestataire' ? 'provider' : 'other'
+                     lc.user.role === 'prestataire' ? 'provider' : 'owner'
 
         if (!formattedContacts[type]) formattedContacts[type] = []
         formattedContacts[type].push(contact)

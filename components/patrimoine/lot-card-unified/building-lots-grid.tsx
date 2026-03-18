@@ -104,10 +104,10 @@ export function BuildingLotsGrid({
       'gestionnaires': 'manager',
       'locataires': 'tenant',
       'prestataires': 'provider',
-      'autres contacts': 'other'
+      'propriétaires': 'owner'
     }
 
-    const contactType = contactTypeMap[sectionType] || 'other'
+    const contactType = contactTypeMap[sectionType] || 'owner'
     setCurrentLotId(lotId)
     contactSelectorRef.current?.openContactModal(contactType, lotId)
   }

@@ -314,7 +314,7 @@ function ContactsAssignment() {
             onContactRemoved={(contactId, type) => {
               actions.removeContact(contactId, type)
             }}
-            allowedContactTypes={["provider", "other"]}
+            allowedContactTypes={["provider", "owner"]}
             hideTitle={false}
           />
         </CardContent>
@@ -336,7 +336,7 @@ function ContactsAssignment() {
                 onContactRemoved={(contactId, type) => {
                   actions.removeContact(contactId, type, { lotId: lot.id })
                 }}
-                allowedContactTypes={["tenant", "provider", "other"]}
+                allowedContactTypes={["tenant", "provider", "owner"]}
                 hideTitle={true}
               />
             </CardContent>

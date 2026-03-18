@@ -60,7 +60,7 @@ export const getAssignmentTypeDisplayName = (_assignmentType: string): string =>
     'provider': 'Prestataire',
     'owner': 'Propriétaire',
     'guarantor': 'Garant',
-    'other': 'Autre'
+    'other': 'Propriétaire'
   }
 
   return displayNames[_assignmentType] || _assignmentType

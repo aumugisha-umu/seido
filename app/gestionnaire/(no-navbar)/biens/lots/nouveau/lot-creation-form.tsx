@@ -405,10 +405,10 @@ export default function LotCreationForm({
     }
   }, [prefillBuildingId, isPreFilled])
 
-  // Default to "new" when no buildings exist (hide useless "existing" option)
+  // Default to "independent" when no buildings exist (hide useless "existing" option)
   useEffect(() => {
     if (managerData && (managerData.buildings?.length ?? 0) === 0) {
-      setLotData(prev => ({ ...prev, buildingAssociation: 'new' }))
+      setLotData(prev => ({ ...prev, buildingAssociation: 'independent' }))
     }
   }, [managerData])
 
@@ -1984,20 +1984,22 @@ export default function LotCreationForm({
   }
 
   const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
+    // Map 'owner' back to internal 'other' bucket key
+    const bucketKey = contactType === 'owner' ? 'other' : contactType
     if (context?.lotId) {
       // Ajouter contact au lot spécifique
       setLotContactAssignments(prev => ({
         ...prev,
         [context.lotId]: {
           ...prev[context.lotId],
-          [contactType]: [...(prev[context.lotId]?.[contactType] || []), contact]
+          [bucketKey]: [...(prev[context.lotId]?.[bucketKey] || []), contact]
         }
       }))
     } else {
       // Ajouter contact à l'immeuble (pour contacts temporaires avant validation)
       setBuildingContacts(prev => ({
         ...prev,
-        [contactType]: [...(prev[contactType] || []), contact]
+        [bucketKey]: [...(prev[bucketKey] || []), contact]
       }))
     }
   }
@@ -2008,11 +2010,13 @@ export default function LotCreationForm({
   }
 
   const removeContactFromLot = (lotId: string, contactType: string, contactId: string) => {
+    // Map 'owner' back to internal 'other' bucket key
+    const bucketKey = contactType === 'owner' ? 'other' : contactType
     setLotContactAssignments(prev => ({
       ...prev,
       [lotId]: {
         ...prev[lotId],
-        [contactType]: (prev[lotId]?.[contactType] || []).filter(c => c.id !== contactId)
+        [bucketKey]: (prev[lotId]?.[bucketKey] || []).filter(c => c.id !== contactId)
       }
     }))
   }
@@ -2047,12 +2051,12 @@ export default function LotCreationForm({
         ? {
             tenant: Array.isArray(buildingContacts.tenant) ? buildingContacts.tenant : [],
             provider: Array.isArray(buildingContacts.provider) ? buildingContacts.provider : [],
-            other: Array.isArray(buildingContacts.other) ? buildingContacts.other : [],
+            owner: Array.isArray(buildingContacts.other) ? buildingContacts.other : [],
           }
         : {
             tenant: [],
             provider: [],
-            other: [],
+            owner: [],
           }
 
       return (
@@ -2074,7 +2078,7 @@ export default function LotCreationForm({
                 handleBuildingContactRemove(contactId, contactType)
               }
             }}
-            allowedContactTypes={["tenant", "provider", "other"]}
+            allowedContactTypes={["tenant", "provider", "owner"]}
           />
 
           <BuildingContactsStepV3
@@ -2141,17 +2145,19 @@ export default function LotCreationForm({
           selectedContacts={{
             tenant: [],
             provider: [],
-            other: []
+            owner: []
           }}
           lotContactAssignments={lotContactAssignments}
           onContactSelected={(contact, contactType, context) => {
             if (context?.lotId) {
+              // Map 'owner' back to internal 'other' bucket key
+              const bucketKey = contactType === 'owner' ? 'other' : contactType
               // Assign to specific lot
               setLotContactAssignments(prev => ({
                 ...prev,
                 [context.lotId]: {
                   ...prev[context.lotId],
-                  [contactType]: [...(prev[context.lotId]?.[contactType] || []), contact]
+                  [bucketKey]: [...(prev[context.lotId]?.[bucketKey] || []), contact]
                 }
               }))
             }
@@ -2161,7 +2167,7 @@ export default function LotCreationForm({
               removeContactFromLot(context.lotId, contactType, contactId)
             }
           }}
-          allowedContactTypes={["tenant", "provider", "other"]}
+          allowedContactTypes={["tenant", "provider", "owner"]}
         />
 
         <Tabs defaultValue="contacts" className="w-full">

@@ -102,10 +102,10 @@ export function ContactsGridPreview({
     const contactTypeMap: Record<string, string> = {
       'gestionnaires': 'manager',
       'prestataires': 'provider',
-      'autres contacts': 'other'
+      'propriétaires': 'owner'
     }
 
-    const contactType = contactTypeMap[sectionType] || 'other'
+    const contactType = contactTypeMap[sectionType] || 'owner'
     contactSelectorRef.current?.openContactModal(contactType)
   }
 
@@ -191,7 +191,7 @@ export function ContactsGridPreview({
           sectionType="others"
           contacts={others}
           readOnly={false}
-          onAddContact={() => handleAddContact('autres contacts')}
+          onAddContact={() => handleAddContact('propriétaires')}
           onRemoveContact={(id) => {
             const contact = others.find(c => c.id === id)
             if (contact) handleRemoveContact(contact)

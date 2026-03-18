@@ -9,7 +9,7 @@ import {
   Plus,
   X,
   Wrench,
-  UserCircle,
+  Home,
   UserRound,
   LucideIcon,
   Edit,
@@ -129,23 +129,23 @@ const SECTION_CONFIGS: Record<ContactSectionType, ContactSectionConfig> = {
     }
   },
   others: {
-    icon: UserCircle,
-    label: "Autres contacts",
-    addButtonLabel: "Ajouter contact",
-    emptyMessage: "Aucun autre contact",
+    icon: Home,
+    label: "Propriétaires",
+    addButtonLabel: "Ajouter propriétaire",
+    emptyMessage: "Aucun propriétaire",
     colorScheme: {
-      header: "bg-gray-50",
-      headerHover: "hover:bg-gray-100",
-      iconColor: "text-gray-600",
-      textColor: "text-gray-900",
-      badgeBg: "bg-gray-600",
-      itemBg: "bg-gray-50/50",
-      itemBorder: "border-gray-100",
-      avatarBg: "bg-gray-200",
-      avatarIcon: "text-gray-700",
-      buttonBorder: "border-gray-300",
-      buttonText: "text-gray-700",
-      buttonHover: "hover:bg-gray-50"
+      header: "bg-amber-50",
+      headerHover: "hover:bg-amber-100",
+      iconColor: "text-amber-600",
+      textColor: "text-amber-900",
+      badgeBg: "bg-amber-600",
+      itemBg: "bg-amber-50/50",
+      itemBorder: "border-amber-100",
+      avatarBg: "bg-amber-200",
+      avatarIcon: "text-amber-700",
+      buttonBorder: "border-amber-300",
+      buttonText: "text-amber-700",
+      buttonHover: "hover:bg-amber-50"
     }
   },
   guarantors: {

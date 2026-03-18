@@ -14,7 +14,7 @@ import {
   Shield,
   FileCheck,
   Car,
-  MoreHorizontal,
+  Home,
   Plus,
   X,
   Search,
@@ -45,7 +45,7 @@ const contactTypes = [
   { key: "tenant", label: "Locataire", icon: User, color: "text-blue-600" },
   { key: "provider", label: "Prestataire", icon: Briefcase, color: "text-green-600" },
   { key: "guarantor", label: "Garant", icon: Shield, color: "text-amber-600" },
-  { key: "other", label: "Autre", icon: MoreHorizontal, color: "text-gray-600" },
+  { key: "owner", label: "Propriétaire", icon: Home, color: "text-amber-600" },
 ]
 
 // Interface pour un contact
@@ -394,6 +394,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
           case 'locataire': return 'tenant'
           case 'prestataire': return 'provider'
           case 'garant': return 'guarantor'
+          case 'proprietaire': return 'owner'
           case 'admin': return 'admin'
           default: return contact.role
         }
@@ -672,7 +673,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
               {selectedContactType === 'tenant' && <User className="w-5 h-5" />}
               {selectedContactType === 'provider' && <Briefcase className="w-5 h-5" />}
               {selectedContactType === 'guarantor' && <Shield className="w-5 h-5" />}
-              {selectedContactType === 'other' && <MoreHorizontal className="w-5 h-5" />}
+              {selectedContactType === 'owner' && <Home className="w-5 h-5" />}
               Sélectionner {getEffectiveSelectionMode(selectedContactType) === 'single' ? 'un' : 'des'} {getSelectedContactTypeInfo().label.toLowerCase()}{getEffectiveSelectionMode(selectedContactType) === 'multi' ? 's' : ''}
               {getEffectiveSelectionMode(selectedContactType) === 'single' && (
                 <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
@@ -695,7 +696,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
               {selectedContactType === 'tenant' && 'Personne qui occupe le logement'}
               {selectedContactType === 'provider' && 'Prestataire pour les interventions'}
               {selectedContactType === 'guarantor' && 'Garant pour un bail'}
-              {selectedContactType === 'other' && 'Autre type de contact'}
+              {selectedContactType === 'owner' && 'Propriétaire du bien'}
             </DialogDescription>
           </DialogHeader>
 
@@ -885,7 +886,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                       {selectedContactType === 'tenant' && <User className="w-8 h-8 text-blue-600" />}
                       {selectedContactType === 'provider' && <Briefcase className="w-8 h-8 text-green-600" />}
                       {selectedContactType === 'guarantor' && <Shield className="w-8 h-8 text-amber-600" />}
-                      {selectedContactType === 'other' && <MoreHorizontal className="w-8 h-8 text-gray-600" />}
+                      {selectedContactType === 'owner' && <Home className="w-8 h-8 text-amber-600" />}
                     </div>
                     <h3 className="font-medium text-gray-900 mb-2">
                       {searchTerm ? 'Aucun contact trouvé' : `Aucun ${getSelectedContactTypeInfo().label.toLowerCase()} enregistré`}

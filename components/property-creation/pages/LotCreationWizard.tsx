@@ -304,7 +304,7 @@ function LotContactsStep() {
       onContactRemoved={(contactId, type) => {
         actions.removeContact(contactId, type)
       }}
-      allowedContactTypes={["tenant", "provider", "other"]}
+      allowedContactTypes={["tenant", "provider", "owner"]}
     />
   )
 }

@@ -222,5 +222,17 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Platform monitoring emails + gestionnaire contact creation flow*
 
 ## Files Recently Modified
-### 2026-03-18 13:16:57 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/interventions/interventions-list.tsx`
+### 2026-03-18 16:18:29 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/config/table-configs/contacts.config.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/contact-selector.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/lot-contact-card-v4.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/building-contact-card-v3.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/contacts-grid-preview.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/lots-with-contacts-preview.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/ui/lot-contacts-grid-preview.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/patrimoine/lot-card-unified/building-lots-grid.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/patrimoine/lot-card-unified/lot-card-expanded-content.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/gestionnaire/(no-navbar)/biens/lots/nouveau/lot-creation-form.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/property-creation/pages/LotCreationWizard.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/property-creation/pages/BuildingCreationWizard.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/building-contacts-tab.tsx`

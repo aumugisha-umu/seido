@@ -165,10 +165,10 @@ export function LotsWithContactsPreview({
       'gestionnaires': 'manager',
       'locataires': 'tenant',
       'prestataires': 'provider',
-      'autres contacts': 'other'
+      'propriétaires': 'owner'
     }
 
-    const contactType = contactTypeMap[sectionType] || 'other'
+    const contactType = contactTypeMap[sectionType] || 'owner'
     setCurrentLotId(lotId)
     contactSelectorRef.current?.openContactModal(contactType, lotId)
   }
@@ -500,7 +500,7 @@ export function LotsWithContactsPreview({
                       sectionType="others"
                       contacts={others}
                       readOnly={false}
-                      onAddContact={() => handleAddContact('autres contacts', lot.reference, lot.id)}
+                      onAddContact={() => handleAddContact('propriétaires', lot.reference, lot.id)}
                       onRemoveContact={(id) => {
                         const contact = others.find(c => c.id === id)
                         if (contact) handleRemoveContact(contact as any, lot.id, lot.reference)

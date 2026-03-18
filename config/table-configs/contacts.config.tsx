@@ -75,11 +75,15 @@ export const getContactTypeLabel = (role?: string) => {
         'tenant': 'Locataire',
         'provider': 'Prestataire',
         'manager': 'Gestionnaire',
+        'owner': 'Propriétaire',
+        'guarantor': 'Garant',
         'other': 'Autre',
         // French values (fallback for legacy data)
         'locataire': 'Locataire',
         'prestataire': 'Prestataire',
         'gestionnaire': 'Gestionnaire',
+        'proprietaire': 'Propriétaire',
+        'garant': 'Garant',
         'autre': 'Autre'
     }
     return types[role || 'other'] || 'Non défini'
@@ -91,11 +95,15 @@ export const getContactTypeBadgeStyle = (role?: string) => {
         'tenant': 'bg-blue-100 text-blue-800',
         'provider': 'bg-green-100 text-green-800',
         'manager': 'bg-purple-100 text-purple-800',
+        'owner': 'bg-amber-100 text-amber-800',
+        'guarantor': 'bg-amber-100 text-amber-800',
         'other': 'bg-gray-100 text-gray-600',
         // French values (fallback for legacy data)
         'locataire': 'bg-blue-100 text-blue-800',
         'prestataire': 'bg-green-100 text-green-800',
         'gestionnaire': 'bg-purple-100 text-purple-800',
+        'proprietaire': 'bg-amber-100 text-amber-800',
+        'garant': 'bg-amber-100 text-amber-800',
         'autre': 'bg-gray-100 text-gray-600'
     }
     return styles[role || 'other'] || 'bg-gray-100 text-gray-600'

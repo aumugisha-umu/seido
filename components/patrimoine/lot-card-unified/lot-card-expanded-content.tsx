@@ -121,7 +121,7 @@ export function LotCardExpandedContent({
           sectionType="others"
           contacts={others}
           readOnly={readOnly}
-          onAddContact={readOnly ? undefined : () => onAddContact?.('autres contacts', lot.id)}
+          onAddContact={readOnly ? undefined : () => onAddContact?.('propriétaires', lot.id)}
           onRemoveContact={readOnly ? undefined : (id) => {
             const contact = others.find(c => c.id === id)
             if (contact) handleRemoveContact(contact, lot.id)

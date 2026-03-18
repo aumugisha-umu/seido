@@ -235,7 +235,7 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
       <button
         onClick={() => setExpanded(!expanded)}
         className={cn(
-          'flex items-center gap-2.5 px-4 py-2 rounded-full',
+          'flex items-center gap-2.5 px-3 sm:px-4 py-2 rounded-full flex-shrink-0',
           'border shadow-sm transition-all duration-200',
           'hover:scale-[1.02] active:scale-[0.98]',
           expanded
@@ -246,12 +246,12 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
         aria-label={`Guide de démarrage : ${completedCount} sur ${totalSteps} étapes complétées`}
       >
         <Zap className={cn('h-3.5 w-3.5', expanded ? 'text-primary-foreground' : 'text-primary')} />
-        <span className={cn('text-sm font-medium', expanded ? 'text-primary-foreground' : 'text-foreground')}>
+        <span className={cn('hidden sm:inline text-sm font-medium', expanded ? 'text-primary-foreground' : 'text-foreground')}>
           Démarrage
         </span>
 
         {/* Mini progress dots */}
-        <div className="flex items-center gap-1">
+        <div className="hidden sm:flex items-center gap-1">
           {STEPS.map((step) => (
             <div
               key={step.id}
@@ -283,7 +283,7 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
 
       {/* Expanded panel — overlay dropdown below pill */}
       {expanded && (
-        <div className="absolute top-full left-0 mt-2 w-[min(480px,calc(100vw-2rem))]">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 mt-2 w-[min(480px,calc(100vw-2rem))]">
           <div className="rounded-xl border bg-card shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
             {/* Panel header */}
             <div className="flex items-center justify-between p-4 pb-3 border-b">

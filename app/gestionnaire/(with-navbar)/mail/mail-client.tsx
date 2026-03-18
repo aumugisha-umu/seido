@@ -26,6 +26,7 @@ import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
 import { LinkedEmail, EmailLinkWithDetails } from '@/lib/types/email-links'
 import { MailboxEmail, Building, Lot, generateConversationId, extractSenderName, extractEmailAddress } from './components/types'
+import { useFABActions } from "@/components/ui/fab"
 import { EmailConnectionPrompt } from '@/components/email/email-connection-prompt'
 import { useComposeEmail } from '@/contexts/compose-email-context'
 import { useRealtimeEmailsV2 } from '@/hooks/use-realtime-emails-v2'
@@ -627,6 +628,15 @@ export function MailClient({
       setIsLoading(false)
     }
   }, [invalidateCache, resetKnownEmails, fetchEmails, fetchLinkedEntities])
+
+  useFABActions([
+    {
+      id: 'sync-emails',
+      label: 'Synchroniser',
+      icon: RefreshCw,
+      onClick: handleSync,
+    }
+  ])
 
   // Reply is handled directly inside EmailDetail (calls EmailClientService.sendEmail)
 

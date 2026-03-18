@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useFABActions } from "@/components/ui/fab"
 import { PageActions } from "@/components/page-actions"
 import { ContractsNavigator } from "@/components/contracts/contracts-navigator"
 import { SupplierContractsNavigator } from "@/components/contracts/supplier-contracts-navigator"
@@ -40,6 +41,16 @@ export function ContratsPageClient({
   teamId
 }: ContratsPageClientProps) {
   const router = useRouter()
+
+  useFABActions([
+    {
+      id: 'import-contrats',
+      label: 'Importer',
+      icon: Upload,
+      onClick: () => router.push('/gestionnaire/import'),
+    }
+  ])
+
   const [isRefreshing, setIsRefreshing] = useState(false)
   const previousDataHashRef = useRef<string>('')
 

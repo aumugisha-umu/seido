@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import React, { useState, useCallback, createContext, useContext, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Plus, X } from "lucide-react"
@@ -17,6 +17,46 @@ export interface FABAction {
     onClick: () => void
     variant?: 'default' | 'primary' | 'secondary' | 'destructive'
 }
+
+// ============================================================================
+// FAB ACTIONS CONTEXT
+// ============================================================================
+
+interface FABActionsContextType {
+    pageActions: FABAction[]
+    setPageActions: (actions: FABAction[]) => void
+}
+
+const FABActionsContext = createContext<FABActionsContextType>({
+    pageActions: [],
+    setPageActions: () => {},
+})
+
+export function FABActionsProvider({ children }: { children: React.ReactNode }) {
+    const [pageActions, setPageActions] = useState<FABAction[]>([])
+    const value = useMemo(() => ({ pageActions, setPageActions }), [pageActions])
+    return (
+        <FABActionsContext.Provider value={value}>
+            {children}
+        </FABActionsContext.Provider>
+    )
+}
+
+/**
+ * Hook for pages to register contextual FAB actions.
+ * Actions are automatically cleaned up when the component unmounts.
+ */
+export function useFABActions(actions: FABAction[]) {
+    const { setPageActions } = useContext(FABActionsContext)
+    useEffect(() => {
+        setPageActions(actions)
+        return () => setPageActions([])
+    }, [JSON.stringify(actions.map(a => a.id)), setPageActions])
+}
+
+// ============================================================================
+// FAB PROPS
+// ============================================================================
 
 interface FABProps {
     /** Main actions to show when FAB is expanded */
@@ -63,6 +103,13 @@ export function FAB({
     mobileOnly = true
 }: FABProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const { pageActions } = useContext(FABActionsContext)
+
+    // Merge: page-specific actions first, then global
+    const allActions = useMemo(() => {
+        if (pageActions.length === 0) return actions
+        return [...pageActions, ...actions]
+    }, [pageActions, actions])
 
     const toggle = useCallback(() => {
         setIsOpen(prev => !prev)
@@ -100,36 +147,44 @@ export function FAB({
                         : "opacity-0 translate-y-4 pointer-events-none"
                 )}
             >
-                {actions.map((action, index) => {
+                {allActions.map((action, index) => {
                     const Icon = action.icon
+                    const isFirstGlobal = pageActions.length > 0 && index === pageActions.length
                     return (
-                        <div
-                            key={action.id}
-                            className={cn(
-                                "flex items-center gap-3 transition-all duration-200",
-                                isOpen ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+                        <div key={action.id}>
+                            {/* Separator between contextual and global actions */}
+                            {isFirstGlobal && (
+                                <div className="flex items-center gap-3 justify-end pr-1 my-1">
+                                    <div className="w-20 h-px bg-border" />
+                                </div>
                             )}
-                            style={{
-                                transitionDelay: isOpen ? `${index * 50}ms` : '0ms'
-                            }}
-                        >
-                            {/* Label */}
-                            <span className="bg-card/95 backdrop-blur-sm text-foreground text-sm font-medium px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
-                                {action.label}
-                            </span>
-
-                            {/* Action Button */}
-                            <Button
-                                size="icon"
+                            <div
                                 className={cn(
-                                    "h-12 w-12 rounded-full transition-all",
-                                    actionVariantStyles[action.variant || 'default']
+                                    "flex items-center gap-3 transition-all duration-200",
+                                    isOpen ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
                                 )}
-                                onClick={() => handleActionClick(action)}
-                                aria-label={action.label}
+                                style={{
+                                    transitionDelay: isOpen ? `${index * 50}ms` : '0ms'
+                                }}
                             >
-                                <Icon className="h-5 w-5" />
-                            </Button>
+                                {/* Label */}
+                                <span className="bg-card/95 backdrop-blur-sm text-foreground text-sm font-medium px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">
+                                    {action.label}
+                                </span>
+
+                                {/* Action Button */}
+                                <Button
+                                    size="icon"
+                                    className={cn(
+                                        "h-12 w-12 rounded-full transition-all",
+                                        actionVariantStyles[action.variant || 'default']
+                                    )}
+                                    onClick={() => handleActionClick(action)}
+                                    aria-label={action.label}
+                                >
+                                    <Icon className="h-5 w-5" />
+                                </Button>
+                            </div>
                         </div>
                     )
                 })}

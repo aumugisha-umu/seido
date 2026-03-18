@@ -2,6 +2,8 @@ import type React from "react"
 import { getServerAuthContext } from "@/lib/server-context"
 import { getCachedSubscriptionInfo } from "@/lib/subscription-cache"
 import GestionnaireTopbar from "@/components/gestionnaire-topbar"
+import { FABActionsProvider } from "@/components/ui/fab"
+import { GestionnaireFABWrapper } from "@/components/gestionnaire-fab-wrapper"
 import type { OnboardingProgress } from "@/app/actions/subscription-actions"
 
 /**
@@ -69,9 +71,12 @@ export default async function WithNavbarLayout({
         onboardingProgress={onboardingProgress}
         isTrialing={isTrialing}
       />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
+      <FABActionsProvider>
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
+        <GestionnaireFABWrapper />
+      </FABActionsProvider>
     </>
   )
 }

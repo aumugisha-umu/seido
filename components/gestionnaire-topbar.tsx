@@ -100,19 +100,22 @@ export default function GestionnaireTopbar({
 
   return (
     <HeaderPortal>
-      <div className="flex items-center gap-3 w-full h-full">
+      <div className="flex items-center gap-2 sm:gap-3 w-full h-full">
         {/* Left: page title */}
-        <h1 className="text-base sm:text-lg font-bold text-foreground truncate flex-shrink-0">
+        <h1 className="text-base sm:text-lg font-bold text-foreground truncate min-w-0 max-w-[50%] sm:max-w-none">
           {pageTitle}
         </h1>
 
         {/* Onboarding checklist — SSR data eliminates client-side fetch delay */}
         <OnboardingChecklist progress={onboardingProgress} isTrialing={isTrialing} />
 
-        {/* Center: page-specific actions injected via PageActions portal */}
+        {/* Mobile spacer — pushes right section to edge */}
+        <div className="flex-1 sm:hidden" />
+
+        {/* Desktop: page-specific actions injected via PageActions portal */}
         <div
           id={TOPBAR_ACTIONS_SLOT_ID}
-          className="flex-1 flex items-center justify-end gap-2 sm:gap-3 min-w-0"
+          className="hidden sm:flex sm:flex-1 items-center justify-end gap-2 sm:gap-3 min-w-0"
         />
 
         {/* Right: team selector + notifications */}

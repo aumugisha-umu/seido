@@ -222,8 +222,7 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Platform monitoring emails + gestionnaire contact creation flow*
 
 ## Files Recently Modified
-### 2026-03-17 14:19:05 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/plans/2026-03-17-spin-selling-integration-design.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/Sales/spin-playbook-seido.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/Sales/kit-prospection-agences.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/Sales/sales-pitch-kit.md`
+### 2026-03-18 10:52:51 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/gestionnaire-topbar.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/billing/onboarding-checklist.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/gestionnaire-header.tsx`

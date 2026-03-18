@@ -3,6 +3,7 @@
 import { Plus, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { useFABActions } from "@/components/ui/fab"
 import { PageActions } from "@/components/page-actions"
 import { PatrimoineNavigator } from "@/components/patrimoine/patrimoine-navigator"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
@@ -30,6 +31,16 @@ function createDataHash(buildings: any[], lots: any[], teamId: string | null): s
 
 export function BiensPageClient({ initialBuildings, initialLots, teamId }: BiensPageClientProps) {
   const router = useRouter()
+
+  useFABActions([
+    {
+      id: 'import-biens',
+      label: 'Importer',
+      icon: Upload,
+      onClick: () => router.push('/gestionnaire/import'),
+    }
+  ])
+
   const [isRefreshing, setIsRefreshing] = useState(false)
   const previousDataHashRef = useRef<string>('')
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)

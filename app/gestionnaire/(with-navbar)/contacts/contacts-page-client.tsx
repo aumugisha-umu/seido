@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useFABActions } from "@/components/ui/fab"
 import { ContactsNavigator } from "@/components/contacts/contacts-navigator"
 import { BlockedListOverlay } from "@/components/billing/blocked-list-overlay"
 import { useSubscription } from "@/hooks/use-subscription"
@@ -112,6 +113,15 @@ export function ContactsPageClient({
 }: ContactsPageClientProps) {
   const router = useRouter()
   const { isReadOnly, loading: subscriptionLoading } = useSubscription()
+
+  useFABActions([
+    {
+      id: 'import-contacts',
+      label: 'Importer',
+      icon: Upload,
+      onClick: () => router.push('/gestionnaire/import'),
+    }
+  ])
 
   // État local initialisé avec les props
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)

@@ -25,7 +25,6 @@ import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-st
 import { UnreadMessagesSection } from "@/components/dashboards/shared/unread-messages-section"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
-import { GestionnaireFAB } from "@/components/ui/fab"
 import { TrialUpgradeModal } from "@/components/billing/trial-upgrade-modal"
 import { useSubscription } from "@/hooks/use-subscription"
 import { useStrategicNotification } from "@/hooks/use-strategic-notification"
@@ -286,15 +285,6 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
                     />
                 </div>
             </div>
-
-            {/* Mobile FAB - Quick Actions */}
-            <GestionnaireFAB
-                onCreateIntervention={navigateToNewIntervention}
-                onCreateContract={navigateToNewContract}
-                onCreateBuilding={navigateToNewBuilding}
-                onCreateLot={navigateToNewLot}
-                onCreateContact={navigateToNewContact}
-            />
 
             {/* Trial upgrade modal — shown once per session when <=2 days left */}
             <TrialUpgradeModal

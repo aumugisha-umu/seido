@@ -85,8 +85,8 @@ export function GestionnaireHeader() {
           )}
         </button>
 
-        {/* Logo in left section when sidebar is open */}
-        {showLogoInLeft && <LogoFull />}
+        {/* Logo — hidden on mobile, full on desktop (logo is in sidebar) */}
+        {showLogoInLeft && !isMobile && <LogoFull />}
       </div>
 
       {/* Separator — aligned with sidebar border */}
@@ -102,7 +102,7 @@ export function GestionnaireHeader() {
       {/* Portal target — page-specific header content renders here */}
       <div
         id={HEADER_PORTAL_ID}
-        className="flex-1 flex items-center min-w-0 h-full px-4 sm:px-6"
+        className="flex-1 flex items-center min-w-0 h-full overflow-hidden px-3 sm:px-6"
       />
     </header>
   )

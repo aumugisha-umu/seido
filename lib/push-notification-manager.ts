@@ -19,7 +19,7 @@ export class PushNotificationManager {
     logger.debug('PushManager initializing...')
 
     if (!('serviceWorker' in navigator)) {
-      console.error('❌ [PushManager] Service Worker API not supported in this browser')
+      logger.error('Service Worker API not supported in this browser')
       return
     }
 
@@ -29,8 +29,7 @@ export class PushNotificationManager {
       logger.debug({ count: registrations.length }, 'PushManager found service worker registrations')
 
       if (registrations.length === 0) {
-        console.warn('⚠️ [PushManager] No service worker registered. In development mode, the SW is disabled by default.')
-        console.warn('⚠️ [PushManager] To test push notifications, run: npm run build && npm run start')
+        logger.warn('No service worker registered. In development mode, the SW is disabled by default.')
         return
       }
 
@@ -39,7 +38,7 @@ export class PushNotificationManager {
       this.registration = await navigator.serviceWorker.ready
       logger.info({ scope: this.registration.scope }, 'PushManager service worker ready')
     } catch (error) {
-      console.error('❌ [PushManager] Service Worker initialization failed:', error)
+      logger.error({ error }, 'Service Worker initialization failed')
     }
   }
 
@@ -62,8 +61,7 @@ export class PushNotificationManager {
     }
 
     if (!this.registration) {
-      console.error('❌ [PushManager] Service Worker not available after initialization')
-      console.error('❌ [PushManager] Tip: Service Worker is disabled in development mode. Run "npm run build && npm run start" to test push notifications.')
+      logger.error('Service Worker not available after initialization')
       throw new Error('Service Worker non disponible (désactivé en mode développement)')
     }
 
@@ -79,7 +77,7 @@ export class PushNotificationManager {
     logger.debug({ hasKey: !!publicKey }, 'PushManager VAPID public key check')
 
     if (!publicKey) {
-      console.error('❌ [PushManager] VAPID public key missing. Check NEXT_PUBLIC_VAPID_PUBLIC_KEY in .env.local')
+      logger.error('VAPID public key missing. Check NEXT_PUBLIC_VAPID_PUBLIC_KEY in .env.local')
       throw new Error('VAPID public key manquante')
     }
 
@@ -103,16 +101,16 @@ export class PushNotificationManager {
       logger.debug({ status: response.status }, 'PushManager server response')
 
       if (!response.ok) {
-        const error = await response.json()
-        console.error('❌ [PushManager] Server rejected subscription:', error)
-        throw new Error(error.error || 'Failed to save subscription')
+        const errorData = await response.json()
+        logger.error({ errorData }, 'Server rejected subscription')
+        throw new Error(errorData.error || 'Impossible d\'enregistrer l\'abonnement')
       }
 
-      const result = await response.json()
+      await response.json()
       logger.info('PushManager subscription saved to server')
       return subscription
     } catch (error) {
-      console.error('❌ [PushManager] Subscribe error:', error)
+      logger.error({ error }, 'PushManager subscribe error')
       throw error
     }
   }
@@ -139,13 +137,13 @@ export class PushNotificationManager {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to remove subscription')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Impossible de supprimer l\'abonnement')
       }
 
       logger.info('PushManager subscription removed from server')
     } catch (error) {
-      console.error('❌ [PushManager] Unsubscribe error:', error)
+      logger.error({ error }, 'PushManager unsubscribe error')
       throw error
     }
   }
@@ -161,7 +159,7 @@ export class PushNotificationManager {
       const subscription = await this.registration.pushManager.getSubscription()
       return subscription
     } catch (error) {
-      console.error('❌ [PushManager] Get subscription error:', error)
+      logger.error({ error }, 'PushManager get subscription error')
       return null
     }
   }

@@ -135,6 +135,7 @@ export default function DashboardHeader({
     error: popoverNotificationsError,
     markAsRead,
     markAsUnread,
+    markAllAsRead,
     refetch: refetchPopoverNotifications
   } = useNotificationPopover({
     teamId: serverTeamId,
@@ -143,11 +144,10 @@ export default function DashboardHeader({
     refreshInterval: 30000
   })
 
-  // Fonction pour marquer toutes les notifications comme lues
+  // Fonction pour marquer toutes les notifications comme lues (batch)
   const handleMarkAllAsRead = async () => {
-    const unreadNotifications = popoverNotifications.filter(n => !n.read)
-    await Promise.all(unreadNotifications.map(n => markAsRead(n.id)))
-    refetchGlobalNotifications() // Refresh le compteur global
+    await markAllAsRead()
+    refetchGlobalNotifications()
   }
 
   // Removed: Client-side team fetching (now passed from server)

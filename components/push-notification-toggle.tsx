@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { pushManager } from "@/lib/push-notification-manager"
 import { cn } from "@/lib/utils"
+import { logger } from "@/lib/logger"
 import { checkUserPushSubscription, deleteUserPushSubscriptions } from "@/app/actions/push-subscription-actions"
 import { detectPlatform, type PlatformInfo } from "@/lib/utils/platform-detection"
 
@@ -50,7 +51,7 @@ export function PushNotificationToggle({ userId, className, onShowInstallGuide }
       try {
         const registrations = await navigator.serviceWorker.getRegistrations()
         if (registrations.length === 0) {
-          console.warn('⚠️ [PushToggle] No service worker registered. Push notifications require production build.')
+          logger.warn('[PushToggle] No service worker registered. Push notifications require production build.')
           setSwReady(false)
           setIsLoading(false)
           return
@@ -94,7 +95,7 @@ export function PushNotificationToggle({ userId, className, onShowInstallGuide }
         const { hasSubscription: dbSubscribed } = await checkUserPushSubscription()
 
         if (!dbSubscribed) {
-          console.error('❌ [PushToggle] Subscription created locally but not saved to database')
+          logger.error('[PushToggle] Subscription created locally but not saved to database')
           setError('La subscription n\'a pas été enregistrée. Veuillez réessayer.')
           setIsEnabled(false)
         } else {
@@ -112,9 +113,9 @@ export function PushNotificationToggle({ userId, className, onShowInstallGuide }
         setSuccess('🔕 Notifications push désactivées')
         setTimeout(() => setSuccess(null), 3000)
       }
-    } catch (err: any) {
-      console.error('❌ [PushToggle] Error:', err)
-      setError(err.message || 'Une erreur est survenue')
+    } catch (err) {
+      logger.error({ error: err }, '[PushToggle] Toggle error')
+      setError(err instanceof Error ? err.message : 'Une erreur est survenue')
       setIsEnabled(!enabled) // Revert the toggle
     } finally {
       setIsLoading(false)

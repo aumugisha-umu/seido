@@ -85,6 +85,7 @@ export default function GestionnaireTopbar({
     error: popoverNotificationsError,
     markAsRead,
     markAsUnread,
+    markAllAsRead,
   } = useNotificationPopover({
     teamId,
     limit: 10,
@@ -93,8 +94,7 @@ export default function GestionnaireTopbar({
   })
 
   const handleMarkAllAsRead = async () => {
-    const unreadNotifications = popoverNotifications.filter((n) => !n.read)
-    await Promise.all(unreadNotifications.map((n) => markAsRead(n.id)))
+    await markAllAsRead()
     refetchGlobalNotifications()
   }
 

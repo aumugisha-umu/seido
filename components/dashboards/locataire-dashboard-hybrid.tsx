@@ -125,6 +125,7 @@ export default function LocataireDashboardHybrid({
     error: popoverNotificationsError,
     markAsRead,
     markAsUnread,
+    markAllAsRead,
     refetch: refetchPopoverNotifications
   } = useNotificationPopover({
     teamId: teamId,
@@ -134,8 +135,7 @@ export default function LocataireDashboardHybrid({
   })
 
   const handleMarkAllAsRead = async () => {
-    const unreadNotifications = popoverNotifications.filter(n => !n.read)
-    await Promise.all(unreadNotifications.map(n => markAsRead(n.id)))
+    await markAllAsRead()
     refetchGlobalNotifications()
   }
 

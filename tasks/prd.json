@@ -1,81 +1,175 @@
 {
   "project": "SEIDO",
-  "featureName": "Email UX Improvements",
+  "featureName": "Email Private/Shared Visibility",
   "branchName": "preview",
-  "description": "5 email UX improvements: rename compose title, full-takeover when no connection, shared EmailConnectionPrompt, disable Rédiger button, global compose via sidebar + button",
-  "createdAt": "2026-03-17",
-  "prdSource": "docs/plans/2026-03-17-email-ux-improvements-design.md",
+  "description": "Add private/shared visibility toggle for email connections. Private boxes visible only to owner, shared boxes visible to all team gestionnaires. Contextual sharing via conversations with 'Shared with me' section.",
+  "createdAt": "2026-03-18",
+  "prdSource": "docs/plans/2026-03-18-email-private-shared-visibility-design.md",
   "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Rename compose modal title + disable Rédiger when no connection",
-      "description": "As a gestionnaire, the compose modal says 'Nouvel email' and the Rédiger button is disabled when I have no email connected",
+      "title": "DB Migration: visibility columns + email_shares table + trigger",
+      "description": "As a developer, I need the database schema to support private/shared email connections with auto-propagation of thread shares",
       "acceptanceCriteria": [
-        "Compose modal title is 'Nouvel email' (not 'Nouveau message')",
-        "Rédiger button in mail page is disabled when emailConnections has no active connections",
+        "team_email_connections has added_by_user_id (NOT NULL) and visibility ('private'|'shared', default 'shared') columns",
+        "Existing connections backfilled: visibility='shared', added_by_user_id=first team admin",
+        "email_shares table created with UNIQUE(email_id, shared_with_user_id)",
+        "RLS on email_shares: select for shared_with/shared_by/team_manager, insert/delete for team_manager",
+        "RLS on team_email_connections SELECT updated: shared OR own private",
+        "Trigger auto_share_thread_emails propagates shares on new email insert for private connections",
+        "Indexes created for email_shares and new columns",
+        "npm run supabase:types regenerates types",
         "Lint passes"
       ],
       "priority": 1,
       "dependsOn": [],
-      "sizing": "XS",
+      "sizing": "M",
       "passes": true,
-      "notes": "Title changed in compose-email-modal.tsx:122. Rédiger disabled via emailConnections.filter(active).length === 0 in mail-client.tsx:878."
+      "notes": "Migration 20260318100000. Fixed team_members.joined_at (not created_at). Backfill uses admin then gestionnaire fallback. Trigger uses SECURITY DEFINER + email_connection_id filter."
     },
     {
       "id": "US-002",
-      "title": "Extract shared EmailConnectionPrompt component",
-      "description": "As a developer, I want a reusable EmailConnectionPrompt component that both the settings dialog and mail page can use without code duplication",
+      "title": "Service layer: EmailVisibilityService + EmailShareRepository",
+      "description": "As a developer, I need centralized visibility logic and share management",
       "acceptanceCriteria": [
-        "New component at components/email/email-connection-prompt.tsx",
-        "Contains OAuth tabs + IMAP form (extracted from email-connection-form.tsx)",
-        "Settings page uses it inside Dialog with 'Ajouter une connexion email' title",
-        "email-connection-form.tsx becomes a thin re-export or is deleted",
-        "Existing settings page behavior unchanged",
+        "EmailVisibilityService.getAccessibleConnectionIds(supabase, teamId, userId) returns shared + own private connection IDs",
+        "EmailVisibilityService.isPrivateConnection(supabase, connectionId) returns boolean",
+        "EmailShareRepository with createSharesForThread(), getSharedWithUser(), getSharedEmailIds()",
+        "EmailConnectionRepository updated: createConnection accepts visibility + added_by_user_id",
+        "EmailConnectionRepository.getAccessibleConnections(teamId, userId) method added",
+        "EmailConnectionRepository.updateVisibility(connectionId, visibility) method added",
+        "Types updated in email-integration.ts",
         "Lint passes"
       ],
       "priority": 2,
       "dependsOn": ["US-001"],
       "sizing": "M",
       "passes": true,
-      "notes": "Moved EmailConnectionForm → EmailConnectionPrompt at components/email/. Added className prop + cn(). Fixed any→unknown, removed console.error. Old file is thin re-export. Settings page updated to direct import."
+      "notes": "EmailVisibilityService at lib/services/domain/. EmailShareRepository at lib/services/repositories/. EmailConnectionRepository updated with DTO + 2 new methods. Types extended with EmailVisibility + EmailShare."
     },
     {
       "id": "US-003",
-      "title": "Mail page full takeover when no email connected",
-      "description": "As a gestionnaire with no email connected, I see the connection form directly on the mail page instead of empty folders",
+      "title": "API routes: visibility filtering on emails, counts, connections",
+      "description": "As a gestionnaire, I only see emails from connections I have access to (shared + my private)",
       "acceptanceCriteria": [
-        "When emailConnections is empty, mail page shows centered EmailConnectionPrompt",
-        "Heading 'Connectez votre email' + subtitle displayed above the form",
-        "3-column layout (sidebar, list, detail) is NOT rendered",
-        "On successful connection, page refreshes to show full mail client",
+        "GET /api/emails filters by accessible connection IDs (uses service role + app-level filtering)",
+        "GET /api/emails supports folder=shared-with-me returning emails from email_shares",
+        "GET /api/emails/counts returns user-aware counts (only accessible connections + shared-with-me count)",
+        "GET /api/emails/connections returns only accessible connections (shared + own private)",
+        "POST /api/emails/connections accepts visibility + stores added_by_user_id from auth context",
         "Lint passes"
       ],
-      "priority": 3,
+      "priority": 2,
       "dependsOn": ["US-002"],
-      "sizing": "S",
+      "sizing": "M",
       "passes": true,
-      "notes": "Early return pattern in mail-client.tsx render. Centered EmailConnectionPrompt with Mail icon + heading + subtitle. router.refresh() on success. Dead disabled prop removed from Rédiger button."
+      "notes": "All 3 email API routes + OAuth callback updated. EmailRepository.getEmailsByFolder/getSentRepliesForThreads accept connectionIds[] for visibility filtering. Counts route adds sharedWithMe count."
     },
     {
       "id": "US-004",
-      "title": "Global ComposeEmailProvider + sidebar + button",
-      "description": "As a gestionnaire, I can compose emails from anywhere via the sidebar + button, and the compose modal opens without page redirect",
+      "title": "API route: shared-with-me groups for sidebar",
+      "description": "As a gestionnaire, the sidebar shows emails shared with me grouped by source connection",
       "acceptanceCriteria": [
-        "ComposeEmailProvider context at gestionnaire with-navbar layout level",
-        "Sidebar shows + button next to Emails when hasActiveConnections",
-        "Sidebar + button is hidden when no active connections",
-        "Clicking + opens compose modal from any page (no redirect)",
-        "Mail page Rédiger button uses context openCompose() instead of local state",
-        "Mail page no longer renders its own ComposeEmailModal instance",
-        "Layout fetches email connections SSR and passes to provider",
+        "GET /api/emails/shared-with-me/groups returns groups with connection info + thread summaries",
+        "Each group has: connection (id, email_address, owner_name), threads (subject, email_count, shared_by, shared_at)",
+        "Only returns data for the authenticated user",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "New route at /api/emails/shared-with-me/groups. Uses EmailShareRepository.getSharedWithUser() with service role client."
+    },
+    {
+      "id": "US-005",
+      "title": "Server actions: create email_shares on conversation participant add",
+      "description": "As a gestionnaire, when I create a conversation on a private email and add colleagues, they automatically get access to the email thread",
+      "acceptanceCriteria": [
+        "createEmailConversationAction checks if email belongs to private connection",
+        "If private: creates email_shares for all thread emails x all participants",
+        "addEmailConversationParticipantsAction does the same for newly added participants",
+        "Shares are idempotent (ON CONFLICT DO NOTHING)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Both createEmailConversationAction and addEmailConversationParticipantsAction now create email_shares for private connections. Non-blocking try/catch pattern."
+    },
+    {
+      "id": "US-006",
+      "title": "UI: Toggle private/shared in email connection form",
+      "description": "As a gestionnaire, when adding a new email connection I can choose private or shared visibility",
+      "acceptanceCriteria": [
+        "Switch component in both Gmail OAuth and IMAP/SMTP tabs",
+        "Labels: 'Prive' / 'Partage' with contextual help text that changes",
+        "Default value: Partage (shared)",
+        "Value sent to POST /api/emails/connections as 'visibility' field",
         "Lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-001"],
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "VisibilityToggle component with Switch + contextual text in both OAuth and IMAP tabs. OAuth flow passes visibility through encrypted state. GmailOAuthService.OAuthState extended."
+    },
+    {
+      "id": "US-007",
+      "title": "UI: Connection list badge + visibility toggle in settings",
+      "description": "As a gestionnaire, I see which connections are private/shared and can change the visibility",
+      "acceptanceCriteria": [
+        "Badge 'Prive' or 'Partage' displayed next to each connection in settings",
+        "Action dropdown has 'Changer la visibilite' option",
+        "Confirmation dialog when switching Partage -> Prive with warning message",
+        "No confirmation needed for Prive -> Partage",
+        "Visibility update calls PATCH/PUT endpoint",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Badge (Lock/Users icons) + toggle button in connection list. PATCH /api/emails/connections/[id] endpoint created. Confirmation AlertDialog for shared→private. No confirmation for private→shared."
+    },
+    {
+      "id": "US-008",
+      "title": "UI: Mailbox sidebar with 3 sections + shared-with-me",
+      "description": "As a gestionnaire, the sidebar shows my private boxes, shared boxes, and emails shared with me in separate sections",
+      "acceptanceCriteria": [
+        "Sidebar has 3 collapsible sections: 'Mes boites privees', 'Boites partagees', 'Partages avec moi'",
+        "Private connections show lock icon, shared show team icon",
+        "'Partages avec moi' shows threads grouped by source connection",
+        "Clicking a connection filters emails for that connection",
+        "Clicking a thread in 'Partages avec moi' shows those emails",
+        "'Tous les emails' shows all accessible emails",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003", "US-004"],
       "sizing": "M",
       "passes": true,
-      "notes": "Created ComposeEmailProvider context with single modal instance at layout level. Layout fetches connections via parallel SSR query. Sidebar uses createAction + useComposeEmail hook for onClick-based + button. Mail page delegates compose to context, removed local ComposeEmailModal render and composeOpen state."
+      "notes": "3 collapsible sections with Lock/Users/Share2 icons. EmailConnection type extended with visibility. page.tsx fetches visibility-aware connections via EmailVisibilityService + shared-with-me groups via EmailShareRepository. 'Tous les emails' button always visible. Threads grouped by source connection with owner name."
+    },
+    {
+      "id": "US-009",
+      "title": "SSR: mail page pre-fetches user-aware data",
+      "description": "As a gestionnaire, the mail page loads with correct visibility-filtered data on first render",
+      "acceptanceCriteria": [
+        "mail/page.tsx passes userId to connection/email queries",
+        "Initial connections are filtered by visibility",
+        "Initial counts are user-aware",
+        "Shared-with-me groups pre-fetched for sidebar",
+        "Client service updated with getSharedWithMeGroups() method",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003", "US-004", "US-008"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Phase 0 fetches accessibleConnectionIds once, reused by getEmailCounts (filters sourceCounts) and getEmailConnectionsFromIds. userId passed to MailClient. getSharedWithMeGroups pre-fetched in parallel. EmailClientService.getSharedWithMeGroups() added for client refresh."
     }
   ]
 }

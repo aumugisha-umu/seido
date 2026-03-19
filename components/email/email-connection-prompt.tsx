@@ -15,18 +15,12 @@ import {
     FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { DatePicker, formatLocalDate } from '@/components/ui/date-picker'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Loader2, AlertCircle, CheckCircle2, Mail, Shield } from 'lucide-react'
-import { EMAIL_PROVIDERS, PROVIDER_OPTIONS } from '@/lib/constants/email-providers'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Loader2, Mail, Shield, Lock, Users } from 'lucide-react'
+import { EMAIL_PROVIDERS } from '@/lib/constants/email-providers'
 import { toast } from 'sonner'
 import { subDays } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -75,51 +69,41 @@ interface EmailConnectionPromptProps {
     onSuccess?: () => void
     onCancel?: () => void
     className?: string
+    /** 'showcase' = Gmail-first layout for empty state, 'default' = tabs for settings */
+    variant?: 'default' | 'showcase'
 }
 
-export function EmailConnectionPrompt({ onSuccess, onCancel, className }: EmailConnectionPromptProps) {
+export function EmailConnectionPrompt({ onSuccess, onCancel, className, variant = 'default' }: EmailConnectionPromptProps) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isTesting, setIsTesting] = useState(false)
     const [isLoadingOAuth, setIsLoadingOAuth] = useState(false)
     const [showAdvanced, setShowAdvanced] = useState(false)
     const [connectionMethod, setConnectionMethod] = useState<'oauth' | 'password'>('oauth')
+    const [visibility, setVisibility] = useState<'shared' | 'private'>('shared')
+    const [showImapForm, setShowImapForm] = useState(false)
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            provider: 'gmail',
+            provider: 'custom',
             emailAddress: '',
             password: '',
             syncFromDate: subDays(new Date(), 30),
             imapUsername: '',
             imapPassword: '',
-            imapHost: EMAIL_PROVIDERS.gmail.imapHost,
-            imapPort: EMAIL_PROVIDERS.gmail.imapPort,
-            imapUseSsl: EMAIL_PROVIDERS.gmail.imapUseSsl,
+            imapHost: EMAIL_PROVIDERS.custom.imapHost,
+            imapPort: EMAIL_PROVIDERS.custom.imapPort,
+            imapUseSsl: EMAIL_PROVIDERS.custom.imapUseSsl,
             smtpUsername: '',
             smtpPassword: '',
-            smtpHost: EMAIL_PROVIDERS.gmail.smtpHost,
-            smtpPort: EMAIL_PROVIDERS.gmail.smtpPort,
-            smtpUseTls: EMAIL_PROVIDERS.gmail.smtpUseTls,
+            smtpHost: EMAIL_PROVIDERS.custom.smtpHost,
+            smtpPort: EMAIL_PROVIDERS.custom.smtpPort,
+            smtpUseTls: EMAIL_PROVIDERS.custom.smtpUseTls,
         },
     })
 
     const emailAddress = form.watch('emailAddress')
     const password = form.watch('password')
-    const selectedProvider = form.watch('provider')
-    const providerConfig = EMAIL_PROVIDERS[selectedProvider]
-
-    const handleProviderChange = (providerId: string) => {
-        const provider = EMAIL_PROVIDERS[providerId]
-        form.setValue('provider', providerId)
-        form.setValue('imapHost', provider.imapHost)
-        form.setValue('imapPort', provider.imapPort)
-        form.setValue('imapUseSsl', provider.imapUseSsl)
-        form.setValue('smtpHost', provider.smtpHost)
-        form.setValue('smtpPort', provider.smtpPort)
-        form.setValue('smtpUseTls', provider.smtpUseTls)
-    }
-
     useEffect(() => {
         if (!showAdvanced) {
             form.setValue('imapUsername', emailAddress, { shouldValidate: true })
@@ -170,7 +154,7 @@ export function EmailConnectionPrompt({ onSuccess, onCancel, className }: EmailC
             const response = await fetch('/api/emails/connections', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(values),
+                body: JSON.stringify({ ...values, visibility }),
             })
 
             if (!response.ok) {
@@ -195,7 +179,7 @@ export function EmailConnectionPrompt({ onSuccess, onCancel, className }: EmailC
     const handleGmailOAuth = async () => {
         setIsLoadingOAuth(true)
         try {
-            const response = await fetch('/api/emails/oauth/authorize')
+            const response = await fetch(`/api/emails/oauth/authorize?visibility=${visibility}`)
             if (!response.ok) {
                 const error = await response.json()
                 throw new Error(error.error || 'Échec de la génération de l\'URL OAuth')
@@ -209,6 +193,346 @@ export function EmailConnectionPrompt({ onSuccess, onCancel, className }: EmailC
             setIsLoadingOAuth(false)
         }
     }
+
+    // ============================================================================
+    // SHARED UI FRAGMENTS
+    // ============================================================================
+
+    const visibilityToggle = (
+        <div className="p-3 border rounded-lg bg-muted/20 space-y-1">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    {visibility === 'private' ? (
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <Label htmlFor="visibility-toggle" className="font-medium">
+                        {visibility === 'private' ? 'Email privé' : 'Email partagé'}
+                    </Label>
+                </div>
+                <Switch
+                    id="visibility-toggle"
+                    checked={visibility === 'shared'}
+                    onCheckedChange={(checked) => setVisibility(checked ? 'shared' : 'private')}
+                />
+            </div>
+            <p className="text-xs text-muted-foreground">
+                {visibility === 'private'
+                    ? 'Vous seul voyez cette boîte.'
+                    : 'Visible par tous les gestionnaires.'
+                }
+            </p>
+        </div>
+    )
+
+    const imapFormFields = (
+        <>
+            <FormField
+                control={form.control}
+                name="emailAddress"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Adresse email</FormLabel>
+                        <FormControl>
+                            <Input placeholder="votre.email@exemple.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+
+            <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Mot de passe</FormLabel>
+                        <FormControl>
+                            <Input type="password" placeholder="Mot de passe du compte ou d'application" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                            Mot de passe du compte ou mot de passe d&apos;application.
+                        </FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+
+            <FormField
+                control={form.control}
+                name="syncFromDate"
+                render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                        <FormLabel>Synchroniser depuis</FormLabel>
+                        <FormControl>
+                            <DatePicker
+                                value={field.value ? formatLocalDate(field.value) : undefined}
+                                onChange={(iso) => {
+                                    const [y, m, d] = iso.split('-').map(Number)
+                                    field.onChange(new Date(y, m - 1, d))
+                                }}
+                                maxDate={formatLocalDate(new Date())}
+                                placeholder="jj/mm/aaaa"
+                                className="w-full"
+                            />
+                        </FormControl>
+                        <FormDescription>
+                            Seuls les emails reçus après cette date seront synchronisés. Par défaut : 30 jours.
+                        </FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+
+            <div className="flex items-center space-x-2">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="text-muted-foreground"
+                >
+                    {showAdvanced ? 'Masquer les paramètres avancés' : 'Paramètres avancés'}
+                </Button>
+            </div>
+
+            {showAdvanced && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+                        <h3 className="font-semibold flex items-center gap-2">
+                            IMAP (Réception)
+                            <span className="text-xs font-normal text-muted-foreground">(Pré-rempli)</span>
+                        </h3>
+
+                        <FormField
+                            control={form.control}
+                            name="imapUsername"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Identifiant IMAP</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Votre adresse email" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="imapPassword"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Mot de passe IMAP</FormLabel>
+                                    <FormControl>
+                                        <Input type="password" placeholder="Mot de passe du compte ou d'application" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="imapHost"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Serveur IMAP</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="imapPort"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Port IMAP</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+                        <h3 className="font-semibold flex items-center gap-2">
+                            SMTP (Envoi)
+                            <span className="text-xs font-normal text-muted-foreground">(Pré-rempli)</span>
+                        </h3>
+
+                        <FormField
+                            control={form.control}
+                            name="smtpUsername"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Identifiant SMTP</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Votre adresse email" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="smtpPassword"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Mot de passe SMTP</FormLabel>
+                                    <FormControl>
+                                        <Input type="password" placeholder="Mot de passe du compte ou d'application" {...field} />
+                                    </FormControl>
+                                    <FormDescription>
+                                        Identique au mot de passe IMAP en général
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="smtpHost"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Serveur SMTP</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="smtpPort"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Port SMTP</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    )
+
+    const imapFormActions = (
+        <div className="flex gap-3">
+            <Button
+                type="button"
+                variant="outline"
+                onClick={handleTestConnection}
+                disabled={isTesting || isSubmitting}
+            >
+                {isTesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Tester la connexion
+            </Button>
+
+            <Button type="submit" disabled={isSubmitting || isTesting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Enregistrer
+            </Button>
+
+            {onCancel && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={onCancel}
+                    disabled={isSubmitting || isTesting}
+                >
+                    Annuler
+                </Button>
+            )}
+        </div>
+    )
+
+    // ============================================================================
+    // SHOWCASE VARIANT — Gmail-first, IMAP as expandable secondary
+    // ============================================================================
+
+    if (variant === 'showcase') {
+        return (
+            <div className={cn("space-y-4", className)}>
+                {/* Visibility toggle — before CTA so user sets context first */}
+                {visibilityToggle}
+
+                {/* Dual CTA: Gmail + IMAP side by side */}
+                <div className="grid grid-cols-2 gap-3">
+                    <Button
+                        type="button"
+                        size="lg"
+                        onClick={handleGmailOAuth}
+                        disabled={isLoadingOAuth}
+                        className="w-full"
+                    >
+                        {isLoadingOAuth ? (
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        ) : (
+                            <GoogleIcon />
+                        )}
+                        <span className="ml-2">Connecter Gmail</span>
+                    </Button>
+                    <Button
+                        type="button"
+                        size="lg"
+                        variant="outline"
+                        onClick={() => setShowImapForm(!showImapForm)}
+                        className="w-full"
+                    >
+                        <Mail className="h-5 w-5" />
+                        <span className="ml-2">Connexion IMAP</span>
+                    </Button>
+                </div>
+                <p className="text-xs text-center text-muted-foreground">
+                    Gmail : OAuth 2.0 sécurisé · IMAP : Outlook, Yahoo, serveurs custom
+                </p>
+
+                {/* IMAP form — expandable */}
+                {showImapForm && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
+                                {imapFormFields}
+                                {imapFormActions}
+                            </form>
+                        </Form>
+                    </div>
+                )}
+
+                {onCancel && !showImapForm && (
+                    <div className="flex justify-end">
+                        <Button type="button" variant="ghost" onClick={onCancel}>
+                            Annuler
+                        </Button>
+                    </div>
+                )}
+            </div>
+        )
+    }
+
+    // ============================================================================
+    // DEFAULT VARIANT — Tabs layout for settings page
+    // ============================================================================
 
     return (
         <div className={cn("space-y-6", className)}>
@@ -259,13 +583,7 @@ export function EmailConnectionPrompt({ onSuccess, onCancel, className }: EmailC
                         </div>
                     </div>
 
-                    <Alert>
-                        <CheckCircle2 className="h-4 w-4" />
-                        <AlertDescription>
-                            <strong>Recommandé</strong> : La connexion OAuth est plus sécurisée et ne nécessite pas
-                            de créer un mot de passe d&apos;application.
-                        </AlertDescription>
-                    </Alert>
+                    {visibilityToggle}
 
                     {onCancel && (
                         <div className="flex justify-end">
@@ -283,274 +601,9 @@ export function EmailConnectionPrompt({ onSuccess, onCancel, className }: EmailC
                 <TabsContent value="password" className="mt-4">
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
-                            <FormField
-                                control={form.control}
-                                name="provider"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Email Provider</FormLabel>
-                                        <Select
-                                            onValueChange={handleProviderChange}
-                                            defaultValue={field.value}
-                                        >
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select a provider" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {PROVIDER_OPTIONS.map((option) => (
-                                                    <SelectItem key={option.value} value={option.value}>
-                                                        {option.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            {providerConfig?.setupInstructions && (
-                                <Alert>
-                                    <AlertCircle className="h-4 w-4" />
-                                    <AlertDescription>{providerConfig.setupInstructions}</AlertDescription>
-                                </Alert>
-                            )}
-
-                            <FormField
-                                control={form.control}
-                                name="emailAddress"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Email Address</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="your.email@example.com" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="password"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Password</FormLabel>
-                                        <FormControl>
-                                            <Input type="password" placeholder="App password or account password" {...field} />
-                                        </FormControl>
-                                        <FormDescription>
-                                            For Gmail/Yahoo, use an App Password.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <FormField
-                                control={form.control}
-                                name="syncFromDate"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                        <FormLabel>Sync Emails From</FormLabel>
-                                        <FormControl>
-                                            <DatePicker
-                                                value={field.value ? formatLocalDate(field.value) : undefined}
-                                                onChange={(iso) => {
-                                                    const [y, m, d] = iso.split('-').map(Number)
-                                                    field.onChange(new Date(y, m - 1, d))
-                                                }}
-                                                maxDate={formatLocalDate(new Date())}
-                                                placeholder="jj/mm/aaaa"
-                                                className="w-full"
-                                            />
-                                        </FormControl>
-                                        <FormDescription>
-                                            Only emails received after this date will be synced. Default is 30 days ago.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <div className="flex items-center space-x-2">
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setShowAdvanced(!showAdvanced)}
-                                    className="text-muted-foreground"
-                                >
-                                    {showAdvanced ? 'Hide Advanced Settings' : 'Show Advanced Settings'}
-                                </Button>
-                            </div>
-
-                            {showAdvanced && (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
-                                    <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                                        <h3 className="font-semibold flex items-center gap-2">
-                                            IMAP Settings (Incoming)
-                                            <span className="text-xs font-normal text-muted-foreground">(Auto-filled)</span>
-                                        </h3>
-
-                                        <FormField
-                                            control={form.control}
-                                            name="imapUsername"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>IMAP Username</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Usually your email address" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <FormField
-                                            control={form.control}
-                                            name="imapPassword"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>IMAP Password</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="password" placeholder="App password or account password" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <FormField
-                                                control={form.control}
-                                                name="imapHost"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>IMAP Host</FormLabel>
-                                                        <FormControl>
-                                                            <Input {...field} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={form.control}
-                                                name="imapPort"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>IMAP Port</FormLabel>
-                                                        <FormControl>
-                                                            <Input type="number" {...field} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                                        <h3 className="font-semibold flex items-center gap-2">
-                                            SMTP Settings (Outgoing)
-                                            <span className="text-xs font-normal text-muted-foreground">(Auto-filled)</span>
-                                        </h3>
-
-                                        <FormField
-                                            control={form.control}
-                                            name="smtpUsername"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>SMTP Username</FormLabel>
-                                                    <FormControl>
-                                                        <Input placeholder="Usually your email address" {...field} />
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <FormField
-                                            control={form.control}
-                                            name="smtpPassword"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>SMTP Password</FormLabel>
-                                                    <FormControl>
-                                                        <Input type="password" placeholder="App password or account password" {...field} />
-                                                    </FormControl>
-                                                    <FormDescription>
-                                                        Can be the same as IMAP password
-                                                    </FormDescription>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <FormField
-                                                control={form.control}
-                                                name="smtpHost"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>SMTP Host</FormLabel>
-                                                        <FormControl>
-                                                            <Input {...field} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={form.control}
-                                                name="smtpPort"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>SMTP Port</FormLabel>
-                                                        <FormControl>
-                                                            <Input type="number" {...field} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex gap-3">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={handleTestConnection}
-                                    disabled={isTesting || isSubmitting}
-                                >
-                                    {isTesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Tester la connexion
-                                </Button>
-
-                                <Button type="submit" disabled={isSubmitting || isTesting}>
-                                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    Enregistrer
-                                </Button>
-
-                                {onCancel && (
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        onClick={onCancel}
-                                        disabled={isSubmitting || isTesting}
-                                    >
-                                        Annuler
-                                    </Button>
-                                )}
-                            </div>
+                            {imapFormFields}
+                            {visibilityToggle}
+                            {imapFormActions}
                         </form>
                     </Form>
                 </TabsContent>

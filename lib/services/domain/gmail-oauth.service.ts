@@ -11,6 +11,9 @@
  */
 
 import { EncryptionService } from './encryption.service'
+import { createContextLogger } from '@/lib/logger'
+
+const oauthLogger = createContextLogger('gmail-oauth')
 
 // Configuration Google OAuth
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!
@@ -42,6 +45,7 @@ export interface OAuthState {
   teamId: string
   userId: string
   timestamp: number
+  visibility?: 'private' | 'shared'
 }
 
 export interface GoogleUserInfo {
@@ -62,12 +66,13 @@ export class GmailOAuthService {
    * @param redirectUri - URI de callback
    * @returns URL d'autorisation complète
    */
-  static generateAuthUrl(teamId: string, userId: string, redirectUri: string): string {
+  static generateAuthUrl(teamId: string, userId: string, redirectUri: string, visibility?: 'private' | 'shared'): string {
     // Créer le state parameter (anti-CSRF)
     const state: OAuthState = {
       teamId,
       userId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      visibility: visibility || 'shared',
     }
     const encryptedState = this.encryptState(state)
 
@@ -172,7 +177,7 @@ export class GmailOAuthService {
 
     // Google renvoie 200 même si le token était déjà révoqué
     if (!response.ok && response.status !== 200) {
-      console.warn('Token revocation returned non-200 status:', response.status)
+      oauthLogger.warn({ status: response.status }, 'Token revocation returned non-200 status')
     }
   }
 
@@ -217,13 +222,13 @@ export class GmailOAuthService {
       // Vérifier l'âge du state
       const age = Date.now() - state.timestamp
       if (age > maxAgeMs) {
-        console.warn('OAuth state expired:', { age, maxAgeMs })
+        oauthLogger.warn({ age, maxAgeMs }, 'OAuth state expired')
         return null
       }
 
       return state
     } catch (error) {
-      console.error('Failed to decrypt OAuth state:', error)
+      oauthLogger.error({ error }, 'Failed to decrypt OAuth state')
       return null
     }
   }

@@ -24,8 +24,9 @@ import {
   type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
+import type { TeamEmailConnection } from '@/lib/types/email-integration'
 
-// Types pour les entités liées
+// Types pour les entites liees
 export interface LinkedEntity {
   id: string
   name: string
@@ -42,12 +43,8 @@ export interface LinkedEntities {
   companies: LinkedEntity[]
 }
 
-// Types pour les email connections
-export interface EmailConnection {
-  id: string
-  email_address: string
-  provider: string
-  is_active: boolean
+// Types pour les email connections (sidebar-specific fields added)
+export type EmailConnection = Pick<TeamEmailConnection, 'id' | 'email_address' | 'provider' | 'is_active'> & {
   unread_count: number
   email_count: number
 }

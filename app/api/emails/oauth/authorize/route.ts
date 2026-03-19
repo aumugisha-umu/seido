@@ -1,17 +1,18 @@
 /**
  * API Route: GET /api/emails/oauth/authorize
  *
- * Génère l'URL d'autorisation Google OAuth pour connecter un compte Gmail.
- * Retourne l'URL vers laquelle rediriger l'utilisateur.
+ * Generates the Google OAuth authorization URL to connect a Gmail account.
+ * Returns the URL to redirect the user to.
  */
 
 import { NextResponse } from 'next/server'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { GmailOAuthService } from '@/lib/services/domain/gmail-oauth.service'
+import { logger } from '@/lib/logger'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // 1. Vérifier l'authentification
+    // 1. Verify authentication
     const authResult = await getApiAuthContext()
     if (!authResult.success) return authResult.error
 
@@ -24,22 +25,26 @@ export async function GET() {
       )
     }
 
-    // 2. Construire l'URI de callback
+    // 2. Build callback URI
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const redirectUri = `${baseUrl}/api/emails/oauth/callback`
 
-    // 3. Générer l'URL d'autorisation avec state chiffré
+    // 3. Generate authorization URL with encrypted state (includes visibility preference)
+    const url = new URL(request.url)
+    const visibility = url.searchParams.get('visibility') as 'private' | 'shared' | null
     const authUrl = GmailOAuthService.generateAuthUrl(
       userProfile.team_id,
       userProfile.id,
-      redirectUri
+      redirectUri,
+      visibility || 'shared'
     )
 
     return NextResponse.json({ authUrl })
-  } catch (error: any) {
-    console.error('OAuth authorize error:', error)
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to generate auth URL';
+    logger.error({ error: message }, '[EMAILS-API] OAuth authorize error');
     return NextResponse.json(
-      { error: error.message || 'Failed to generate auth URL' },
+      { error: message },
       { status: 500 }
     )
   }

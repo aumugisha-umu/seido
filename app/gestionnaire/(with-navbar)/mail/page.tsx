@@ -1,7 +1,7 @@
 /**
  * Mail Page - Server Component
  *
- * ⚡ SSR Optimization: Fetches initial data server-side
+ * SSR Optimization: Fetches initial data server-side
  * for instant page load, then hydrates with Client Component for interactivity
  *
  * Server-side fetched:
@@ -9,35 +9,99 @@
  * - Buildings
  * - Email connections
  * - Linked entities
- * - Notification reply groups
  * - First page of emails (inbox)
  */
 
 import { getServerAuthContext } from '@/lib/server-context'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { MailClient } from './mail-client'
+import { logger } from '@/lib/logger'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/database.types'
 import type { Email } from '@/lib/types/email-integration'
 import type { LinkedEntities, EmailConnection } from './components/mailbox-sidebar'
 import type { Building } from './components/types'
+
+// Supabase client type alias for server-side queries
+type DbClient = SupabaseClient<Database>
+
+// Types for Supabase query row shapes
+interface BuildingRow {
+  id: string
+  name: string
+  address_record: { formatted_address: string } | null
+}
+
+interface EmailConnectionRow {
+  id: string
+  email_address: string
+  provider: string
+  is_active: boolean
+  created_at: string
+}
+
+interface EmailLinkRow {
+  entity_type: string
+  entity_id: string
+}
+
+interface LinkedEntityRow {
+  entity_type: string
+  entity_id: string
+  email_count: number
+}
+
+interface NamedRow {
+  id: string
+  name: string
+}
+
+interface LotRow {
+  id: string
+  reference: string | null
+  building: { name: string } | null
+}
+
+interface ContactRow {
+  id: string
+  name: string | null
+  email: string | null
+}
+
+interface ContractRow {
+  id: string
+  title: string | null
+  contract_type: string | null
+}
+
+interface InterventionRow {
+  id: string
+  title: string | null
+  reference: string | null
+}
+
+// Supabase query result shape
+interface SupabaseResult<T> {
+  data: T[] | null
+  error: { message: string } | null
+}
 
 // ============================================================================
 // SERVER-SIDE DATA FETCHING
 // ============================================================================
 
-async function getEmailCounts(supabase: any, teamId: string) {
-  // ✅ PERF: Single RPC with COUNT FILTER replaces 4 separate count queries
-  // v2: also returns source_counts (per-connection unread counts for sidebar badges)
+async function getEmailCounts(supabase: DbClient, teamId: string) {
   const { data, error } = await supabase.rpc('get_email_counts', { p_team_id: teamId }).single()
 
   if (error || !data) {
-    console.error('[MAIL-PAGE] get_email_counts RPC failed, falling back to 0:', error?.message)
+    logger.error({ error: error?.message }, '[MAIL-PAGE] get_email_counts RPC failed, falling back to 0')
     return {
       counts: { inbox: 0, processed: 0, sent: 0, drafts: 0, archive: 0 },
       sourceCounts: {} as Record<string, number>
     }
   }
 
-  // Parse source_counts JSONB: { email_connection_id → unread_count }
+  // Parse source_counts JSONB: { email_connection_id -> unread_count }
   const rawSourceCounts = (data.source_counts || {}) as Record<string, number>
   const sourceCounts: Record<string, number> = {}
   for (const [connectionId, count] of Object.entries(rawSourceCounts)) {
@@ -56,7 +120,7 @@ async function getEmailCounts(supabase: any, teamId: string) {
   }
 }
 
-async function getBuildings(supabase: any, teamId: string): Promise<Building[]> {
+async function getBuildings(supabase: DbClient, teamId: string): Promise<Building[]> {
   const { data, error } = await supabase
     .from('buildings')
     .select('id, name, address_record:address_id(formatted_address)')
@@ -65,20 +129,23 @@ async function getBuildings(supabase: any, teamId: string): Promise<Building[]> 
     .order('name')
 
   if (error) {
-    console.error('Error fetching buildings:', error)
+    logger.error({ error: error.message }, 'Error fetching buildings')
     return []
   }
 
-  return (data || []).map((b: any) => ({
-    id: b.id,
-    name: b.name,
-    address: b.address_record?.formatted_address || '',
-    emailCount: 0,
-    lots: []
-  }))
+  return (data || []).map((b: unknown) => {
+    const row = b as BuildingRow
+    return {
+      id: row.id,
+      name: row.name,
+      address: row.address_record?.formatted_address || '',
+      emailCount: 0,
+      lots: []
+    }
+  })
 }
 
-async function getEmailConnections(supabase: any, teamId: string): Promise<EmailConnection[]> {
+async function getEmailConnections(supabase: DbClient, teamId: string): Promise<EmailConnection[]> {
   const { data, error } = await supabase
     .from('team_email_connections')
     .select('id, email_address, provider, is_active, created_at')
@@ -87,11 +154,11 @@ async function getEmailConnections(supabase: any, teamId: string): Promise<Email
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching email connections:', error)
+    logger.error({ error: error.message }, 'Error fetching email connections')
     return []
   }
 
-  return (data || []).map((c: any) => ({
+  return ((data || []) as EmailConnectionRow[]).map((c) => ({
     id: c.id,
     email_address: c.email_address,
     provider: c.provider,
@@ -101,7 +168,7 @@ async function getEmailConnections(supabase: any, teamId: string): Promise<Email
   }))
 }
 
-async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedEntities> {
+async function getLinkedEntities(supabase: DbClient, teamId: string): Promise<LinkedEntities> {
   // 1. Get entity IDs that have email links + their counts via RPC
   let linkedData: Array<{ entity_type: string; entity_id: string; email_count: number }> = []
 
@@ -109,8 +176,8 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
     .rpc('get_distinct_linked_entities', { p_team_id: teamId })
 
   if (rpcError) {
-    // RPC function might not exist yet — fallback to direct query
-    console.warn('[MAIL-PAGE] RPC get_distinct_linked_entities failed, using fallback:', rpcError.message)
+    // RPC function might not exist yet -- fallback to direct query
+    logger.warn({ error: rpcError.message }, '[MAIL-PAGE] RPC get_distinct_linked_entities failed, using fallback')
     const { data: fallbackData } = await supabase
       .from('email_links')
       .select('entity_type, entity_id')
@@ -118,7 +185,7 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
 
     if (fallbackData) {
       const countMap = new Map<string, { entity_type: string; entity_id: string; email_count: number }>()
-      fallbackData.forEach((row: any) => {
+      ;(fallbackData as unknown as EmailLinkRow[]).forEach((row) => {
         const key = `${row.entity_type}:${row.entity_id}`
         const existing = countMap.get(key)
         if (existing) {
@@ -130,7 +197,7 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
       linkedData = Array.from(countMap.values())
     }
   } else {
-    linkedData = rpcData || []
+    linkedData = (rpcData as unknown as LinkedEntityRow[]) || []
   }
 
   // 2. Group by entity type, collect IDs + counts
@@ -169,8 +236,8 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
         .from('buildings')
         .select('id, name')
         .in('id', buildingIds)
-        .then(({ data }: any) => {
-          result.buildings = (data || []).map((b: any) => ({
+        .then(({ data }: SupabaseResult<NamedRow>) => {
+          result.buildings = (data || []).map((b) => ({
             id: b.id,
             name: b.name || 'Sans nom',
             emailCount: countsByType.building.get(b.id) || 0
@@ -186,12 +253,12 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
         .from('lots')
         .select('id, reference, building:buildings(name)')
         .in('id', lotIds)
-        .then(({ data }: any) => {
-          result.lots = (data || []).map((l: any) => ({
+        .then(({ data }: SupabaseResult<unknown>) => {
+          result.lots = ((data || []) as LotRow[]).map((l) => ({
             id: l.id,
             name: l.reference || `Lot ${l.id.slice(0, 8)}`,
             emailCount: countsByType.lot.get(l.id) || 0,
-            subtitle: (l.building as any)?.name
+            subtitle: l.building?.name
           }))
         })
     )
@@ -204,12 +271,12 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
         .from('users')
         .select('id, name, email')
         .in('id', contactIds)
-        .then(({ data }: any) => {
-          result.contacts = (data || []).map((c: any) => ({
+        .then(({ data }: SupabaseResult<ContactRow>) => {
+          result.contacts = (data || []).map((c) => ({
             id: c.id,
             name: c.name || 'Contact',
             emailCount: countsByType.contact.get(c.id) || 0,
-            subtitle: c.email
+            subtitle: c.email || undefined
           }))
         })
     )
@@ -222,8 +289,8 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
         .from('contracts')
         .select('id, title, contract_type')
         .in('id', contractIds)
-        .then(({ data }: any) => {
-          result.contracts = (data || []).map((c: any) => ({
+        .then(({ data }: SupabaseResult<ContractRow>) => {
+          result.contracts = (data || []).map((c) => ({
             id: c.id,
             name: c.title || `Contrat ${c.contract_type || 'N/A'}`,
             emailCount: countsByType.contract.get(c.id) || 0
@@ -239,8 +306,8 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
         .from('interventions')
         .select('id, title, reference')
         .in('id', interventionIds)
-        .then(({ data }: any) => {
-          result.interventions = (data || []).map((i: any) => ({
+        .then(({ data }: SupabaseResult<InterventionRow>) => {
+          result.interventions = (data || []).map((i) => ({
             id: i.id,
             name: i.title || `Intervention ${i.reference || i.id.slice(0, 8)}`,
             emailCount: countsByType.intervention.get(i.id) || 0
@@ -256,8 +323,8 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
         .from('companies')
         .select('id, name')
         .in('id', companyIds)
-        .then(({ data }: any) => {
-          result.companies = (data || []).map((c: any) => ({
+        .then(({ data }: SupabaseResult<NamedRow>) => {
+          result.companies = (data || []).map((c) => ({
             id: c.id,
             name: c.name || 'Sans nom',
             emailCount: countsByType.company.get(c.id) || 0
@@ -270,12 +337,12 @@ async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedE
   return result
 }
 
-async function getInitialEmails(supabase: any, teamId: string): Promise<{
+async function getInitialEmails(supabase: DbClient, teamId: string): Promise<{
   emails: Email[]
   total: number
 }> {
   // Fetch received emails (inbox = unread only) + sent replies in parallel
-  // ⚠️ Must match API inbox logic: direction=received + status=unread
+  // Must match API inbox logic: direction=received + status=unread
   const [receivedResult, sentRepliesResult] = await Promise.all([
     supabase
       .from('emails')
@@ -306,16 +373,16 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
   ])
 
   if (receivedResult.error) {
-    console.error('Error fetching initial emails:', receivedResult.error)
+    logger.error({ error: receivedResult.error.message }, 'Error fetching initial emails')
     return { emails: [], total: 0 }
   }
 
-  const receivedEmails = receivedResult.data || []
-  const sentReplies = sentRepliesResult.data || []
+  const receivedEmails = (receivedResult.data || []) as unknown as Email[]
+  const sentReplies = (sentRepliesResult.data || []) as unknown as Email[]
 
   // Merge, dedup by ID
-  const existingIds = new Set(receivedEmails.map((e: any) => e.id))
-  const newSentReplies = sentReplies.filter((e: any) => !existingIds.has(e.id))
+  const existingIds = new Set(receivedEmails.map((e) => e.id))
+  const newSentReplies = sentReplies.filter((e) => !existingIds.has(e.id))
 
   return {
     emails: [...receivedEmails, ...newSentReplies],
@@ -328,15 +395,15 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
 // ============================================================================
 
 export default async function MailPage() {
-  // ⚡ Server-side auth context (validates user is gestionnaire)
-  const { profile, team, supabase } = await getServerAuthContext('gestionnaire')
+  // Server-side auth context (validates user is gestionnaire)
+  const { team, supabase } = await getServerAuthContext('gestionnaire')
 
   // Use service role client for email queries (bypasses slow RLS with 6 policies)
   // Security: getServerAuthContext already validated user is an authenticated gestionnaire
   const supabaseAdmin = createServiceRoleSupabaseClient()
 
   // Fetch all initial data in parallel
-  // supabaseAdmin: email-heavy queries (counts, emails, linked entities, notification groups)
+  // supabaseAdmin: email-heavy queries (counts, emails, linked entities)
   // supabase: simpler tables with lightweight RLS (buildings, connections)
   const [
     emailCountsResult,

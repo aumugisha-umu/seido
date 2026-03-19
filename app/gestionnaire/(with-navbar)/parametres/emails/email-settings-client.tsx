@@ -23,18 +23,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import type { TeamEmailConnection } from '@/lib/types/email-integration'
 
-export interface EmailConnection {
-  id: string
-  provider: string
-  email_address: string
-  is_active: boolean
-  last_sync_at: string | null
-  last_error: string | null
-  sync_from_date: string | null
-  created_at: string
+// Settings-specific connection type: pick fields used in the UI + optional computed fields
+export type EmailConnection = Pick<
+  TeamEmailConnection,
+  'id' | 'provider' | 'email_address' | 'is_active' | 'last_sync_at' | 'last_error' | 'sync_from_date' | 'created_at' | 'oauth_token_expires_at' | 'visibility' | 'added_by_user_id'
+> & {
   auth_method?: 'password' | 'oauth'
-  oauth_token_expires_at?: string | null
   email_count?: number
 }
 
@@ -111,7 +107,7 @@ export function EmailSettingsClient({ initialConnections, initialBlacklist }: Em
     }
   }, [searchParams, router]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchConnections = async () => {
+  const fetchConnections = useCallback(async () => {
     try {
       const response = await fetch('/api/emails/connections')
       if (!response.ok) {
@@ -119,10 +115,10 @@ export function EmailSettingsClient({ initialConnections, initialBlacklist }: Em
       }
       const data = await response.json()
       setConnections(data.connections || [])
-    } catch (error) {
-      console.error('Failed to fetch connections:', error)
+    } catch {
+      // Silently fail; user can manually refresh
     }
-  }
+  }, [])
 
   const fetchBlacklist = useCallback(async () => {
     try {
@@ -130,8 +126,8 @@ export function EmailSettingsClient({ initialConnections, initialBlacklist }: Em
       if (!response.ok) throw new Error('Failed to fetch blacklist')
       const data = await response.json()
       setBlacklist(data.entries || [])
-    } catch (error) {
-      console.error('Failed to fetch blacklist:', error)
+    } catch {
+      // Silently fail; blacklist will show stale data
     }
   }, [])
 

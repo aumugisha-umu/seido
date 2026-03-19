@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/use-auth'
+import { logger } from '@/lib/logger'
 import { createNotificationRepository } from '@/lib/services/repositories/notification-repository'
 import { useRealtimeNotificationsV2 } from './use-realtime-notifications-v2'
 
@@ -92,7 +93,7 @@ export const useNotificationPopover = (
       const notifications = (result.data || []).slice(0, limit)
       setNotifications(notifications)
     } catch (err) {
-      console.error('[USE-NOTIFICATION-POPOVER] Error:', err)
+      logger.error({ error: err }, '[USE-NOTIFICATION-POPOVER] Error')
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des notifications')
       setNotifications([])
     } finally {
@@ -180,6 +181,27 @@ export const useNotificationPopover = (
     }
   }, [fetchNotifications])
 
+  // Mark all notifications as read (batch operation)
+  const markAllAsRead = useCallback(async () => {
+    if (!user?.id) return
+    const unreadCount = notifications.filter(n => !n.read).length
+    if (unreadCount === 0) return
+
+    try {
+      // Optimistic update
+      setNotifications(prev =>
+        prev.map(notif => notif.read ? notif : { ...notif, read: true, read_at: new Date().toISOString() })
+      )
+
+      const result = await repository.markAllAsRead(user.id)
+      if (!result.success) throw new Error(result.error?.message || 'Failed to mark all as read')
+      window.dispatchEvent(new CustomEvent('notificationUpdated', { detail: { delta: -unreadCount } }))
+    } catch (err) {
+      await fetchNotifications() // Revert on error
+      throw err
+    }
+  }, [user?.id, notifications, fetchNotifications])
+
   // Archive notification (optimistic update)
   const archive = useCallback(async (id: string) => {
     // Check read status via ref before optimistic removal
@@ -207,6 +229,7 @@ export const useNotificationPopover = (
     refetch: fetchNotifications,
     markAsRead,
     markAsUnread,
+    markAllAsRead,
     archive
   }
 }

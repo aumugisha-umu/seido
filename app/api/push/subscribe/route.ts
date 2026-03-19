@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { createServiceRoleSupabaseClient } from '@/lib/services'
 import { logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
@@ -12,10 +13,10 @@ export async function POST(request: NextRequest) {
     const { userId, subscription } = await request.json()
 
     // Vérifier que l'utilisateur modifie son propre abonnement
-    if (userId !== userProfile.id) {
-      logger.warn({ userId, profileId: userProfile.id }, '⚠️ [PUSH-SUBSCRIBE] Unauthorized attempt')
+    if (userId !== userProfile!.id) {
+      logger.warn({ userId, profileId: userProfile!.id }, '⚠️ [PUSH-SUBSCRIBE] Unauthorized attempt')
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Non autorisé' },
         { status: 403 }
       )
     }
@@ -24,53 +25,59 @@ export async function POST(request: NextRequest) {
     if (!subscription || !subscription.endpoint || !subscription.keys) {
       logger.warn({ subscription }, '⚠️ [PUSH-SUBSCRIBE] Invalid subscription data')
       return NextResponse.json(
-        { error: 'Invalid subscription data' },
+        { error: 'Données d\'abonnement invalides' },
         { status: 400 }
       )
     }
 
-    logger.info({ userProfileId: userProfile.id, endpoint: subscription.endpoint }, '🔔 [PUSH-SUBSCRIBE] Creating push subscription')
+    logger.info({ userProfileId: userProfile!.id, endpoint: subscription.endpoint }, '🔔 [PUSH-SUBSCRIBE] Creating push subscription')
 
-    // Upsert l'abonnement (créer ou mettre à jour)
-    // ✅ Use userProfile.id (authenticated) instead of client-provided userId for security
+    // ✅ FIX: Delete-then-insert instead of upsert
+    // Upsert with onConflict:'endpoint' fails when the existing endpoint belongs to
+    // a different user (RLS blocks the UPDATE on another user's row).
+    // This happens when users share a device or re-register after account changes.
+    const serviceClient = createServiceRoleSupabaseClient()
+    await serviceClient
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', subscription.endpoint)
+
+    // Insert new subscription (authenticated client for RLS validation)
     const { data, error } = await supabase
       .from('push_subscriptions')
-      .upsert({
-        user_id: userProfile.id,
+      .insert({
+        user_id: userProfile!.id,
         endpoint: subscription.endpoint,
         keys: subscription.keys,
         user_agent: request.headers.get('user-agent')
-      }, {
-        onConflict: 'endpoint',
-        ignoreDuplicates: false
       })
       .select()
       .single()
 
     if (error) {
-      logger.error({ error, userProfileId: userProfile.id }, '❌ [PUSH-SUBSCRIBE] Database error')
+      logger.error({ error, userProfileId: userProfile!.id, code: error.code, details: error.details }, '❌ [PUSH-SUBSCRIBE] Database error')
       return NextResponse.json(
-        { error: 'Failed to save subscription' },
+        { error: 'Impossible d\'enregistrer l\'abonnement. Veuillez réessayer.' },
         { status: 500 }
       )
     }
 
     // ✅ Check for null data - RLS may silently block inserts without throwing an error
     if (!data) {
-      logger.error({ userProfileId: userProfile.id }, '❌ [PUSH-SUBSCRIBE] Insert blocked (RLS or constraint)')
+      logger.error({ userProfileId: userProfile!.id }, '❌ [PUSH-SUBSCRIBE] Insert blocked (RLS or constraint)')
       return NextResponse.json(
-        { error: 'Subscription not created - permission denied' },
+        { error: 'Abonnement non créé — permission refusée' },
         { status: 500 }
       )
     }
 
-    logger.info({ userProfileId: userProfile.id, subscriptionId: data.id }, '✅ [PUSH-SUBSCRIBE] Subscription saved')
+    logger.info({ userProfileId: userProfile!.id, subscriptionId: data.id }, '✅ [PUSH-SUBSCRIBE] Subscription saved')
 
     return NextResponse.json({ success: true, data })
   } catch (error) {
     logger.error({ error }, '❌ [PUSH-SUBSCRIBE] Internal server error')
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     )
   }

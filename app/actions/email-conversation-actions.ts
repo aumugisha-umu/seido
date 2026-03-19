@@ -15,6 +15,8 @@ import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
+import { EmailVisibilityService } from '@/lib/services/domain/email-visibility.service'
+import { EmailShareRepository } from '@/lib/services/repositories/email-share.repository'
 
 // Type aliases
 type ConversationThread = Database['public']['Tables']['conversation_threads']['Row']
@@ -151,10 +153,10 @@ export async function createEmailConversationAction(
 
     const supabase = await createServerActionSupabaseClient()
 
-    // Get email to verify it exists and get team_id
+    // Get email to verify it exists and get team_id + connection for visibility check
     const { data: email, error: emailError } = await supabase
       .from('emails')
-      .select('id, team_id, subject')
+      .select('id, team_id, subject, email_connection_id')
       .eq('id', emailId)
       .single()
 
@@ -224,6 +226,33 @@ export async function createEmailConversationAction(
       logger.error('❌ [EMAIL-CONV] Failed to add participants:', participantsError)
       // Thread was created, but participants failed - still return success
       // Participants can be added later
+    }
+
+    // Create email_shares if the email belongs to a private connection
+    if (email.email_connection_id) {
+      try {
+        const isPrivate = await EmailVisibilityService.isPrivateConnection(
+          supabaseAdmin, email.email_connection_id
+        )
+        if (isPrivate) {
+          const shareRepo = new EmailShareRepository(supabaseAdmin)
+          await shareRepo.createSharesForThread({
+            emailId,
+            conversationThreadId: newThread.id,
+            participantUserIds: uniqueParticipantIds,
+            sharedByUserId: user.id,
+            teamId: email.team_id,
+            connectionId: email.email_connection_id,
+          })
+          logger.info('✅ [EMAIL-CONV] Created email shares for private connection', {
+            threadId: newThread.id,
+            participantCount: uniqueParticipantIds.length - 1 // Exclude sharer
+          })
+        }
+      } catch (shareError) {
+        // Non-blocking: shares are a convenience, not a hard requirement
+        logger.error('⚠️ [EMAIL-CONV] Failed to create email shares:', shareError)
+      }
     }
 
     // Fetch the thread with participants using admin client for consistency
@@ -301,7 +330,7 @@ export async function addEmailConversationParticipantsAction(
     // Get thread and verify it's an email conversation
     const { data: thread, error: threadError } = await supabase
       .from('conversation_threads')
-      .select('id, team_id, thread_type')
+      .select('id, team_id, thread_type, email_id')
       .eq('id', threadId)
       .single()
 
@@ -358,6 +387,38 @@ export async function addEmailConversationParticipantsAction(
       threadId,
       addedCount: newUserIds.length
     })
+
+    // Create email_shares for private connections
+    if (thread.email_id) {
+      try {
+        const supabaseAdmin = createServiceRoleSupabaseClient()
+        // Get the email's connection ID
+        const { data: emailData } = await supabaseAdmin
+          .from('emails')
+          .select('email_connection_id')
+          .eq('id', thread.email_id)
+          .limit(1)
+
+        if (emailData?.[0]?.email_connection_id) {
+          const isPrivate = await EmailVisibilityService.isPrivateConnection(
+            supabaseAdmin, emailData[0].email_connection_id
+          )
+          if (isPrivate) {
+            const shareRepo = new EmailShareRepository(supabaseAdmin)
+            await shareRepo.createSharesForThread({
+              emailId: thread.email_id,
+              conversationThreadId: threadId,
+              participantUserIds: newUserIds,
+              sharedByUserId: user.id,
+              teamId: thread.team_id,
+              connectionId: emailData[0].email_connection_id,
+            })
+          }
+        }
+      } catch (shareError) {
+        logger.error('⚠️ [EMAIL-CONV] Failed to create email shares for new participants:', shareError)
+      }
+    }
 
     return { success: true, data: undefined }
   } catch (error) {

@@ -3,6 +3,8 @@ import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { getServiceRoleClient } from '@/lib/api-service-role-helper';
 import { EmailRepository } from '@/lib/services/repositories/email.repository';
 import { logger } from '@/lib/logger';
+import { getTeamManagerContext } from '@/lib/services/helpers/api-team-context';
+import { EmailVisibilityService } from '@/lib/services/domain/email-visibility.service';
 
 export async function GET(request: Request) {
     try {
@@ -11,37 +13,21 @@ export async function GET(request: Request) {
 
         const { supabase, userProfile } = authResult.data;
 
-        // Récupérer le team_id depuis team_members (source de vérité)
-        // Cela garantit la cohérence avec les politiques RLS
-        const { data: membership, error: membershipError } = await supabase
-            .from('team_members')
-            .select('team_id')
-            .eq('user_id', userProfile?.id)
-            .in('role', ['gestionnaire', 'admin'])
-            .is('left_at', null)
-            .single();
+        // Retrieve team_id from team_members (source of truth)
+        const teamId = await getTeamManagerContext(supabase, userProfile?.id);
 
-        if (membershipError || !membership?.team_id) {
-            console.warn('📧 [EMAILS-API] No team membership found:', {
-                userId: userProfile?.id,
-                userTeamId: userProfile?.team_id,
-                membershipError: membershipError?.message
-            });
+        if (!teamId) {
+            logger.warn({ userId: userProfile?.id, userTeamId: userProfile?.team_id }, '[EMAILS-API] No team membership found');
             return NextResponse.json({ error: 'User is not a team manager' }, { status: 403 });
         }
 
-        const teamId = membership.team_id;
-
-        // Debug: Compare les deux sources de team_id
+        // Debug: Compare the two sources of team_id
         if (userProfile?.team_id !== teamId) {
-            console.warn('📧 [EMAILS-API] Team ID mismatch!', {
-                usersTableTeamId: userProfile?.team_id,
-                teamMembersTeamId: teamId
-            });
+            logger.warn({ usersTableTeamId: userProfile?.team_id, teamMembersTeamId: teamId }, '[EMAILS-API] Team ID mismatch!');
         }
 
         // USE SERVICE ROLE CLIENT to bypass slow RLS policies
-        // Security: User already validated as team manager above (lines 14-29)
+        // Security: User already validated as team manager above
         // The emails table has 6 RLS policies that cause 25+ second timeouts
         // when evaluated per-row, especially Policy #6 with 4-level JOINs
         const supabaseAdmin = getServiceRoleClient();
@@ -54,13 +40,19 @@ export async function GET(request: Request) {
         const search = searchParams.get('search') || undefined;
         const source = searchParams.get('source') || undefined; // 'all' or connection UUID
 
-        logger.info({ teamId, folder, limit, offset, search, source }, '[EMAILS-API] Fetching emails');
+        // Get accessible connection IDs for visibility filtering
+        const connectionIds = await EmailVisibilityService.getAccessibleConnectionIds(
+            supabaseAdmin, teamId, userProfile!.id
+        );
+
+        logger.info({ teamId, folder, limit, offset, search, source, accessibleConnections: connectionIds.length }, '[EMAILS-API] Fetching emails');
 
         const result = await emailRepo.getEmailsByFolder(teamId, folder, {
             limit,
             offset,
             search,
-            source
+            source,
+            connectionIds,
         });
 
         // For inbox/processed: also fetch sent replies to complete conversation threads
@@ -79,14 +71,12 @@ export async function GET(request: Request) {
             emails: allEmails,
             total: result.count
         });
-    } catch (error: any) {
-        console.error('📧 [EMAILS-API] List emails error:', {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        const details = error instanceof Error ? {
             stack: error.stack?.split('\n').slice(0, 3).join('\n')
-        });
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        } : {};
+        logger.error({ error: message, ...details }, '[EMAILS-API] List emails error');
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

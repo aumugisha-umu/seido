@@ -486,8 +486,67 @@ tests/               # Infrastructure E2E
 - `stripe-customer.repository.ts` - CRUD operations on stripe_customers table
 - `stripe-webhook.handler.ts` - Webhook event processing (8 event types)
 
+
+### 35. API Route Team Auth Helper (NOUVEAU 2026-03-19)
+
+Pattern pour extraire le boilerplate d'authentification des routes API gestionnaire :
+
+```typescript
+// lib/services/helpers/api-team-context.ts
+import { getTeamManagerContext } from "@/lib/services/helpers/api-team-context"
+
+export async function GET(req: Request) {
+  const context = await getTeamManagerContext()
+  if (!context.success) return context.response // 401/403 NextResponse
+  const { profile, team, supabase } = context
+  // ... business logic
+}
+```
+
+**Avantage:** Remplace 10+ lignes de createServerSupabaseClient + auth.getUser + team_members query.
+
+> Source: lib/services/helpers/api-team-context.ts
+
+### 36. Column Selection Constants (NOUVEAU 2026-03-19)
+
+Pattern pour exclure les colonnes lourdes des requetes de liste :
+
+```typescript
+// email.repository.ts
+const EMAIL_LIST_COLUMNS = "id,thread_id,subject,from_address,..." as const
+// Excludes body_html (10-100KB per row)
+
+// Usage in repository methods:
+const { data } = await supabase
+  .from("emails")
+  .select(EMAIL_LIST_COLUMNS)
+  .order("received_at", { ascending: false })
+```
+
+**Regle:** Toujours definir un constant pour les colonnes de liste quand une table a des colonnes blob/text lourdes.
+
+### 37. baseQuery() Factory Pattern (NOUVEAU 2026-03-19)
+
+Pattern pour appliquer uniformement des filtres sur toutes les methodes d'un repository :
+
+```typescript
+// email.repository.ts
+private baseQuery(connectionIds: string[]) {
+  return this.supabase
+    .from("emails")
+    .select(EMAIL_LIST_COLUMNS)
+    .in("connection_id", connectionIds)
+}
+
+// All methods use baseQuery:
+async getEmails(connectionIds: string[], folder: string) {
+  return this.baseQuery(connectionIds).eq("folder", folder)
+}
+```
+
+**Avantage:** Garantit que le filtre de visibilite est applique partout sans oubli.
 ---
-*Derniere mise a jour: 2026-03-11*
-*Analyse approfondie: 440 composants, 70 hooks, 63 services, 25 repositories*
-*Total patterns: 34 (+3: Parallelization, after(), RLS-as-auth)*
+*Derniere mise a jour: 2026-03-19*
+*Analyse approfondie: 412 composants, 65 hooks, 39 services, 23 repositories*
+*Total patterns: 37 (+3: API auth helper, column constants, baseQuery factory)*
 *References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*

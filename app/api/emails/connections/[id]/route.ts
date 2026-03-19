@@ -16,18 +16,18 @@ export async function DELETE(
 
         const { supabase } = authResult.data;
 
-        // Récupérer le paramètre deleteEmails du body
+        // Retrieve deleteEmails parameter from body
         let deleteEmails = false;
         try {
             const body = await request.json();
             deleteEmails = body?.deleteEmails === true;
         } catch {
-            // Body vide = pas de suppression des emails
+            // Empty body = no email deletion
         }
 
-        // Si deleteEmails, supprimer emails et éléments liés AVANT la connexion
+        // If deleteEmails, delete emails and related items BEFORE the connection
         if (deleteEmails) {
-            // Récupérer les IDs des emails de cette connexion
+            // Fetch email IDs for this connection
             const { data: emailIds } = await supabase
                 .from('emails')
                 .select('id')
@@ -36,19 +36,19 @@ export async function DELETE(
             if (emailIds && emailIds.length > 0) {
                 const ids = emailIds.map(e => e.id);
 
-                // 1. Supprimer les liens email_links
-                await supabase
-                    .from('email_links')
-                    .delete()
-                    .in('email_id', ids);
+                // 1. Delete email_links and email_attachments in parallel (independent)
+                await Promise.all([
+                    supabase
+                        .from('email_links')
+                        .delete()
+                        .in('email_id', ids),
+                    supabase
+                        .from('email_attachments')
+                        .delete()
+                        .in('email_id', ids),
+                ]);
 
-                // 2. Supprimer les pièces jointes
-                await supabase
-                    .from('email_attachments')
-                    .delete()
-                    .in('email_id', ids);
-
-                // 3. Supprimer les emails
+                // 2. Delete emails (depends on links/attachments being deleted first)
                 await supabase
                     .from('emails')
                     .delete()
@@ -73,8 +73,9 @@ export async function DELETE(
                 : 'Connection deleted',
             emailsDeleted: deleteEmails
         });
-    } catch (error: any) {
-        console.error('Delete connection error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message }, '[EMAILS-API] Delete connection error');
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

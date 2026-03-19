@@ -17,6 +17,8 @@ export interface UnifiedModalProps {
   preventCloseOnOutsideClick?: boolean
   /** Prevent closing with Escape key */
   preventCloseOnEscape?: boolean
+  /** Set to false to allow nested portaled components (Select, Popover) to receive pointer events */
+  modal?: boolean
   /** Additional classes on content container */
   className?: string
   /** Modal content (sub-components) */

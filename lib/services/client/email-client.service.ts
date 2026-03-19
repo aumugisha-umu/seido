@@ -1,5 +1,11 @@
 import { Email } from '@/lib/types/email-integration';
 
+interface SyncConnectionResult {
+    connectionId: string;
+    synced: number;
+    error?: string;
+}
+
 export class EmailClientService {
     /**
      * Fetch emails from the API
@@ -82,7 +88,7 @@ export class EmailClientService {
      */
     static async syncEmails(): Promise<{
         success: boolean;
-        results: any[];
+        results: SyncConnectionResult[];
         summary?: {
             connections: number;
             successful: number;
@@ -102,6 +108,7 @@ export class EmailClientService {
 
         return response.json();
     }
+
     /**
      * Update an email
      */
@@ -146,12 +153,29 @@ export class EmailClientService {
         await this.updateEmail(emailId, { status: 'unread' });
     }
 
-    static async markAsProcessed(emailId: string): Promise<void> {
-        await this.updateEmail(emailId, { status: 'read' });
-    }
+    // Aliases: "processed" = "read" in our status model
+    static markAsProcessed = EmailClientService.markAsRead;
+    static markAsUnprocessed = EmailClientService.markAsUnread;
 
-    static async markAsUnprocessed(emailId: string): Promise<void> {
-        await this.updateEmail(emailId, { status: 'unread' });
+    /**
+     * Fetch shared-with-me groups for the sidebar
+     */
+    static async getSharedWithMeGroups(): Promise<{
+        connection: { id: string; email_address: string; owner_name: string | null }
+        threads: {
+            conversation_thread_id: string
+            subject: string
+            email_count: number
+            shared_by: string | null
+            shared_at: string
+        }[]
+    }[]> {
+        const response = await fetch('/api/emails/shared-with-me/groups');
+        if (!response.ok) {
+            throw new Error('Failed to fetch shared-with-me groups');
+        }
+        const data = await response.json();
+        return data.groups || [];
     }
 
 }

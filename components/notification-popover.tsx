@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { logger } from "@/lib/logger"
 import {
   getRelativeTime,
   getNotificationIcon,
@@ -72,7 +73,7 @@ export default function NotificationPopover({
         try {
           await onMarkAsRead(notification.id)
         } catch (error) {
-          console.error('Error marking notification as read:', error)
+          logger.error({ error }, '[NotificationPopover] Error marking notification as read')
         }
       }
 
@@ -95,7 +96,7 @@ export default function NotificationPopover({
         await onMarkAsRead(notification.id)
       }
     } catch (error) {
-      console.error('Error toggling read status:', error)
+      logger.error({ error }, '[NotificationPopover] Error toggling read status')
     } finally {
       setProcessingIds(prev => {
         const newSet = new Set(prev)
@@ -110,7 +111,7 @@ export default function NotificationPopover({
     try {
       await onMarkAllAsRead()
     } catch (error) {
-      console.error('Error marking all as read:', error)
+      logger.error({ error }, '[NotificationPopover] Error marking all as read')
     } finally {
       setMarkingAllAsRead(false)
     }

@@ -22,8 +22,6 @@ export async function GET() {
             return NextResponse.json({ connections: [] });
         }
 
-        const connectionRepo = new EmailConnectionRepository(supabase);
-
         const queryStart = Date.now();
         // Get all connections for the team (including OAuth fields)
         const { data: connections, error } = await supabase
@@ -37,43 +35,46 @@ export async function GET() {
 
         const connectionIds = (connections || []).map(c => c.id);
 
-        // Parallel queries for counts
+        // Batch count queries: 2 queries total instead of 2 per connection (N+1 fix)
         const countStart = Date.now();
-        const countPromises: Promise<void>[] = [];
-
-        // Counts per connection — use head-only count queries (no row transfer)
         const totalCounts: Record<string, number> = {};
         const unreadCounts: Record<string, number> = {};
 
         if (connectionIds.length > 0) {
-            // Parallel count queries per connection (head:true = no data transfer)
-            for (const connId of connectionIds) {
-                countPromises.push(
-                    supabase
-                        .from('emails')
-                        .select('id', { count: 'exact', head: true })
-                        .eq('email_connection_id', connId)
-                        .is('deleted_at', null)
-                        .then(({ count }) => {
-                            totalCounts[connId] = count || 0;
-                        })
-                );
-                countPromises.push(
-                    supabase
-                        .from('emails')
-                        .select('id', { count: 'exact', head: true })
-                        .eq('email_connection_id', connId)
-                        .eq('direction', 'received')
-                        .eq('status', 'unread')
-                        .is('deleted_at', null)
-                        .then(({ count }) => {
-                            unreadCounts[connId] = count || 0;
-                        })
-                );
+            const [totalResult, unreadResult] = await Promise.all([
+                // Single query for total counts grouped by connection
+                supabase
+                    .from('emails')
+                    .select('email_connection_id', { count: 'exact' })
+                    .in('email_connection_id', connectionIds)
+                    .is('deleted_at', null),
+                // Single query for unread counts grouped by connection
+                supabase
+                    .from('emails')
+                    .select('email_connection_id', { count: 'exact' })
+                    .in('email_connection_id', connectionIds)
+                    .eq('direction', 'received')
+                    .eq('status', 'unread')
+                    .is('deleted_at', null),
+            ]);
+
+            // Group total counts by connection_id
+            if (totalResult.data) {
+                for (const row of totalResult.data) {
+                    const connId = row.email_connection_id as string;
+                    totalCounts[connId] = (totalCounts[connId] || 0) + 1;
+                }
+            }
+
+            // Group unread counts by connection_id
+            if (unreadResult.data) {
+                for (const row of unreadResult.data) {
+                    const connId = row.email_connection_id as string;
+                    unreadCounts[connId] = (unreadCounts[connId] || 0) + 1;
+                }
             }
         }
 
-        await Promise.all(countPromises);
         logger.debug({ elapsed: Date.now() - countStart }, '[PERF] Email count queries completed');
 
         // Merge connections with their counts
@@ -87,9 +88,10 @@ export async function GET() {
         return NextResponse.json({
             connections: connectionsWithCount
         });
-    } catch (error: any) {
-        console.error('Get connections error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message }, '[EMAILS-API] Get connections error');
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }
 
@@ -120,6 +122,7 @@ export async function POST(request: Request) {
             smtpHost,
             smtpPort,
             smtpUseTls,
+            visibility,
         } = body;
 
         // Validate required fields
@@ -134,6 +137,8 @@ export async function POST(request: Request) {
             team_id: userProfile.team_id,
             provider,
             email_address: emailAddress,
+            added_by_user_id: userProfile.id,
+            visibility: visibility || 'shared',
             sync_from_date: syncFromDate ? new Date(syncFromDate).toISOString() : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
             imap_host: imapHost,
             imap_port: imapPort,
@@ -148,8 +153,9 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json({ connection }, { status: 201 });
-    } catch (error: any) {
-        console.error('Create connection error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        logger.error({ error: message }, '[EMAILS-API] Create connection error');
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

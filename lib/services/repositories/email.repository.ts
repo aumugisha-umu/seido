@@ -2,6 +2,9 @@ import { BaseRepository } from '../core/base-repository';
 import { Email, EmailAttachment } from '@/lib/database.types';
 import { SupabaseClient } from '@supabase/supabase-js';
 
+/** Column list for email list queries — excludes body_html (heavy, only needed for detail view) */
+const EMAIL_LIST_COLUMNS = 'id, email_connection_id, direction, status, message_id, in_reply_to, in_reply_to_header, references, from_address, to_addresses, cc_addresses, bcc_addresses, subject, body_text, received_at, sent_at, created_at, building_id, lot_id, intervention_id, team_id, deleted_at';
+
 export interface CreateEmailDTO {
     team_id: string;
     email_connection_id?: string;
@@ -60,7 +63,7 @@ export class EmailRepository extends BaseRepository<Email> {
     ): Promise<Email[]> {
         let query = this.supabase
             .from(this.tableName)
-            .select('*')
+            .select(EMAIL_LIST_COLUMNS)
             .eq('team_id', teamId)
             .order('received_at', { ascending: false });
 
@@ -94,6 +97,7 @@ export class EmailRepository extends BaseRepository<Email> {
      * @param options.source - Email source filter:
      *   - 'all': All sources (default)
      *   - UUID: Specific email connection ID
+     * @param options.connectionIds - Visibility filter: only emails from accessible connections
      */
     async getEmailsByFolder(
         teamId: string,
@@ -104,17 +108,21 @@ export class EmailRepository extends BaseRepository<Email> {
             search?: string;
             source?: string;
             interventionId?: string;
+            connectionIds?: string[];
         }
     ): Promise<{ data: Email[]; count: number }> {
         let query = this.supabase
             .from(this.tableName)
-            .select('*', { count: 'estimated' })
+            .select(EMAIL_LIST_COLUMNS, { count: 'estimated' })
             .eq('team_id', teamId);
 
         // Source filter (email box selection)
         if (options.source && options.source !== 'all') {
             // Specific IMAP connection
             query = query.eq('email_connection_id', options.source);
+        } else if (options.connectionIds && options.connectionIds.length > 0) {
+            // Visibility filter: only emails from accessible connections
+            query = query.in('email_connection_id', options.connectionIds);
         }
 
         // Search logic
@@ -175,7 +183,7 @@ export class EmailRepository extends BaseRepository<Email> {
      */
     async getSentRepliesForThreads(
         teamId: string,
-        options?: { source?: string }
+        options?: { source?: string; connectionIds?: string[] }
     ): Promise<Email[]> {
         // Select all fields including body_html (needed for conversation thread view)
         let query = this.supabase
@@ -190,6 +198,8 @@ export class EmailRepository extends BaseRepository<Email> {
 
         if (options?.source && options.source !== 'all') {
             query = query.eq('email_connection_id', options.source);
+        } else if (options?.connectionIds && options.connectionIds.length > 0) {
+            query = query.in('email_connection_id', options.connectionIds);
         }
 
         const { data, error } = await query;
@@ -203,7 +213,7 @@ export class EmailRepository extends BaseRepository<Email> {
     async searchEmails(teamId: string, query: string): Promise<Email[]> {
         const { data, error } = await this.supabase
             .from(this.tableName)
-            .select('*')
+            .select(EMAIL_LIST_COLUMNS)
             .eq('team_id', teamId)
             .textSearch('search_vector', query, {
                 type: 'websearch',

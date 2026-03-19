@@ -17,13 +17,12 @@ paths:
 ```
 demande → approuvee (gestionnaire uniquement)
 demande → rejetee (gestionnaire uniquement)
-approuvee → demande_de_devis (gestionnaire)
-demande_de_devis → planification (après devis approuvé)
-planification → planifiee (après time slot confirmé)
-planifiee → en_cours (début intervention)
-en_cours → cloturee_par_prestataire (prestataire termine)
+approuvee → planification (gestionnaire — requires_quote flag gère les devis)
+planification → planifiee (après time slot confirmé, status=selected)
+planifiee → cloturee_par_prestataire (prestataire termine)
 cloturee_par_prestataire → cloturee_par_locataire (locataire valide)
 cloturee_par_locataire → cloturee_par_gestionnaire (gestionnaire finalise)
+planifiee → cloturee_par_gestionnaire (gestionnaire cloture directement)
 
 Tout statut → annulee (gestionnaire uniquement)
 ```

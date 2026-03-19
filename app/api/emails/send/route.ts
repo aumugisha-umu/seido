@@ -11,7 +11,7 @@ export async function POST(request: Request) {
 
         const { supabase } = authResult.data;
 
-        const { emailConnectionId, to, cc, subject, body, inReplyToEmailId } = await request.json();
+        const { emailConnectionId, to, cc, bcc, subject, body, inReplyToEmailId } = await request.json();
 
         if (!emailConnectionId || !to || !subject || !body) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
             connectionId: emailConnectionId,
             to,
             cc: cc || undefined,
+            bcc: bcc || undefined,
             subject,
             text: body,
             html: `<p>${sanitizedBody.replace(/\n/g, '<br>')}</p>`,

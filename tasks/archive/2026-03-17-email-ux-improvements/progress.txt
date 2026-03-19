@@ -1,0 +1,24 @@
+# Progress Log — Email UX Improvements
+# Started: 2026-03-17
+# Stories: 4 total
+---
+
+## 2026-03-17 — US-001: Rename compose title + disable Rédiger
+- Implemented: Title "Nouveau message" → "Nouvel email" in compose-email-modal.tsx. Rédiger button disabled when no active connections.
+- Files: compose-email-modal.tsx, mail-client.tsx
+- Learnings: Trivial XS story but unlocked 2 dependent stories.
+
+## 2026-03-17 — US-002: Extract shared EmailConnectionPrompt
+- Implemented: Moved EmailConnectionForm from settings to components/email/email-connection-prompt.tsx. Added className prop + cn(). Fixed any→unknown types, removed console.error. Old file is thin re-export.
+- Files: components/email/email-connection-prompt.tsx (NEW), email-connection-form.tsx (re-export), email-settings-client.tsx
+- Learnings: Component was already correctly structured with onSuccess/onCancel props — extraction was a clean move+rename. Thin re-export avoids breaking other imports.
+
+## 2026-03-17 — US-003: Mail page full takeover when no connection
+- Implemented: Early return in mail-client.tsx render when emailConnections has no active items. Centered EmailConnectionPrompt with Mail icon + heading. router.refresh() on success.
+- Files: mail-client.tsx
+- Learnings: Early return pattern eliminated dead disabled prop on Rédiger button — the button only renders when connections exist, so disabled={false} is always true.
+
+## 2026-03-17 — US-004: Global ComposeEmailProvider + sidebar button
+- Implemented: ComposeEmailProvider context at gestionnaire with-navbar layout. Single ComposeEmailModal instance rendered by provider. Sidebar createAction pattern for onClick-based + button. Layout SSR parallel query for email connections. Mail page delegates compose to context.
+- Files: contexts/compose-email-context.tsx (NEW), layout.tsx, gestionnaire-sidebar.tsx, mail-client.tsx
+- Learnings: Layout-level provider needs SSR data as props — added parallel query to existing Promise.all. createAction on nav items enables onClick handlers (vs createHref links). Sidebar hook call must be at component top level.

@@ -1,6 +1,8 @@
 import { BaseRepository } from '../core/base-repository';
 import { TeamEmailConnection } from '@/lib/database.types';
+import { EmailVisibility } from '@/lib/types/email-integration';
 import { EncryptionService } from '../domain/encryption.service';
+import { EmailVisibilityService } from '../domain/email-visibility.service';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface CreateEmailConnectionDTO {
@@ -8,6 +10,8 @@ export interface CreateEmailConnectionDTO {
     provider: 'gmail' | 'outlook' | 'yahoo' | 'ovh' | 'custom';
     email_address: string;
     sync_from_date?: string; // ISO date string
+    added_by_user_id: string;
+    visibility?: EmailVisibility; // Defaults to 'shared' in DB
 
     imap_host: string;
     imap_port: number;
@@ -114,6 +118,39 @@ export class EmailConnectionRepository extends BaseRepository<TeamEmailConnectio
                 last_error: errorMessage,
                 last_sync_at: new Date().toISOString()
             })
+            .eq('id', connectionId);
+
+        if (error) throw error;
+    }
+
+    /**
+     * Get connections accessible to a specific user.
+     * Delegates to EmailVisibilityService for the visibility filter (single source of truth),
+     * then fetches full rows by IDs.
+     */
+    async getAccessibleConnections(teamId: string, userId: string): Promise<TeamEmailConnection[]> {
+        const accessibleIds = await EmailVisibilityService.getAccessibleConnectionIds(
+            this.supabase, teamId, userId
+        );
+
+        if (accessibleIds.length === 0) return [];
+
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .select('*')
+            .in('id', accessibleIds);
+
+        if (error) throw error;
+        return data || [];
+    }
+
+    /**
+     * Update the visibility of a connection (private <-> shared)
+     */
+    async updateVisibility(connectionId: string, visibility: EmailVisibility): Promise<void> {
+        const { error } = await this.supabase
+            .from(this.tableName)
+            .update({ visibility })
             .eq('id', connectionId);
 
         if (error) throw error;

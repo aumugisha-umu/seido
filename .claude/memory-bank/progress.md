@@ -84,6 +84,28 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-19 - Email Section Cleanup + Visibility Plumbing
+
+**Session: Exhaustive email code review (3 parallel agents) + visibility feature wiring**
+
+| Change | Description |
+|--------|-------------|
+| **Compose modal fix** | Select dropdown z-index conflict in UnifiedModal (z-[10000] fix) |
+| **console->logger** | ~22 console.error/warn replaced across 7 API routes + 5 components |
+| **any->unknown** | ~20 any types eliminated |
+| **Type consolidation** | 3 local EmailConnection interfaces -> TeamEmailConnection import |
+| **getTeamManagerContext()** | Extracted shared API route auth helper in lib/services/helpers/ |
+| **N+1 fix** | connections/route.ts 2N queries -> 2 batch queries |
+| **EMAIL_LIST_COLUMNS** | email.repository.ts excludes body_html from list queries |
+| **Sequential->parallel** | connections/[id]/route.ts deletes via Promise.all |
+| **Parameter sprawl** | createSharesForThread 6 params -> options object |
+| **Visibility plumbing** | added_by_user_id + visibility wired through OAuth + IMAP flows |
+| **Access control** | EmailVisibilityService.getAccessibleConnectionIds() on listing + counts |
+
+**30 files changed**, +1098 -671 lines
+**Learnings:** AGENTS.md #159-163
+**Retrospective:** docs/learnings/2026-03-19-email-cleanup-visibility-plumbing-retrospective.md
+
 ### 2026-03-18 - Contact Role Rename "Autre" → "Propriétaire"
 
 **Ce qui a été fait:**
@@ -579,25 +601,25 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-03-14)
+## Metriques Projet (2026-03-19)
 
 | Metrique | Valeur |
 |----------|--------|
 | Repositories | **23** |
-| Domain Services | **35** |
-| API Routes | **121** |
-| Hooks | **71** |
-| Components | **390+** |
-| Pages | **90** |
+| Domain Services | **39** |
+| API Routes | **129** |
+| Hooks | **65** |
+| Components | **412** |
+| Pages | **78** |
 | Blog Articles | **23** |
 | DB Tables | **46** |
 | DB Enums | 39 |
 | DB Functions | **80** |
-| Migrations | **193** |
+| Migrations | **199** |
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **148** |
+| **AGENTS.md Learnings** | **163** |
 | **systemPatterns.md Patterns** | **32** |
 | **Shared Cards** | **15** |
 | **E2E Test Files** | **8** |
@@ -683,7 +705,10 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | **2026-03-14** | **Quality Gate Knowledge Capture** | **Persist learnings BEFORE commit, not after** | **Step 4.5: compound, memory bank, CLAUDE.md, agents/skills check** |
 | **2026-03-14** | **PreToolUse safety hooks** | **Deterministic blocking (not advisory)** | **block-dangerous-commands.js + block-secret-writes.js** |
 | **2026-03-14** | **Global blueprint** | **Replicable .claude/ ecosystem for any project** | **.claude/claude-code-global-blueprint.md — 33 global + 20-30 per project files** |
+| **2026-03-19** | **getTeamManagerContext() helper** | **DRY API route auth boilerplate** | **Extracted to lib/services/helpers/api-team-context.ts, used by email routes** |
+| **2026-03-19** | **EMAIL_LIST_COLUMNS pattern** | **Exclude heavy columns from list queries** | **email.repository.ts excludes body_html, reduces payload** |
+| **2026-03-19** | **Email visibility plumbing** | **Private/shared email connections** | **OAuth+IMAP flows write visibility, listing/counts filter by access** |
 
 ---
-*Derniere mise a jour: 2026-03-16*
-*Session: Admin notification emails (5 stories), 148 learnings in AGENTS.md*
+*Derniere mise a jour: 2026-03-19*
+*Session: Email section cleanup + visibility plumbing, 163 learnings in AGENTS.md, 48 retrospectives*

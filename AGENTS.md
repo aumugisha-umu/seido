@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-03-17
-**Total Learnings:** 158
+**Total Learnings:** 163
 
 ---
 
@@ -1177,6 +1177,43 @@
 **Symptom:** Email looks correct in preview but broken in actual email clients.
 **Cause:** React Email components have different rendering in preview vs production.
 **Fix:** Always test with `npx react-email dev` AND send a real test email.
+
+### Email Integration
+
+#### Learning #159: Radix Select inside high-z-index modals — portal z-index override
+**Problem:** Radix `SelectContent` portals to `document.body` with `z-50`. UnifiedModal uses `z-[9999]` in globals.css. The dropdown renders *behind* the modal — clicks hit the modal overlay instead. shadcn Dialog uses `z-50` for both overlay and content, so DOM order wins and Select works naturally.
+**Solution:** When using Select inside UnifiedModal, add `className="z-[10000]"` to `SelectContent` to render above `z-[9999]`. Also add `className="bg-white w-full"` to `SelectTrigger` (default `bg-transparent w-fit` looks disabled). Alternative: use shadcn Dialog if the modal doesn't need UnifiedModal features.
+**Example:** `app/gestionnaire/(with-navbar)/mail/components/compose-email-modal.tsx:141` — `<SelectContent className="z-[10000]">`
+**When to Use:** Any Radix portal component (Select, Popover, DropdownMenu) inside UnifiedModal
+**Added:** 2026-03-19 | **Source:** Compose email modal — Select dropdown unclickable
+
+#### Learning #160: Bottom-up feature plumbing — service layer ready but API routes unconnected
+**Problem:** The email visibility feature was fully implemented in `EmailVisibilityService` and `EmailShareRepository`, but none of the API routes actually called it. `added_by_user_id` was required (`NOT NULL`) in the DB but never passed in INSERT operations. Result: (1) all connections defaulted to `shared`, (2) new connection creation would fail with NOT NULL violation.
+**Solution:** After implementing service/repo layers, always trace the full request path top-to-bottom: UI → API route → service → repository → DB. Check each layer passes the required fields. Specifically for visibility: `authorize` must read `?visibility=` param, `callback` must use `stateData.visibility` in INSERT, IMAP POST must destructure `visibility` from body, and listing/counts routes must call `getAccessibleConnectionIds()`.
+**Example:** `app/api/emails/oauth/callback/route.ts:142-143` — added `added_by_user_id` + `visibility` to INSERT
+**When to Use:** After implementing any new field/feature at the data layer — always verify the API transport layer passes it through
+**Added:** 2026-03-19 | **Source:** Email visibility feature — end-to-end plumbing audit
+
+#### Learning #161: `select('*')` on tables with large text columns — exclude body in list views
+**Problem:** `email.repository.ts` used `select('*')` for list queries. The `emails` table has `body_html` (10-50KB per email). Loading 50 emails transferred 500KB-2.5MB unnecessarily — the list only needs subject, from, date, snippet.
+**Solution:** Define an `EMAIL_LIST_COLUMNS` constant with explicit column names excluding `body_html`. Use `select(EMAIL_LIST_COLUMNS)` for list/folder queries. Fetch full body only when an email is selected for detail view.
+**Example:** `lib/services/repositories/email.repository.ts:10` — `EMAIL_LIST_COLUMNS` constant
+**When to Use:** Any table with large text/blob columns (body_html, description, content) — always use explicit selects in list views
+**Added:** 2026-03-19 | **Source:** Email section efficiency review
+
+#### Learning #162: Extract repeated API auth boilerplate into shared helpers
+**Problem:** 3 email API routes had identical 10-line team membership verification (query `team_members`, check role, check `left_at`, handle error). Copy-paste meant any change needed updating in 3+ places.
+**Solution:** Extract into `lib/services/helpers/api-team-context.ts` with `getTeamManagerContext(supabase, userId)` returning `teamId | null`. Each route calls the helper + handles null with 403. Also avoids the `userProfile?.id` undefined risk by centralizing the null check.
+**Example:** `lib/services/helpers/api-team-context.ts` — shared helper used by 3 routes
+**When to Use:** When 3+ API routes share identical auth/context boilerplate
+**Added:** 2026-03-19 | **Source:** Email section code reuse review
+
+#### Learning #163: Visibility filter must be applied consistently across SSR, API listing, and API counts
+**Problem:** Email counts API returned team-wide totals (no visibility filter), but the listing API filtered by accessible connections. Users saw inflated inbox counts including emails from other users' private connections.
+**Solution:** Apply `EmailVisibilityService.getAccessibleConnectionIds()` in BOTH the listing route AND the counts route. Use a `baseQuery()` factory function in counts to apply the filter uniformly to all 4 parallel count queries. SSR initial load can use team-wide counts as approximation since it refreshes immediately via client polling.
+**Example:** `app/api/emails/counts/route.ts:26-38` — `baseQuery()` factory with `connectionIds` filter
+**When to Use:** Any feature with private/shared access control — verify counts, listings, and search all apply the same filter
+**Added:** 2026-03-19 | **Source:** Email visibility — SSR/API parity audit
 
 ---
 

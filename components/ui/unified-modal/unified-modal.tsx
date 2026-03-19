@@ -24,12 +24,13 @@ export const UnifiedModal = ({
   showCloseButton = true,
   preventCloseOnOutsideClick = false,
   preventCloseOnEscape = false,
+  modal,
   className,
   children,
   'aria-labelledby': ariaLabelledBy,
 }: UnifiedModalProps & { 'aria-labelledby'?: string }) => {
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <DialogPrimitive.Portal>
         {/* Overlay */}
         <DialogPrimitive.Overlay className="unified-modal__overlay" />

@@ -133,10 +133,10 @@ export function ComposeEmailModal({
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">De</label>
             <Select value={connectionId} onValueChange={setConnectionId}>
-              <SelectTrigger>
+              <SelectTrigger className="w-full bg-white">
                 <SelectValue placeholder="Sélectionner une boîte mail..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[10000]">
                 {activeConnections.map(conn => (
                   <SelectItem key={conn.id} value={conn.id}>
                     <span className="flex items-center gap-2">

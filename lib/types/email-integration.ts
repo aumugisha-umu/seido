@@ -3,12 +3,19 @@ export type EmailStatus = 'unread' | 'read' | 'archived' | 'deleted';
 
 export type AuthMethod = 'password' | 'oauth';
 
+export type EmailVisibility = 'private' | 'shared';
+export type EmailFolder = 'inbox' | 'processed' | 'sent' | 'drafts' | 'archive' | 'shared-with-me';
+
 export interface TeamEmailConnection {
     id: string;
     team_id: string;
     provider: string;
     email_address: string;
     sync_from_date?: string | null;
+
+    // Visibility & ownership
+    added_by_user_id: string;
+    visibility: EmailVisibility;
 
     // Méthode d'authentification
     auth_method: AuthMethod;
@@ -95,5 +102,15 @@ export interface EmailBlacklist {
     sender_domain: string | null;
     reason: string | null;
     blocked_by_user_id: string | null;
+    created_at: string;
+}
+
+export interface EmailShare {
+    id: string;
+    email_id: string;
+    thread_id: string;
+    shared_with_user_id: string;
+    shared_by_user_id: string;
+    team_id: string;
     created_at: string;
 }

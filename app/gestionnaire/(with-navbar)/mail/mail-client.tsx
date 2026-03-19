@@ -62,7 +62,7 @@ const adaptLinkedEmailToEmail = (le: LinkedEmail): Email => ({
   team_id: '',
   email_connection_id: le.email_connection_id ?? null,
   direction: le.direction,
-  status: le.status as any,
+  status: le.status as Email['status'],
   deleted_at: null,
   message_id: le.message_id ?? null,
   in_reply_to: null,
@@ -259,7 +259,7 @@ export function MailClient({
   // Stable refs for values used inside memoized callbacks (avoids re-creating callbacks on state change)
   const currentFolderRef = useRef(currentFolder)
   currentFolderRef.current = currentFolder
-  const fetchEmailsRef = useRef<(isLoadMore?: boolean, sourceOverride?: string, folderOverride?: string) => Promise<void>>(null as any)
+  const fetchEmailsRef = useRef<((isLoadMore?: boolean, sourceOverride?: string, folderOverride?: string) => Promise<void>) | null>(null)
 
   // Pre-built Maps for O(1) lookup in adaptEmail (replaces O(n) Array.find per email)
   const { buildingMap, lotMap } = useMemo(() => {
@@ -378,8 +378,8 @@ export function MailClient({
       if (data.success) {
         setLinkedEntities(data.entities)
       }
-    } catch (error) {
-      console.error('Failed to fetch linked entities:', error)
+    } catch {
+      // Error is non-critical; sidebar entities will refresh on next sync
     }
   }, [])
 
@@ -478,7 +478,6 @@ export function MailClient({
     } catch (error) {
       // Silently ignore aborted requests (user switched folder before response arrived)
       if (error instanceof DOMException && error.name === 'AbortError') return
-      console.error('Failed to fetch emails:', error)
       if (!hasCacheHit) toast.error('Échec du chargement des emails')
     } finally {
       setIsLoading(false)
@@ -495,8 +494,8 @@ export function MailClient({
       if (data.success && data.email) {
         return data.email as Email
       }
-    } catch (error) {
-      console.error('Error fetching full email:', error)
+    } catch {
+      // Silently fail; email detail will show partial data
     }
     return null
   }, [])
@@ -569,8 +568,7 @@ export function MailClient({
           setSelectedEmailId(adaptedEmails[0].id)
         }
       }
-    } catch (error) {
-      console.error('Error filtering by entity:', error)
+    } catch {
       toast.error('Erreur lors du filtrage')
     } finally {
       setIsLoading(false)
@@ -594,8 +592,8 @@ export function MailClient({
           setRealEmails(prev => [...prev, ...adaptedEmails])
           setEntityPaginationOffset(prev => prev + data.emails.length)
         }
-      } catch (error) {
-        console.error('Error loading more entity emails:', error)
+      } catch {
+        // Silently fail; user can retry via scroll
       } finally {
         setIsLoading(false)
       }

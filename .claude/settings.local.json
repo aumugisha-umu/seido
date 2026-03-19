@@ -85,7 +85,14 @@
       "WebFetch(domain:www.anthropic.com)",
       "WebFetch(domain:www.smsgatewayapi.eu)",
       "WebFetch(domain:developers.facebook.com)",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "WebFetch(domain:gocardless.com)",
+      "WebFetch(domain:bankaccountdata.gocardless.com)",
+      "WebFetch(domain:developer.gocardless.com)",
+      "WebFetch(domain:nordigen.com)",
+      "WebFetch(domain:docs.tink.com)",
+      "WebFetch(domain:tink.com)",
+      "WebFetch(domain:merchantmachine.co.uk)"
     ],
     "deny": [],
     "ask": []

@@ -150,16 +150,18 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [x] **Blog Hub/Cluster Architecture** (23 articles, sibling navigation, hub frontmatter)
 - [x] **Intervention Planner Refactoring** (6 stories: shared InterventionPlannerStep component)
 - [x] **Supplier Contracts** (new entity: DB tables, repository, service, card UI, wizard steps)
+- [x] **Email Section Cleanup + Visibility Plumbing** (2026-03-19: 30 files, console->logger, any->unknown, type consolidation, compose modal z-index fix, OAuth/IMAP visibility wiring)
+- [ ] **Email Visibility Phase 2** (sharing UI, permission management, end-to-end testing)
 - [ ] Landing page redesign (plan exists in docs/plans/)
 
-### Métriques Infrastructure (2026-03-11)
-- **440 composants** (UI + dashboards + workflow + blog + billing + contracts)
-- **70 hooks** custom
-- **25 repositories** + **63 domain services**
-- **123 API routes**
-- **193 migrations SQL**
+### Metriques Infrastructure (2026-03-19)
+- **412 composants** (UI + dashboards + workflow + blog + billing + contracts)
+- **65 hooks** custom
+- **23 repositories** + **39 domain services**
+- **129 API routes**
+- **199 migrations SQL**
 - **23 blog articles** (SEO-optimized, sourced, hub-cluster architecture)
-- **134 AGENTS.md learnings**
+- **163 AGENTS.md learnings**
 
 ## Fonctionnalités Prévues
 - [ ] AI Phone Assistant Phase 2 - Priorité: Haute
@@ -169,6 +171,6 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [ ] Dashboard analytics avancé - Priorité: Haute
 
 ---
-*Dernière mise à jour: 2026-03-11*
+*Derniere mise a jour: 2026-03-19*
 *Références: docs/design/persona-gestionnaire-unifie.md, persona-prestataire.md, persona-locataire.md*
 *Stripe: docs/stripe/admin-guide.md, docs/stripe/coupon-strategy.md, docs/stripe/production-checklist.md*

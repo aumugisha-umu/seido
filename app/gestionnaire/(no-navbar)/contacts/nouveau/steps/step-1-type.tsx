@@ -132,7 +132,7 @@ export function Step1Type({
                 Prestataire de services
               </h3>
               <p className="text-sm text-green-700 dark:text-green-300">
-                S&apos;il est invité, ce prestataire pourra consulter ses interventions assignées, soumettre des devis, confirmer des créneaux et échanger avec les gestionnaires via la messagerie.
+                S'il est invité, ce prestataire pourra consulter ses interventions assignées, soumettre des devis, confirmer des créneaux et échanger avec les gestionnaires et les locataires via le chat des interventions.
               </p>
               <p className="text-xs text-green-600/70 dark:text-green-400/70 mt-2">
               Il recevra toutes ses notifications par email et pourra répondre directement par email. Vous trouverez ses réponses dans le chat de l'intervention concernée.

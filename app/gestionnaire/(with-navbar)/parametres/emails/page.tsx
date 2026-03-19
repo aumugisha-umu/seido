@@ -23,7 +23,7 @@ export default async function EmailSettingsPage() {
     // Fetch connections for the team
     const { data: connections, error: connError } = await supabase
       .from('team_email_connections')
-      .select('id, provider, email_address, is_active, last_sync_at, last_error, sync_from_date, created_at, auth_method, oauth_token_expires_at')
+      .select('id, provider, email_address, is_active, last_sync_at, last_error, sync_from_date, created_at, auth_method, oauth_token_expires_at, visibility, added_by_user_id')
       .eq('team_id', team.id)
       .order('created_at', { ascending: false })
 
@@ -49,8 +49,7 @@ export default async function EmailSettingsPage() {
     if (blError) {
       logger.warn('[EMAIL-SETTINGS] Failed to SSR-fetch blacklist', { error: blError })
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      initialBlacklist = (blacklistData || []).map((entry: any) => {
+      initialBlacklist = (blacklistData || []).map((entry: { id: string; sender_email: string | null; sender_domain: string | null; reason: string | null; blocked_by_user_id: string; created_at: string; users: { first_name: string | null; last_name: string | null } | null }) => {
         const user = entry.users
         const userName = user
           ? [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Inconnu'

@@ -1355,6 +1355,72 @@ export type Database = {
           },
         ]
       }
+      email_shares: {
+        Row: {
+          created_at: string | null
+          email_id: string
+          id: string
+          shared_by_user_id: string
+          shared_with_user_id: string
+          team_id: string
+          thread_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email_id: string
+          id?: string
+          shared_by_user_id: string
+          shared_with_user_id: string
+          team_id: string
+          thread_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email_id?: string
+          id?: string
+          shared_by_user_id?: string
+          shared_with_user_id?: string
+          team_id?: string
+          thread_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_shares_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_shares_shared_by_user_id_fkey"
+            columns: ["shared_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_shares_shared_with_user_id_fkey"
+            columns: ["shared_with_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_shares_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_shares_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_webhook_logs: {
         Row: {
           created_at: string | null
@@ -3409,6 +3475,7 @@ export type Database = {
       }
       team_email_connections: {
         Row: {
+          added_by_user_id: string
           auth_method: string | null
           created_at: string | null
           email_address: string
@@ -3435,8 +3502,10 @@ export type Database = {
           sync_from_date: string | null
           team_id: string
           updated_at: string | null
+          visibility: string | null
         }
         Insert: {
+          added_by_user_id: string
           auth_method?: string | null
           created_at?: string | null
           email_address: string
@@ -3463,8 +3532,10 @@ export type Database = {
           sync_from_date?: string | null
           team_id: string
           updated_at?: string | null
+          visibility?: string | null
         }
         Update: {
+          added_by_user_id?: string
           auth_method?: string | null
           created_at?: string | null
           email_address?: string
@@ -3491,8 +3562,16 @@ export type Database = {
           sync_from_date?: string | null
           team_id?: string
           updated_at?: string | null
+          visibility?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "team_email_connections_added_by_user_id_fkey"
+            columns: ["added_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "team_email_connections_team_id_fkey"
             columns: ["team_id"]

@@ -25,20 +25,7 @@ import {
 import { Trash2, RefreshCw, CheckCircle2, XCircle, Clock, Shield, Key, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatDistanceToNow, format } from 'date-fns'
-
-interface EmailConnection {
-    id: string
-    provider: string
-    email_address: string
-    is_active: boolean
-    last_sync_at: string | null
-    last_error: string | null
-    sync_from_date: string | null
-    created_at: string
-    email_count?: number
-    auth_method?: 'password' | 'oauth'
-    oauth_token_expires_at?: string | null
-}
+import type { EmailConnection } from '../email-settings-client'
 
 interface EmailConnectionListProps {
     connections: EmailConnection[]
@@ -111,8 +98,9 @@ export function EmailConnectionList({
             }
 
             onConnectionDeleted?.()
-        } catch (error: any) {
-            toast.error(error.message || 'Échec de la suppression')
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Échec de la suppression'
+            toast.error(message)
         } finally {
             setIsDeleting(false)
             setDeleteDialogOpen(false)

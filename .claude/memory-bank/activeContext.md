@@ -161,6 +161,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Email private/shared visibility testing + remaining stories*
 
 ## Files Recently Modified
-### 2026-03-20 03:35:54 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/api/cron/intervention-reminders/route.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/api/cron/recurrence-scan/route.ts`
+### 2026-03-20 04:00:16 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/AI/ai-intervention-agent-design.md`

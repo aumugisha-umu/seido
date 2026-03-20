@@ -101,7 +101,7 @@ export async function buildQuoteSubmittedEmail(
     interventionType: intervention.type || 'Intervention',
     description: intervention.description || '',
     propertyAddress: property.address,
-    quoteUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/gestionnaire/interventions/${intervention.id}`,
+    quoteUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/gestionnaire/operations/interventions/${intervention.id}`,
     providerName,
     providerCompany: (provider as any).company_name,
     totalHT: quote.amount || 0,

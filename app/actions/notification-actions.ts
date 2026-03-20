@@ -86,7 +86,7 @@ function getInterventionUrlForRole(role: string | null, interventionId: string):
       return `/prestataire/interventions/${interventionId}`
     case 'gestionnaire':
     default:
-      return `/gestionnaire/interventions/${interventionId}`
+      return `/gestionnaire/operations/interventions/${interventionId}`
   }
 }
 
@@ -96,7 +96,10 @@ function getInterventionUrlForRole(role: string | null, interventionId: string):
  */
 function getDocumentEntityUrl(role: string | null, entityType: string, entityId: string): string {
   const prefix = role === 'locataire' ? 'locataire' : role === 'prestataire' ? 'prestataire' : 'gestionnaire'
-  if (entityType === 'intervention') return `/${prefix}/interventions/${entityId}`
+  if (entityType === 'intervention') {
+    if (prefix === 'gestionnaire') return `/gestionnaire/operations/interventions/${entityId}`
+    return `/${prefix}/interventions/${entityId}`
+  }
   // Other entity types default to gestionnaire
   return `/gestionnaire/${entityType}s/${entityId}`
 }
@@ -1931,7 +1934,7 @@ export async function notifyQuoteSubmittedWithPush(params: {
       sendPushToNotificationRecipients(notifications, {
         title: '📋 Nouvelle estimation',
         message: `${params.providerName}: ${params.amount.toFixed(2)}€`,
-        url: `/gestionnaire/interventions/${params.interventionId}`,
+        url: `/gestionnaire/operations/interventions/${params.interventionId}`,
         type: 'quote_submitted'
       }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyQuoteSubmittedWithPush'))
     }

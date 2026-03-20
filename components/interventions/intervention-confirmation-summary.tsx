@@ -96,8 +96,7 @@ export interface InterventionConfirmationData {
   }>
   expectsQuote?: boolean
   variant?: 'tenant' | 'manager'
-  assignmentMode?: 'single' | 'group' | 'separate'
-  providerInstructions?: Record<string, string>
+  assignmentMode?: 'single' | 'group'
   requiresParticipantConfirmation?: boolean
   confirmationRequiredUserIds?: string[]
 }
@@ -288,18 +287,6 @@ export function InterventionConfirmationSummary({
       fullWidth: true,
     })
 
-    if (data.assignmentMode === 'separate' && data.providerInstructions) {
-      prestataires.forEach(provider => {
-        const msg = data.providerInstructions?.[provider.id]
-        pairs.push({
-          label: `Instructions — ${provider.name}`,
-          value: msg || undefined,
-          empty: !msg,
-          fullWidth: true,
-        })
-      })
-    }
-
     return pairs
   }
 
@@ -485,12 +472,6 @@ export function InterventionConfirmationSummary({
               <ConfirmationKeyValueGrid
                 columns={1}
                 pairs={[
-                  ...(prestataires.length > 1 && data.assignmentMode
-                    ? [{
-                        label: 'Mode assignation',
-                        value: data.assignmentMode === 'separate' ? 'Separe' : data.assignmentMode === 'group' ? 'Groupe' : 'Unique',
-                      }]
-                    : []),
                   { label: 'Devis requis', value: data.expectsQuote ? 'Oui' : 'Non' },
                 ]}
               />

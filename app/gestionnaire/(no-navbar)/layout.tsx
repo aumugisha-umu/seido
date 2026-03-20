@@ -8,7 +8,7 @@ import type React from "react"
  * barre de navigation principale.
  *
  * Pages concernées:
- * - /gestionnaire/interventions/nouvelle-intervention
+ * - /gestionnaire/operations/nouvelle-intervention
  * - /gestionnaire/interventions/[id]
  * - /gestionnaire/biens/immeubles/nouveau
  * - /gestionnaire/biens/immeubles/modifier/[id]

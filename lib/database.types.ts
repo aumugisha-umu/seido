@@ -3061,6 +3061,281 @@ export type Database = {
           },
         ]
       }
+      recurrence_occurrences: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          generated_entity_id: string | null
+          generated_entity_type: string | null
+          id: string
+          occurrence_date: string
+          rule_id: string
+          skipped_reason: string | null
+          status: string
+          team_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          generated_entity_id?: string | null
+          generated_entity_type?: string | null
+          id?: string
+          occurrence_date: string
+          rule_id: string
+          skipped_reason?: string | null
+          status?: string
+          team_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          generated_entity_id?: string | null
+          generated_entity_type?: string | null
+          id?: string
+          occurrence_date?: string
+          rule_id?: string
+          skipped_reason?: string | null
+          status?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurrence_occurrences_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrence_occurrences_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurrence_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrence_occurrences_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurrence_rules: {
+        Row: {
+          auto_create: boolean
+          created_at: string
+          created_by: string
+          dtstart: string
+          id: string
+          is_active: boolean
+          notify_days_before: number
+          rrule: string
+          source_template: Json
+          source_type: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          auto_create?: boolean
+          created_at?: string
+          created_by: string
+          dtstart: string
+          id?: string
+          is_active?: boolean
+          notify_days_before?: number
+          rrule: string
+          source_template: Json
+          source_type: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          auto_create?: boolean
+          created_at?: string
+          created_by?: string
+          dtstart?: string
+          id?: string
+          is_active?: boolean
+          notify_days_before?: number
+          rrule?: string
+          source_template?: Json
+          source_type?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurrence_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrence_rules_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reminders: {
+        Row: {
+          assigned_to: string | null
+          building_id: string | null
+          completed_at: string | null
+          contact_id: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          lot_id: string | null
+          parent_occurrence_id: string | null
+          priority: string
+          recurrence_rule_id: string | null
+          status: string
+          team_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          building_id?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          lot_id?: string | null
+          parent_occurrence_id?: string | null
+          priority?: string
+          recurrence_rule_id?: string | null
+          status?: string
+          team_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          building_id?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          lot_id?: string | null
+          parent_occurrence_id?: string | null
+          priority?: string
+          recurrence_rule_id?: string | null
+          status?: string
+          team_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_parent_occurrence_id_fkey"
+            columns: ["parent_occurrence_id"]
+            isOneToOne: false
+            referencedRelation: "recurrence_occurrences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_recurrence_rule_id_fkey"
+            columns: ["recurrence_rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurrence_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stripe_customers: {
         Row: {
           created_at: string
@@ -4878,6 +5153,19 @@ export type Database = {
           p_team_id: string
         }
         Returns: Json
+      }
+      scan_pending_recurrences: {
+        Args: { look_ahead_days?: number }
+        Returns: {
+          auto_create: boolean
+          notify_days_before: number
+          occurrence_date: string
+          occurrence_id: string
+          rule_id: string
+          source_template: Json
+          source_type: string
+          team_id: string
+        }[]
       }
       upsert_ai_phone_usage: {
         Args: { p_minutes: number; p_month: string; p_team_id: string }

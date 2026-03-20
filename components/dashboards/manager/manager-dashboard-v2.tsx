@@ -34,6 +34,8 @@ import { PageActions } from "@/components/page-actions"
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
 import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
+import type { ReminderStats } from "@/lib/types/reminder.types"
+import { ReminderStatsWidget } from "@/components/operations/reminder-stats-widget"
 
 // Type for intervention row from Supabase (used in realtime callback)
 type DbIntervention = Database['public']['Tables']['interventions']['Row']
@@ -58,9 +60,10 @@ interface ManagerDashboardProps {
     pendingCount: number
     unreadThreads?: UnreadThread[]
     unreadThreadsTotalCount?: number
+    reminderStats?: ReminderStats
 }
 
-export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount, reminderStats }: ManagerDashboardProps) {
     const router = useRouter()
     // Local state for interventions (enables realtime updates)
     const [interventions, setInterventions] = useState(initialInterventions)
@@ -89,7 +92,7 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
 
     // ⚡ Memoized navigation callbacks to prevent re-renders
     const navigateToImport = useCallback(() => router.push('/gestionnaire/import'), [router])
-    const navigateToNewIntervention = useCallback(() => router.push('/gestionnaire/interventions/nouvelle-intervention'), [router])
+    const navigateToNewIntervention = useCallback(() => router.push('/gestionnaire/operations/nouvelle-intervention'), [router])
     const navigateToNewContract = useCallback(() => router.push('/gestionnaire/contrats/nouveau'), [router])
     const navigateToNewBuilding = useCallback(() => router.push('/gestionnaire/biens/immeubles/nouveau'), [router])
     const navigateToNewLot = useCallback(() => router.push('/gestionnaire/biens/lots/nouveau'), [router])
@@ -249,6 +252,13 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
                         onActionsClick={handleActionsClick}
                     />
                 </div>
+
+                {/* Reminder Stats Widget - shown when there are active reminders */}
+                {reminderStats && (reminderStats.due_today > 0 || reminderStats.overdue > 0 || reminderStats.en_cours > 0 || reminderStats.en_attente > 0) && (
+                    <div className="lg:order-2 mb-4 max-w-xs">
+                        <ReminderStatsWidget stats={reminderStats} />
+                    </div>
+                )}
 
                 {/* Unread Messages Section */}
                 {unreadThreads && unreadThreads.length > 0 && (

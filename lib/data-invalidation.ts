@@ -15,6 +15,7 @@ export type DataEntity =
   | 'interventions'
   | 'contracts'
   | 'stats'
+  | 'reminders'
 
 export const BROADCAST_EVENT = 'data-invalidation'
 

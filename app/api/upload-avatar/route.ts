@@ -97,15 +97,15 @@ export async function POST(request: NextRequest) {
       .eq('id', dbUser.id)
 
     if (updateError) {
-      logger.error({ error: updateError }, "❌ [UPLOAD-AVATAR] Database update error:")
-      
+      logger.error({ error: updateError, userId: dbUser.id, authUserId: authUser.id }, "❌ [UPLOAD-AVATAR] Database update error:")
+
       // Nettoyer le fichier uploadé en cas d'erreur de BD
       await supabase.storage
         .from('avatars')
         .remove([filePath])
-        
-      return NextResponse.json({ 
-        error: "Erreur lors de la mise à jour en base de données" 
+
+      return NextResponse.json({
+        error: `Erreur lors de la mise à jour en base de données: ${updateError.message}`
       }, { status: 500 })
     }
 

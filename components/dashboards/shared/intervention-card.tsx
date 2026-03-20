@@ -173,7 +173,7 @@ export const InterventionCard = memo(function InterventionCard({
       case 'locataire':
         return `/locataire/interventions/${intervention.id}`
       default:
-        return `/gestionnaire/interventions/${intervention.id}`
+        return `/gestionnaire/operations/interventions/${intervention.id}`
     }
   }, [userRole, intervention.id])
 

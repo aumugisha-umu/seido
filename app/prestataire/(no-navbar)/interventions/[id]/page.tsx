@@ -33,7 +33,7 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
   // Phase 1: Assignment check (gate — must be assigned before loading data)
   const { data: assignment } = await supabase
     .from('intervention_assignments')
-    .select('*, provider_instructions')
+    .select('*')
     .eq('intervention_id', id)
     .eq('user_id', userData.id)
     .eq('role', 'prestataire')
@@ -82,7 +82,6 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
   ])
 
   const assignmentMode = interventionMeta?.assignment_mode || 'single'
-  const isSeparateMode = assignmentMode === 'separate'
 
   // Phase 3: Load intervention with relations (needs repo from Phase 2)
   const result = await interventionRepo.findByIdWithRelations(id)
@@ -192,10 +191,9 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       }
     })(),
 
-    // Time slots with responses
-    // In separate mode, filter by provider_id (only show slots for this provider)
+    // Time slots with responses (all providers see all time slots in group mode)
     (async () => {
-      let query = supabase
+      const { data } = await supabase
         .from('intervention_time_slots')
         .select(`
           *,
@@ -206,13 +204,7 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
           )
         `)
         .eq('intervention_id', id)
-
-      // In separate mode, only show slots for this provider OR slots without provider_id
-      if (isSeparateMode) {
-        query = query.or(`provider_id.eq.${userData.id},provider_id.is.null`)
-      }
-
-      const { data } = await query.order('slot_date', { ascending: true })
+        .order('slot_date', { ascending: true })
       return { data }
     })(),
 
@@ -313,7 +305,6 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       currentUser={userData}
       // Multi-provider mode data
       assignmentMode={assignmentMode}
-      providerInstructions={assignment.provider_instructions || undefined}
       parentLink={parentLink || undefined}
       // Chat data
       initialMessagesByThread={messagesByThread || {}}

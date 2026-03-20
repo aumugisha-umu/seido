@@ -32,13 +32,16 @@ interface ViewModeSwitcherV1Props {
   className?: string
   /** Whether component is disabled */
   disabled?: boolean
+  /** Which view mode buttons to show (defaults to all three) */
+  modes?: ViewMode[]
 }
 
 export function ViewModeSwitcherV1({
   value,
   onChange,
   className,
-  disabled = false
+  disabled = false,
+  modes = ['list', 'cards', 'calendar']
 }: ViewModeSwitcherV1Props) {
   // Style cohérent avec les autres navigateurs (contacts, patrimoine, contracts)
   const containerClass = cn(
@@ -57,37 +60,43 @@ export function ViewModeSwitcherV1({
   return (
     <div className={containerClass}>
       {/* LIST VIEW */}
-      <button
-        onClick={() => !disabled && onChange('list')}
-        className={getButtonClass(value === 'list')}
-        title="Vue liste"
-        disabled={disabled}
-        aria-label="Vue en liste"
-      >
-        <List className="h-4 w-4" aria-hidden="true" />
-      </button>
+      {modes.includes('list') && (
+        <button
+          onClick={() => !disabled && onChange('list')}
+          className={getButtonClass(value === 'list')}
+          title="Vue liste"
+          disabled={disabled}
+          aria-label="Vue en liste"
+        >
+          <List className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
 
       {/* CARDS VIEW */}
-      <button
-        onClick={() => !disabled && onChange('cards')}
-        className={getButtonClass(value === 'cards')}
-        title="Vue cartes"
-        disabled={disabled}
-        aria-label="Vue en cartes"
-      >
-        <LayoutGrid className="h-4 w-4" aria-hidden="true" />
-      </button>
+      {modes.includes('cards') && (
+        <button
+          onClick={() => !disabled && onChange('cards')}
+          className={getButtonClass(value === 'cards')}
+          title="Vue cartes"
+          disabled={disabled}
+          aria-label="Vue en cartes"
+        >
+          <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
 
       {/* CALENDAR VIEW */}
-      <button
-        onClick={() => !disabled && onChange('calendar')}
-        className={getButtonClass(value === 'calendar')}
-        title="Vue calendrier"
-        disabled={disabled}
-        aria-label="Vue calendrier"
-      >
-        <Calendar className="h-4 w-4" aria-hidden="true" />
-      </button>
+      {modes.includes('calendar') && (
+        <button
+          onClick={() => !disabled && onChange('calendar')}
+          className={getButtonClass(value === 'calendar')}
+          title="Vue calendrier"
+          disabled={disabled}
+          aria-label="Vue calendrier"
+        >
+          <Calendar className="h-4 w-4" aria-hidden="true" />
+        </button>
+      )}
     </div>
   )
 }

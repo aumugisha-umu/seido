@@ -95,7 +95,7 @@ export function LinkedInterventionsSection({
   }
 
   const handleNavigate = (targetId: string) => {
-    router.push(`/gestionnaire/interventions/${targetId}`)
+    router.push(`/gestionnaire/operations/interventions/${targetId}`)
   }
 
   // Parent view: Show all child interventions
@@ -219,7 +219,7 @@ export function LinkedInterventionBanner({
         "flex items-center justify-between px-3 py-2 bg-blue-50 border-l-4 border-blue-400 rounded-r-lg cursor-pointer hover:bg-blue-100 transition-colors",
         className
       )}
-      onClick={() => router.push(`/gestionnaire/interventions/${parentId}`)}
+      onClick={() => router.push(`/gestionnaire/operations/interventions/${parentId}`)}
     >
       <div className="flex items-center gap-2 text-sm">
         <Link2 className="h-4 w-4 text-blue-600" />

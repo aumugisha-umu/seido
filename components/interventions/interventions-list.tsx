@@ -55,7 +55,7 @@ export function InterventionsList({
     description: "Les interventions apparaîtront ici",
     showCreateButton: false,
     createButtonText: "Créer une intervention",
-    createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
+    createButtonAction: () => router.push("/gestionnaire/operations/nouvelle-intervention")
   }
 
   // Handle action completion callback
@@ -104,7 +104,7 @@ export function InterventionsList({
         {/* Show more button if maxItems is specified and there are more items */}
         {maxItems && interventions.length > maxItems && (
           <div className="text-center pt-2">
-            <Button variant="outline" size="sm" onClick={() => router.push("/gestionnaire/interventions")}>
+            <Button variant="outline" size="sm" onClick={() => router.push("/gestionnaire/operations")}>
               Voir les {interventions.length - maxItems} autres →
             </Button>
           </div>

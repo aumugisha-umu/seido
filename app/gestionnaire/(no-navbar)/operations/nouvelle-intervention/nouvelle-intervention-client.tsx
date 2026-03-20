@@ -165,10 +165,6 @@ export default function NouvelleInterventionClient({
   const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([])
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([])
 
-  // Multi-provider mode states
-  const [assignmentMode, setAssignmentMode] = useState<'single' | 'group' | 'separate'>('single')
-  const [providerInstructions, setProviderInstructions] = useState<Record<string, string>>({})
-
   const [isPreFilled, setIsPreFilled] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string>("")
@@ -365,9 +361,6 @@ export default function NouvelleInterventionClient({
     selectedProviderIds,
     expectsQuote,
     files: fileUpload.files,
-    // Multi-provider mode
-    assignmentMode,
-    providerInstructions,
     // Contract selection
     selectedContractId,
     availableContracts
@@ -391,9 +384,6 @@ export default function NouvelleInterventionClient({
     setSelectedManagerIds(restoredState.selectedManagerIds)
     setSelectedProviderIds(restoredState.selectedProviderIds)
     setExpectsQuote(restoredState.expectsQuote)
-    // Multi-provider mode
-    if (restoredState.assignmentMode) setAssignmentMode(restoredState.assignmentMode)
-    if (restoredState.providerInstructions) setProviderInstructions(restoredState.providerInstructions)
     // Contract selection
     if (restoredState.selectedContractId) setSelectedContractId(restoredState.selectedContractId)
     if (restoredState.availableContracts) setAvailableContracts(restoredState.availableContracts)
@@ -1022,9 +1012,6 @@ export default function NouvelleInterventionClient({
         const newIds = prevIds.filter(id => id !== providerId)
         logger.info("🔧 Prestataire retiré, nouveaux IDs:", newIds)
         // Si on passe à 1 ou 0 prestataire, revenir au mode single
-        if (newIds.length <= 1) {
-          setAssignmentMode('single')
-        }
         // Retirer aussi de la liste de confirmation
         setConfirmationRequired(prev => prev.filter(id => id !== providerId))
         return newIds
@@ -1032,10 +1019,6 @@ export default function NouvelleInterventionClient({
         // Multi-sélection : ajouter le prestataire
         const newIds = [...prevIds, providerId]
         logger.info("🔧 Prestataire ajouté, nouveaux IDs:", newIds)
-        // Si on passe à plusieurs prestataires, suggérer le mode group par défaut
-        if (newIds.length > 1 && assignmentMode === 'single') {
-          setAssignmentMode('group')
-        }
         // Si confirmation active, l'ajouter automatiquement à la liste
         if (requiresConfirmation) {
           setConfirmationRequired(prev => [...prev, providerId])
@@ -1560,7 +1543,7 @@ export default function NouvelleInterventionClient({
       timeSlots,
       globalMessage,
     });
-    router.push("/gestionnaire/interventions");
+    router.push("/gestionnaire/operations");
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1617,8 +1600,7 @@ export default function NouvelleInterventionClient({
         selectedProviderIds,
 
         // Multi-provider mode
-        assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
-        providerInstructions: assignmentMode === 'separate' ? providerInstructions : {},
+        assignmentMode: selectedProviderIds.length > 1 ? 'group' : 'single',
 
         // Scheduling - Send scheduling type directly (valid values: 'fixed', 'flexible', 'slots')
         schedulingType: schedulingType,
@@ -1743,7 +1725,7 @@ export default function NouvelleInterventionClient({
 
       // Redirect immédiat vers la page de détail de l'intervention
       realtime?.broadcastInvalidation(['interventions', 'stats'])
-      router.push(`/gestionnaire/interventions/${result.intervention.id}`)
+      router.push(`/gestionnaire/operations/interventions/${result.intervention.id}`)
 
     } catch (error) {
       logger.error("❌ Error creating intervention:", error)
@@ -2083,16 +2065,6 @@ export default function NouvelleInterventionClient({
                 })()}
                 isLoading={loading}
                 contactSelectorRef={contactSelectorRef}
-                // Multi-provider mode props
-                assignmentMode={assignmentMode}
-                onAssignmentModeChange={setAssignmentMode}
-                providerInstructions={providerInstructions}
-                onProviderInstructionsChange={(providerId, instructions) => {
-                  setProviderInstructions(prev => ({
-                    ...prev,
-                    [providerId]: instructions
-                  }))
-                }}
                 // Tenant toggle props (for occupied lots with selected contract OR buildings with tenants)
                 showTenantsSection={
                   (selectedLogement?.type === 'lot' && selectedLogement?.is_occupied === true && selectedContractId !== null) ||
@@ -2236,9 +2208,7 @@ export default function NouvelleInterventionClient({
               }),
               expectsQuote,
               variant: 'manager' as const, // Manager-specific display
-              // Multi-provider mode data
-              assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
-              providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
+              assignmentMode: selectedProviderIds.length > 1 ? 'group' : 'single',
               // Participant confirmation data
               // ✅ FIX 2026-03-01: 1 créneau = like fixed (optional), 2+ = mandatory
               requiresParticipantConfirmation:
@@ -2365,7 +2335,7 @@ export default function NouvelleInterventionClient({
           logger.info(`🔗 [INTERVENTION] Redirecting to contact creation: ${contactType}`)
           saveAndRedirect('/gestionnaire/contacts/nouveau', {
             type: contactType,
-            returnPath: '/gestionnaire/interventions/nouvelle-intervention'
+            returnPath: '/gestionnaire/operations/nouvelle-intervention'
           })
         }}
       />

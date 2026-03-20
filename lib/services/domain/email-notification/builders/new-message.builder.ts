@@ -158,7 +158,7 @@ export async function buildNewMessageEmail(
 function getRedirectPath(role: string, interventionId: string): string {
   switch (role) {
     case 'gestionnaire':
-      return `/gestionnaire/interventions/${interventionId}?tab=conversations`
+      return `/gestionnaire/operations/interventions/${interventionId}?tab=conversations`
     case 'prestataire':
       return `/prestataire/interventions/${interventionId}?tab=conversations`
     case 'locataire':

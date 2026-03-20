@@ -33,7 +33,6 @@ import {
   clearTimeSlots,
   updateConfirmationRequirements,
   storeProviderGuidelines,
-  storePerProviderInstructions,
 } from '@/lib/services/domain/scheduling-service'
 
 // Type aliases
@@ -607,9 +606,8 @@ export async function updateInterventionAction(
       end_time: string
     }>
     // Mode d'assignation et confirmation
-    assignment_mode?: 'single' | 'group' | 'separate'
+    assignment_mode?: 'single' | 'group'
     requires_participant_confirmation?: boolean
-    providerInstructions?: Record<string, string>
     confirmationRequiredUserIds?: string[]
     // Documents à supprimer (soft delete)
     documentsToDelete?: string[]
@@ -922,21 +920,6 @@ export async function updateInterventionAction(
         details: slotsToUpdate // Contient old vs new pour chaque slot modifié
       }
       logger.info(slotChanges, '📊 Time slots changes summary')
-    }
-
-    // Update provider instructions per assignment (for 'separate' mode)
-    if (data.providerInstructions && Object.keys(data.providerInstructions).length > 0) {
-      await Promise.all(
-        Object.entries(data.providerInstructions).map(([providerId, instructions]) =>
-          supabase
-            .from('intervention_assignments')
-            .update({ provider_instructions: instructions })
-            .eq('intervention_id', interventionId)
-            .eq('user_id', providerId)
-            .eq('role', 'prestataire')
-        )
-      )
-      logger.info({ count: Object.keys(data.providerInstructions).length }, 'Provider instructions updated')
     }
 
     // Update requires_confirmation per assignment
@@ -2533,9 +2516,8 @@ export async function programInterventionAction(
     requireQuote?: boolean
     selectedProviders?: string[]
     instructions?: string
-    // Assignment mode & per-provider instructions
+    // Assignment mode
     assignmentMode?: string
-    providerInstructions?: Record<string, string>
     // Confirmation participants
     confirmationRequired?: string[]
     requiresConfirmation?: boolean
@@ -2709,11 +2691,6 @@ export async function programInterventionAction(
       )
     } else if (option === 'organize') {
       parallelOps.push(clearTimeSlots(supabase, interventionId))
-    }
-
-    // Per-provider instructions (writes to intervention_assignments)
-    if (planningData.providerInstructions) {
-      parallelOps.push(storePerProviderInstructions(supabase, interventionId, planningData.providerInstructions))
     }
 
     if (parallelOps.length > 0) await Promise.all(parallelOps)
@@ -3129,13 +3106,12 @@ export async function updateProviderGuidelinesAction(
 // =============================================================================
 
 // Types for multi-provider assignments
-type AssignmentMode = 'single' | 'group' | 'separate'
+type AssignmentMode = 'single' | 'group'
 
 interface MultiProviderAssignmentInput {
   interventionId: string
   providerIds: string[]
   mode: AssignmentMode
-  providerInstructions?: Record<string, string>
 }
 
 interface TimeSlotInput {
@@ -3147,7 +3123,7 @@ interface TimeSlotInput {
 /**
  * Assign Multiple Providers Action
  * Assigns multiple providers to an intervention with a specific assignment mode
- * Mode: 'single' (1 provider), 'group' (shared info), 'separate' (isolated info)
+ * Mode: 'single' (1 provider), 'group' (shared info)
  */
 export async function assignMultipleProvidersAction(
   input: MultiProviderAssignmentInput
@@ -3175,7 +3151,7 @@ export async function assignMultipleProvidersAction(
     }
 
     if (input.providerIds.length > 1 && input.mode === 'single') {
-      return { success: false, error: 'Plusieurs prestataires nécessitent le mode "group" ou "separate"' }
+      return { success: false, error: 'Plusieurs prestataires nécessitent le mode "group"' }
     }
 
     const service = await createServerActionInterventionService()
@@ -3184,8 +3160,7 @@ export async function assignMultipleProvidersAction(
       interventionId: input.interventionId,
       providerIds: input.providerIds,
       mode: input.mode,
-      assignedBy: user.id,
-      providerInstructions: input.providerInstructions
+      assignedBy: user.id
     })
 
     if (!result.success) {
@@ -3240,48 +3215,6 @@ export async function getLinkedInterventionsAction(
     return { success: true, data: result.data || [] }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error getting linked interventions:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue'
-    }
-  }
-}
-
-/**
- * Create Child Interventions Action
- * Creates individual child interventions from a parent intervention in "separate" mode
- * Called when manager finalizes a multi-provider intervention
- */
-export async function createChildInterventionsAction(
-  parentInterventionId: string
-): Promise<ActionResult<{ parentId: string; childInterventions: any[]; childCount: number }>> {
-  try {
-    logger.info('👶 [SERVER-ACTION] Creating child interventions', { parentInterventionId })
-
-    const { user } = await createServerActionSupabaseClient()
-
-    if (!user) {
-      return { success: false, error: 'Non authentifié' }
-    }
-
-    const service = await createServerActionInterventionService()
-    const result = await service.createChildInterventions(parentInterventionId, user.id)
-
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error?.message || 'Erreur lors de la création des interventions enfants'
-      }
-    }
-
-    logger.info('✅ Child interventions created successfully', {
-      parentId: parentInterventionId,
-      childCount: result.data?.childCount
-    })
-
-    return { success: true, data: result.data! }
-  } catch (error) {
-    logger.error('❌ [SERVER-ACTION] Error creating child interventions:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'

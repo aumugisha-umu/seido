@@ -401,8 +401,7 @@ export const createManagerInterventionSchema = z.object({
   selectedProviderIds: z.array(uuidSchema).optional(),
 
   // Multi-provider mode
-  assignmentMode: z.enum(['single', 'group', 'separate']).optional().default('single'),
-  providerInstructions: z.record(z.string(), z.string()).optional().default({}),
+  assignmentMode: z.enum(['single', 'group']).optional().default('single'),
 
   // Scheduling
   // ✅ FIX 2026-01-25: Removed 'none' (unused, confusing)

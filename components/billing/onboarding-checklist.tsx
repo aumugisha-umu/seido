@@ -97,7 +97,7 @@ const STEPS: ChecklistStep[] = [
     howItConnects: 'Le prestataire assigné sera notifié, pourra proposer des créneaux et envoyer un devis.',
     ctaLabel: 'Créer une intervention',
     icon: Wrench,
-    href: '/gestionnaire/interventions/nouvelle-intervention',
+    href: '/gestionnaire/operations/nouvelle-intervention',
   },
   {
     id: 'hasEmail',

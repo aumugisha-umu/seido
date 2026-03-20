@@ -80,7 +80,7 @@ export function DashboardStatsCards({
                 iconColor={pendingCount > 0 ? "text-amber-500" : "text-emerald-500"}
                 variant={pendingCount > 0 ? "warning" : "success"}
                 onClick={onActionsClick}
-                href={onActionsClick ? undefined : "/gestionnaire/interventions?filter=pending"}
+                href={onActionsClick ? undefined : "/gestionnaire/operations?filter=pending"}
             />
 
             {/* Card 2: Patrimoine (Manager Only) - Buildings + lots breakdown */}
@@ -177,7 +177,7 @@ export function DashboardStatsCards({
                 icon={Wrench}
                 iconColor="text-blue-600"
                 variant="default"
-                href="/gestionnaire/interventions"
+                href="/gestionnaire/operations"
             />
         </div>
     )

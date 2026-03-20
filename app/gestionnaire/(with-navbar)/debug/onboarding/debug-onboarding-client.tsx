@@ -129,7 +129,7 @@ const STEPS_DATA = [
     howItConnects: "Le prestataire assigne sera notifie, pourra proposer des creneaux et envoyer un devis.",
     ctaLabel: "Créer une intervention",
     icon: Wrench,
-    href: "/gestionnaire/interventions/nouvelle-intervention",
+    href: "/gestionnaire/operations/nouvelle-intervention",
   },
   {
     id: "hasEmail" as const,

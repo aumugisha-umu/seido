@@ -49,6 +49,8 @@ interface InterventionsPageClientProps {
   initialHasMore?: boolean
   /** Page size for loading more interventions */
   pageSize?: number
+  /** Hide PageActions when embedded inside OperationsPageClient */
+  hidePageActions?: boolean
 }
 
 export function InterventionsPageClient({
@@ -57,7 +59,8 @@ export function InterventionsPageClient({
   userId,
   initialTotal = 0,
   initialHasMore = false,
-  pageSize = 50
+  pageSize = 50,
+  hidePageActions = false,
 }: InterventionsPageClientProps) {
   const router = useRouter()
   const { isPending: isNavigating, navigate } = useNavigationPending()
@@ -204,18 +207,20 @@ export function InterventionsPageClient({
     <div className="h-full flex flex-col overflow-hidden layout-container">
       <InterventionCancellationProvider>
         <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
-          <PageActions>
-            <Button
-              className="flex items-center gap-2"
-              disabled={!subscriptionLoading && isReadOnly}
-              title={isReadOnly ? 'Activez votre abonnement' : undefined}
-              onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
-              isLoading={isNavigating}
-              loadingText="Nouvelle intervention"
-            >
-              <Plus className="h-4 w-4" />Nouvelle intervention
-            </Button>
-          </PageActions>
+          {!hidePageActions && (
+            <PageActions>
+              <Button
+                className="flex items-center gap-2"
+                disabled={!subscriptionLoading && isReadOnly}
+                title={isReadOnly ? 'Activez votre abonnement' : undefined}
+                onClick={() => navigate("/gestionnaire/operations/nouvelle-intervention")}
+                isLoading={isNavigating}
+                loadingText="Nouvelle intervention"
+              >
+                <Plus className="h-4 w-4" />Nouvelle intervention
+              </Button>
+            </PageActions>
+          )}
 
           {/* Interventions Navigator - Full height, ContentNavigator handles card styling */}
           <BlockedListOverlay isBlocked={!subscriptionLoading && isReadOnly}>
@@ -227,7 +232,7 @@ export function InterventionsPageClient({
               description: "Créez votre première intervention pour commencer",
               showCreateButton: true,
               createButtonText: "Créer une intervention",
-              createButtonAction: () => navigate("/gestionnaire/interventions/nouvelle-intervention")
+              createButtonAction: () => navigate("/gestionnaire/operations/nouvelle-intervention")
             }}
             showStatusActions={true}
             actionHooks={{

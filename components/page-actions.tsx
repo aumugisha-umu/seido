@@ -23,7 +23,24 @@ export function PageActions({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const el = document.getElementById(TOPBAR_ACTIONS_SLOT_ID)
-    if (el) setContainer(el)
+    if (el) {
+      setContainer(el)
+      return
+    }
+
+    // Retry: HeaderPortal needs a render cycle to inject #topbar-actions-slot
+    let attempts = 0
+    const maxAttempts = 10
+    const interval = setInterval(() => {
+      const retryEl = document.getElementById(TOPBAR_ACTIONS_SLOT_ID)
+      if (retryEl || attempts >= maxAttempts) {
+        clearInterval(interval)
+        if (retryEl) setContainer(retryEl)
+      }
+      attempts++
+    }, 50) // 50ms × 10 = 500ms max wait
+
+    return () => clearInterval(interval)
   }, [])
 
   if (!container) return null

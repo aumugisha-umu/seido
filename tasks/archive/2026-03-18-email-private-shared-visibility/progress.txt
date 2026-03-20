@@ -1,0 +1,33 @@
+# Progress Log — Email Private/Shared Visibility
+# Started: 2026-03-18
+# Stories: 9 total
+# Design: docs/plans/2026-03-18-email-private-shared-visibility-design.md
+---
+
+## 2026-03-19 — Email Section Cleanup & Visibility Plumbing
+
+### Compose Modal Fix
+- Fixed: Select dropdown unclickable inside UnifiedModal (z-index conflict z-50 vs z-[9999])
+- Fix: `SelectContent className="z-[10000]"` + `SelectTrigger className="bg-white w-full"`
+- Added `bg-white` to `.unified-modal__header` in globals.css
+
+### Exhaustive Code Review (3 parallel agents)
+- **console→logger**: Replaced ~22 `console.error/warn` across 7 API routes + 5 client components
+- **any→unknown**: Eliminated ~20 `any` types (page.tsx had 14, catch blocks had 4, service had 1)
+- **Type consolidation**: 3 local `EmailConnection` interfaces → import `TeamEmailConnection` from `email-integration.ts`
+- **SharedWithMeGroup dedup**: local interface → import from `email-share.repository.ts`
+- **Team membership helper**: Extracted `getTeamManagerContext()` in `lib/services/helpers/api-team-context.ts` (used by 3 routes)
+- **N+1 fix**: `connections/route.ts` 2N queries → 2 batch queries
+- **select('*') fix**: `email.repository.ts` → `EMAIL_LIST_COLUMNS` constant (excludes body_html)
+- **Sequential deletes**: `connections/[id]/route.ts` → `Promise.all` for independent deletes
+- **Parameter sprawl**: `createSharesForThread` 6 params → options object
+- **Duplicate methods**: `markAsProcessed` delegates to `markAsRead`
+
+### Critical Visibility Plumbing (found by final review)
+- C1: Added `added_by_user_id` + `visibility` to OAuth callback INSERT
+- C2: Added `added_by_user_id` + `visibility` to IMAP POST route
+- C3: Connected visibility through OAuth flow (authorize reads param → state → callback uses it)
+- C4: Applied `EmailVisibilityService.getAccessibleConnectionIds()` to listing + counts routes
+
+### Files changed: 30 files, +1098 -671 lines
+### Learnings: #159-163 added to AGENTS.md

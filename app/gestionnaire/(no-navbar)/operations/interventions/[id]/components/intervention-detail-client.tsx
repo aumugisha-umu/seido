@@ -153,7 +153,6 @@ import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/componen
 // Google Maps
 import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 // AssignmentModeBadge: see InterventionDetailsCard participants row
-import { FinalizeMultiProviderButton } from '@/components/intervention/finalize-multi-provider-button'
 
 import type { Database } from '@/lib/database.types'
 
@@ -1091,7 +1090,7 @@ export function InterventionDetailClient({
         break
       case 'modify':
         // Navigate to edit page
-        router.push(action.href || `/gestionnaire/interventions/modifier/${intervention.id}`)
+        router.push(action.href || `/gestionnaire/operations/interventions/modifier/${intervention.id}`)
         return
       case 'cancel':
         cancellationHook.handleCancellationAction(interventionActionData)
@@ -1247,7 +1246,7 @@ export function InterventionDetailClient({
   // Handle redirect to multi-step contact creation flow
   const handleRequestContactCreation = (contactType: string) => {
     // Build return URL with placeholder that will be replaced by the contact creation page
-    const baseReturnUrl = `/gestionnaire/interventions/${intervention.id}`
+    const baseReturnUrl = `/gestionnaire/operations/interventions/${intervention.id}`
     const returnUrl = `${baseReturnUrl}?newContactId=PLACEHOLDER&contactType=${contactType}`
     router.push(`/gestionnaire/contacts/nouveau?type=${contactType}&returnUrl=${encodeURIComponent(returnUrl)}`)
   }
@@ -1264,7 +1263,7 @@ export function InterventionDetailClient({
       if (result.success) {
         toast('Contact créé et assigné', { description: 'Le nouveau contact a été créé et assigné avec succès' })
         // Clean URL params and refresh
-        router.replace(`/gestionnaire/interventions/${intervention.id}`)
+        router.replace(`/gestionnaire/operations/interventions/${intervention.id}`)
         realtime?.broadcastInvalidation(['interventions', 'stats'])
         router.refresh()
       } else {
@@ -1305,7 +1304,7 @@ export function InterventionDetailClient({
   // Handle edit intervention - redirect to edit page
   const handleOpenProgrammingModalWithData = () => {
     // Redirect to the edit page instead of opening the modal
-    router.push(`/gestionnaire/interventions/modifier/${intervention.id}`)
+    router.push(`/gestionnaire/operations/interventions/modifier/${intervention.id}`)
   }
 
   // Handler pour approuver un slot proposé par le prestataire
@@ -1648,7 +1647,7 @@ export function InterventionDetailClient({
       <div className="h-screen flex flex-col overflow-hidden">
         {/* Unified Detail Page Header */}
         <DetailPageHeader
-        onBack={() => router.push('/gestionnaire/interventions')}
+        onBack={() => router.push('/gestionnaire/operations')}
         backButtonText="Retour"
         title={intervention.title}
         badges={headerBadges}
@@ -1692,19 +1691,6 @@ export function InterventionDetailClient({
 
               {/* Dynamic action buttons from getRoleBasedActions */}
               {headerActions.map((action, idx) => {
-                // Special handling for finalize with multi-provider mode
-                if (action.actionType === 'finalize' && assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention) {
-                  return (
-                    <FinalizeMultiProviderButton
-                      key={idx}
-                      interventionId={intervention.id}
-                      providerCount={providerCount}
-                      onSuccess={handleRefresh}
-                      variant="desktop"
-                    />
-                  )
-                }
-
                 return (
                   <TooltipProvider key={idx}>
                     <Tooltip>
@@ -1790,19 +1776,6 @@ export function InterventionDetailClient({
 
               {/* Dynamic action buttons from getRoleBasedActions */}
               {headerActions.map((action, idx) => {
-                // Special handling for finalize with multi-provider mode
-                if (action.actionType === 'finalize' && assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention) {
-                  return (
-                    <FinalizeMultiProviderButton
-                      key={idx}
-                      interventionId={intervention.id}
-                      providerCount={providerCount}
-                      onSuccess={handleRefresh}
-                      variant="tablet"
-                    />
-                  )
-                }
-
                 return (
                   <Button
                     key={idx}
@@ -1895,19 +1868,6 @@ export function InterventionDetailClient({
 
                   {/* Primary actions from getRoleBasedActions */}
                   {headerActions.map((action, idx) => {
-                    // Special handling for finalize with multi-provider mode
-                    if (action.actionType === 'finalize' && assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention) {
-                      return (
-                        <FinalizeMultiProviderButton
-                          key={idx}
-                          interventionId={intervention.id}
-                          providerCount={providerCount}
-                          onSuccess={handleRefresh}
-                          variant="mobile"
-                        />
-                      )
-                    }
-
                     return (
                       <DropdownMenuItem
                         key={idx}

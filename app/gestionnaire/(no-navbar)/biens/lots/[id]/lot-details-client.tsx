@@ -259,7 +259,7 @@ export default function LotDetailsClient({
   const handleCustomAction = (actionKey: string) => {
     switch (actionKey) {
       case "add-intervention":
-        router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)
+        router.push(`/gestionnaire/operations/nouvelle-intervention?lotId=${lot.id}`)
         break
       default:
         logger.info("Action not implemented:", actionKey)
@@ -802,7 +802,7 @@ export default function LotDetailsClient({
               description: "Aucune intervention n'a été créée pour ce lot.",
               showCreateButton: !isLocataire,
               createButtonText: "Créer une intervention",
-              createButtonAction: () => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)
+              createButtonAction: () => router.push(`/gestionnaire/operations/nouvelle-intervention?lotId=${lot.id}`)
             }}
             showStatusActions={true}
             searchPlaceholder="Rechercher par titre, description, ou lot..."

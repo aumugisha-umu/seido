@@ -230,7 +230,7 @@ export function FinalizationModalLive({
           title: `Suivi - ${data.intervention.title}`
         })
 
-        navigateTo(`/gestionnaire/interventions/nouvelle-intervention?${queryParams.toString()}`)
+        navigateTo(`/gestionnaire/operations/nouvelle-intervention?${queryParams.toString()}`)
       } else {
         onClose()
         onComplete?.()

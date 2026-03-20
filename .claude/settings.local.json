@@ -92,7 +92,11 @@
       "WebFetch(domain:nordigen.com)",
       "WebFetch(domain:docs.tink.com)",
       "WebFetch(domain:tink.com)",
-      "WebFetch(domain:merchantmachine.co.uk)"
+      "WebFetch(domain:merchantmachine.co.uk)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:sdk.vercel.ai)",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:openai.github.io)"
     ],
     "deny": [],
     "ask": []

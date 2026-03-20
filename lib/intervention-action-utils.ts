@@ -90,7 +90,7 @@ const getGestionnaireActions = (
   status: string,
   interventionId: string
 ): RoleBasedAction[] => {
-  const baseUrl = `/gestionnaire/interventions/${interventionId}`
+  const baseUrl = `/gestionnaire/operations/interventions/${interventionId}`
 
   switch (status) {
     case 'demande':
@@ -413,7 +413,7 @@ export const getDotMenuActions = (
     return []
   }
 
-  const baseUrl = `/gestionnaire/interventions`
+  const baseUrl = `/gestionnaire/operations/interventions`
 
   return [
     {

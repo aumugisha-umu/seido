@@ -54,9 +54,8 @@ export interface PlanningData {
   requireQuote?: boolean
   selectedProviders?: string[]
   instructions?: string
-  // Assignment mode & per-provider instructions
+  // Assignment mode
   assignmentMode?: string
-  providerInstructions?: Record<string, string>
   // Confirmation participants
   confirmationRequired?: string[]
   requiresConfirmation?: boolean
@@ -761,7 +760,7 @@ export class InterventionActionsService {
       createdAt: intervention.created_at || "",
     })
 
-    return `/gestionnaire/interventions/nouvelle-intervention?${queryParams.toString()}`
+    return `/gestionnaire/operations/nouvelle-intervention?${queryParams.toString()}`
   }
 
   /**

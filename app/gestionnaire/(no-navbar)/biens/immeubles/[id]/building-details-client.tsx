@@ -200,7 +200,7 @@ export default function BuildingDetailsClient({
   const handleCustomAction = (actionKey: string) => {
     switch (actionKey) {
       case "add-intervention":
-        router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)
+        router.push(`/gestionnaire/operations/nouvelle-intervention?buildingId=${building.id}`)
         break
       case "add-lot":
         if (!subscriptionLoading && !canAddProperty) {
@@ -578,7 +578,7 @@ export default function BuildingDetailsClient({
                   description: "Aucune intervention n'a été créée pour cet immeuble.",
                   showCreateButton: true,
                   createButtonText: "Créer une intervention",
-                  createButtonAction: () => router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)
+                  createButtonAction: () => router.push(`/gestionnaire/operations/nouvelle-intervention?buildingId=${building.id}`)
                 }}
                 showStatusActions={true}
                 searchPlaceholder="Rechercher par titre, description, ou lot..."

@@ -224,10 +224,11 @@ export function FAB({
 // PRESET FOR GESTIONNAIRE DASHBOARD
 // ============================================================================
 
-import { Wrench, FileText, Building2, Home, UserPlus } from "lucide-react"
+import { Wrench, FileText, Building2, Home, UserPlus, BellRing } from "lucide-react"
 
 interface GestionnaireFABProps {
     onCreateIntervention: () => void
+    onCreateReminder: () => void
     onCreateContract: () => void
     onCreateBuilding: () => void
     onCreateLot: () => void
@@ -236,6 +237,7 @@ interface GestionnaireFABProps {
 
 export function GestionnaireFAB({
     onCreateIntervention,
+    onCreateReminder,
     onCreateContract,
     onCreateBuilding,
     onCreateLot,
@@ -248,6 +250,13 @@ export function GestionnaireFAB({
             icon: Wrench,
             onClick: onCreateIntervention,
             variant: 'primary'
+        },
+        {
+            id: 'reminder',
+            label: 'Nouveau rappel',
+            icon: BellRing,
+            onClick: onCreateReminder,
+            variant: 'default'
         },
         {
             id: 'contract',

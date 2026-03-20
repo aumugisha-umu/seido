@@ -7,7 +7,8 @@ export function GestionnaireFABWrapper() {
   const router = useRouter()
   return (
     <GestionnaireFAB
-      onCreateIntervention={() => router.push('/gestionnaire/interventions/nouvelle-intervention')}
+      onCreateIntervention={() => router.push('/gestionnaire/operations/nouvelle-intervention')}
+      onCreateReminder={() => router.push('/gestionnaire/operations/nouveau-rappel')}
       onCreateContract={() => router.push('/gestionnaire/contrats/nouveau')}
       onCreateBuilding={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
       onCreateLot={() => router.push('/gestionnaire/biens/lots/nouveau')}

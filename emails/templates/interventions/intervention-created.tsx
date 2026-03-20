@@ -173,7 +173,7 @@ InterventionCreatedEmail.PreviewProps = {
     'Fuite d\'eau importante sous l\'évier de la cuisine. L\'eau coule en continu depuis ce matin. J\'ai coupé l\'arrivée d\'eau en attendant.',
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
   lotReference: 'Apt 3B',
-  interventionUrl: 'https://seido.app/gestionnaire/interventions/INT-2024-042',
+  interventionUrl: 'https://seido.app/gestionnaire/operations/interventions/INT-2024-042',
   tenantName: 'Marie Dupont',
   urgency: 'haute',
   createdAt: new Date(),

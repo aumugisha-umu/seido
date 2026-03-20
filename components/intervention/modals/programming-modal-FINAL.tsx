@@ -43,8 +43,6 @@ import {
   getPriorityLabel
 } from "@/lib/intervention-utils"
 import { QuoteRequestCard } from "@/components/quotes/quote-request-card"
-import { AssignmentModeSelector, type AssignmentMode } from "@/components/intervention/assignment-mode-selector"
-import { ProviderInstructionsInput } from "@/components/intervention/provider-instructions-input"
 import { ParticipantConfirmationSelector } from "@/components/intervention/participant-confirmation-selector"
 import type { Database } from '@/lib/database.types'
 
@@ -100,10 +98,6 @@ interface ProgrammingModalFinalProps {
   onRequireQuoteChange?: (required: boolean) => void
   instructions?: string
   onInstructionsChange?: (instructions: string) => void
-  assignmentMode?: AssignmentMode
-  onAssignmentModeChange?: (mode: AssignmentMode) => void
-  providerInstructions?: Record<string, string>
-  onProviderInstructionsChange?: (providerId: string, instructions: string) => void
   managers?: Contact[]
   selectedManagers?: string[]
   onManagerToggle?: (managerId: string) => void
@@ -398,10 +392,6 @@ export const ProgrammingModalFinal = ({
   onRequireQuoteChange,
   instructions = "",
   onInstructionsChange,
-  assignmentMode = 'group',
-  onAssignmentModeChange,
-  providerInstructions = {},
-  onProviderInstructionsChange,
   managers = [],
   selectedManagers = [],
   onManagerToggle,
@@ -863,15 +853,6 @@ export const ProgrammingModalFinal = ({
               </p>
             </div>
 
-            {/* Assignment mode selector - only when 2+ providers */}
-            {selectedProviders.length > 1 && onAssignmentModeChange && (
-              <AssignmentModeSelector
-                mode={assignmentMode}
-                onModeChange={onAssignmentModeChange}
-                providerCount={selectedProviders.length}
-              />
-            )}
-
             {/* General instructions */}
             <div className="space-y-2">
               <Textarea
@@ -886,21 +867,6 @@ export const ProgrammingModalFinal = ({
                 Visibles par tous les prestataires assignés
               </p>
             </div>
-
-            {/* Per-provider instructions - only in separate mode with 2+ providers */}
-            {assignmentMode === 'separate' && selectedProviders.length > 1 && onProviderInstructionsChange && (
-              <ProviderInstructionsInput
-                providers={selectedProviderContacts.map(p => ({
-                  id: p.id,
-                  name: p.name,
-                  email: p.email,
-                  avatar_url: undefined,
-                  speciality: undefined
-                }))}
-                instructions={providerInstructions}
-                onInstructionsChange={onProviderInstructionsChange}
-              />
-            )}
 
             {/* Info notice about instruction visibility */}
             <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">

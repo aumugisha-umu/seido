@@ -120,7 +120,7 @@ export function ContactDetailsClient({
   }
 
   const handleCreateIntervention = () => {
-    router.push('/gestionnaire/interventions/nouvelle-intervention')
+    router.push('/gestionnaire/operations/nouvelle-intervention')
   }
 
   const handleCreateLot = () => {

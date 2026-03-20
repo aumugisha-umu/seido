@@ -1,33 +1,69 @@
-# Progress Log — Email Private/Shared Visibility
-# Started: 2026-03-18
-# Stories: 9 total
-# Design: docs/plans/2026-03-18-email-private-shared-visibility-design.md
+# Progress Log — Operations Phase 1: Rappels + Recurrences
+# Started: 2026-03-19
+# Stories: 12 total — ALL COMPLETE
+# Branch: feature/operations-reminders-phase1
+# Design: docs/plans/2026-03-19-operations-unified-tasks-design.md
 ---
 
-## 2026-03-19 — Email Section Cleanup & Visibility Plumbing
+## US-001 ✅ DB Migration (Priority 1)
+- Created `supabase/migrations/20260319200000_operations_reminders_recurrence.sql`
+- 3 tables: reminders, recurrence_rules, recurrence_occurrences
+- RLS policies (5 per table), indexes (8), triggers (2), SECURITY DEFINER RPC
+- XOR constraint on entity links
+- Pushed to remote, types regenerated
 
-### Compose Modal Fix
-- Fixed: Select dropdown unclickable inside UnifiedModal (z-index conflict z-50 vs z-[9999])
-- Fix: `SelectContent className="z-[10000]"` + `SelectTrigger className="bg-white w-full"`
-- Added `bg-white` to `.unified-modal__header` in globals.css
+## US-002 ✅ Repository + Service (Priority 2)
+- `lib/services/repositories/reminder.repository.ts` — extends BaseRepository
+- `lib/services/repositories/recurrence.repository.ts` — RecurrenceRuleRepository + RecurrenceOccurrenceRepository
+- `lib/services/domain/reminder.service.ts` — full CRUD + stats
+- `lib/types/reminder.types.ts` — all types, enums, labels
+- Exports added to `lib/services/index.ts`
 
-### Exhaustive Code Review (3 parallel agents)
-- **console→logger**: Replaced ~22 `console.error/warn` across 7 API routes + 5 client components
-- **any→unknown**: Eliminated ~20 `any` types (page.tsx had 14, catch blocks had 4, service had 1)
-- **Type consolidation**: 3 local `EmailConnection` interfaces → import `TeamEmailConnection` from `email-integration.ts`
-- **SharedWithMeGroup dedup**: local interface → import from `email-share.repository.ts`
-- **Team membership helper**: Extracted `getTeamManagerContext()` in `lib/services/helpers/api-team-context.ts` (used by 3 routes)
-- **N+1 fix**: `connections/route.ts` 2N queries → 2 batch queries
-- **select('*') fix**: `email.repository.ts` → `EMAIL_LIST_COLUMNS` constant (excludes body_html)
-- **Sequential deletes**: `connections/[id]/route.ts` → `Promise.all` for independent deletes
-- **Parameter sprawl**: `createSharesForThread` 6 params → options object
-- **Duplicate methods**: `markAsProcessed` delegates to `markAsRead`
+## US-003 ✅ Server Actions (Priority 2)
+- `app/actions/reminder-actions.ts` — 7 actions (create/update/start/complete/cancel/delete/getStats)
+- Zod validation, XOR constraint check, after() deferred activity logs
 
-### Critical Visibility Plumbing (found by final review)
-- C1: Added `added_by_user_id` + `visibility` to OAuth callback INSERT
-- C2: Added `added_by_user_id` + `visibility` to IMAP POST route
-- C3: Connected visibility through OAuth flow (authorize reads param → state → callback uses it)
-- C4: Applied `EmailVisibilityService.getAccessibleConnectionIds()` to listing + counts routes
+## US-004 ✅ Data Invalidation (Priority 2)
+- Added 'reminders' to DataEntity in `lib/data-invalidation.ts`
+- Created `hooks/use-reminders.ts` with refreshKey pattern
 
-### Files changed: 30 files, +1098 -671 lines
-### Learnings: #159-163 added to AGENTS.md
+## US-005 ✅ Navbar Rename + FAB + Redirects (Priority 3)
+- Sidebar: Interventions → Operations with createOptions dropdown
+- FAB: added reminder creation option
+- Redirects: /gestionnaire/interventions/* → /gestionnaire/taches/*
+
+## US-006 ✅ Operations Page + Segment (Priority 3)
+- `components/operations/task-type-segment.tsx` — pill switcher (blue/amber)
+- `app/gestionnaire/(with-navbar)/taches/` — page + async content + client
+- Parallel data fetch, URL-synced segment state
+
+## US-007 ✅ ReminderCard + Navigator (Priority 3)
+- `components/operations/reminder-card.tsx` — amber border, priority badges, overdue, quick actions
+- `components/operations/reminders-navigator.tsx` — 4 status tabs
+- `components/operations/reminders-view-container.tsx` — card grid
+- Wired into operations-page-client with server action handlers
+
+## US-008 ✅ Wizard (Priority 3)
+- `app/gestionnaire/(no-navbar)/taches/nouveau-rappel/` — 3-step wizard
+- Step 1: optional PropertySelector, Step 2: details + assignee, Step 3: confirmation
+- reminderSteps added to step-configurations.ts
+
+## US-009 ✅ Detail Page (Priority 3)
+- `app/gestionnaire/(no-navbar)/taches/rappels/[id]/` — single-column layout
+- Status-dependent actions, notes textarea, overdue indicator, loading skeleton
+
+## US-010 ✅ Recurrence Config UI (Priority 3)
+- `components/recurrence/recurrence-config.tsx` — toggle, frequency, day picker, interval, end condition
+- RRULE built client-side (no rrule.js dependency), server-side rrule.js for occurrence generation
+- Integrated in wizard Step 2 + confirmation Step 3
+- `rrule` package installed
+
+## US-011 ✅ Vercel Cron (Priority 3)
+- `app/api/cron/recurrence-scan/route.ts` — daily 6AM UTC scan
+- Calls scan_pending_recurrences RPC, auto-creates reminders or notifies managers
+- Added to vercel.json
+
+## US-012 ✅ Dashboard Widget (Priority 4)
+- `components/operations/reminder-stats-widget.tsx` — due today + overdue + in progress
+- Wired into async-dashboard-content + manager-dashboard-v2
+- Fault-tolerant (Promise.allSettled), conditional rendering

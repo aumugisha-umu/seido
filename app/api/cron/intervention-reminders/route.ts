@@ -97,6 +97,7 @@ export async function GET(request: Request) {
         .eq('status', 'planifiee')
         .gte('scheduled_date', windowStart.toISOString())
         .lt('scheduled_date', windowEnd.toISOString())
+        .limit(200)
 
       if (queryError) {
         logger.error({ error: queryError }, `❌ [CRON-REMINDERS] Query error for ${window.type}`)
@@ -254,7 +255,7 @@ export async function GET(request: Request) {
             const pushResult = await sendPushNotificationToUsers(managerIds, {
               title: `🔔 Rappel intervention dans ${window.type === '24h' ? '24h' : '1h'}`,
               message: `${intervention.title || intervention.reference} - ${slotStartTime && slotEndTime ? `${slotStartTime}-${slotEndTime}` : providerName}`,
-              url: `/gestionnaire/interventions/${intervention.id}`,
+              url: `/gestionnaire/operations/interventions/${intervention.id}`,
               type: 'reminder',
             })
             pushCount += pushResult.success
@@ -270,7 +271,7 @@ export async function GET(request: Request) {
                   const user = assignment.users as any
                   if (!user?.email) return null
                   const firstName = user.first_name || user.name || 'Gestionnaire'
-                  const interventionUrl = `${baseUrl}/gestionnaire/interventions/${intervention.id}`
+                  const interventionUrl = `${baseUrl}/gestionnaire/operations/interventions/${intervention.id}`
                   return emailService.send({
                     to: user.email,
                     subject: `🔔 Rappel ${window.type} - ${intervention.reference || intervention.title}`,

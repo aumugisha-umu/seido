@@ -36,11 +36,11 @@ export default async function ModifierInterventionPage({ params }: PageProps) {
   const { data: intervention, error: interventionError } = await interventionService.getById(id)
 
   if (interventionError || !intervention) {
-    redirect('/gestionnaire/interventions')
+    redirect('/gestionnaire/operations')
   }
 
   if (intervention.team_id !== team.id) {
-    redirect('/gestionnaire/interventions')
+    redirect('/gestionnaire/operations')
   }
 
   // ── Wave 1: All independent queries in parallel ─────────────────────

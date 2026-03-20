@@ -23,6 +23,11 @@ const nextConfig = {
       { source: '/signup', destination: '/auth/signup', permanent: true },
       { source: '/signin', destination: '/auth/login', permanent: true },
       { source: '/register', destination: '/auth/signup', permanent: true },
+      // US-005: Interventions → Operations rename (all pages now under /operations/)
+      { source: '/gestionnaire/interventions', destination: '/gestionnaire/operations', permanent: true },
+      { source: '/gestionnaire/interventions/:path*', destination: '/gestionnaire/operations/interventions/:path*', permanent: true },
+      { source: '/gestionnaire/taches', destination: '/gestionnaire/operations', permanent: true },
+      { source: '/gestionnaire/taches/:path*', destination: '/gestionnaire/operations/:path*', permanent: true },
     ]
   },
 

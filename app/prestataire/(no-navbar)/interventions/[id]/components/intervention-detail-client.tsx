@@ -146,7 +146,6 @@ interface PrestataireInterventionDetailClientProps {
   currentUser: User
   // Multi-provider mode data
   assignmentMode?: AssignmentMode
-  providerInstructions?: string
   parentLink?: ParentLink
   // Chat data
   initialMessagesByThread?: Record<string, any[]>
@@ -178,7 +177,6 @@ export function PrestataireInterventionDetailClient({
   assignments,
   currentUser,
   assignmentMode = 'single',
-  providerInstructions,
   parentLink,
   initialMessagesByThread,
   initialParticipantsByThread
@@ -877,20 +875,6 @@ export function PrestataireInterventionDetailClient({
             parentId={parentLink.parent.id}
             parentReference={parentLink.parent.reference}
           />
-        </div>
-      )}
-
-      {/* Provider-specific instructions (in separate mode) */}
-      {providerInstructions && (
-        <div className="layout-padding pt-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-blue-900 mb-2">
-              Instructions pour vous
-            </h3>
-            <p className="text-sm text-blue-800 whitespace-pre-wrap">
-              {providerInstructions}
-            </p>
-          </div>
         </div>
       )}
 

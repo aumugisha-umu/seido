@@ -296,7 +296,7 @@ const PremiersPasSection = () => (
         icon={Wrench}
         title="Lancez votre premiere intervention"
         description="Creez, assignez, suivez : tout en un flux. Plus rien ne se perd."
-        href="/gestionnaire/interventions"
+        href="/gestionnaire/operations"
         color="text-orange-600"
         cta="Creer une intervention"
         steps={[

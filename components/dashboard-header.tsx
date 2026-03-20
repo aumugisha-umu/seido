@@ -66,7 +66,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
       { href: "/gestionnaire/dashboard", label: "Dashboard", icon: Home },
       { href: "/gestionnaire/biens", label: "Patrimoine", icon: Building2 },
       { href: "/gestionnaire/contrats", label: "Contrats", icon: FileText },
-      { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench },
+      { href: "/gestionnaire/operations", label: "Opérations", icon: Wrench },
       { href: "/gestionnaire/contacts", label: "Contacts", icon: Users },
       { href: "/gestionnaire/mail", label: "Emails", icon: Mail },
     ],

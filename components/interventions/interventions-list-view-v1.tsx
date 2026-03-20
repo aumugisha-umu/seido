@@ -418,7 +418,7 @@ export function InterventionsListViewV1({
         return `/locataire/interventions/${interventionId}`
       case 'gestionnaire':
       default:
-        return `/gestionnaire/interventions/${interventionId}`
+        return `/gestionnaire/operations/interventions/${interventionId}`
     }
   }, [userContext])
 

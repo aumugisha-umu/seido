@@ -73,7 +73,7 @@ export default async function InterventionDetailPage({ params }: PageProps) {
     const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
     const subInfo = await subService.getSubscriptionInfo(team.id, serviceRoleRepo)
     if (subInfo?.is_read_only) {
-      redirect('/gestionnaire/interventions')
+      redirect('/gestionnaire/operations')
     }
   } catch (e) {
     // redirect() throws a NEXT_REDIRECT — re-throw it

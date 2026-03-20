@@ -224,7 +224,7 @@ const getEntityUrl = (entityType: ActivityEntityType, entityId?: string): string
 
   // Routes basées sur le rôle gestionnaire (par défaut)
   const routes: Partial<Record<ActivityEntityType, string>> = {
-    intervention: `/gestionnaire/interventions/${entityId}`,
+    intervention: `/gestionnaire/operations/interventions/${entityId}`,
     building: `/gestionnaire/patrimoine/immeubles/${entityId}`,
     lot: `/gestionnaire/patrimoine/lots/${entityId}`,
     contact: `/gestionnaire/contacts/${entityId}`,

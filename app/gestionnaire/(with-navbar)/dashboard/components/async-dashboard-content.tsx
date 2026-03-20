@@ -13,9 +13,11 @@ import {
   createServerActionInterventionService,
   createServerActionContractService,
   createServerSupabaseClient,
+  createServerReminderService,
   ConversationRepository,
 } from "@/lib/services"
 import type { ContractStats } from "@/lib/types/contract.types"
+import type { ReminderStats } from "@/lib/types/reminder.types"
 import type { InterventionWithRelations } from "@/lib/services"
 import { logger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
@@ -30,6 +32,7 @@ const getCachedLotService = cache(() => createServerActionLotService())
 const getCachedInterventionService = cache(() => createServerActionInterventionService())
 const getCachedContractService = cache(() => createServerActionContractService())
 const getCachedSupabaseClient = cache(() => createServerSupabaseClient())
+const getCachedReminderService = cache(() => createServerReminderService())
 
 interface AsyncDashboardContentProps {
   profile: { id: string }
@@ -49,13 +52,14 @@ export async function AsyncDashboardContent({
   const teamNameMap = createTeamNameMap(sameRoleTeams)
 
   // Initialize all services in parallel (cache()-wrapped for request deduplication)
-  const [userService, buildingService, lotService, interventionService, contractService, supabase] = await Promise.all([
+  const [userService, buildingService, lotService, interventionService, contractService, supabase, reminderService] = await Promise.all([
     getCachedUserService(),
     getCachedBuildingService(),
     getCachedLotService(),
     getCachedInterventionService(),
     getCachedContractService(),
     getCachedSupabaseClient(),
+    getCachedReminderService(),
   ])
 
   let stats = {
@@ -246,16 +250,28 @@ export async function AsyncDashboardContent({
 
   // Onboarding checklist is now handled by GestionnaireTopbar (self-contained)
 
-  // Fetch unread conversation threads for dashboard (separate try/catch to not break dashboard)
+  // Fetch unread threads + reminder stats in parallel (separate try/catch to not break dashboard)
   let unreadThreads: Awaited<ReturnType<ConversationRepository['getUnreadThreadsForDashboard']>>['data'] = { threads: [], totalCount: 0 }
-  try {
-    const conversationRepo = new ConversationRepository(supabase)
-    const unreadResult = await conversationRepo.getUnreadThreadsForDashboard(profile.id)
-    if (unreadResult.success && unreadResult.data) {
-      unreadThreads = unreadResult.data
-    }
-  } catch (error) {
-    logger.warn('[ASYNC-DASHBOARD] Unread threads fetch failed, skipping', { error })
+  let reminderStats: ReminderStats = { total: 0, en_attente: 0, en_cours: 0, termine: 0, annule: 0, overdue: 0, due_today: 0 }
+
+  const [unreadResult, reminderStatsResult] = await Promise.allSettled([
+    (async () => {
+      const conversationRepo = new ConversationRepository(supabase)
+      return conversationRepo.getUnreadThreadsForDashboard(profile.id)
+    })(),
+    reminderService.getStats(team.id),
+  ])
+
+  if (unreadResult.status === 'fulfilled' && unreadResult.value.success && unreadResult.value.data) {
+    unreadThreads = unreadResult.value.data
+  } else if (unreadResult.status === 'rejected') {
+    logger.warn('[ASYNC-DASHBOARD] Unread threads fetch failed, skipping', { error: unreadResult.reason })
+  }
+
+  if (reminderStatsResult.status === 'fulfilled') {
+    reminderStats = reminderStatsResult.value
+  } else {
+    logger.warn('[ASYNC-DASHBOARD] Reminder stats fetch failed, skipping', { error: reminderStatsResult.reason })
   }
 
   return (
@@ -267,6 +283,7 @@ export async function AsyncDashboardContent({
       pendingCount={pendingActionsCount}
       unreadThreads={unreadThreads?.threads}
       unreadThreadsTotalCount={unreadThreads?.totalCount}
+      reminderStats={reminderStats}
     />
   )
 }

@@ -634,7 +634,7 @@ export default function ContractDetailsClient({
                 showCreateButton: true,
                 createButtonText: "Créer une intervention",
                 createButtonAction: () => router.push(
-                  `/gestionnaire/interventions/nouvelle-intervention?lotId=${contract.lot_id}&contractId=${contract.id}`
+                  `/gestionnaire/operations/nouvelle-intervention?lotId=${contract.lot_id}&contractId=${contract.id}`
                 )
               }}
               showStatusActions={true}

@@ -23,7 +23,7 @@ import type { OnboardingProgress } from "@/app/actions/subscription-actions"
 const pageTitles: Record<string, string> = {
   "/gestionnaire/dashboard": "Tableau de bord",
   "/gestionnaire/biens": "Patrimoine",
-  "/gestionnaire/interventions": "Interventions",
+  "/gestionnaire/operations": "Operations",
   "/gestionnaire/contacts": "Contacts",
   "/gestionnaire/contrats": "Contrats",
   "/gestionnaire/mail": "Emails",

@@ -175,21 +175,10 @@ export default function InterventionEditClient({
   // ✅ FIX 2026-03-01: 1 créneau = like fixed (optional confirmation), 2+ = mandatory
   const isMultiSlot = schedulingType === 'slots' && timeSlots.length >= 2
 
-  // Mode d'assignation - Initialiser depuis DB
-  const [assignmentMode, setAssignmentMode] = useState<'single' | 'group' | 'separate'>(
-    initialData.intervention.assignment_mode || 'single'
-  )
-
-  // Instructions par prestataire - Initialiser depuis assignments
-  const [providerInstructions, setProviderInstructions] = useState<Record<string, string>>(() => {
-    const instructions: Record<string, string> = {}
-    for (const assignment of initialData.assignments) {
-      if (assignment.role === 'prestataire' && assignment.provider_instructions) {
-        instructions[assignment.user_id] = assignment.provider_instructions
-      }
-    }
-    return instructions
-  })
+  // Mode d'assignation - preserve from DB (read-only, no separate mode)
+  const existingAssignmentMode = initialData.intervention.assignment_mode === 'separate'
+    ? 'group'  // Migrate any legacy 'separate' to 'group'
+    : (initialData.intervention.assignment_mode || 'single')
 
   // États de confirmation - Initialiser depuis DB
   const [requiresConfirmation, setRequiresConfirmation] = useState(
@@ -404,12 +393,11 @@ export default function InterventionEditClient({
         })),
         // Mode d'assignation et confirmation
         // ✅ FIX 2026-03-01: 1 créneau = like fixed (optional), 2+ = mandatory
-        assignment_mode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
+        assignment_mode: selectedProviderIds.length > 1 ? 'group' : 'single',
         requires_participant_confirmation:
           (schedulingType === 'fixed' && requiresConfirmation) ||
           isMultiSlot ||
           (schedulingType === 'slots' && timeSlots.length < 2 && requiresConfirmation),
-        providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
         confirmationRequiredUserIds: confirmationRequired,
         // Documents à supprimer
         documentsToDelete: documentsToDelete.length > 0 ? documentsToDelete : undefined,
@@ -422,7 +410,7 @@ export default function InterventionEditClient({
 
       if (result.success) {
         toast("Intervention modifiée", { description: "Les modifications ont été enregistrées avec succès" })
-        router.push(`/gestionnaire/interventions/${initialData.intervention.id}`)
+        router.push(`/gestionnaire/operations/interventions/${initialData.intervention.id}`)
       } else {
         setError(result.error || "Erreur lors de la modification")
         toast.error("Erreur", { description: result.error || "Impossible de modifier l'intervention" })
@@ -676,15 +664,6 @@ export default function InterventionEditClient({
                   teamId={buildingsData.teamId}
                   isLoading={false}
                   contactSelectorRef={contactSelectorRef}
-                  assignmentMode={assignmentMode}
-                  onAssignmentModeChange={setAssignmentMode}
-                  providerInstructions={providerInstructions}
-                  onProviderInstructionsChange={(providerId, instructions) => {
-                    setProviderInstructions(prev => ({
-                      ...prev,
-                      [providerId]: instructions
-                    }))
-                  }}
                   // Tenant props
                   showTenantsSection={showTenantsSection}
                   includeTenants={includeTenants}
@@ -776,8 +755,7 @@ export default function InterventionEditClient({
                   })),
                 ],
                 expectsQuote,
-                assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
-                providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
+                assignmentMode: selectedProviderIds.length > 1 ? 'group' : 'single',
                 // Données de confirmation des participants
                 // ✅ FIX 2026-03-01: 1 créneau = like fixed, 2+ = mandatory
                 requiresParticipantConfirmation:

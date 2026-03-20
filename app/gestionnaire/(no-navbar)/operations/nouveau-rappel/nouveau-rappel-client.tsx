@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select'
 import {
   ArrowLeft,
+  Bell,
   Building2,
   Home,
   CalendarIcon,
@@ -37,6 +38,13 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { RecurrenceConfig, buildRecurrenceSummary } from '@/components/recurrence/recurrence-config'
+import {
+  ConfirmationPageShell,
+  ConfirmationEntityHeader,
+  ConfirmationSummaryBanner,
+  ConfirmationSection,
+  ConfirmationKeyValueGrid,
+} from '@/components/confirmation'
 
 // ============================================================================
 // TYPES
@@ -448,114 +456,126 @@ export default function NouveauRappelClient({
 
         {/* ─── Step 3: Confirmation ────────────────────────────────────── */}
         {currentStep === 3 && (
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/30">
-                    <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">Récapitulatif</h3>
-                    <p className="text-sm text-muted-foreground">Vérifiez les informations avant de créer le rappel</p>
-                  </div>
-                </div>
+          <ConfirmationPageShell maxWidth="3xl">
+            <ConfirmationEntityHeader
+              icon={Bell}
+              iconColor="amber"
+              title={title || 'Nouveau rappel'}
+              subtitle={selectedBuilding?.name || selectedLot?.name || undefined}
+              badges={[
+                {
+                  label: PRIORITY_CONFIG[priority].label,
+                  variant: 'outline',
+                  className: PRIORITY_CONFIG[priority].color,
+                },
+                ...(recurrenceEnabled && rruleString
+                  ? [{ label: 'Recurrent', variant: 'outline' as const }]
+                  : []),
+              ]}
+            />
 
-                {/* Property */}
-                {(selectedBuilding || selectedLot) && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    {selectedBuilding ? (
-                      <Building2 className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    ) : (
-                      <Home className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">Bien associé</p>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedBuilding?.name || selectedLot?.name}
-                      </p>
-                    </div>
-                  </div>
-                )}
+            <ConfirmationSummaryBanner
+              metrics={[
+                {
+                  label: 'Echeance',
+                  value: dueDate
+                    ? new Date(dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+                    : 'Non definie',
+                  icon: <CalendarIcon className="h-3.5 w-3.5" />,
+                },
+                {
+                  label: 'Priorite',
+                  value: PRIORITY_CONFIG[priority].label,
+                  icon: <Flag className="h-3.5 w-3.5" />,
+                  highlight: priority === 'haute',
+                },
+                {
+                  label: 'Assigne a',
+                  value: assignedMember
+                    ? (assignedMember.name || assignedMember.email || 'Membre')
+                    : 'Non assigne',
+                  icon: <User className="h-3.5 w-3.5" />,
+                },
+              ]}
+            />
 
-                {/* Title */}
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <FileText className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium">Titre</p>
-                    <p className="text-sm text-muted-foreground">{title}</p>
-                  </div>
-                </div>
-
-                {/* Description */}
-                {description && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <FileText className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium">Description</p>
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                        {description}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Due date */}
-                {dueDate && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                    <CalendarIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium">Échéance</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(dueDate).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Priority */}
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <Flag className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium">Priorité</p>
+            {/* Details */}
+            <ConfirmationSection title="Details du rappel" icon={<FileText className="h-3.5 w-3.5" />}>
+              <ConfirmationKeyValueGrid pairs={[
+                { label: 'Titre', value: title },
+                {
+                  label: 'Description',
+                  value: description || undefined,
+                  empty: !description,
+                  fullWidth: true,
+                },
+                {
+                  label: 'Echeance',
+                  value: dueDate
+                    ? new Date(dueDate).toLocaleDateString('fr-FR', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : undefined,
+                  empty: !dueDate,
+                },
+                {
+                  label: 'Priorite',
+                  value: (
                     <Badge variant={PRIORITY_CONFIG[priority].badgeVariant}>
                       {PRIORITY_CONFIG[priority].label}
                     </Badge>
-                  </div>
-                </div>
+                  ),
+                },
+              ]} />
+            </ConfirmationSection>
 
-                {/* Assignee */}
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                  <User className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium">Assigné à</p>
-                    <p className="text-sm text-muted-foreground">
-                      {assignedMember
-                        ? assignedMember.name || assignedMember.email
-                        : 'Non assigné'}
-                    </p>
-                  </div>
-                </div>
+            {/* Bien associe */}
+            {(selectedBuilding || selectedLot) && (
+              <ConfirmationSection
+                title="Bien associe"
+                icon={selectedBuilding
+                  ? <Building2 className="h-3.5 w-3.5" />
+                  : <Home className="h-3.5 w-3.5" />
+                }
+              >
+                <ConfirmationKeyValueGrid columns={1} pairs={[
+                  {
+                    label: selectedBuilding ? 'Immeuble' : 'Lot',
+                    value: selectedBuilding?.name || selectedLot?.name,
+                  },
+                ]} />
+              </ConfirmationSection>
+            )}
 
-                {/* Recurrence summary */}
-                {recurrenceEnabled && rruleString && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
-                    <Repeat className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium">Récurrence</p>
-                      <p className="text-sm text-muted-foreground">
-                        {buildRecurrenceSummary(rruleString)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+            {/* Assignation */}
+            <ConfirmationSection title="Assignation" icon={<User className="h-3.5 w-3.5" />}>
+              <ConfirmationKeyValueGrid columns={1} pairs={[
+                {
+                  label: 'Assigne a',
+                  value: assignedMember
+                    ? (assignedMember.name || assignedMember.email)
+                    : undefined,
+                  empty: !assignedMember,
+                },
+              ]} />
+            </ConfirmationSection>
+
+            {/* Recurrence */}
+            {recurrenceEnabled && rruleString && (
+              <ConfirmationSection title="Recurrence" icon={<Repeat className="h-3.5 w-3.5" />}>
+                <ConfirmationKeyValueGrid columns={1} pairs={[
+                  {
+                    label: 'Regle de recurrence',
+                    value: buildRecurrenceSummary(rruleString),
+                    fullWidth: true,
+                  },
+                ]} />
+              </ConfirmationSection>
+            )}
+          </ConfirmationPageShell>
         )}
 
         </main>

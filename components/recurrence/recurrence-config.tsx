@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -341,6 +341,13 @@ export function RecurrenceConfig({
     value ? parseRRule(value, refDate) : getDefaultState(refDate)
   )
 
+  // Stable ref for onChange to avoid stale closures in useEffect
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
+  // Skip first-mount emit — parent already has the initial value
+  const hasMountedRef = useRef(false)
+
   // Re-parse when value changes externally
   useEffect(() => {
     if (value) {
@@ -363,12 +370,16 @@ export function RecurrenceConfig({
   }, [refDate, enabled])
 
   // Emit rrule whenever formState changes (after render, not during)
-  // Guard: only emit if the built rrule differs from current value to prevent loops
+  // Guard: skip first mount + only emit if rrule differs from current value
   useEffect(() => {
     if (!enabled) return
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true
+      return
+    }
     const rrule = buildRRule(formState)
     if (rrule !== value) {
-      onChange(rrule)
+      onChangeRef.current(rrule)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formState, enabled])

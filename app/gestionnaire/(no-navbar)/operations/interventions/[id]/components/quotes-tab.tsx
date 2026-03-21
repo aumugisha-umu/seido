@@ -18,8 +18,6 @@ import { QuoteCard } from '@/components/quotes/quote-card'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { toast } from 'sonner'
-import { createBrowserSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
 
 type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
@@ -33,7 +31,6 @@ interface QuotesTabProps {
 }
 
 export function QuotesTab({
-  interventionId,
   quotes,
   canManage = false
 }: QuotesTabProps) {
@@ -86,7 +83,7 @@ export function QuotesTab({
                     Aucune demande en cours
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Les demandes d'estimation envoyées aux prestataires apparaîtront ici
+                    Les demandes d&apos;estimation envoyées aux prestataires apparaîtront ici
                   </p>
                 </div>
               ) : (
@@ -146,10 +143,10 @@ export function QuotesTab({
                         providerName: quote.provider?.name || 'Prestataire',
                         providerSpeciality: quote.provider?.provider_category,
                         totalAmount: quote.amount,
-                        laborCost: (quote.line_items as any)?.labor || 0,
-                        materialsCost: (quote.line_items as any)?.materials || 0,
+                        laborCost: (quote.line_items as Record<string, number> | null)?.labor || 0,
+                        materialsCost: (quote.line_items as Record<string, number> | null)?.materials || 0,
                         description: quote.description || '',
-                        estimatedDurationHours: (quote.line_items as any)?.duration,
+                        estimatedDurationHours: (quote.line_items as Record<string, number> | null)?.duration,
                         status: quote.status,
                         submittedAt: quote.created_at,
                         attachments: []

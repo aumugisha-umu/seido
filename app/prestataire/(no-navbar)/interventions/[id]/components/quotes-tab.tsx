@@ -56,7 +56,6 @@ const typeLabels: Record<string, string> = {
 }
 
 export function QuotesTab({
-  interventionId,
   quotes,
   currentUser,
   onRefresh,
@@ -227,7 +226,7 @@ export function QuotesTab({
                 Aucun devis
               </p>
               <p className="text-sm text-muted-foreground">
-                Vous n'avez pas encore soumis de devis pour cette intervention
+                Vous n&apos;avez pas encore soumis de devis pour cette intervention
               </p>
             </div>
             ) : (
@@ -349,7 +348,7 @@ export function QuotesTab({
                       {quote.status === 'accepted' && (
                         <div className="mt-3 p-3 rounded bg-green-50 border border-green-200">
                           <p className="text-sm text-green-900">
-                            <strong>Devis accepté!</strong> Vous pouvez maintenant planifier l'intervention.
+                            <strong>Devis accepté!</strong> Vous pouvez maintenant planifier l&apos;intervention.
                           </p>
                         </div>
                       )}

@@ -21,45 +21,87 @@ Invoke this skill when you detect:
 - "check my changes", "is this ready"
 - Before any `sp-verification-before-completion`
 
+## Execution Mode: Autonomous (No Manual Validation)
+
+**The entire quality gate runs as a single autonomous agent with `bypassPermissions`.** The user should NOT be prompted to approve each tool call. Only the final report is presented for decision.
+
+When invoking this skill (especially via `git*`), dispatch it as:
+
+```
+Agent(subagent_type: "superpowers:code-reviewer", mode: "bypassPermissions")
+```
+
+Or execute directly with all bash commands chained — no individual approval needed.
+
 ## Integration with "git*" Flow
 
 When the user types "git*" (global CLAUDE.md trigger for auto-commit):
 
 ```
 1. User types: git*
-2. FIRST: Run sp-quality-gate (this skill)
-3. IF blockers found → Fix blockers → Re-run quality gate
-4. IF approved → Proceed with git add . && git commit && git push
+2. Launch quality gate autonomously (bypassPermissions)
+3. Run ALL automated checks (lint, build, tests, Playwright) in chained commands
+4. Perform 4-lens code review on changed files
+5. Present ONLY the final report to the user
+6. IF blockers found → Fix blockers autonomously → Re-run checks
+7. IF approved → Proceed with git add . && git commit && git push
 ```
+
+**Key principle:** The user only intervenes when there are blockers that require a decision. Clean passes proceed directly to commit.
 
 ## The Process
 
 ### Step 1: Automated Checks
 
-Run these checks:
+Run ALL checks in a single chained command (no individual approvals):
 
 ```bash
-# Build — ALWAYS required (catches TS errors + build issues)
-npm run build
+# Chain all checks — stop on first failure
+npm run lint && npm run build && npm test && npm run qa:guided
+```
 
-# ESLint — ALWAYS required
-npm run lint
-
-# Unit Tests — If stories with testable logic were modified
-npm test
-
-# Playwright E2E Tests — ALWAYS required (runs against local or preview deployment)
-# Requires TARGET_URL env var (defaults to http://localhost:3000)
-# Requires auth credentials in .env.local (QA_GESTIONNAIRE_EMAIL, etc.)
+If Playwright is the only check that matters on this run (e.g., after a test-only change), you can run it standalone:
+```bash
 npm run qa:guided
 ```
 
 **If automated checks fail:** Stop immediately. Report failures. Do NOT proceed to lens review.
 
+**Playwright — Dev Server Auto-Start:**
+
+Before running `npm run qa:guided`, check if a server is running on the target URL:
+
+```bash
+# Check if dev server is running (TARGET_URL from .env.local, default localhost:3000)
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null || echo "DOWN"
+```
+
+If no server is running:
+1. **Start the dev server in background:** `npm run dev &` (using `run_in_background`)
+2. **Wait 30 seconds** for Next.js to compile and be ready
+3. **Verify it's up** with a curl check
+4. **Then run Playwright tests**
+5. **After tests complete**, stop the dev server (kill the background process)
+
+```bash
+# Full auto-start flow
+SERVER_UP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 2>/dev/null)
+if [ "$SERVER_UP" != "200" ] && [ "$SERVER_UP" != "307" ] && [ "$SERVER_UP" != "302" ]; then
+  echo "No dev server detected — starting one..."
+  npm run dev &
+  DEV_PID=$!
+  sleep 30
+  echo "Dev server started (PID: $DEV_PID). Running Playwright..."
+fi
+npm run qa:guided
+# Kill dev server if we started it
+if [ -n "$DEV_PID" ]; then kill $DEV_PID 2>/dev/null; fi
+```
+
 **Playwright notes:**
-- Tests run against `TARGET_URL` (set in `.env.local` or env). For local dev, ensure `npm run dev` is running.
+- Tests run against `TARGET_URL` (set in `.env.local` or env). Defaults to `http://localhost:3000`.
 - Auth setup runs first (storageState-based), then role-specific tests (gestionnaire, locataire, prestataire, multi-role).
-- If Playwright is not configured (missing env vars or no running server), report as WARNING (not BLOCKER) and proceed.
+- If Playwright is not configured (missing env vars), report as WARNING (not BLOCKER) and proceed.
 
 ### Step 2: Gather Changed Files
 
@@ -194,29 +236,26 @@ After all blockers/warnings are resolved and before committing, review the work 
 **If nothing to persist** — skip silently and proceed to commit.
 **If learnings found** — apply them NOW (before commit), so the commit includes both the feature AND the knowledge updates.
 
-### Step 5: User Decision
+### Step 5: Decision & Auto-Proceed
 
-If blockers found:
+**Clean pass (no blockers, no warnings):**
 ```
-Your decision:
-1. Fix blockers (recommended) — I'll fix them now
-2. Override — Commit anyway (not recommended, reason required)
-3. Cancel — Don't commit yet
+Quality Gate PASSED ✅ — Proceeding with commit.
 ```
+→ Auto-proceed to `git add . && git commit && git push`. No user prompt needed.
 
-If only warnings:
+**Warnings only (no blockers):**
 ```
-No blockers found. Warnings are advisory.
-Your decision:
-1. Commit as-is ✅
-2. Fix warnings first
-3. Cancel
+No blockers. X warnings (advisory). Proceeding with commit.
 ```
+→ Auto-proceed. Warnings are logged in the report but do not block.
 
-If clean:
+**Blockers found:**
+→ Fix blockers autonomously if possible, then re-run checks.
+→ Only ask the user if a blocker requires a design decision:
 ```
-Quality Gate PASSED ✅ — No blockers, no warnings.
-Proceeding with commit.
+BLOCKER requires your input:
+- [SECURITY] `file.ts:42` — [description]. How should I fix this?
 ```
 
 ## Severity Definitions

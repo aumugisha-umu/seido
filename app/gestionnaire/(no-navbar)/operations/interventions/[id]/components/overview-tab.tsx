@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { formatErrorMessage } from '@/lib/utils/error-formatter'
-import { assignUserAction, unassignUserAction } from '@/app/actions/intervention-actions'
+import { assignUserAction } from '@/app/actions/intervention-actions'
 import { createBrowserSupabaseClient } from '@/lib/services'
 import { UserPlus, AlertCircle } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
@@ -214,12 +214,6 @@ export function OverviewTab({
     loadAvailableUsers(role)
   }
 
-  // Open assign dialog
-  const handleOpenAssignDialog = () => {
-    setAssignDialogOpen(true)
-    loadAvailableUsers(selectedRole)
-  }
-
   // Handle assign user
   const handleAssignUser = async () => {
     if (!selectedUserId) {
@@ -243,29 +237,6 @@ export function OverviewTab({
       toast.error('Erreur lors de l\'attribution')
     } finally {
       setAssigning(false)
-    }
-  }
-
-  // Handle remove assignment
-  const handleRemoveAssignment = async (assignmentId: string) => {
-    const assignment = assignments.find(a => a.id === assignmentId)
-    if (!assignment) return
-
-    try {
-      const result = await unassignUserAction(
-        intervention.id,
-        assignment.user_id,
-        assignment.role
-      )
-      if (result.success) {
-        toast.success('Attribution retirée avec succès')
-        onRefresh()
-      } else {
-        toast.error(formatErrorMessage(result.error, 'Erreur lors du retrait de l\'attribution'))
-      }
-    } catch (error) {
-      console.error('Error removing assignment:', error)
-      toast.error('Erreur lors du retrait de l\'attribution')
     }
   }
 

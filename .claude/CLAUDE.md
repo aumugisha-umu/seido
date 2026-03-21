@@ -9,9 +9,14 @@
 
 ## Commit Workflow (on `git*`)
 
+**Runs autonomously — no manual validation needed.** Only ask user if a blocker requires a design decision.
+
 ```
-git* → sp-quality-gate (4 lenses + simplify quick-scan)
-     → Fix blockers
+git* → sp-quality-gate (autonomous, bypassPermissions)
+     → Automated: lint && build && tests && Playwright E2E
+        (auto-starts `npm run dev` if no server running, waits 30s)
+     → 4-lens review + simplify quick-scan
+     → Fix blockers autonomously if possible
      → Step 4.5: Knowledge Capture (compound? memory? CLAUDE.md? agents?)
      → git add . && git commit && git push origin [branch]
 ```

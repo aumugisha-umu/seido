@@ -1,50 +1,29 @@
-# Progress Log — QA Bot E2E Suite + Admin Invite + Email Enhancements
-# Completed: 2026-03-21
-# Commit: 3ccd8d22
-# 70 files, +13,088/-444 lines
-# Compound: AGENTS.md #164-168, retrospective created
+# Progress Log — E2E Testing Strategy Overhaul
+# Started: 2026-03-21
+# Stories: 11 total
+# Design: docs/plans/2026-03-21-e2e-testing-strategy-design.md
 ---
 
-## QA Bot E2E Suite — DONE
-- 114 Playwright tests across 8 shards (8 page objects)
-- Domains: Dashboard, Interventions, Contacts, Properties, Contracts, Notifications, Settings, Operations
-- cancelIntervention bug fix (union type string | CancellationData)
-- Auth role mismatch fix (admin vs gestionnaire strict check)
+## US-001: Unified Playwright config + auth setup (S) — DONE
+- Created tests/e2e/playwright.config.ts (unified config with 10 projects)
+- Created tests/e2e/setup/auth.setup.ts (Supabase GoTrue API auth, storageState per role)
+- Updated .gitignore for tests/e2e/.auth/
+- Updated package.json: test:e2e now runs Playwright, test:e2e:puppeteer preserves old
+- Created directory structure: smoke/, flows/{property,contract,intervention,billing,...}, accessibility/, performance/, visual/, monitoring/
 
-## Admin Invite Gestionnaire — DONE (4/4 stories)
-# Design: docs/plans/2026-03-20-admin-invite-gestionnaire-design.md
----
+## US-002: Smoke tests (S) — DONE
+- Created tests/e2e/smoke/auth-smoke.spec.ts
+- 10 tests: 5 gestionnaire pages, 1 prestataire, 1 locataire, 3 public pages, 1 API health
+- Uses storageState per role (no UI login)
+- Tagged @smoke for CI filtering
 
-## US-001: Email type + template (S) — DONE
-- Added AdminInvitationEmailProps to emails/utils/types.ts
-- Created emails/templates/auth/admin-invitation.tsx
-- 4 quick start steps matching onboarding checklist
-- Reuses EmailLayout/Header/Footer/Button shared components
+## US-003: Migrate property tests (M) — DONE
+- Created tests/e2e/pages/building-wizard.page.pw.ts (Playwright POM)
+- Created tests/e2e/pages/lot-wizard.page.pw.ts (Playwright POM)
+- Created tests/e2e/flows/property/building-creation.spec.ts
+- Created tests/e2e/flows/property/lot-creation.spec.ts
+- Key migration: page.$() → locator(), type() → fill(), uploadFile() → setInputFiles()
 
-## US-002: Email service method (XS) — DONE
-- Added sendAdminInvitationEmail() to lib/email/email-service.ts
-- Same pattern as all other send methods (dynamic import + renderEmail + sendEmailWithRetry)
-
-## US-003: Server actions (M) — DONE
-- Added inviteGestionnaireAction() to app/actions/user-admin-actions.ts
-  - createUser with email_confirm:true + metadata (organization for team name)
-  - Trigger handle_new_user_confirmed fires: profile + team + trialing subscription
-  - generateLink('magiclink') for password setting
-  - user_invitations record
-  - Email via after() (non-blocking)
-  - Cleanup on failure (delete auth user)
-- Added resendGestionnaireInvitationAction()
-  - New magiclink + updated invitation record + resend email
-
-## US-004: Admin UI (S) — DONE
-- Invite button (Send icon, outline) next to existing 'Nouvel utilisateur'
-- Dialog with 4 required fields (email, firstName, lastName, organization)
-- Resend menu item (RotateCw) for pending/expired users in dropdown
-- Toast feedback for both actions
-
-## Files Modified
-- emails/utils/types.ts (AdminInvitationEmailProps)
-- emails/templates/auth/admin-invitation.tsx (NEW)
-- lib/email/email-service.ts (sendAdminInvitationEmail)
-- app/actions/user-admin-actions.ts (inviteGestionnaireAction, resendGestionnaireInvitationAction)
-- app/admin/(with-navbar)/users/users-management-client.tsx (invite modal + resend button)
+## US-004: Migrate contract + billing tests (M) — IN PROGRESS (agent)
+## US-005: Migrate intervention tests (L) — IN PROGRESS (agent)
+## US-006-010: CI/CD + quality layers — IN PROGRESS (agent)

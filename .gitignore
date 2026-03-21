@@ -6,6 +6,7 @@
 # E2E test artifacts (generated at runtime)
 tests/e2e/screenshots/*.png
 tests/e2e/.auth-cookies*.json
+tests/e2e/.auth/
 tests/e2e/.browser-data/
 
 # next.js

@@ -1,79 +1,221 @@
 {
   "project": "SEIDO",
-  "featureName": "Admin Invite Gestionnaire",
-  "branchName": "preview",
-  "description": "Admin can invite gestionnaires by entering email/name/organization. Gestionnaire receives email with quick start steps, sets password, lands on dashboard with onboarding checklist.",
-  "createdAt": "2026-03-20",
-  "prdSource": "docs/plans/2026-03-20-admin-invite-gestionnaire-design.md",
-  "status": "complete",
+  "featureName": "E2E Testing Strategy Overhaul",
+  "branchName": "claude/improve-e2e-testing-xmGXR",
+  "description": "Migrate from Puppeteer to unified Playwright E2E testing. Add 7-layer testing pyramid: smoke, flows, cross-browser, accessibility, performance, visual regression, and synthetic monitoring. All 100% free via GitHub Actions.",
+  "createdAt": "2026-03-21",
+  "prdSource": "docs/plans/2026-03-21-e2e-testing-strategy-design.md",
+  "status": "in_progress",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Email type + template for admin invitation",
-      "description": "As an admin, I want the invitation email to include quick start steps so gestionnaires know what to do after setting their password",
+      "title": "Unified Playwright config + auth setup",
+      "description": "As a developer, I want a single Playwright config with role-based auth setup so that all E2E tests run through one framework",
       "acceptanceCriteria": [
-        "AdminInvitationEmailProps added to emails/utils/types.ts",
-        "admin-invitation.tsx template created with EmailLayout/Header/Footer/Button components",
-        "Template includes: greeting, organization context, CTA button, 4 quick start steps, expiration warning",
-        "Lint passes"
+        "tests/e2e/playwright.config.ts created with smoke, gestionnaire, prestataire, locataire, multi-role projects",
+        "tests/e2e/setup/auth.setup.ts created reusing existing Supabase GoTrue auth pattern from qa-bot",
+        "storageState files saved to tests/e2e/.auth/{role}.json",
+        "npm scripts updated: test:e2e:pw for Playwright, old test:e2e preserved temporarily",
+        "Config supports CI mode (1 worker, blob reporter) and local mode (html reporter, webServer)",
+        "Typecheck passes (npx tsc --noEmit)"
       ],
       "priority": 1,
       "dependsOn": [],
       "sizing": "S",
-      "passes": true,
-      "notes": "Type added, template created with 4 quick start steps matching onboarding checklist"
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-002",
-      "title": "Email service method for admin invitation",
-      "description": "As the system, I need a sendAdminInvitationEmail() method following the existing pattern",
+      "title": "Smoke tests (Couche 1)",
+      "description": "As a developer, I want fast smoke tests that verify auth and navigation for all roles so that broken deploys are caught in < 2 min",
       "acceptanceCriteria": [
-        "sendAdminInvitationEmail() added to emailService in lib/email/email-service.ts",
-        "Uses same pattern: dynamic import + renderEmail + sendEmailWithRetry",
-        "Subject: 'Bienvenue sur SEIDO — Votre espace de gestion vous attend'",
-        "Tags: category=auth, type=admin-invitation",
-        "Lint passes"
+        "tests/e2e/smoke/auth-smoke.spec.ts created with @smoke tag",
+        "Tests: gestionnaire dashboard, prestataire dashboard, locataire dashboard, public pages (landing, login), API health check",
+        "All tests use storageState (no UI login)",
+        "Tests pass locally against running dev server",
+        "Typecheck passes"
       ],
-      "priority": 2,
+      "priority": 1,
       "dependsOn": ["US-001"],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "Method added following exact same pattern as other email methods"
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-003",
-      "title": "Server actions: invite + resend",
-      "description": "As an admin, I need server actions to invite gestionnaires and resend expired invitations",
+      "title": "Migrate property tests (building + lot creation)",
+      "description": "As a developer, I want the building and lot creation E2E tests migrated to Playwright so they use stable locators and auto-waiting",
       "acceptanceCriteria": [
-        "inviteGestionnaireAction() in user-admin-actions.ts: creates auth user, trigger creates profile+team+subscription, generates magiclink, inserts user_invitations, sends email via after()",
-        "resendGestionnaireInvitationAction() in user-admin-actions.ts: generates new magiclink, updates invitation, resends email",
-        "Both verify admin role via getAdminContext()",
-        "Duplicate email check prevents re-invitation",
-        "Lint passes"
+        "tests/e2e/pages/building-wizard.page.ts POM migrated to Playwright locators",
+        "tests/e2e/pages/lot-wizard.page.ts POM migrated to Playwright locators",
+        "tests/e2e/flows/property/building-creation.spec.ts migrated from building-creation.e2e.ts",
+        "tests/e2e/flows/property/lot-creation.spec.ts migrated from lot-creation.e2e.ts",
+        "All Puppeteer patterns replaced (waitForSelector→locator, page.type→fill, etc.)",
+        "Tests pass locally",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Migrate contract + billing tests",
+      "description": "As a developer, I want contract and billing E2E tests migrated to Playwright",
+      "acceptanceCriteria": [
+        "tests/e2e/pages/contract-wizard.page.ts POM migrated",
+        "tests/e2e/flows/contract/contract-creation.spec.ts migrated",
+        "tests/e2e/flows/billing/billing-ui.spec.ts migrated from stripe/billing-ui.e2e.ts",
+        "tests/e2e/flows/billing/read-only-enforcement.spec.ts migrated",
+        "tests/e2e/flows/billing/checkout-flow.spec.ts migrated (keep skip markers for Stripe)",
+        "Tests pass locally",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Migrate intervention tests (4 files)",
+      "description": "As a developer, I want all intervention E2E tests migrated to Playwright with proper multi-role support",
+      "acceptanceCriteria": [
+        "tests/e2e/pages/intervention-wizard.page.ts POM migrated",
+        "tests/e2e/pages/intervention-detail.page.ts POM migrated",
+        "tests/e2e/pages/intervention-request.page.ts POM migrated",
+        "tests/e2e/flows/intervention/intervention-gestionnaire.spec.ts migrated",
+        "tests/e2e/flows/intervention/intervention-locataire.spec.ts migrated",
+        "tests/e2e/flows/intervention/intervention-workflow.spec.ts migrated",
+        "tests/e2e/flows/intervention/intervention-lifecycle.spec.ts migrated with multi-role browser contexts",
+        "Tests pass locally",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "L",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "CI/CD pipeline — main workflow",
+      "description": "As a developer, I want a CI pipeline that runs lint, typecheck, build, smoke, E2E, a11y, and perf tests on every PR",
+      "acceptanceCriteria": [
+        ".github/workflows/ci.yml updated with full pipeline: lint → typecheck → build → e2e-smoke → e2e-flows",
+        "e2e-flows uses matrix strategy for 4 role projects",
+        "Playwright browsers cached for faster CI",
+        "Artifacts uploaded on failure (playwright-report, test-results)",
+        "Environment secrets referenced for E2E credentials",
+        "Typecheck passes"
       ],
       "priority": 2,
       "dependsOn": ["US-002"],
       "sizing": "M",
-      "passes": true,
-      "notes": "Trigger handles profile+team(org name)+subscription. Magic link for password setting. after() for non-blocking email. Cleanup on failure."
+      "passes": false,
+      "notes": ""
     },
     {
-      "id": "US-004",
-      "title": "Admin UI: invitation modal + resend button",
-      "description": "As an admin, I want a modal to invite gestionnaires and a resend button for pending/expired invitations",
+      "id": "US-007",
+      "title": "Accessibility tests (Couche 4)",
+      "description": "As a developer, I want automated WCAG 2.1 AA accessibility scanning on all role-specific pages to catch a11y regressions",
       "acceptanceCriteria": [
-        "Invite button added next to existing 'Nouvel utilisateur' button",
-        "Dialog with 4 fields: email, firstName, lastName, organization (all required)",
-        "Submit calls inviteGestionnaireAction, shows toast, refreshes list",
-        "Resend menu item in dropdown for pending/expired users",
-        "Resend calls resendGestionnaireInvitationAction, shows toast",
-        "Lint passes"
+        "@axe-core/playwright installed as devDependency",
+        "tests/e2e/fixtures/accessibility.fixture.ts created with shared axe-core config",
+        "tests/e2e/accessibility/gestionnaire-a11y.spec.ts scans 8 pages",
+        "tests/e2e/accessibility/prestataire-a11y.spec.ts scans 3 pages",
+        "tests/e2e/accessibility/locataire-a11y.spec.ts scans 4 pages",
+        "tests/e2e/accessibility/public-a11y.spec.ts scans 4 pages (no auth needed)",
+        "axe-core results attached as JSON artifacts for debugging",
+        "Tests run and produce results (violations documented, not necessarily zero)",
+        "Typecheck passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-003"],
+      "dependsOn": ["US-001"],
       "sizing": "S",
-      "passes": true,
-      "notes": "Send icon for invite button (outline variant), RotateCw for resend. Conditional rendering for pending/expired only."
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Performance budget tests (Couche 5)",
+      "description": "As a developer, I want performance budget tests that measure Core Web Vitals and fail if budgets are exceeded",
+      "acceptanceCriteria": [
+        "tests/e2e/performance/web-vitals.spec.ts created with @perf tag",
+        "Measures FCP (Paint Timing API), LCP (PerformanceObserver), CLS (Layout Instability API)",
+        "Budgets defined for 5 key pages with CI-adjusted thresholds",
+        "Metrics attached as JSON artifacts for trend tracking",
+        "Tests run and produce metrics (budgets may need adjustment after first run)",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Visual regression tests (Couche 6)",
+      "description": "As a developer, I want visual regression tests that compare component screenshots against baselines",
+      "acceptanceCriteria": [
+        "tests/e2e/visual/visual-regression.spec.ts created with @visual tag",
+        "5 component-level screenshots: login, sidebar, intervention-list, pricing-cards, landing-hero",
+        "Dynamic content masked (timestamps, avatars, notification counts)",
+        "Animations disabled for deterministic screenshots",
+        "maxDiffPixelRatio set to 0.01 (1% tolerance)",
+        "Baseline screenshots generated on first run",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Nightly + monitoring CI workflows",
+      "description": "As a developer, I want nightly cross-browser tests and periodic production smoke tests to catch issues not found in daily CI",
+      "acceptanceCriteria": [
+        ".github/workflows/nightly.yml runs cross-browser matrix (firefox, webkit, mobile-chrome, mobile-safari, tablet)",
+        ".github/workflows/synthetic-monitoring.yml runs production smoke tests every 6h",
+        "Monitoring tests are read-only (no data mutations)",
+        "Slack webhook notification on monitoring failure",
+        "Cross-browser projects added to playwright.config.ts",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-006"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Cleanup — remove Puppeteer infrastructure",
+      "description": "As a developer, I want Puppeteer removed so we have a single test framework with no duplicate infrastructure",
+      "acceptanceCriteria": [
+        "puppeteer package removed from package.json",
+        "tests/e2e/vitest.e2e.config.ts removed",
+        "tests/e2e/setup/global-setup.ts removed",
+        "tests/e2e/setup/global-teardown.ts removed",
+        "tests/e2e/helpers/browser.ts removed",
+        "tests/e2e/helpers/cookies.ts removed",
+        "All .e2e.ts test files removed (replaced by .spec.ts)",
+        "npm scripts updated: test:e2e now runs Playwright",
+        "No remaining references to puppeteer in codebase",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-003", "US-004", "US-005"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
     }
   ]
 }

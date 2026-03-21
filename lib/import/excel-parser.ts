@@ -1,8 +1,8 @@
 /**
  * Excel Parser
- * Wrapper for SheetJS to parse Excel/CSV files
+ * Wrapper for ExcelJS to parse Excel/CSV files
  *
- * ⚡ OPTIMIZED: XLSX is lazy-loaded to reduce initial bundle size (~500KB)
+ * ⚡ OPTIMIZED: ExcelJS is lazy-loaded to reduce initial bundle size
  */
 
 import type {
@@ -15,15 +15,16 @@ import type {
   RawCompanyRow,
 } from './types';
 import { SHEET_NAMES, FILE_CONSTRAINTS } from './constants';
+import type * as ExcelJSTypes from 'exceljs';
 
-// ⚡ Lazy load XLSX to avoid 500KB in initial bundle
-let xlsxModule: typeof import('xlsx') | null = null;
+// ⚡ Lazy load ExcelJS to avoid bloating initial bundle
+let excelModule: typeof import('exceljs') | null = null;
 
-async function getXLSX() {
-  if (!xlsxModule) {
-    xlsxModule = await import('xlsx');
+async function getExcelJS() {
+  if (!excelModule) {
+    excelModule = await import('exceljs');
   }
-  return xlsxModule;
+  return excelModule;
 }
 
 // ============================================================================
@@ -41,49 +42,40 @@ export async function parseExcelFile(file: File): Promise<ParseResult> {
   }
 
   try {
-    const XLSX = await getXLSX();
+    const ExcelJS = await getExcelJS();
     const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, {
-      type: 'array',
-      cellDates: true,
-      cellNF: false,
-      cellText: false,
-    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
 
     // Parse each expected sheet
     const buildings = parseSheet<RawBuildingRow>(
-      XLSX,
       workbook,
       SHEET_NAMES.BUILDINGS,
-      findSheetName(workbook.SheetNames, SHEET_NAMES.BUILDINGS)
+      findSheetName(workbook, SHEET_NAMES.BUILDINGS)
     );
 
     const lots = parseSheet<RawLotRow>(
-      XLSX,
       workbook,
       SHEET_NAMES.LOTS,
-      findSheetName(workbook.SheetNames, SHEET_NAMES.LOTS)
+      findSheetName(workbook, SHEET_NAMES.LOTS)
     );
 
     const contacts = parseSheet<RawContactRow>(
-      XLSX,
       workbook,
       SHEET_NAMES.CONTACTS,
-      findSheetName(workbook.SheetNames, SHEET_NAMES.CONTACTS)
+      findSheetName(workbook, SHEET_NAMES.CONTACTS)
     );
 
     const contracts = parseSheet<RawContractRow>(
-      XLSX,
       workbook,
       SHEET_NAMES.CONTRACTS,
-      findSheetName(workbook.SheetNames, SHEET_NAMES.CONTRACTS)
+      findSheetName(workbook, SHEET_NAMES.CONTRACTS)
     );
 
     const companies = parseSheet<RawCompanyRow>(
-      XLSX,
       workbook,
       SHEET_NAMES.COMPANIES,
-      findSheetName(workbook.SheetNames, SHEET_NAMES.COMPANIES)
+      findSheetName(workbook, SHEET_NAMES.COMPANIES)
     );
 
     return {
@@ -113,37 +105,47 @@ export async function parseCsvFile(
   }
 
   try {
-    const XLSX = await getXLSX();
+    const ExcelJS = await getExcelJS();
     const text = await file.text();
-    const workbook = XLSX.read(text, {
-      type: 'string',
-      cellDates: true,
+
+    // ExcelJS supports CSV via csv.readFile but we need to parse from string
+    // Convert CSV text to a buffer and load as CSV
+    const workbook = new ExcelJS.Workbook();
+    const csvBuffer = Buffer.from(text, 'utf-8');
+    await workbook.csv.read(new (await import('stream')).Readable({
+      read() {
+        this.push(csvBuffer);
+        this.push(null);
+      }
+    }), {
+      dateFormats: ['YYYY-MM-DD', 'DD/MM/YYYY', 'MM/DD/YYYY'],
     });
 
-    const sheetName = workbook.SheetNames[0];
-    if (!sheetName) {
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet || worksheet.rowCount === 0) {
       return createEmptyResult('Fichier CSV vide');
     }
 
+    const sheetName = worksheet.name;
     const result = createEmptyResult();
     result.success = true;
     result.error = undefined;
 
     switch (entityType) {
       case 'building':
-        result.buildings = parseSheet<RawBuildingRow>(XLSX, workbook, SHEET_NAMES.BUILDINGS, sheetName);
+        result.buildings = parseWorksheet<RawBuildingRow>(worksheet, SHEET_NAMES.BUILDINGS);
         break;
       case 'lot':
-        result.lots = parseSheet<RawLotRow>(XLSX, workbook, SHEET_NAMES.LOTS, sheetName);
+        result.lots = parseWorksheet<RawLotRow>(worksheet, SHEET_NAMES.LOTS);
         break;
       case 'contact':
-        result.contacts = parseSheet<RawContactRow>(XLSX, workbook, SHEET_NAMES.CONTACTS, sheetName);
+        result.contacts = parseWorksheet<RawContactRow>(worksheet, SHEET_NAMES.CONTACTS);
         break;
       case 'contract':
-        result.contracts = parseSheet<RawContractRow>(XLSX, workbook, SHEET_NAMES.CONTRACTS, sheetName);
+        result.contracts = parseWorksheet<RawContractRow>(worksheet, SHEET_NAMES.CONTRACTS);
         break;
       case 'company':
-        result.companies = parseSheet<RawCompanyRow>(XLSX, workbook, SHEET_NAMES.COMPANIES, sheetName);
+        result.companies = parseWorksheet<RawCompanyRow>(worksheet, SHEET_NAMES.COMPANIES);
         break;
     }
 
@@ -159,11 +161,10 @@ export async function parseCsvFile(
 // ============================================================================
 
 /**
- * Parse a single sheet from the workbook
+ * Parse a single sheet from the workbook by name
  */
 function parseSheet<T>(
-  XLSX: typeof import('xlsx'),
-  workbook: import('xlsx').WorkBook,
+  workbook: ExcelJSTypes.Workbook,
   expectedName: string,
   actualName: string | null
 ): ParsedSheet<T> {
@@ -178,16 +179,31 @@ function parseSheet<T>(
     return emptySheet;
   }
 
-  const worksheet = workbook.Sheets[actualName];
-  if (!worksheet) {
+  const worksheet = workbook.getWorksheet(actualName);
+  if (!worksheet || worksheet.rowCount === 0) {
     return emptySheet;
   }
 
-  // Get raw data as 2D array
-  const rawRows: unknown[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  return parseWorksheet<T>(worksheet, actualName);
+}
+
+/**
+ * Parse a worksheet into structured data
+ */
+function parseWorksheet<T>(
+  worksheet: ExcelJSTypes.Worksheet,
+  name: string
+): ParsedSheet<T> {
+  const rawRows: unknown[][] = [];
+
+  worksheet.eachRow((row) => {
+    const values = row.values as unknown[];
+    // ExcelJS row.values is 1-indexed (index 0 is undefined), so slice from 1
+    rawRows.push(values.slice(1));
+  });
 
   if (rawRows.length === 0) {
-    return { ...emptySheet, name: actualName };
+    return { name, headers: [], rows: [], rawRows: [] };
   }
 
   // First row is headers
@@ -195,14 +211,13 @@ function parseSheet<T>(
 
   // Remaining rows are data
   const dataRows = rawRows.slice(1).filter((row) => {
-    // Skip completely empty rows
     return (row as unknown[]).some((cell) => cell !== undefined && cell !== null && cell !== '');
   });
 
   // Check row limit
   if (dataRows.length > FILE_CONSTRAINTS.maxRows) {
     console.warn(
-      `Sheet "${actualName}" has ${dataRows.length} rows, truncating to ${FILE_CONSTRAINTS.maxRows}`
+      `Sheet "${name}" has ${dataRows.length} rows, truncating to ${FILE_CONSTRAINTS.maxRows}`
     );
   }
 
@@ -221,7 +236,7 @@ function parseSheet<T>(
   });
 
   return {
-    name: actualName,
+    name,
     headers,
     rows,
     rawRows: rawRows as unknown[][],
@@ -231,8 +246,9 @@ function parseSheet<T>(
 /**
  * Find a sheet by name (case-insensitive, accent-insensitive)
  */
-function findSheetName(sheetNames: string[], expected: string): string | null {
+function findSheetName(workbook: ExcelJSTypes.Workbook, expected: string): string | null {
   const normalizedExpected = normalizeSheetName(expected);
+  const sheetNames = workbook.worksheets.map((ws) => ws.name);
 
   for (const name of sheetNames) {
     if (normalizeSheetName(name) === normalizedExpected) {
@@ -280,7 +296,7 @@ function validateFile(file: File): string | null {
 
   // Check extension
   const extension = '.' + file.name.split('.').pop()?.toLowerCase();
-  if (!FILE_CONSTRAINTS.allowedExtensions.includes(extension)) {
+  if (!(FILE_CONSTRAINTS.allowedExtensions as readonly string[]).includes(extension)) {
     return `Format de fichier non supporté. Formats acceptés: ${FILE_CONSTRAINTS.allowedExtensions.join(', ')}`;
   }
 

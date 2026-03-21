@@ -2,7 +2,7 @@
  * Template Generator
  * Generate Excel templates for bulk import
  *
- * ⚡ OPTIMIZED: XLSX is lazy-loaded to reduce initial bundle size (~500KB)
+ * ⚡ OPTIMIZED: ExcelJS is lazy-loaded to reduce initial bundle size
  */
 
 import {
@@ -18,15 +18,16 @@ import {
   INTERVENTION_TYPE_LABELS,
 } from './constants';
 import type { TemplateConfig } from './types';
+import type * as ExcelJSTypes from 'exceljs';
 
-// ⚡ Lazy load XLSX to avoid 500KB in initial bundle
-let xlsxModule: typeof import('xlsx') | null = null;
+// ⚡ Lazy load ExcelJS to avoid bloating initial bundle
+let excelModule: typeof import('exceljs') | null = null;
 
-async function getXLSX() {
-  if (!xlsxModule) {
-    xlsxModule = await import('xlsx');
+async function getExcelJS() {
+  if (!excelModule) {
+    excelModule = await import('exceljs');
   }
-  return xlsxModule;
+  return excelModule;
 }
 
 // ============================================================================
@@ -35,28 +36,23 @@ async function getXLSX() {
 
 /**
  * Generate a complete multi-sheet Excel template
- * ⚡ Now async to support lazy loading of XLSX
  */
 export async function generateFullTemplate(includeExamples: boolean = true): Promise<Blob> {
-  const XLSX = await getXLSX();
-  const workbook = XLSX.utils.book_new();
+  const ExcelJS = await getExcelJS();
+  const workbook = new ExcelJS.Workbook();
 
   // Add each sheet
-  addTemplateSheet(XLSX, workbook, BUILDING_TEMPLATE, includeExamples);
-  addTemplateSheet(XLSX, workbook, LOT_TEMPLATE, includeExamples);
-  addTemplateSheet(XLSX, workbook, CONTACT_TEMPLATE, includeExamples);
-  addTemplateSheet(XLSX, workbook, CONTRACT_TEMPLATE, includeExamples);
-  addTemplateSheet(XLSX, workbook, COMPANY_TEMPLATE, includeExamples);
+  addTemplateSheet(workbook, BUILDING_TEMPLATE, includeExamples);
+  addTemplateSheet(workbook, LOT_TEMPLATE, includeExamples);
+  addTemplateSheet(workbook, CONTACT_TEMPLATE, includeExamples);
+  addTemplateSheet(workbook, CONTRACT_TEMPLATE, includeExamples);
+  addTemplateSheet(workbook, COMPANY_TEMPLATE, includeExamples);
 
   // Add instructions sheet
-  addInstructionsSheet(XLSX, workbook);
+  addInstructionsSheet(workbook);
 
   // Write to buffer
-  const buffer = XLSX.write(workbook, {
-    type: 'array',
-    bookType: 'xlsx',
-    bookSST: false,
-  });
+  const buffer = await workbook.xlsx.writeBuffer();
 
   return new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -65,14 +61,13 @@ export async function generateFullTemplate(includeExamples: boolean = true): Pro
 
 /**
  * Generate a single-entity template
- * ⚡ Now async to support lazy loading of XLSX
  */
 export async function generateEntityTemplate(
   entityType: 'building' | 'lot' | 'contact' | 'contract' | 'company',
   includeExamples: boolean = true
 ): Promise<Blob> {
-  const XLSX = await getXLSX();
-  const workbook = XLSX.utils.book_new();
+  const ExcelJS = await getExcelJS();
+  const workbook = new ExcelJS.Workbook();
 
   const configs: Record<string, TemplateConfig> = {
     building: BUILDING_TEMPLATE,
@@ -87,13 +82,9 @@ export async function generateEntityTemplate(
     throw new Error(`Type d'entité inconnu: ${entityType}`);
   }
 
-  addTemplateSheet(XLSX, workbook, config, includeExamples);
+  addTemplateSheet(workbook, config, includeExamples);
 
-  const buffer = XLSX.write(workbook, {
-    type: 'array',
-    bookType: 'xlsx',
-    bookSST: false,
-  });
+  const buffer = await workbook.xlsx.writeBuffer();
 
   return new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -101,46 +92,43 @@ export async function generateEntityTemplate(
 }
 
 // ============================================================================
-// Helper Functions (Now receive XLSX as parameter)
+// Helper Functions
 // ============================================================================
 
 /**
  * Add a template sheet to the workbook
  */
 function addTemplateSheet(
-  XLSX: typeof import('xlsx'),
-  workbook: import('xlsx').WorkBook,
+  workbook: ExcelJSTypes.Workbook,
   config: TemplateConfig,
   includeExample: boolean
 ): void {
-  // Prepare data with headers
-  const data: (string | number)[][] = [config.headers];
+  const worksheet = workbook.addWorksheet(config.sheetName);
 
-  // Add all example rows if requested
+  // Add header row with bold styling
+  const headerRow = worksheet.addRow(config.headers);
+  headerRow.font = { bold: true };
+
+  // Add example rows if requested
   if (includeExample && config.exampleRows.length > 0) {
-    data.push(...config.exampleRows);
+    for (const row of config.exampleRows) {
+      worksheet.addRow(row);
+    }
   }
 
-  // Create worksheet
-  const worksheet = XLSX.utils.aoa_to_sheet(data);
-
   // Set column widths
-  worksheet['!cols'] = config.columnWidths.map((width) => ({ wch: width }));
-
-  // Style header row (bold) - Note: basic xlsx doesn't support styling
-  // Would need xlsx-style or similar for full styling support
-
-  // Add to workbook
-  XLSX.utils.book_append_sheet(workbook, worksheet, config.sheetName);
+  config.columnWidths.forEach((width, index) => {
+    const col = worksheet.getColumn(index + 1);
+    col.width = width;
+  });
 }
 
 /**
  * Add instructions sheet with help content
  */
-function addInstructionsSheet(
-  XLSX: typeof import('xlsx'),
-  workbook: import('xlsx').WorkBook
-): void {
+function addInstructionsSheet(workbook: ExcelJSTypes.Workbook): void {
+  const worksheet = workbook.addWorksheet('Instructions');
+
   const instructions = [
     ['INSTRUCTIONS D\'IMPORT'],
     [''],
@@ -221,10 +209,12 @@ function addInstructionsSheet(
     ...Object.entries(COUNTRY_LABELS).map(([k, v]) => [`   - ${k} : ${v}`]),
   ];
 
-  const worksheet = XLSX.utils.aoa_to_sheet(instructions);
-  worksheet['!cols'] = [{ wch: 70 }];
+  for (const row of instructions) {
+    worksheet.addRow(row);
+  }
 
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Instructions');
+  // Set column width
+  worksheet.getColumn(1).width = 70;
 }
 
 // ============================================================================
@@ -247,7 +237,6 @@ export function downloadBlob(blob: Blob, filename: string): void {
 
 /**
  * Generate and download the full template
- * ⚡ Now async to support lazy loading of XLSX
  */
 export async function downloadFullTemplate(): Promise<void> {
   const blob = await generateFullTemplate(true);
@@ -256,7 +245,6 @@ export async function downloadFullTemplate(): Promise<void> {
 
 /**
  * Generate and download a single-entity template
- * ⚡ Now async to support lazy loading of XLSX
  */
 export async function downloadEntityTemplate(
   entityType: 'building' | 'lot' | 'contact' | 'contract' | 'company'
@@ -278,22 +266,21 @@ export async function downloadEntityTemplate(
 
 /**
  * Generate template as Buffer (for server-side)
- * ⚡ Now async to support lazy loading of XLSX
  */
 export async function generateTemplateBuffer(
   type: 'full' | 'building' | 'lot' | 'contact' | 'contract' | 'company' = 'full',
   includeExamples: boolean = true
 ): Promise<Buffer> {
-  const XLSX = await getXLSX();
-  const workbook = XLSX.utils.book_new();
+  const ExcelJS = await getExcelJS();
+  const workbook = new ExcelJS.Workbook();
 
   if (type === 'full') {
-    addTemplateSheet(XLSX, workbook, BUILDING_TEMPLATE, includeExamples);
-    addTemplateSheet(XLSX, workbook, LOT_TEMPLATE, includeExamples);
-    addTemplateSheet(XLSX, workbook, CONTACT_TEMPLATE, includeExamples);
-    addTemplateSheet(XLSX, workbook, CONTRACT_TEMPLATE, includeExamples);
-    addTemplateSheet(XLSX, workbook, COMPANY_TEMPLATE, includeExamples);
-    addInstructionsSheet(XLSX, workbook);
+    addTemplateSheet(workbook, BUILDING_TEMPLATE, includeExamples);
+    addTemplateSheet(workbook, LOT_TEMPLATE, includeExamples);
+    addTemplateSheet(workbook, CONTACT_TEMPLATE, includeExamples);
+    addTemplateSheet(workbook, CONTRACT_TEMPLATE, includeExamples);
+    addTemplateSheet(workbook, COMPANY_TEMPLATE, includeExamples);
+    addInstructionsSheet(workbook);
   } else {
     const configs: Record<string, TemplateConfig> = {
       building: BUILDING_TEMPLATE,
@@ -302,14 +289,9 @@ export async function generateTemplateBuffer(
       contract: CONTRACT_TEMPLATE,
       company: COMPANY_TEMPLATE,
     };
-    addTemplateSheet(XLSX, workbook, configs[type], includeExamples);
+    addTemplateSheet(workbook, configs[type], includeExamples);
   }
 
-  return Buffer.from(
-    XLSX.write(workbook, {
-      type: 'buffer',
-      bookType: 'xlsx',
-      bookSST: false,
-    })
-  );
+  const arrayBuffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(arrayBuffer);
 }

@@ -35,7 +35,6 @@ import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
 import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 import type { ReminderStats } from "@/lib/types/reminder.types"
-import { ReminderStatsWidget } from "@/components/operations/reminder-stats-widget"
 
 // Type for intervention row from Supabase (used in realtime callback)
 type DbIntervention = Database['public']['Tables']['interventions']['Row']
@@ -231,7 +230,8 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
                             tenantCount,
                             contractStats,
                             onContractClick: navigateToContracts,
-                            onActionsClick: handleActionsClick
+                            onActionsClick: handleActionsClick,
+                            reminderStats
                         })}
                     />
                 </div>
@@ -250,15 +250,9 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
                         tenantCount={tenantCount}
                         contractStats={contractStats}
                         onActionsClick={handleActionsClick}
+                        reminderStats={reminderStats}
                     />
                 </div>
-
-                {/* Reminder Stats Widget - shown when there are active reminders */}
-                {reminderStats && (reminderStats.due_today > 0 || reminderStats.overdue > 0 || reminderStats.en_cours > 0 || reminderStats.en_attente > 0) && (
-                    <div className="lg:order-2 mb-4 max-w-xs">
-                        <ReminderStatsWidget stats={reminderStats} />
-                    </div>
-                )}
 
                 {/* Unread Messages Section */}
                 {unreadThreads && unreadThreads.length > 0 && (

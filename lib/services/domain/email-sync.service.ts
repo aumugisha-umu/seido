@@ -126,6 +126,8 @@ export class EmailSyncService {
             }
 
             let processedCount = 0;
+            let blacklistedCount = 0;
+            let duplicateCount = 0;
 
             for (const email of parsedEmails) {
                 // Extract clean email from RFC 5322 format for blacklist check
@@ -140,7 +142,8 @@ export class EmailSyncService {
                 );
 
                 if (isBlacklisted) {
-                    logger.debug({ from: email.from }, 'Skipping blacklisted email');
+                    blacklistedCount++;
+                    logger.debug({ from: email.from }, '[SYNC] Skipping blacklisted email');
                     continue;
                 }
 
@@ -153,7 +156,8 @@ export class EmailSyncService {
                         .eq('message_id', email.messageId);
 
                     if (count && count > 0) {
-                        logger.debug({ messageId: email.messageId }, 'Skipping duplicate email');
+                        duplicateCount++;
+                        logger.debug({ messageId: email.messageId }, '[SYNC] Skipping duplicate email');
                         continue;
                     }
                 }
@@ -185,6 +189,13 @@ export class EmailSyncService {
                     throw insertError;
                 }
 
+                logger.debug({
+                    messageId: email.messageId,
+                    from: email.from,
+                    subject: email.subject?.substring(0, 50),
+                    date: email.date,
+                }, '[SYNC] Email inserted');
+
                 // Save attachments
                 if (email.attachments.length > 0) {
                     for (const att of email.attachments) {
@@ -215,6 +226,16 @@ export class EmailSyncService {
 
                 processedCount++;
             }
+
+            logger.info({
+                connectionId: connection.id,
+                email: connection.email_address,
+                imapFetched: parsedEmails.length,
+                inserted: processedCount,
+                blacklisted: blacklistedCount,
+                duplicates: duplicateCount,
+                parseErrors: parsedEmails.length - processedCount - blacklistedCount - duplicateCount,
+            }, '[SYNC] Connection sync summary');
 
             // Update connection status with new maxUid
             await this.connectionRepo.updateLastUid(connection.id, maxUid);

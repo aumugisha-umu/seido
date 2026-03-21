@@ -84,6 +84,43 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-20 - Operations Section + Reminders/Recurrence + AI Agent Design
+
+**Session 1: Operations Section — Major Feature (118 files, +7102/-1293 lines)**
+
+| Change | Description |
+|--------|-------------|
+| **Operations section** | New `/gestionnaire/operations/` route group replacing `/gestionnaire/interventions/` |
+| **Reminders system** | Full CRUD: create, edit, detail, list, stats — with entity linking (building/lot/contact/contract) |
+| **Recurrence engine** | RFC 5545 RRULE system: rules, occurrences, cron scanner (daily 06:00 UTC) |
+| **Reminder cards** | `reminder-card.tsx`, `reminders-list-view.tsx`, `reminders-navigator.tsx`, stats widget |
+| **Recurrence config** | `recurrence-config.tsx` — visual RRULE builder (daily/weekly/monthly/yearly) |
+| **View mode** | Tab-based navigation: Interventions / Rappels with segment control |
+| **DB migration** | `20260319200000_operations_reminders_recurrence.sql` — 3 new tables, RLS, indexes |
+| **RLS policy fix** | `20260319300000_fix_users_update_policy_recursion.sql` — infinite recursion fix |
+| **Route restructuring** | Interventions moved under `operations/interventions/` |
+| **Deleted files** | Removed separate assignment mode, multi-provider button, provider instructions input |
+| **Intervention service cleanup** | Extracted scheduling logic, removed ~200 lines of dead code |
+| **Sidebar/topbar** | Updated navigation to point to operations section |
+| **Dashboard integration** | Operations stats in async dashboard content |
+
+**New files:** `app/actions/reminder-actions.ts`, `app/api/cron/recurrence-scan/route.ts`, `lib/services/domain/reminder.service.ts`, `lib/services/repositories/reminder.repository.ts`, `lib/services/repositories/recurrence.repository.ts`, `lib/types/reminder.types.ts`, `hooks/use-reminders.ts`, `lib/utils/reminder-helpers.ts`, 8 components in `components/operations/`, 1 component in `components/recurrence/`, 5 pages in `app/gestionnaire/(no-navbar)/operations/`
+
+**New tables:** `reminders`, `recurrence_rules`, `recurrence_occurrences`
+
+**Session 2: AI Intervention Agent Design Document**
+
+Comprehensive design for an AI agent that:
+- Analyzes all intervention-related data (property, contracts, contacts, history, documents, emails)
+- Proposes structured action plans to gestionnaires
+- Executes approved actions with hybrid autonomy (safe=auto, sensitive=confirmation)
+- Extracts document metadata at upload (inline validation)
+
+Design saved: `docs/AI/ai-intervention-agent-design.md`
+Phase 1: Manual (8 stories) / Phase 2: Auto on demande (4 stories) / Phase 2.5: Learning + Embeddings (3 stories)
+
+---
+
 ### 2026-03-19 - Email Section Cleanup + Visibility Plumbing
 
 **Session: Exhaustive email code review (3 parallel agents) + visibility feature wiring**
@@ -601,26 +638,26 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-03-19)
+## Metriques Projet (2026-03-20)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | **23** |
-| Domain Services | **39** |
-| API Routes | **129** |
-| Hooks | **65** |
-| Components | **412** |
-| Pages | **78** |
+| Repositories | **25** (+2: reminder, recurrence) |
+| Domain Services | **40** (+1: reminder) |
+| API Routes | **130** (+1: recurrence-scan cron) |
+| Hooks | **66** (+1: use-reminders) |
+| Components | **420** (+8: operations/reminder components) |
+| Pages | **83** (+5: operations pages) |
 | Blog Articles | **23** |
-| DB Tables | **46** |
+| DB Tables | **49** (+3: reminders, recurrence_rules, recurrence_occurrences) |
 | DB Enums | 39 |
 | DB Functions | **80** |
-| Migrations | **199** |
-| Server Actions | **17** files |
+| Migrations | **201** (+2) |
+| Server Actions | **18** files (+1: reminder-actions) |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
 | **AGENTS.md Learnings** | **163** |
-| **systemPatterns.md Patterns** | **32** |
+| **systemPatterns.md Patterns** | **37** |
 | **Shared Cards** | **15** |
 | **E2E Test Files** | **8** |
 | **E2E Page Objects** | **8** |
@@ -710,5 +747,5 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | **2026-03-19** | **Email visibility plumbing** | **Private/shared email connections** | **OAuth+IMAP flows write visibility, listing/counts filter by access** |
 
 ---
-*Derniere mise a jour: 2026-03-19*
-*Session: Email section cleanup + visibility plumbing, 163 learnings in AGENTS.md, 48 retrospectives*
+*Derniere mise a jour: 2026-03-20*
+*Session: Operations section (reminders/recurrence) + AI agent design, 163 learnings in AGENTS.md, 48 retrospectives*

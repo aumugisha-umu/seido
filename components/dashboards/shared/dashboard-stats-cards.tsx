@@ -1,8 +1,9 @@
 "use client"
 
-import { AlertTriangle, Building2, Users, FileText, Wrench, AlertCircle, CheckCircle2 } from "lucide-react"
+import { AlertTriangle, Building2, Users, FileText, Wrench, AlertCircle, CheckCircle2, Bell, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ContractStats } from "@/lib/types/contract.types"
+import type { ReminderStats } from "@/lib/types/reminder.types"
 import { StatsCard, type TrendData } from "./stats-card"
 import { ProgressMini } from "./progress-mini"
 
@@ -42,6 +43,8 @@ interface DashboardStatsCardsProps {
     progressData?: ProgressData
     /** Click handler for "Actions requises" card (scroll to interventions) */
     onActionsClick?: () => void
+    /** Reminder stats for the 6th KPI card */
+    reminderStats?: ReminderStats
 }
 
 // ============================================================================
@@ -61,14 +64,20 @@ export function DashboardStatsCards({
     tenantCount = 0,
     trendData,
     progressData,
-    onActionsClick
+    onActionsClick,
+    reminderStats
 }: DashboardStatsCardsProps) {
     const isManager = buildingsCount !== undefined
+    const hasReminders = reminderStats && (reminderStats.due_today > 0 || reminderStats.overdue > 0 || reminderStats.en_cours > 0 || reminderStats.en_attente > 0)
 
     return (
         <div className={cn(
             "dashboard-stats-cards grid grid-cols-1 gap-3 lg:gap-4",
-            isManager ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" : "md:grid-cols-3"
+            isManager
+                ? hasReminders
+                    ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+                    : "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+                : "md:grid-cols-3"
         )}>
             {/* Card 1: Actions requises (Always First) */}
             <StatsCard
@@ -179,6 +188,37 @@ export function DashboardStatsCards({
                 variant="default"
                 href="/gestionnaire/operations"
             />
+
+            {/* Card 6: Rappels (Manager Only, conditional) */}
+            {hasReminders && reminderStats && (
+                <StatsCard
+                    id="reminders"
+                    label="Rappels"
+                    value={reminderStats.due_today}
+                    sublabel="aujourd'hui"
+                    secondaryValue={
+                        <div className="flex flex-col gap-0.5">
+                            {reminderStats.overdue > 0 && (
+                                <span className="text-destructive font-medium flex items-center gap-1 text-xs">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {reminderStats.overdue} en retard
+                                </span>
+                            )}
+                            {reminderStats.en_attente > 0 && (
+                                <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                                    <Clock className="h-3 w-3" />
+                                    {reminderStats.en_attente} en attente
+                                </span>
+                            )}
+                        </div>
+                    }
+                    icon={Bell}
+                    iconColor={reminderStats.overdue > 0 ? "text-red-500" : "text-amber-500"}
+                    variant={reminderStats.overdue > 0 ? "warning" : "default"}
+                    href="/gestionnaire/operations?type=rappel"
+                    alertRing={reminderStats.overdue > 0}
+                />
+            )}
         </div>
     )
 }

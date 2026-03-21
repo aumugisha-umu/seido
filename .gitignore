@@ -49,6 +49,11 @@ playwright-report/
 playwright-report-auth/
 test-results/
 test-report/
+blob-report/
+
+# QA Bot
+playwright/.auth/
+reports/
 
 # temporary files
 *.tmp

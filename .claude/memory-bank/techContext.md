@@ -67,19 +67,21 @@ app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locata
   - 76 pages total (reparties en 5+ route groups)
 app/blog/            # Blog pages (index + [slug] article pages)
 blog/articles/       # Markdown articles with YAML frontmatter
-components/          # 440 composants reutilisables (22 directories)
+components/          # 420 composants reutilisables (23 directories)
 components/blog/     # Blog components (markdown, card, list-client)
 components/billing/  # 11 billing UI components (NEW 2026-02-22)
 components/contracts/ # Supplier contract cards + building contracts tab
-hooks/               # 70 custom hooks (+useSubscription, useStrategicNotification)
+components/operations/ # Reminder cards, list, navigator, stats widget (NEW 2026-03-20)
+components/recurrence/ # RRULE visual builder (NEW 2026-03-20)
+hooks/               # 66 custom hooks (+useSubscription, useReminders)
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
-  repositories/      # 25 repositories (+ supplier-contract, supplier-contract-document)
-  domain/            # 63 services (logique metier + supplier-contract)
+  repositories/      # 25 repositories (+ reminder, recurrence)
+  domain/            # 40 services (logique metier + reminder)
     email-notification/  # Module refactore (15 fichiers)
 app/actions/         # 21 server action files (+ supplier-contract-actions)
-app/api/             # 123 API routes (10 domaines + ai-phone)
-  cron/              # 4 CRON jobs (trial-expiration, trial-notifications, behavioral-triggers, cleanup-webhook-events)
+app/api/             # 130 API routes (10 domaines + ai-phone + operations)
+  cron/              # 5 CRON jobs (trial-expiration, trial-notifications, behavioral-triggers, cleanup-webhook-events, recurrence-scan)
   stripe/            # Stripe webhook handler
   ai-phone/          # AI phone assistant webhook + usage (NEW 2026-03)
 tests/               # E2E test infrastructure (Puppeteer + Vitest)
@@ -120,7 +122,7 @@ lib/services/domain/
 
 ## Base de Donnees
 
-### Tables Principales (46 total - mis a jour 2026-03-11)
+### Tables Principales (49 total - mis a jour 2026-03-20)
 
 | Phase | Tables |
 |-------|--------|
@@ -131,8 +133,9 @@ lib/services/domain/
 | 5 | intervention_types, intervention_type_categories |
 | 6 | intervention_quotes, quote_attachments, quote_documents |
 | 7 | subscriptions, stripe_customers, stripe_invoices, stripe_webhook_events |
-| **8 (NEW)** | **supplier_contracts, supplier_contract_documents** |
-| **9 (NEW)** | **ai_phone_calls, ai_phone_usage** |
+| 8 | supplier_contracts, supplier_contract_documents |
+| 9 | ai_phone_calls, ai_phone_usage |
+| **10 (NEW)** | **reminders, recurrence_rules, recurrence_occurrences** |
 
 ### Stripe Schema (NOUVEAU 2026-02-22)
 
@@ -427,10 +430,12 @@ Fichier: `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 - `intervention_quotes` table - gere le cycle de vie des devis
 - Le statut intervention reste `planification` pendant la gestion des devis
 
-### Migrations Recentes (2026-03-11)
+### Migrations Recentes (2026-03-20)
 
 | Migration | Description |
 |-----------|-------------|
+| `20260319300000` | Fix users UPDATE policy recursion (infinite loop in RLS) |
+| `20260319200000` | Operations: reminders, recurrence_rules, recurrence_occurrences tables + RLS + indexes |
 | `20260311120000` | Remove supplier_contract start_date column |
 | `20260311110000` | Supplier contract intervention type link |
 | `20260311100000` | Supplier contracts + supplier_contract_documents tables |
@@ -541,9 +546,10 @@ class SubscriptionEmailService {
 | **STRIPE_PRICE_ID_YEARLY** | **Stripe price ID for yearly plan** |
 
 ---
-*Derniere mise a jour: 2026-03-11*
-*Analyse approfondie: 46 tables, 123 routes, 70 hooks, 76 pages, 193 migrations*
+*Derniere mise a jour: 2026-03-20*
+*Analyse approfondie: 49 tables, 130 routes, 66 hooks, 83 pages, 201 migrations*
 *Blog: 23 articles, gray-matter + react-markdown, hub-cluster architecture*
 *Stripe: 4 tables, 5 DB functions, 2 services, 2 repositories*
 *Supplier Contracts: 2 tables, 2 repositories, 1 service*
+*Operations: 3 tables (reminders, recurrence_rules, recurrence_occurrences), 2 repositories, 1 service, 1 cron*
 *Regenerer types: npm run supabase:types*

@@ -1,0 +1,243 @@
+name: QA Bot
+
+on:
+  repository_dispatch:
+    types:
+      - 'vercel.deployment.ready'
+      - 'vercel.deployment.promoted'
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'URL to test'
+        default: 'https://preview.seido.app'
+        type: string
+      mode:
+        description: 'Test mode'
+        type: choice
+        options:
+          - guided
+          - full
+        default: 'full'
+
+env:
+  TARGET_URL: ${{ github.event.client_payload.url || inputs.target_url || 'https://preview.seido.app' }}
+  IS_PRODUCTION: ${{ github.event.client_payload.environment == 'production' || false }}
+
+jobs:
+  guided-tests:
+    name: Guided Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8]
+        shardTotal: [8]
+    steps:
+      - name: Checkout (repository_dispatch)
+        if: github.event_name == 'repository_dispatch'
+        uses: vercel/repository-dispatch/actions/checkout@main
+
+      - name: Checkout (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run guided tests
+        run: npx playwright test --config tests/qa-bot/playwright.config.ts --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        env:
+          TARGET_URL: ${{ env.TARGET_URL }}
+          QA_TEST_CREDENTIALS: ${{ secrets.QA_TEST_CREDENTIALS }}
+
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ matrix.shardIndex }}
+          path: blob-report/
+          retention-days: 7
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.shardIndex }}
+          path: test-results/
+          retention-days: 7
+
+  merge-reports:
+    name: Merge Reports
+    needs: guided-tests
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    outputs:
+      phase1_passed: ${{ steps.check.outputs.phase1_passed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download blob reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
+
+      - name: Merge reports
+        run: npx playwright merge-reports --reporter html ./all-blob-reports
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-html-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Check phase 1 results
+        id: check
+        run: |
+          if [ "${{ needs.guided-tests.result }}" == "success" ]; then
+            echo "phase1_passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "phase1_passed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  autonomous-exploration:
+    name: Autonomous Exploration
+    needs: merge-reports
+    if: >-
+      needs.merge-reports.outputs.phase1_passed == 'true' &&
+      (github.event.client_payload.environment == 'production' || inputs.mode == 'full')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run autonomous exploration
+        run: npx tsx tests/qa-bot/autonomous/explorer.ts
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TARGET_URL: ${{ env.TARGET_URL }}
+          QA_TEST_CREDENTIALS: ${{ secrets.QA_TEST_CREDENTIALS }}
+
+      - name: Upload exploration report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: exploration-report
+          path: exploration-report/
+          retention-days: 14
+
+  reporting:
+    name: Reporting
+    needs: [guided-tests, merge-reports, autonomous-exploration]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download HTML report
+        uses: actions/download-artifact@v4
+        with:
+          name: qa-html-report
+          path: qa-html-report/
+        continue-on-error: true
+
+      - name: Download exploration report
+        uses: actions/download-artifact@v4
+        with:
+          name: exploration-report
+          path: exploration-report/
+        continue-on-error: true
+
+      - name: Generate final report
+        run: npx tsx tests/qa-bot/reporting/report-generator.ts
+        env:
+          TARGET_URL: ${{ env.TARGET_URL }}
+          IS_PRODUCTION: ${{ env.IS_PRODUCTION }}
+
+      - name: Create GitHub issue for failures
+        run: npx tsx tests/qa-bot/reporting/github-issue.ts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send email notification
+        run: npx tsx tests/qa-bot/reporting/email-notifier.ts
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+
+      - name: Upload final report
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-final-report
+          path: qa-final-report/
+          retention-days: 14
+
+  cleanup:
+    name: Cleanup
+    needs: reporting
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run cleanup
+        run: npx tsx tests/qa-bot/helpers/cleanup.ts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          QA_TEAM_ID: ${{ secrets.QA_TEAM_ID }}

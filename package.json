@@ -36,6 +36,8 @@
     "test:e2e:preview": "cross-env VITEST_MODE=preview vitest run --config tests/e2e/vitest.e2e.config.ts",
     "test:e2e:headed": "cross-env E2E_HEADLESS=false vitest run --config tests/e2e/vitest.e2e.config.ts",
     "test:integration": "vitest run --config tests/integration/vitest.integration.config.ts",
+    "qa:guided": "npx playwright test --config tests/qa-bot/playwright.config.ts",
+    "qa:full": "npx playwright test --config tests/qa-bot/playwright.config.ts && npx tsx tests/qa-bot/autonomous/explorer.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "claude": "powershell -ExecutionPolicy Bypass -File scripts/open-claude-code.ps1",
@@ -130,9 +132,11 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@faker-js/faker": "^10.1.0",
     "@lhci/cli": "^0.15.1",
     "@next/bundle-analyzer": "^15.5.4",
+    "@playwright/test": "^1.58.2",
     "@storybook/addon-a11y": "^10.1.2",
     "@storybook/addon-docs": "^10.1.2",
     "@storybook/addon-onboarding": "^10.1.2",

@@ -1,10 +1,31 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Email private/shared visibility feature - plumbing connected, testing next
+**Objectif:** Operations section shipped + AI agent design validated, ready for implementation
 **Branch:** `preview`
-**Sprint:** Email integration + platform improvements (Mar 2026)
-**Derniere analyse:** Email section cleanup + visibility plumbing — 2026-03-19
+**Sprint:** Operations + AI features (Mar 2026)
+**Derniere analyse:** Operations reminders/recurrence + AI intervention agent design — 2026-03-20
+
+---
+
+## COMPLETE: Operations Section + Reminders/Recurrence (2026-03-20)
+
+Major feature: new Operations section replacing standalone Interventions navigation. 118 files, +7102/-1293 lines.
+
+### Key Changes
+- **Route restructuring**: `/gestionnaire/interventions/` → `/gestionnaire/operations/interventions/`
+- **Reminders system**: Full CRUD with entity linking (building/lot/contact/contract)
+- **Recurrence engine**: RFC 5545 RRULE, cron scanner (daily 06:00 UTC), visual builder
+- **3 new DB tables**: `reminders`, `recurrence_rules`, `recurrence_occurrences`
+- **8 new components**: reminder-card, reminders-list-view, reminders-navigator, stats widget, task-type-segment, recurrence-config
+- **Deleted**: assignment-mode-selector, finalize-multi-provider-button, provider-instructions-input
+
+### AI Intervention Agent Design (Validated)
+- Design doc: `docs/AI/ai-intervention-agent-design.md`
+- Phase 1: Manual "Analyser avec l'IA" button (8 stories)
+- Phase 2: Auto-analysis on tenant `demande` (4 stories)
+- Phase 2.5: Learning + vector embeddings (3 stories)
+- Architecture: Vercel AI SDK ToolLoopAgent + Claude Sonnet/Haiku + existing service layer
 
 ---
 
@@ -103,12 +124,13 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
+- [ ] AI Intervention Agent Phase 1 implementation (8 stories — design in docs/AI/ai-intervention-agent-design.md)
 - [ ] Test email visibility end-to-end (private vs shared connections)
-- [ ] Remaining email visibility stories in prd.json
+- [ ] Deploy preview branch and validate operations section + data sync in production
 - [ ] Dead revalidation cleanup -- remove 68 dead revalidatePath/revalidateTag calls (9 files)
-- [ ] Deploy preview branch and validate data sync in production
 
 ### Fonctionnalites a Venir
+- [ ] AI Intervention Agent Phase 2 (auto on demande, enriched notifications)
 - [ ] Email Visibility Phase 2 (sharing UI, permission management)
 - [ ] Google Maps Integration Phase 2-3
 - [ ] Locataire lot details page (plan in docs/plans/)
@@ -119,23 +141,23 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-03-19)
+## Metriques Systeme (Mise a jour 2026-03-20)
 
 | Composant | Valeur |
 |-----------|--------|
-| **Tables DB** | **46** |
-| **Migrations** | **199** |
-| **API Routes** | **129** |
-| **Pages** | **78** |
-| **Composants** | **412** |
-| **Hooks** | **65** |
-| **Services domain** | **39** |
-| **Repositories** | **23** |
+| **Tables DB** | **49** (+3: reminders, recurrence_rules, recurrence_occurrences) |
+| **Migrations** | **201** |
+| **API Routes** | **130** |
+| **Pages** | **83** (+5 operations pages) |
+| **Composants** | **420** (+8 operations components) |
+| **Hooks** | **66** (+1: use-reminders) |
+| **Services domain** | **40** (+1: reminder) |
+| **Repositories** | **25** (+2: reminder, recurrence) |
 | **DB Functions** | **80** |
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **163** (+5 since Mar 18: #159-#163) |
+| **AGENTS.md Learnings** | **163** |
 | **Blog articles** | **23** |
 | **Retrospectives** | **48** |
 | **.claude/ Skills** | **23** |
@@ -161,5 +183,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Email private/shared visibility testing + remaining stories*
 
 ## Files Recently Modified
-### 2026-03-20 04:00:16 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/AI/ai-intervention-agent-design.md`
+### 2026-03-21 00:51:29 (Auto-updated)
+- `C:/Users/arthu/Desktop/coding/seido-app/tests/qa-bot/guided/conversations-docs.spec.ts`

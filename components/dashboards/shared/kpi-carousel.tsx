@@ -10,9 +10,11 @@ import {
     Users,
     FileText,
     Wrench,
+    Bell,
     ChevronRight
 } from "lucide-react"
 import type { ContractStats } from "@/lib/types/contract.types"
+import type { ReminderStats } from "@/lib/types/reminder.types"
 
 // ============================================================================
 // TYPES
@@ -67,6 +69,7 @@ const stripLabels: Record<string, string> = {
     occupation: 'Occupation',
     contrats: 'Contrats',
     interventions: 'Interv.',
+    reminders: 'Rappels',
 }
 
 /**
@@ -179,6 +182,8 @@ interface StatsToCardsOptions {
         percentage: number
         periodLabel: string
     }
+    /** Reminder stats for mobile strip */
+    reminderStats?: ReminderStats
 }
 
 export function statsToKPICards({
@@ -194,7 +199,8 @@ export function statsToKPICards({
     contractStats,
     onContractClick,
     onActionsClick,
-    progressData
+    progressData,
+    reminderStats
 }: StatsToCardsOptions): KPICardData[] {
     const cards: KPICardData[] = []
 
@@ -272,6 +278,23 @@ export function statsToKPICards({
         variant: 'default',
         progressBar: progressData
     })
+
+    // Rappels - Shows due today count with badge for overdue
+    if (reminderStats && (reminderStats.due_today > 0 || reminderStats.overdue > 0 || reminderStats.en_cours > 0 || reminderStats.en_attente > 0)) {
+        cards.push({
+            id: 'reminders',
+            label: 'Rappels',
+            value: reminderStats.due_today,
+            sublabel: "aujourd'hui",
+            icon: Bell,
+            iconColor: reminderStats.overdue > 0 ? 'text-red-500' : 'text-amber-500',
+            variant: reminderStats.overdue > 0 ? 'warning' : 'default',
+            badge: reminderStats.en_attente > 0 ? {
+                text: `${reminderStats.en_attente} en attente`,
+                variant: 'warning' as const
+            } : undefined
+        })
+    }
 
     return cards
 }

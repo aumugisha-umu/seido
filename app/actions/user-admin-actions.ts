@@ -7,10 +7,13 @@
  * All actions verify admin role before executing.
  */
 
+import { after } from 'next/server'
 import { getSupabaseAdmin, isAdminConfigured } from '@/lib/services/core/supabase-admin'
 import { getServerAuthContext } from '@/lib/server-context'
 // Pages are force-dynamic — no cache invalidation needed
 import { logger } from '@/lib/logger'
+import { emailService } from '@/lib/email/email-service'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { User, UserInsert, UserUpdate, UserWithStatus, UserComputedStatus } from '@/lib/services/core/service-types'
 import { sanitizeSearch } from '@/lib/utils/sanitize-search'
 
@@ -536,6 +539,259 @@ export async function getUsersByRoleAction(role: User['role']): Promise<ActionRe
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
+ * Invite a gestionnaire (admin only)
+ *
+ * Flow:
+ * 1. createUser with email_confirm: true → trigger creates profile + team + subscription
+ * 2. generateLink('magiclink') → secure link for password setting
+ * 3. Insert user_invitations record
+ * 4. Send custom email via Resend (deferred with after())
+ */
+export async function inviteGestionnaireAction(input: {
+  email: string
+  firstName: string
+  lastName: string
+  organization: string
+}): Promise<ActionResult<{ userId: string; invitationId: string }>> {
+  try {
+    const { supabase } = await getAdminContext()
+    const { email, firstName, lastName, organization } = input
+
+    if (!email || !firstName || !lastName || !organization) {
+      return { success: false, error: 'Tous les champs sont requis' }
+    }
+
+    const normalizedEmail = email.trim().toLowerCase()
+    logger.info({ email: normalizedEmail, organization }, '[ADMIN-INVITE] Starting gestionnaire invitation')
+
+    // 1. Check email uniqueness in users table
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .is('deleted_at', null)
+      .limit(1)
+      .maybeSingle()
+
+    if (existingUser) {
+      return { success: false, error: 'Un utilisateur avec cet email existe deja' }
+    }
+
+    // 2. Create auth user — trigger handles profile + team + subscription
+    const fullName = `${firstName} ${lastName}`
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: normalizedEmail,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName,
+        first_name: firstName,
+        last_name: lastName,
+        display_name: fullName,
+        organization,
+        role: 'gestionnaire',
+        password_set: false,
+      },
+    })
+
+    if (authError || !authData.user) {
+      logger.error({ error: authError }, '[ADMIN-INVITE] Failed to create auth user')
+      return { success: false, error: authError?.message || 'Echec de la creation du compte' }
+    }
+
+    const authUserId = authData.user.id
+    logger.info({ authUserId }, '[ADMIN-INVITE] Auth user created, trigger should have fired')
+
+    // 3. Generate magic link for password setting
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email: normalizedEmail,
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      },
+    })
+
+    if (linkError || !linkData?.properties?.hashed_token) {
+      logger.error({ error: linkError }, '[ADMIN-INVITE] Failed to generate magic link')
+      // Cleanup: delete the auth user we just created
+      await supabase.auth.admin.deleteUser(authUserId)
+      return { success: false, error: 'Echec de la generation du lien d\'invitation' }
+    }
+
+    const hashedToken = linkData.properties.hashed_token
+    const invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=magiclink`
+
+    // 4. Get the profile created by the trigger
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_user_id', authUserId)
+      .limit(1)
+      .maybeSingle()
+
+    // 5. Insert invitation record
+    const { data: invitation, error: invError } = await supabase
+      .from('user_invitations')
+      .insert({
+        email: normalizedEmail,
+        first_name: firstName,
+        last_name: lastName,
+        role: 'gestionnaire' as const,
+        team_id: null,
+        invited_by: userProfile?.id || null,
+        invitation_token: hashedToken,
+        user_id: userProfile?.id || null,
+        status: 'pending' as const,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .select('id')
+      .single()
+
+    if (invError) {
+      logger.warn({ error: invError }, '[ADMIN-INVITE] Failed to create invitation record (non-blocking)')
+    }
+
+    // 6. Send email (deferred — non-blocking)
+    const capturedEmail = normalizedEmail
+    const capturedFirstName = firstName
+    const capturedOrganization = organization
+    const capturedUrl = invitationUrl
+
+    after(async () => {
+      try {
+        const result = await emailService.sendAdminInvitationEmail(capturedEmail, {
+          firstName: capturedFirstName,
+          organization: capturedOrganization,
+          invitationUrl: capturedUrl,
+          expiresIn: 7,
+        })
+        if (result.success) {
+          logger.info({ emailId: result.emailId }, '[ADMIN-INVITE] Invitation email sent')
+        } else {
+          logger.warn({ error: result.error }, '[ADMIN-INVITE] Failed to send invitation email')
+        }
+      } catch (emailError) {
+        logger.error({ error: emailError }, '[ADMIN-INVITE] Exception sending invitation email')
+      }
+    })
+
+    logger.info({ authUserId, invitationId: invitation?.id }, '[ADMIN-INVITE] Gestionnaire invited successfully')
+    return {
+      success: true,
+      data: {
+        userId: authUserId,
+        invitationId: invitation?.id || '',
+      },
+    }
+  } catch (error) {
+    logger.error({ error }, '[ADMIN-INVITE] Exception in inviteGestionnaireAction')
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+    }
+  }
+}
+
+/**
+ * Resend invitation to a gestionnaire (admin only)
+ *
+ * Generates a new magic link, updates the invitation record, and resends the email.
+ */
+export async function resendGestionnaireInvitationAction(
+  email: string
+): Promise<ActionResult> {
+  try {
+    const { supabase } = await getAdminContext()
+    const normalizedEmail = email.trim().toLowerCase()
+
+    logger.info({ email: normalizedEmail }, '[ADMIN-RESEND] Resending invitation')
+
+    // 1. Find the invitation
+    const { data: invitation, error: invError } = await supabase
+      .from('user_invitations')
+      .select('id, first_name, status')
+      .eq('email', normalizedEmail)
+      .in('status', ['pending', 'expired'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (invError || !invitation) {
+      return { success: false, error: 'Aucune invitation en attente trouvee pour cet email' }
+    }
+
+    // 2. Find the user profile to get organization (team name)
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('id, name, team_id, teams:team_id(name)')
+      .eq('email', normalizedEmail)
+      .is('deleted_at', null)
+      .limit(1)
+      .maybeSingle()
+
+    // 3. Generate new magic link
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email: normalizedEmail,
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      },
+    })
+
+    if (linkError || !linkData?.properties?.hashed_token) {
+      logger.error({ error: linkError }, '[ADMIN-RESEND] Failed to generate magic link')
+      return { success: false, error: 'Echec de la generation du nouveau lien' }
+    }
+
+    const hashedToken = linkData.properties.hashed_token
+    const invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=magiclink`
+
+    // 4. Update invitation record
+    await supabase
+      .from('user_invitations')
+      .update({
+        invitation_token: hashedToken,
+        status: 'pending' as const,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+      .eq('id', invitation.id)
+
+    // 5. Send email (deferred)
+    const capturedEmail = normalizedEmail
+    const capturedFirstName = invitation.first_name || 'Gestionnaire'
+    const teamData = userProfile?.teams as { name: string } | null
+    const capturedOrganization = teamData?.name || 'votre organisation'
+    const capturedUrl = invitationUrl
+
+    after(async () => {
+      try {
+        const result = await emailService.sendAdminInvitationEmail(capturedEmail, {
+          firstName: capturedFirstName,
+          organization: capturedOrganization,
+          invitationUrl: capturedUrl,
+          expiresIn: 7,
+        })
+        if (result.success) {
+          logger.info({ emailId: result.emailId }, '[ADMIN-RESEND] Invitation email resent')
+        } else {
+          logger.warn({ error: result.error }, '[ADMIN-RESEND] Failed to resend email')
+        }
+      } catch (emailError) {
+        logger.error({ error: emailError }, '[ADMIN-RESEND] Exception resending email')
+      }
+    })
+
+    logger.info({ invitationId: invitation.id }, '[ADMIN-RESEND] Invitation resent successfully')
+    return { success: true }
+  } catch (error) {
+    logger.error({ error }, '[ADMIN-RESEND] Exception in resendGestionnaireInvitationAction')
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
     }
   }
 }

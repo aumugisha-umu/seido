@@ -15,24 +15,30 @@ export interface TestAccount {
   displayName: string
 }
 
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) throw new Error(`Missing required env var: ${name}`)
+  return value
+}
+
 export const TEST_ACCOUNTS: Record<string, TestAccount> = {
   gestionnaire: {
-    email: process.env.E2E_GESTIONNAIRE_EMAIL || 'arthur@seido-app.com',
-    password: process.env.E2E_GESTIONNAIRE_PASSWORD || 'Wxcvbn123',
+    email: requireEnv('E2E_GESTIONNAIRE_EMAIL'),
+    password: requireEnv('E2E_GESTIONNAIRE_PASSWORD'),
     role: 'gestionnaire',
-    displayName: 'Arthur (Gestionnaire)',
+    displayName: 'Gestionnaire',
   },
   locataire: {
-    email: process.env.E2E_LOCATAIRE_EMAIL || 'demo+noelle.montagne@seido-app.com',
-    password: process.env.E2E_LOCATAIRE_PASSWORD || 'Wxcvbn123',
+    email: requireEnv('E2E_LOCATAIRE_EMAIL'),
+    password: requireEnv('E2E_LOCATAIRE_PASSWORD'),
     role: 'locataire',
-    displayName: 'Noelle Montagne (Locataire)',
+    displayName: 'Locataire',
   },
   prestataire: {
-    email: process.env.E2E_PRESTATAIRE_EMAIL || 'demo+artisan.polyvalent@seido-app.com',
-    password: process.env.E2E_PRESTATAIRE_PASSWORD || 'Wxcvbn123',
+    email: requireEnv('E2E_PRESTATAIRE_EMAIL'),
+    password: requireEnv('E2E_PRESTATAIRE_PASSWORD'),
     role: 'prestataire',
-    displayName: 'Artisan Polyvalent (Prestataire)',
+    displayName: 'Prestataire',
   },
 }
 

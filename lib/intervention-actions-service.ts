@@ -347,8 +347,12 @@ export class InterventionActionsService {
     return result
   }
 
-  async cancelIntervention(intervention: InterventionAction, reason: string): Promise<APIResponse> {
-    if (!reason?.trim()) {
+  async cancelIntervention(intervention: InterventionAction, reasonOrData: string | CancellationData): Promise<APIResponse> {
+    // Accept both a plain string reason and a CancellationData object
+    const cancellationReason = typeof reasonOrData === 'string' ? reasonOrData : reasonOrData.cancellationReason
+    const internalComment = typeof reasonOrData === 'string' ? undefined : reasonOrData.internalComment
+
+    if (!cancellationReason?.trim()) {
       throw new Error("Le motif d'annulation est requis")
     }
 
@@ -361,7 +365,8 @@ export class InterventionActionsService {
       },
       body: JSON.stringify({
         interventionId: intervention.id,
-        cancellationReason: reason
+        cancellationReason: cancellationReason,
+        ...(internalComment && { internalComment }),
       }),
     })
 

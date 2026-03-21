@@ -1,0 +1,73 @@
+# Progress Log — QA Bot (Autonomous E2E Testing Agent)
+# Started: 2026-03-20
+# Stories: 12 total
+# Design: docs/ai/qa-bot-design.md
+---
+
+## US-001 ✅ Playwright Foundation (Wave 1)
+- Installed @playwright/test + @anthropic-ai/sdk as devDependencies
+- Created tests/qa-bot/playwright.config.ts (blob/html reporter, 5 projects, sharding)
+- Created directory structure: setup/, guided/, autonomous/, reporting/, pages/, helpers/
+- Added package.json scripts: qa:guided, qa:full
+- Updated .gitignore: playwright/.auth/, reports/, blob-report/
+
+## US-002 ✅ Auth Setup + Helpers (Wave 1)
+- tests/qa-bot/setup/auth.setup.ts — 3-role auth via Supabase GoTrue + storageState
+- tests/qa-bot/helpers/routes.ts — 47 routes with shard mapping
+- tests/qa-bot/helpers/selectors.ts — Playwright-native helpers (dismissBanners, waitForContent, etc.)
+- tests/qa-bot/helpers/constants.ts — timeouts, budgets, anomaly patterns
+
+## US-003 ✅ Page Object Models (Wave 1)
+- 11 POMs created in tests/qa-bot/pages/ via 2 parallel agents
+- dashboard, intervention-wizard, intervention-detail, building-wizard, lot-wizard
+- contract-wizard, reminder-wizard, reminder-detail, mail-hub, notifications, billing
+- All use Playwright-native locators (getByRole, getByLabel, getByText)
+
+## US-004 ✅ Shards 1+2: Auth/Smoke + Patrimoine (Wave 2)
+- tests/qa-bot/guided/auth-smoke.spec.ts (146 lines) — 3-role login, dashboard KPIs, sidebar, profile, push modal
+- tests/qa-bot/guided/patrimoine.spec.ts (313 lines) — building+lot CRUD, contacts, system notifications
+
+## US-005 ✅ Shard 3: Contrats + Rappels (Wave 2)
+- tests/qa-bot/guided/contrats-rappels.spec.ts (557 lines, 16 tests)
+- Bail+fournisseur contracts, full reminder lifecycle, recurrence config, overdue, navigator
+
+## US-006 ✅ Shard 4: Intervention Lifecycle (Wave 2)
+- tests/qa-bot/guided/intervention-lifecycle.spec.ts (550 lines, 15 tests)
+- Full multi-role lifecycle: create→approve→plan→slots→quote→close, rejection, cancellation
+
+## US-007 ✅ Shards 5+6: Conversations/Docs + Email (Wave 2)
+- tests/qa-bot/guided/conversations-docs.spec.ts (326 lines) — threads, throttle, documents, tenant request
+- tests/qa-bot/guided/email-system.spec.ts (755 lines) — mail hub, compose, linking, blacklist
+
+## US-008 ✅ Shards 7+8: Notifications + Billing/Settings (Wave 2)
+- tests/qa-bot/guided/notifications.spec.ts (248 lines) — 3-role notifications, bell, push, routing
+- tests/qa-bot/guided/billing-settings.spec.ts (217 lines) — billing, settings, static pages
+
+## US-009 ✅ GitHub Actions Workflow (Wave 2)
+- .github/workflows/qa-bot.yml (243 lines) — 5-job pipeline
+- Vercel dispatch, 8-shard matrix, merge-reports, autonomous, reporting, cleanup
+
+## US-010 ✅ Reporting System (Wave 2)
+- tests/qa-bot/reporting/report-generator.ts (375 lines) — Markdown report generation
+- tests/qa-bot/reporting/github-issue.ts (295 lines) — auto-create GitHub issues
+- tests/qa-bot/reporting/email-notifier.ts (316 lines) — email via Resend
+- tests/qa-bot/reporting/regression-tracker.ts (314 lines) — summary.json trends
+
+## US-011 ✅ Autonomous Exploration (Wave 2)
+- tests/qa-bot/autonomous/explorer.ts (492 lines) — orchestrator with page prioritization
+- tests/qa-bot/autonomous/page-analyzer.ts (265 lines) — Claude API + accessibility tree
+- tests/qa-bot/autonomous/anomaly-detector.ts (237 lines) — console/network/content monitoring
+- tests/qa-bot/autonomous/budget-limiter.ts (159 lines) — time/pages/API/cost limits
+
+## US-012 ✅ Cleanup + Seed Data (Wave 2)
+- tests/qa-bot/helpers/cleanup.ts (105 lines) — service-role deletion by QA_TEAM_ID + created_at
+- docs/ai/qa-bot-seed-data.md — full setup guide with SQL + GitHub Secrets
+
+## Wave 2 Summary
+- 8 parallel agents in git worktrees (all completed)
+- Fixed import mismatches between autonomous modules and shared helpers
+- Added missing constants: NAVIGATION, REPORT_PATHS, FORBIDDEN_ACTIONS, API_PRICING, Anomaly type
+- Added mapFileToRoutes to routes.ts, testType field to Route interface
+- Added setupAuth/getStorageStatePath standalone exports to auth.setup.ts
+- Fixed workflow cleanup path (cleanup/ → helpers/)
+- Total: 33 files, ~5,800 lines of QA infrastructure

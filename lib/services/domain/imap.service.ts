@@ -164,10 +164,25 @@ export class ImapService {
                         return reject(err);
                     }
 
+                    logger.info({
+                        totalMessages: box.messages.total,
+                        uidNext: box.uidnext,
+                        lastUid: connection.last_uid,
+                        syncFromDate: connection.sync_from_date,
+                    }, '[IMAP] Mailbox opened');
+
                     // Search strategy:
                     // 1. If last_uid > 0, search for UIDs > last_uid
                     // 2. If sync_from_date is set, search SINCE date (initial sync)
                     // 3. Fallback to UNSEEN
+                    logger.info({
+                        connectionId: connection.id,
+                        email: connection.email_address,
+                        lastUid: connection.last_uid,
+                        syncFromDate: connection.sync_from_date,
+                        searchStrategy: connection.last_uid && connection.last_uid > 0 ? 'UID_RANGE' : connection.sync_from_date ? 'SINCE_DATE' : 'UNSEEN',
+                    }, '[IMAP] Search strategy selected');
+
                     let searchCriteria: any[];
 
                     if (connection.last_uid && connection.last_uid > 0) {
@@ -188,6 +203,11 @@ export class ImapService {
                             imap.end();
                             return reject(new Error(sanitizeErrorMessage(err as Error)));
                         }
+
+                        logger.info({
+                            uidCount: uids?.length || 0,
+                            uidRange: uids?.length ? `${Math.min(...uids)}..${Math.max(...uids)}` : 'none',
+                        }, '[IMAP] Search results');
 
                         if (!uids || uids.length === 0) {
                             imap.end();

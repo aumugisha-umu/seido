@@ -14,6 +14,7 @@ import type {
   PasswordResetEmailProps,
   PasswordChangedEmailProps,
   InvitationEmailProps,
+  AdminInvitationEmailProps,
   TeamAdditionEmailProps,
   EmailSendResult,
   SendEmailOptions,
@@ -250,6 +251,28 @@ export const emailService = {
       tags: [
         { name: 'category', value: 'auth' },
         { name: 'type', value: 'password-changed' },
+      ],
+    })
+  },
+
+  /**
+   * Envoyer email d'invitation admin (gestionnaire invite par l'admin)
+   */
+  async sendAdminInvitationEmail(
+    to: string,
+    props: AdminInvitationEmailProps
+  ): Promise<EmailSendResult> {
+    const { default: AdminInvitationEmail } = await import('@/emails/templates/auth/admin-invitation')
+    const { html, text } = await renderEmail(AdminInvitationEmail(props))
+
+    return sendEmailWithRetry({
+      to,
+      subject: 'Bienvenue sur SEIDO — Votre espace de gestion vous attend',
+      html,
+      text,
+      tags: [
+        { name: 'category', value: 'auth' },
+        { name: 'type', value: 'admin-invitation' },
       ],
     })
   },

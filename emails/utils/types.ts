@@ -58,6 +58,19 @@ export interface PasswordChangedEmailProps extends BaseEmailProps {
 }
 
 /**
+ * Props pour le template d'invitation admin (gestionnaire invité par l'admin)
+ * Email avec quick start steps pour guider le gestionnaire
+ */
+export interface AdminInvitationEmailProps extends BaseEmailProps {
+  /** Nom de l'organisation (sera le nom de la team) */
+  organization: string
+  /** URL d'invitation avec magic link */
+  invitationUrl: string
+  /** Durée de validité (en jours) */
+  expiresIn?: number
+}
+
+/**
  * Props pour le template d'invitation (NOUVEL utilisateur)
  */
 export interface InvitationEmailProps extends BaseEmailProps {

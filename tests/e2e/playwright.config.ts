@@ -69,7 +69,7 @@ export default defineConfig({
     // ── Couche 2: E2E by Role ───────────────────────────
     {
       name: 'gestionnaire',
-      testMatch: /flows\/(property|contract|billing|supplier-contract)\/.*\.spec\.ts/,
+      testMatch: /flows\/(property|contract|billing|supplier-contract|intervention)\/.*\.spec\.ts/,
       dependencies: ['auth-setup'],
       use: {
         ...devices['Desktop Chrome'],

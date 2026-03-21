@@ -1,0 +1,46 @@
+name: Nightly Cross-Browser E2E
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  nightly-e2e:
+    runs-on: ubuntu-latest
+    environment: e2e
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [firefox, webkit, mobile-chrome, mobile-safari, tablet]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - name: Install all Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Run ${{ matrix.project }} tests
+        run: npx playwright test --config tests/e2e/playwright.config.ts --project=${{ matrix.project }}
+        env:
+          CI: true
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_GESTIONNAIRE_EMAIL: ${{ secrets.E2E_GESTIONNAIRE_EMAIL }}
+          E2E_GESTIONNAIRE_PASSWORD: ${{ secrets.E2E_GESTIONNAIRE_PASSWORD }}
+          E2E_LOCATAIRE_EMAIL: ${{ secrets.E2E_LOCATAIRE_EMAIL }}
+          E2E_LOCATAIRE_PASSWORD: ${{ secrets.E2E_LOCATAIRE_PASSWORD }}
+          E2E_PRESTATAIRE_EMAIL: ${{ secrets.E2E_PRESTATAIRE_EMAIL }}
+          E2E_PRESTATAIRE_PASSWORD: ${{ secrets.E2E_PRESTATAIRE_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: nightly-report-${{ matrix.project }}
+          path: tests/e2e/playwright-report/
+          retention-days: 7

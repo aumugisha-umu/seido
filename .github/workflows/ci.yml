@@ -1,17 +1,250 @@
 name: CI
+
 on:
   push:
     branches: [main, preview]
   pull_request:
     branches: [main, preview]
+
+env:
+  NODE_VERSION: '20'
+
 jobs:
+  # ── Lint ──────────────────────────────────────────────
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       - run: npm ci
       - run: npx next lint --max-warnings -1
+
+  # ── Type Check ────────────────────────────────────────
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  # ── Unit Tests ────────────────────────────────────────
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+
+  # ── Build ─────────────────────────────────────────────
+  build:
+    needs: [lint, typecheck]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next/
+          retention-days: 1
+
+  # ── E2E Smoke Tests ──────────────────────────────────
+  e2e-smoke:
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next/
+      - run: npx playwright install --with-deps chromium
+      - name: Run smoke tests
+        run: npx playwright test --config tests/e2e/playwright.config.ts --project=smoke
+        env:
+          CI: true
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_GESTIONNAIRE_EMAIL: ${{ secrets.E2E_GESTIONNAIRE_EMAIL }}
+          E2E_GESTIONNAIRE_PASSWORD: ${{ secrets.E2E_GESTIONNAIRE_PASSWORD }}
+          E2E_LOCATAIRE_EMAIL: ${{ secrets.E2E_LOCATAIRE_EMAIL }}
+          E2E_LOCATAIRE_PASSWORD: ${{ secrets.E2E_LOCATAIRE_PASSWORD }}
+          E2E_PRESTATAIRE_EMAIL: ${{ secrets.E2E_PRESTATAIRE_EMAIL }}
+          E2E_PRESTATAIRE_PASSWORD: ${{ secrets.E2E_PRESTATAIRE_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: smoke-report
+          path: tests/e2e/playwright-report/
+          retention-days: 7
+
+  # ── E2E Flow Tests (by role) ─────────────────────────
+  e2e-flows:
+    needs: [e2e-smoke]
+    runs-on: ubuntu-latest
+    environment: e2e
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [gestionnaire, prestataire, locataire, multi-role]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next/
+      - run: npx playwright install --with-deps chromium
+      - name: Run ${{ matrix.project }} flow tests
+        run: npx playwright test --config tests/e2e/playwright.config.ts --project=${{ matrix.project }}
+        env:
+          CI: true
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_GESTIONNAIRE_EMAIL: ${{ secrets.E2E_GESTIONNAIRE_EMAIL }}
+          E2E_GESTIONNAIRE_PASSWORD: ${{ secrets.E2E_GESTIONNAIRE_PASSWORD }}
+          E2E_LOCATAIRE_EMAIL: ${{ secrets.E2E_LOCATAIRE_EMAIL }}
+          E2E_LOCATAIRE_PASSWORD: ${{ secrets.E2E_LOCATAIRE_PASSWORD }}
+          E2E_PRESTATAIRE_EMAIL: ${{ secrets.E2E_PRESTATAIRE_EMAIL }}
+          E2E_PRESTATAIRE_PASSWORD: ${{ secrets.E2E_PRESTATAIRE_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-report-${{ matrix.project }}
+          path: tests/e2e/playwright-report/
+          retention-days: 7
+
+  # ── Accessibility Tests ──────────────────────────────
+  accessibility:
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next/
+      - run: npx playwright install --with-deps chromium
+      - name: Run accessibility tests
+        run: npx playwright test --config tests/e2e/playwright.config.ts --grep @a11y
+        env:
+          CI: true
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_GESTIONNAIRE_EMAIL: ${{ secrets.E2E_GESTIONNAIRE_EMAIL }}
+          E2E_GESTIONNAIRE_PASSWORD: ${{ secrets.E2E_GESTIONNAIRE_PASSWORD }}
+          E2E_LOCATAIRE_EMAIL: ${{ secrets.E2E_LOCATAIRE_EMAIL }}
+          E2E_LOCATAIRE_PASSWORD: ${{ secrets.E2E_LOCATAIRE_PASSWORD }}
+          E2E_PRESTATAIRE_EMAIL: ${{ secrets.E2E_PRESTATAIRE_EMAIL }}
+          E2E_PRESTATAIRE_PASSWORD: ${{ secrets.E2E_PRESTATAIRE_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: a11y-report
+          path: tests/e2e/playwright-report/
+          retention-days: 7
+
+  # ── Performance Tests ────────────────────────────────
+  performance:
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next/
+      - run: npx playwright install --with-deps chromium
+      - name: Run performance tests
+        run: npx playwright test --config tests/e2e/playwright.config.ts --grep @perf
+        env:
+          CI: true
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_GESTIONNAIRE_EMAIL: ${{ secrets.E2E_GESTIONNAIRE_EMAIL }}
+          E2E_GESTIONNAIRE_PASSWORD: ${{ secrets.E2E_GESTIONNAIRE_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: perf-report
+          path: tests/e2e/playwright-report/
+          retention-days: 7
+
+  # ── Visual Regression Tests (PRs only) ───────────────
+  visual-regression:
+    if: github.event_name == 'pull_request'
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: nextjs-build
+          path: .next/
+      - run: npx playwright install --with-deps chromium
+      - name: Run visual regression tests
+        run: npx playwright test --config tests/e2e/playwright.config.ts --grep @visual
+        env:
+          CI: true
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_GESTIONNAIRE_EMAIL: ${{ secrets.E2E_GESTIONNAIRE_EMAIL }}
+          E2E_GESTIONNAIRE_PASSWORD: ${{ secrets.E2E_GESTIONNAIRE_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-report
+          path: tests/e2e/playwright-report/
+          retention-days: 7

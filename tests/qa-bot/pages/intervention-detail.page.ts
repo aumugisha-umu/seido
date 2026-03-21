@@ -29,6 +29,13 @@ const DETAIL_URL_PATTERNS: Record<UserRole, string> = {
 export class InterventionDetailPage {
   constructor(private page: Page) {}
 
+  /** Dialog locator filtering out notification/PWA banners */
+  private get actionDialog() {
+    return this.page.getByRole('dialog').filter({
+      hasNot: this.page.getByText(/notification|installez/i),
+    })
+  }
+
   // ─── Navigation ─────────────────────────────────────────
 
   /** Navigate to the intervention detail page for a given role */
@@ -63,7 +70,7 @@ export class InterventionDetailPage {
     await processBtn.click()
 
     // Step 2: In the approval modal, click "Approuver"
-    const dialog = this.page.getByRole('dialog').filter({ hasNot: this.page.getByText(/notification|installez/i) })
+    const dialog = this.actionDialog
     const approveBtn = dialog.getByRole('button', { name: /approuver/i }).first()
     await expect(approveBtn).toBeVisible({ timeout: TIMEOUTS.action })
     await approveBtn.click()
@@ -87,7 +94,7 @@ export class InterventionDetailPage {
     await processBtn.click()
 
     // Step 2: In the approval modal, click "Rejeter"
-    const dialog = this.page.getByRole('dialog').filter({ hasNot: this.page.getByText(/notification|installez/i) })
+    const dialog = this.actionDialog
     const rejectBtn = dialog.getByRole('button', { name: /rejeter/i }).first()
     await expect(rejectBtn).toBeVisible({ timeout: TIMEOUTS.action })
     await rejectBtn.click()
@@ -157,8 +164,7 @@ export class InterventionDetailPage {
     await targetSlot.click()
 
     // Confirm selection in dialog if prompted
-    const confirmBtn = this.page.getByRole('dialog')
-      .filter({ hasNot: this.page.getByText(/notification|installez/i) })
+    const confirmBtn = this.actionDialog
       .getByRole('button', { name: /confirmer/i })
       .first()
     if (await confirmBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
@@ -214,15 +220,14 @@ export class InterventionDetailPage {
   /** Approve the first pending quote (gestionnaire) */
   async approveQuote(): Promise<void> {
     await dismissBanners(this.page)
-    await this.goToTab('Devis')
+    await this.goToTab('Planning et Estimations')
 
     const approveBtn = this.page.getByRole('button', { name: /accepter|approuver/i }).first()
     await expect(approveBtn).toBeVisible({ timeout: TIMEOUTS.action })
     await approveBtn.click()
 
     // Confirm in dialog
-    const confirmBtn = this.page.getByRole('dialog')
-      .filter({ hasNot: this.page.getByText(/notification|installez/i) })
+    const confirmBtn = this.actionDialog
       .getByRole('button', { name: /confirmer/i })
       .first()
     if (await confirmBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
@@ -240,7 +245,7 @@ export class InterventionDetailPage {
     await completeBtn.click()
 
     // Handle completion report dialog if it appears
-    const dialog = this.page.getByRole('dialog').filter({ hasNot: this.page.getByText(/notification|installez/i) })
+    const dialog = this.actionDialog
     const confirmBtn = dialog.getByRole('button', { name: /confirmer|soumettre|envoyer/i }).first()
     if (await confirmBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await confirmBtn.click()
@@ -255,7 +260,7 @@ export class InterventionDetailPage {
     await validateBtn.click()
 
     // Handle validation dialog
-    const dialog = this.page.getByRole('dialog').filter({ hasNot: this.page.getByText(/notification|installez/i) })
+    const dialog = this.actionDialog
     const confirmBtn = dialog.getByRole('button', { name: /confirmer|valider/i }).first()
     if (await confirmBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await confirmBtn.click()
@@ -274,7 +279,7 @@ export class InterventionDetailPage {
     await finalizeBtn.click()
 
     // Handle finalization modal
-    const dialog = this.page.getByRole('dialog').filter({ hasNot: this.page.getByText(/notification|installez/i) })
+    const dialog = this.actionDialog
 
     if (finalCost !== undefined) {
       const costInput = dialog.getByLabel(/coût|montant|prix/i).first()
@@ -340,5 +345,3 @@ export class InterventionDetailPage {
     return await waitForSuccessToast(this.page, TIMEOUTS.toast)
   }
 }
-
-export default InterventionDetailPage

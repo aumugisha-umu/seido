@@ -22,14 +22,6 @@ import { TIMEOUTS } from '../helpers/constants'
 // HELPERS
 // ============================================================================
 
-/** Format a Date as dd/mm/yyyy digits for DatePicker inputs */
-function formatDateDigits(date: Date): string {
-  const dd = String(date.getDate()).padStart(2, '0')
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const yyyy = String(date.getFullYear())
-  return `${dd}${mm}${yyyy}`
-}
-
 /** Format a Date as dd/mm/yyyy with slashes for fill() inputs */
 function formatDateSlashes(date: Date): string {
   const dd = String(date.getDate()).padStart(2, '0')
@@ -47,18 +39,6 @@ function tomorrow(): Date {
 function yesterday(): Date {
   const d = new Date()
   d.setDate(d.getDate() - 1)
-  return d
-}
-
-function inSixMonths(): Date {
-  const d = new Date()
-  d.setMonth(d.getMonth() + 6)
-  return d
-}
-
-function inOneYear(): Date {
-  const d = new Date()
-  d.setFullYear(d.getFullYear() + 1)
   return d
 }
 

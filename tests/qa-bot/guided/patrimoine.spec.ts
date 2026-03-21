@@ -350,141 +350,96 @@ test.describe.serial('Lot CRUD', () => {
 
 // ─── Contacts ───────────────────────────────────────────────
 
+/** Shared helper for creating a contact via the wizard */
+async function createContactViaWizard(
+  page: import('@playwright/test').Page,
+  opts: { type: string; lastName: string; email: string; phone?: string },
+): Promise<void> {
+  await page.goto(`/gestionnaire/contacts/nouveau?type=${opts.type}`)
+  await dismissBanners(page)
+  await waitForContent(page, ['contact', 'type', opts.type], TIMEOUTS.content)
+
+  // Step 1 (Type) is pre-filled via ?type= — advance
+  const continueBtn = page.getByRole('button', { name: /continuer/i }).first()
+  await expect(continueBtn).toBeEnabled({ timeout: TIMEOUTS.action })
+  await continueBtn.click()
+  await page.waitForTimeout(1_000)
+  await dismissBanners(page)
+
+  // Step 2 (Société) — may appear, advance through it
+  const isSocieteStep = await page.getByText(/société|entreprise/i).first()
+    .isVisible({ timeout: 3_000 }).catch(() => false)
+  if (isSocieteStep) {
+    const socContinue = page.getByRole('button', { name: /continuer/i }).first()
+    if (await socContinue.isEnabled({ timeout: 3_000 }).catch(() => false)) {
+      await socContinue.click()
+      await page.waitForTimeout(1_000)
+      await dismissBanners(page)
+    }
+  }
+
+  // Contact step — fill Prénom, Nom, Email
+  await page.waitForFunction(
+    () => document.body.innerText.toLowerCase().includes('prénom') ||
+          document.body.innerText.toLowerCase().includes('coordonnées'),
+    { timeout: TIMEOUTS.content }
+  ).catch(() => {})
+
+  const firstNameInput = page.getByRole('textbox', { name: /prénom/i }).first()
+  await expect(firstNameInput).toBeVisible({ timeout: TIMEOUTS.action })
+  await firstNameInput.fill('QA')
+
+  const nameInput = page.getByRole('textbox', { name: /^nom$/i }).first()
+  await expect(nameInput).toBeVisible({ timeout: TIMEOUTS.action })
+  await nameInput.fill(opts.lastName)
+
+  const emailInput = page.getByRole('textbox', { name: /email/i }).first()
+  await expect(emailInput).toBeVisible({ timeout: TIMEOUTS.action })
+  await emailInput.fill(opts.email)
+
+  // Fill Phone (optional)
+  if (opts.phone) {
+    const phoneInput = page.getByPlaceholder(/4XX|téléphone/i).first()
+    if (await phoneInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await phoneInput.fill(opts.phone)
+    }
+  }
+
+  // Advance to Confirmation
+  const continueBtn2 = page.getByRole('button', { name: /continuer/i }).first()
+  await expect(continueBtn2).toBeEnabled({ timeout: TIMEOUTS.action })
+  await continueBtn2.click()
+  await page.waitForTimeout(500)
+
+  // Submit — "Créer le contact"
+  await dismissBanners(page)
+  const submitBtn = page.getByRole('button', { name: /créer le contact/i }).first()
+  await expect(submitBtn).toBeVisible({ timeout: TIMEOUTS.action })
+  await submitBtn.click()
+
+  // Verify success
+  const toastText = await waitForSuccessToast(page, TIMEOUTS.toast)
+  expect(toastText.toLowerCase()).toMatch(/créé|ajouté|enregistré|succès/)
+}
+
 test.describe.serial('Contacts CRUD', () => {
   test('Creer un contact prestataire', async ({ page }) => {
     test.slow()
-
-    await page.goto('/gestionnaire/contacts/nouveau?type=prestataire')
-    await dismissBanners(page)
-    await waitForContent(page, ['contact', 'type', 'prestataire'], TIMEOUTS.content)
-
-    // The contact wizard has steps: Type → Société → Contact → Confirmation
-    // Step 1 (Type) is pre-filled via ?type=prestataire — advance
-    const continueBtn = page.getByRole('button', { name: /continuer/i }).first()
-    await expect(continueBtn).toBeEnabled({ timeout: TIMEOUTS.action })
-    await continueBtn.click()
-    await page.waitForTimeout(1_000)
-    await dismissBanners(page)
-
-    // Step 2 (Société) — may appear, advance through it
-    // Check if we're on Société step or already on Contact step
-    const isSocieteStep = await page.getByText(/société|entreprise/i).first()
-      .isVisible({ timeout: 3_000 }).catch(() => false)
-    if (isSocieteStep) {
-      // Click Continuer to skip optional Société step
-      const socContinue = page.getByRole('button', { name: /continuer/i }).first()
-      if (await socContinue.isEnabled({ timeout: 3_000 }).catch(() => false)) {
-        await socContinue.click()
-        await page.waitForTimeout(1_000)
-        await dismissBanners(page)
-      }
-    }
-
-    // We should now be on the Contact step (fields: Prénom, Nom, Email)
-    await page.waitForFunction(
-      () => document.body.innerText.toLowerCase().includes('prénom') ||
-            document.body.innerText.toLowerCase().includes('coordonnées'),
-      { timeout: TIMEOUTS.content }
-    ).catch(() => {})
-
-    // Fill Prénom (first name)
-    const firstNameInput = page.getByRole('textbox', { name: /prénom/i }).first()
-    await expect(firstNameInput).toBeVisible({ timeout: TIMEOUTS.action })
-    await firstNameInput.fill('QA')
-
-    // Fill Nom (last name) — use textbox role since label structure may not match getByLabel
-    const nameInput = page.getByRole('textbox', { name: /^nom$/i }).first()
-    await expect(nameInput).toBeVisible({ timeout: TIMEOUTS.action })
-    await nameInput.fill(CONTACT_PRESTA_NAME)
-
-    // Fill Email (required)
-    const emailInput = page.getByRole('textbox', { name: /email/i }).first()
-    await expect(emailInput).toBeVisible({ timeout: TIMEOUTS.action })
-    await emailInput.fill(CONTACT_PRESTA_EMAIL)
-
-    // Fill Phone (optional)
-    const phoneInput = page.getByPlaceholder(/4XX|téléphone/i).first()
-    if (await phoneInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await phoneInput.fill('412345678')
-    }
-
-    // Advance to Confirmation — wait for button to become enabled after filling required fields
-    const continueBtn2 = page.getByRole('button', { name: /continuer/i }).first()
-    await expect(continueBtn2).toBeEnabled({ timeout: TIMEOUTS.action })
-    await continueBtn2.click()
-    await page.waitForTimeout(500)
-
-    // Submit — "Créer le contact"
-    await dismissBanners(page)
-    const submitBtn = page.getByRole('button', { name: /créer le contact/i }).first()
-    await expect(submitBtn).toBeVisible({ timeout: TIMEOUTS.action })
-    await submitBtn.click()
-
-    // Verify success
-    const toastText = await waitForSuccessToast(page, TIMEOUTS.toast)
-    expect(toastText.toLowerCase()).toMatch(/créé|ajouté|enregistré|succès/)
+    await createContactViaWizard(page, {
+      type: 'prestataire',
+      lastName: CONTACT_PRESTA_NAME,
+      email: CONTACT_PRESTA_EMAIL,
+      phone: '412345678',
+    })
   })
 
   test('Creer un contact locataire', async ({ page }) => {
     test.slow()
-
-    await page.goto('/gestionnaire/contacts/nouveau?type=locataire')
-    await dismissBanners(page)
-    await waitForContent(page, ['contact', 'type', 'locataire'], TIMEOUTS.content)
-
-    // Step 1 (Type) is pre-filled via ?type=locataire — advance
-    const continueBtn = page.getByRole('button', { name: /continuer/i }).first()
-    await expect(continueBtn).toBeEnabled({ timeout: TIMEOUTS.action })
-    await continueBtn.click()
-    await page.waitForTimeout(1_000)
-    await dismissBanners(page)
-
-    // Step 2 (Société) — may appear, advance through it
-    const isSocieteStep = await page.getByText(/société|entreprise/i).first()
-      .isVisible({ timeout: 3_000 }).catch(() => false)
-    if (isSocieteStep) {
-      const socContinue = page.getByRole('button', { name: /continuer/i }).first()
-      if (await socContinue.isEnabled({ timeout: 3_000 }).catch(() => false)) {
-        await socContinue.click()
-        await page.waitForTimeout(1_000)
-        await dismissBanners(page)
-      }
-    }
-
-    // Contact step — fill Prénom, Nom, Email
-    await page.waitForFunction(
-      () => document.body.innerText.toLowerCase().includes('prénom') ||
-            document.body.innerText.toLowerCase().includes('coordonnées'),
-      { timeout: TIMEOUTS.content }
-    ).catch(() => {})
-
-    const firstNameInput = page.getByRole('textbox', { name: /prénom/i }).first()
-    await expect(firstNameInput).toBeVisible({ timeout: TIMEOUTS.action })
-    await firstNameInput.fill('QA')
-
-    const nameInput = page.getByRole('textbox', { name: /^nom$/i }).first()
-    await expect(nameInput).toBeVisible({ timeout: TIMEOUTS.action })
-    await nameInput.fill(CONTACT_LOCATAIRE_NAME)
-
-    const emailInput = page.getByRole('textbox', { name: /email/i }).first()
-    await expect(emailInput).toBeVisible({ timeout: TIMEOUTS.action })
-    await emailInput.fill(CONTACT_LOCATAIRE_EMAIL)
-
-    // Advance to Confirmation
-    const continueBtn2 = page.getByRole('button', { name: /continuer/i }).first()
-    await expect(continueBtn2).toBeEnabled({ timeout: TIMEOUTS.action })
-    await continueBtn2.click()
-    await page.waitForTimeout(500)
-
-    // Submit
-    await dismissBanners(page)
-    const submitBtn = page.getByRole('button', { name: /créer le contact/i }).first()
-    await expect(submitBtn).toBeVisible({ timeout: TIMEOUTS.action })
-    await submitBtn.click()
-
-    // Verify success
-    const toastText = await waitForSuccessToast(page, TIMEOUTS.toast)
-    expect(toastText.toLowerCase()).toMatch(/créé|ajouté|enregistré|succès/)
+    await createContactViaWizard(page, {
+      type: 'locataire',
+      lastName: CONTACT_LOCATAIRE_NAME,
+      email: CONTACT_LOCATAIRE_EMAIL,
+    })
   })
 
   test('Liste des contacts avec recherche', async ({ page }) => {

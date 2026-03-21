@@ -152,11 +152,14 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [x] **Supplier Contracts** (new entity: DB tables, repository, service, card UI, wizard steps)
 - [x] **Email Section Cleanup + Visibility Plumbing** (2026-03-19: 30 files, console->logger, any->unknown, type consolidation, compose modal z-index fix, OAuth/IMAP visibility wiring)
 - [x] **Operations Section + Reminders/Recurrence** (2026-03-20: 118 files, 3 new tables, route restructuring, RRULE cron engine)
+- [x] **QA Bot E2E Test Suite** (2026-03-21: Playwright, 114 tests, 8 shards, 10 POMs, GitHub Actions CI)
+- [x] **Admin Invite** (2026-03-21: `inviteGestionnaireAction` — magic link + Resend email)
+- [x] **cancelIntervention bug fix** (2026-03-21: `string | CancellationData` union type)
 - [ ] **AI Intervention Agent** (design validated — `docs/AI/ai-intervention-agent-design.md`, Phase 1: 8 stories, Phase 2: 4 stories)
 - [ ] **Email Visibility Phase 2** (sharing UI, permission management, end-to-end testing)
 - [ ] Landing page redesign (plan exists in docs/plans/)
 
-### Metriques Infrastructure (2026-03-20)
+### Metriques Infrastructure (2026-03-21)
 - **420 composants** (UI + dashboards + workflow + blog + billing + contracts + operations)
 - **66 hooks** custom
 - **25 repositories** + **40 domain services**
@@ -164,7 +167,8 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - **201 migrations SQL**
 - **49 DB tables**
 - **23 blog articles** (SEO-optimized, sourced, hub-cluster architecture)
-- **163 AGENTS.md learnings**
+- **168 AGENTS.md learnings**
+- **114 Playwright E2E tests** (8 shards, 10 POMs, GitHub Actions CI)
 
 ## Fonctionnalités Prévues
 - [ ] AI Intervention Agent (Phase 1: manual analysis) - Priorité: Haute - Design: `docs/AI/ai-intervention-agent-design.md`
@@ -175,6 +179,6 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [ ] Dashboard analytics avancé - Priorité: Haute
 
 ---
-*Derniere mise a jour: 2026-03-20*
+*Derniere mise a jour: 2026-03-21*
 *Références: docs/design/persona-gestionnaire-unifie.md, persona-prestataire.md, persona-locataire.md*
 *Stripe: docs/stripe/admin-guide.md, docs/stripe/coupon-strategy.md, docs/stripe/production-checklist.md*

@@ -1,6 +1,17 @@
-# Progress Log — Admin Invite Gestionnaire
-# Started: 2026-03-20
-# Stories: 4 total (4/4 complete)
+# Progress Log — QA Bot E2E Suite + Admin Invite + Email Enhancements
+# Completed: 2026-03-21
+# Commit: 3ccd8d22
+# 70 files, +13,088/-444 lines
+# Compound: AGENTS.md #164-168, retrospective created
+---
+
+## QA Bot E2E Suite — DONE
+- 114 Playwright tests across 8 shards (8 page objects)
+- Domains: Dashboard, Interventions, Contacts, Properties, Contracts, Notifications, Settings, Operations
+- cancelIntervention bug fix (union type string | CancellationData)
+- Auth role mismatch fix (admin vs gestionnaire strict check)
+
+## Admin Invite Gestionnaire — DONE (4/4 stories)
 # Design: docs/plans/2026-03-20-admin-invite-gestionnaire-design.md
 ---
 

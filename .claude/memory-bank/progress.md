@@ -84,6 +84,30 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-21 - QA Bot E2E Test Suite + Admin Invite + Email Enhancements
+
+**Session: Full Playwright QA bot suite, admin invite action, email system enhancements (70 files, +13,088/-444 lines)**
+
+| Change | Description |
+|--------|-------------|
+| **Playwright QA bot** | 114 tests across 8 shards, 8 page objects (POM pattern), targeting Vercel preview |
+| **Page Objects** | Dashboard, Interventions, Contacts, Properties, Contracts, Notifications, Settings, Operations |
+| **cancelIntervention fix** | Union type `string \| CancellationData` — callers passed object but method expected string |
+| **Admin invite action** | `inviteGestionnaireAction()` — createUser + magiclink + email via after() |
+| **Email enhancements** | Admin invitation template, resend action, UI dialog |
+| **Auth role fix** | E2E user had `admin` role causing gestionnaire page redirects — strict role matching |
+
+**Key discoveries:**
+- `requireRole('gestionnaire')` does strict equality, not role hierarchy — admin != gestionnaire
+- Vercel preview cold starts (3-5s) need `test.slow()` + generous timeouts
+- Radix tab panels stay in DOM when inactive — must scope to `[data-state="active"]`
+- Intervention auto-advancement: may skip "demande" → "planification" after creation
+
+**Learnings:** AGENTS.md #164-168
+**Retrospective:** `docs/learnings/2026-03-21-qa-bot-suite-retrospective.md`
+
+---
+
 ### 2026-03-20 - Operations Section + Reminders/Recurrence + AI Agent Design
 
 **Session 1: Operations Section — Major Feature (118 files, +7102/-1293 lines)**

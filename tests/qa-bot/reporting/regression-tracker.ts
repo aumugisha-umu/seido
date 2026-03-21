@@ -16,6 +16,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import { SEVERITY, type Severity } from '../helpers/constants'
+import { findReportPath, getShortSha } from './report-helpers'
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -62,24 +63,6 @@ interface ParsedAnomaly {
 }
 
 // ─── Helpers ────────────────────────────────────────────
-
-function getShortSha(sha: string): string {
-  return sha.slice(0, 7)
-}
-
-function findReportPath(): string | null {
-  const reportsDir = path.join(process.cwd(), 'reports')
-  const latestPath = path.join(reportsDir, 'qa-report-latest.md')
-  if (fs.existsSync(latestPath)) return latestPath
-
-  if (!fs.existsSync(reportsDir)) return null
-  const files = fs.readdirSync(reportsDir)
-    .filter(f => f.startsWith('qa-report-') && f.endsWith('.md'))
-    .sort()
-    .reverse()
-
-  return files.length > 0 ? path.join(reportsDir, files[0]) : null
-}
 
 function parseReportMetrics(reportContent: string): {
   phase1: Phase1Results

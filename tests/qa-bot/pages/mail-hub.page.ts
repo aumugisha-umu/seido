@@ -199,5 +199,3 @@ export class MailHubPage {
     await startButton.click()
   }
 }
-
-export default MailHubPage

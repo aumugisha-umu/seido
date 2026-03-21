@@ -244,5 +244,3 @@ export class ContractWizardPage {
     }
   }
 }
-
-export default ContractWizardPage

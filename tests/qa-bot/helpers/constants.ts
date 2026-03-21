@@ -29,8 +29,6 @@ export const EXPLORATION_BUDGET = {
   maxDurationMs: 15 * 60 * 1000, // 15 minutes
   maxPages: 50,
   maxApiCalls: 100,
-  dailySpendCapUsd: 5,
-  /** Alias used by budget-limiter */
   maxCostUsd: 5,
 } as const
 

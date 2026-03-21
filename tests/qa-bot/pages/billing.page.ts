@@ -49,5 +49,3 @@ export class BillingPage {
     await expect(button).toBeDisabled()
   }
 }
-
-export default BillingPage

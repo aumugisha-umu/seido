@@ -105,5 +105,3 @@ export class DashboardPage {
     await expect(messagesSection).toBeVisible({ timeout: TIMEOUTS.content })
   }
 }
-
-export default DashboardPage

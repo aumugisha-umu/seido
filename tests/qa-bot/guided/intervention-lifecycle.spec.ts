@@ -446,12 +446,11 @@ test.describe.serial('Intervention Lifecycle -- Flux complet multi-role', () => 
     await detail.goto('gestionnaire', interventionId)
 
     // Check if there are quotes to approve (depends on prestataire step)
+    // Scope to active tab panel — "en attente" appears in many unrelated contexts on the page
     await detail.goToTab('Planning et Estimations')
-    const bodyText = await page.locator('body').innerText().catch(() => '')
-    // Look for an actual pending/sent quote — not just the word "estimation" which appears in "Non requis"
-    const hasQuote = bodyText.toLowerCase().includes('en attente') ||
-                     bodyText.toLowerCase().includes('devis soumis') ||
-                     bodyText.toLowerCase().includes('accepter le devis')
+    const tabPanel = page.locator('[role="tabpanel"][data-state="active"]')
+    const approveBtn = tabPanel.getByRole('button', { name: /accepter|approuver/i }).first()
+    const hasQuote = await approveBtn.isVisible({ timeout: 3_000 }).catch(() => false)
     if (!hasQuote) {
       test.skip(true, 'No quote to approve (prestataire step was skipped)')
       return

@@ -165,5 +165,3 @@ export class LotWizardPage {
     expect(toastText.toLowerCase()).toContain('créé')
   }
 }
-
-export default LotWizardPage

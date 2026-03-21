@@ -15,7 +15,9 @@
 | Forms | React Hook Form + Zod | - |
 | State | React Context | 3 contexts |
 | Caching | Redis + LRU | - |
-| Testing | Vitest + Puppeteer | E2E: 25 tests |
+| Testing (Unit) | Vitest | Unit + integration |
+| Testing (E2E Legacy) | Vitest + Puppeteer | 25 tests |
+| **Testing (QA Bot)** | **Playwright** | **114 tests, 8 shards** |
 | Email | Resend + React Email | 18 templates |
 | Blog/Markdown | gray-matter + react-markdown | remark-gfm, rehype-slug |
 | **Billing** | **Stripe** | **Subscription API** |
@@ -55,6 +57,11 @@ npm test                 # Unit tests (vitest)
 npm run test:e2e         # E2E tests (Puppeteer + vitest, requires dev server)
 npm run test:e2e:headed  # E2E with visible browser (cross-env)
 
+# QA Bot (Playwright — targets Vercel preview)
+npx playwright test                    # Run all 114 tests (8 shards)
+npx playwright test --shard=1/8       # Run specific shard
+npx playwright test auth-smoke.spec   # Run specific spec file
+
 # Database
 npm run supabase:types   # Regenerer lib/database.types.ts
 npm run supabase:migrate # Creer nouvelle migration (avec timestamp correct)
@@ -87,6 +94,10 @@ app/api/             # 130 API routes (10 domaines + ai-phone + operations)
 tests/               # E2E test infrastructure (Puppeteer + Vitest)
   e2e/               # 4 test files, 5 POMs, 2 helpers, global setup
   fixtures/          # Test accounts, test-document.pdf
+tests/qa-bot/        # Playwright QA bot (NEW 2026-03-21)
+  specs/             # 8 spec files (auth-smoke, patrimoine, intervention-lifecycle, etc.)
+  pages/             # 10 Page Object Models (POM pattern)
+  helpers/           # Auth setup (GoTrue REST API), test utilities
 docs/                # 230+ fichiers markdown
 docs/stripe/         # Stripe docs (admin-guide, coupon-strategy, production-checklist)
 supabase/migrations/ # 193 migrations SQL (mis a jour 2026-03-11)
@@ -546,8 +557,9 @@ class SubscriptionEmailService {
 | **STRIPE_PRICE_ID_YEARLY** | **Stripe price ID for yearly plan** |
 
 ---
-*Derniere mise a jour: 2026-03-20*
+*Derniere mise a jour: 2026-03-21*
 *Analyse approfondie: 49 tables, 130 routes, 66 hooks, 83 pages, 201 migrations*
+*QA Bot: 114 Playwright tests, 8 shards, 10 POMs, GitHub Actions CI*
 *Blog: 23 articles, gray-matter + react-markdown, hub-cluster architecture*
 *Stripe: 4 tables, 5 DB functions, 2 services, 2 repositories*
 *Supplier Contracts: 2 tables, 2 repositories, 1 service*

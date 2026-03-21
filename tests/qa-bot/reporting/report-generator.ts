@@ -16,6 +16,7 @@ import * as path from 'node:path'
 
 import { REPORT_PATHS, type Anomaly, type Severity, SEVERITY } from '../helpers/constants'
 import { ALL_ROUTES } from '../helpers/routes'
+import { getShortSha } from './report-helpers'
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -83,10 +84,6 @@ interface PlaywrightSuite {
 }
 
 // ─── Helpers ────────────────────────────────────────────
-
-function getShortSha(sha: string): string {
-  return sha.slice(0, 7)
-}
 
 function formatDuration(ms: number): string {
   const seconds = Math.floor(ms / 1000)

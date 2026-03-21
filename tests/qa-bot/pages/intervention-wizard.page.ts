@@ -217,5 +217,3 @@ export class InterventionWizardPage {
     return this.page.url()
   }
 }
-
-export default InterventionWizardPage

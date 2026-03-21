@@ -18,6 +18,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import { SEVERITY, type Severity } from '../helpers/constants'
+import { findReportPath, getShortSha } from './report-helpers'
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -28,24 +29,6 @@ interface ParsedAnomaly {
 }
 
 // ─── Report Parser ──────────────────────────────────────
-
-function findReportPath(): string | null {
-  const reportsDir = path.join(process.cwd(), 'reports')
-
-  // Try latest first
-  const latestPath = path.join(reportsDir, 'qa-report-latest.md')
-  if (fs.existsSync(latestPath)) return latestPath
-
-  // Fall back to most recent date-stamped report
-  if (!fs.existsSync(reportsDir)) return null
-
-  const files = fs.readdirSync(reportsDir)
-    .filter(f => f.startsWith('qa-report-') && f.endsWith('.md'))
-    .sort()
-    .reverse()
-
-  return files.length > 0 ? path.join(reportsDir, files[0]) : null
-}
 
 function parseAnomaliesFromReport(reportContent: string): ParsedAnomaly[] {
   const anomalies: ParsedAnomaly[] = []
@@ -80,10 +63,6 @@ function parseAnomaliesFromReport(reportContent: string): ParsedAnomaly[] {
   }
 
   return anomalies
-}
-
-function getShortSha(sha: string): string {
-  return sha.slice(0, 7)
 }
 
 // ─── GitHub API ─────────────────────────────────────────

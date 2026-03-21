@@ -546,7 +546,32 @@ async getEmails(connectionIds: string[], folder: string) {
 
 **Avantage:** Garantit que le filtre de visibilite est applique partout sans oubli.
 ---
-*Derniere mise a jour: 2026-03-19*
-*Analyse approfondie: 412 composants, 65 hooks, 39 services, 23 repositories*
-*Total patterns: 37 (+3: API auth helper, column constants, baseQuery factory)*
+
+### 38. Playwright QA Bot Architecture (NOUVEAU 2026-03-21)
+
+E2E test suite targeting Vercel preview deployments with Playwright:
+
+```
+tests/qa-bot/
+  specs/           # 8 spec files (114 tests total)
+  pages/           # 10 Page Object Models (POM)
+  helpers/         # Auth via GoTrue REST API (no browser login)
+```
+
+**Auth pattern:** Direct GoTrue REST API calls to get session tokens, injected as cookies — no browser-based login flow needed. Avoids OAuth/CAPTCHA issues.
+
+**Sharding:** 8 shards for parallel CI execution via GitHub Actions.
+
+**Key rules:**
+- `test.slow()` for Vercel cold-start pages (3-5s initial load)
+- Radix tab panels stay in DOM when inactive — scope selectors to `[data-state="active"]`
+- Intervention status may auto-advance after creation (demande -> planification)
+- `requireRole('gestionnaire')` is strict equality — admin role is NOT a super-gestionnaire
+
+> Source: tests/qa-bot/
+
+---
+*Derniere mise a jour: 2026-03-21*
+*Analyse approfondie: 420 composants, 66 hooks, 40 services, 25 repositories*
+*Total patterns: 38 (+1: Playwright QA Bot architecture)*
 *References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*

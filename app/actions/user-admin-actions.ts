@@ -656,17 +656,12 @@ export async function inviteGestionnaireAction(input: {
     }
 
     // 6. Send email (deferred — non-blocking)
-    const capturedEmail = normalizedEmail
-    const capturedFirstName = firstName
-    const capturedOrganization = organization
-    const capturedUrl = invitationUrl
-
     after(async () => {
       try {
-        const result = await emailService.sendAdminInvitationEmail(capturedEmail, {
-          firstName: capturedFirstName,
-          organization: capturedOrganization,
-          invitationUrl: capturedUrl,
+        const result = await emailService.sendAdminInvitationEmail(normalizedEmail, {
+          firstName,
+          organization,
+          invitationUrl,
           expiresIn: 7,
         })
         if (result.success) {
@@ -761,18 +756,16 @@ export async function resendGestionnaireInvitationAction(
       .eq('id', invitation.id)
 
     // 5. Send email (deferred)
-    const capturedEmail = normalizedEmail
-    const capturedFirstName = invitation.first_name || 'Gestionnaire'
+    const resendFirstName = invitation.first_name || 'Gestionnaire'
     const teamData = userProfile?.teams as { name: string } | null
-    const capturedOrganization = teamData?.name || 'votre organisation'
-    const capturedUrl = invitationUrl
+    const resendOrganization = teamData?.name || 'votre organisation'
 
     after(async () => {
       try {
-        const result = await emailService.sendAdminInvitationEmail(capturedEmail, {
-          firstName: capturedFirstName,
-          organization: capturedOrganization,
-          invitationUrl: capturedUrl,
+        const result = await emailService.sendAdminInvitationEmail(normalizedEmail, {
+          firstName: resendFirstName,
+          organization: resendOrganization,
+          invitationUrl,
           expiresIn: 7,
         })
         if (result.success) {

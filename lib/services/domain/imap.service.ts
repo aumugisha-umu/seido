@@ -41,7 +41,7 @@ function sanitizeEmailContent(content: string | undefined): string | undefined {
             .replace(/[\x01-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, ''); // Other control chars (keep \t \n \r)
     } catch (err) {
         // If sanitization fails, return empty string to avoid DB errors
-        console.error('Email content sanitization failed:', err);
+        logger.error({ err }, 'Email content sanitization failed');
         return '';
     }
 }
@@ -183,7 +183,7 @@ export class ImapService {
                         searchStrategy: connection.last_uid && connection.last_uid > 0 ? 'UID_RANGE' : connection.sync_from_date ? 'SINCE_DATE' : 'UNSEEN',
                     }, '[IMAP] Search strategy selected');
 
-                    let searchCriteria: any[];
+                    let searchCriteria: unknown[];
 
                     if (connection.last_uid && connection.last_uid > 0) {
                         // UID search: last_uid + 1 : *
@@ -199,7 +199,7 @@ export class ImapService {
 
                     imap.search(searchCriteria, (err, uids) => {
                         if (err) {
-                            console.error('IMAP Search Error:', sanitizeErrorMessage(err as Error));
+                            logger.error({ error: sanitizeErrorMessage(err as Error) }, 'IMAP Search Error');
                             imap.end();
                             return reject(new Error(sanitizeErrorMessage(err as Error)));
                         }
@@ -266,7 +266,7 @@ export class ImapService {
                                         })
                                         .catch(err => {
                                             const sanitizedMessage = sanitizeErrorMessage(err);
-                                            console.error('Error parsing email:', sanitizedMessage);
+                                            logger.error({ error: sanitizedMessage }, 'Error parsing email');
                                             resolveParse(); // Resolve anyway to not block other emails
                                         });
                                 });
@@ -275,7 +275,7 @@ export class ImapService {
                         });
 
                         f.once('error', (err) => {
-                            console.error('Fetch error:', sanitizeErrorMessage(err as Error));
+                            logger.error({ error: sanitizeErrorMessage(err as Error) }, 'IMAP fetch error');
                         });
 
                         f.once('end', () => {
@@ -289,7 +289,7 @@ export class ImapService {
                 });
             });
 
-            imap.once('error', (err: any) => {
+            imap.once('error', (err: unknown) => {
                 reject(err);
             });
 

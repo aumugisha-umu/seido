@@ -55,7 +55,7 @@ interface ManagerDashboardProps {
     stats: DashboardStats
     tenantCount: number
     contractStats: ContractStats
-    interventions: any[]
+    interventions: DbIntervention[]
     pendingCount: number
     unreadThreads?: UnreadThread[]
     unreadThreadsTotalCount?: number

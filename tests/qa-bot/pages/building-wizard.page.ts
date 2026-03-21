@@ -122,5 +122,3 @@ export class BuildingWizardPage {
     expect(toastText.toLowerCase()).toContain('créé')
   }
 }
-
-export default BuildingWizardPage

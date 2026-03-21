@@ -180,5 +180,3 @@ export class ReminderWizardPage {
     return labels[p]
   }
 }
-
-export default ReminderWizardPage

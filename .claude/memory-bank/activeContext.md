@@ -1,10 +1,27 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Operations section shipped + AI agent design validated, ready for implementation
+**Objectif:** QA Bot E2E suite shipped (114 tests, Playwright), admin invite feature, cancel bug fix deployed
 **Branch:** `preview`
-**Sprint:** Operations + AI features (Mar 2026)
-**Derniere analyse:** Operations reminders/recurrence + AI intervention agent design — 2026-03-20
+**Sprint:** Quality + Operations + AI features (Mar 2026)
+**Derniere analyse:** QA Bot E2E suite + cancelIntervention bug fix + admin invite — 2026-03-21
+
+---
+
+## COMPLETE: QA Bot E2E Test Suite + Admin Invite + Bug Fixes (2026-03-21)
+
+Full Playwright QA bot suite with 114 passing tests across 8 shards. 70 files, +13,088/-444 lines.
+
+### Key Changes
+- **Playwright E2E suite**: 8 spec files (auth-smoke, patrimoine, intervention-lifecycle, conversations-docs, contrats-rappels, email-system, notifications, billing-settings)
+- **10 Page Objects (POM)**: building-wizard, lot-wizard, intervention-wizard, intervention-detail, contract-wizard, mail-hub, notifications, billing, dashboard, reminder-wizard, reminder-detail
+- **Auth setup**: Supabase GoTrue REST API (no browser login flow)
+- **GitHub Actions CI**: Workflow for automated test runs
+- **cancelIntervention bug fix**: `string | CancellationData` union type in `lib/intervention-actions-service.ts` (was crashing with `t.trim is not a function`)
+- **Admin invite**: `inviteGestionnaireAction` in `app/actions/user-admin-actions.ts` with magic link + Resend email
+- **Auth role discovery**: `requireRole('gestionnaire')` does strict equality — admin role is NOT a super-gestionnaire
+
+**Learnings:** AGENTS.md #164-168
 
 ---
 
@@ -124,6 +141,7 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
+- [ ] Verify cancelIntervention bug fix in deployment (string | CancellationData)
 - [ ] AI Intervention Agent Phase 1 implementation (8 stories — design in docs/AI/ai-intervention-agent-design.md)
 - [ ] Test email visibility end-to-end (private vs shared connections)
 - [ ] Deploy preview branch and validate operations section + data sync in production
@@ -157,9 +175,9 @@ draft -> pending -> sent -> accepted (terminal positif)
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **163** |
+| **AGENTS.md Learnings** | **168** |
 | **Blog articles** | **23** |
-| **Retrospectives** | **48** |
+| **Retrospectives** | **49** |
 | **.claude/ Skills** | **23** |
 | **.claude/ Agents** | **15** |
 | **.claude/ Rules** | **5** |
@@ -171,17 +189,20 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
-| `9863159` | fix: remove proprietaire from provider categories dropdown |
-| `2914b62` | update: improve building/lot creation forms and sync memory |
-| `4c41d87` | feat: add Airtable-style overlay sidebar on hover |
-| `37fa042` | update: align contact role terminology and fix related issues |
-| `039b4d0` | update: sync last sync timestamp and update contact role terminology |
+| `3ccd8d2` | feat: QA bot E2E suite (114 tests, Playwright) + admin invite + cancel bug fix |
+| `3696e9f` | fix: align reminder confirmation with intervention pattern + fix RecurrenceConfig setState-in-render |
+| `fbbca14` | docs: add AI intervention agent design document |
+| `bc23040` | feat: operations section — reminders, recurrence, redesigned cards + safety limits |
+| `5e53dc4` | update: sync last sync timestamp and enhance contact role definitions |
 
 ---
 
-*Derniere mise a jour: 2026-03-19 (email section cleanup + visibility plumbing)*
-*Focus: Email private/shared visibility testing + remaining stories*
+*Derniere mise a jour: 2026-03-21 (QA bot E2E suite + admin invite + cancel bug fix)*
+*Focus: Deployment verification + AI Intervention Agent Phase 1*
 
 ## Files Recently Modified
-### 2026-03-21 00:51:29 (Auto-updated)
-- `C:/Users/arthu/Desktop/coding/seido-app/tests/qa-bot/guided/conversations-docs.spec.ts`
+### 2026-03-21 02:05:37 (Auto-updated)
+- `C:/Users/arthu/Desktop/coding/seido-app/tests/qa-bot/pages/intervention-detail.page.ts`
+- `C:/Users/arthu/Desktop/coding/seido-app/tests/qa-bot/guided/email-system.spec.ts`
+- `C:/Users/arthu/Desktop/coding/seido-app/tests/qa-bot/guided/intervention-lifecycle.spec.ts`
+- `C:/Users/arthu/Desktop/coding/seido-app/.claude/skills/sp-quality-gate/SKILL.md`

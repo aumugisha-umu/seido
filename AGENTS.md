@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-17
-**Total Learnings:** 163
+**Last Updated:** 2026-03-21
+**Total Learnings:** 168
 
 ---
 
@@ -1214,6 +1214,41 @@
 **Example:** `app/api/emails/counts/route.ts:26-38` — `baseQuery()` factory with `connectionIds` filter
 **When to Use:** Any feature with private/shared access control — verify counts, listings, and search all apply the same filter
 **Added:** 2026-03-19 | **Source:** Email visibility — SSR/API parity audit
+
+#### Learning #164: requireRole('gestionnaire') rejects 'admin' role — DB role must match exactly
+**Problem:** E2E test user (arthur@seido.pm) had `users.role = 'admin'` in DB, but all gestionnaire pages call `requireRole('gestionnaire')`. This strict check rejected the admin role, redirecting to admin dashboard. ALL gestionnaire E2E tests failed with redirect loops.
+**Solution:** Ensure test users have the exact DB role matching their test scenario. `requireRole()` does strict equality, not role hierarchy. An admin user cannot access gestionnaire pages. Fix by updating `users.role` to `'gestionnaire'` for gestionnaire test users, or by using a separate test account per role.
+**Example:** E2E user setup — `users.role` must be `'gestionnaire'` not `'admin'` for gestionnaire page tests
+**When to Use:** Setting up E2E test users or debugging unexpected auth redirects in role-gated pages
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — all gestionnaire tests failing with redirect
+
+#### Learning #165: cancelIntervention union type — callers may pass object or string
+**Problem:** `cancelIntervention(id, reason)` expected `reason: string`, but callers passed a `CancellationData` object `{ reason, cancelledBy }`. TypeScript didn't catch it because the method was loosely typed. Result: cancellation reason stored as `[object Object]` in DB.
+**Solution:** Use union type `reason: string | CancellationData` and handle both cases in the method body. Extract string from object when needed. This preserves backward compatibility with both calling patterns.
+**Example:** `intervention.service.ts` — `cancelIntervention` method signature
+**When to Use:** Any service method that evolved from simple params to structured objects — check all callers
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — cancellation flow bug fix
+
+#### Learning #166: Playwright POM selectors — prefer semantic over CSS class
+**Problem:** CSS class selectors (`.bg-red-500`, `.text-sm`) break across deploys when Tailwind classes change or components are restyled. Tests become maintenance burdens.
+**Solution:** Use Playwright's semantic locators in priority order: `getByRole()` > `getByTestId()` > `getByLabel()` > `getByText()`. Never use CSS class selectors. Add `data-testid` attributes to components when no semantic role exists.
+**Example:** `tests/e2e/playwright/page-objects/*.page.ts` — all POMs use semantic locators
+**When to Use:** Any Playwright E2E test — always use semantic selectors
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — 114 tests across 8 page objects
+
+#### Learning #167: Vercel preview cold starts cause E2E race conditions — use test.slow() generously
+**Problem:** Preview deployments on Vercel have 3-5s cold starts on first request to each serverless function. Tests that navigate and immediately assert content fail intermittently because the page hasn't loaded yet.
+**Solution:** Mark tests hitting preview deployments with `test.slow()` (triples default timeout). Use generous timeouts on `waitForSelector` and `expect` assertions (10-15s minimum). First test in suite should be a warm-up navigation.
+**Example:** QA bot E2E shards — all use `test.slow()` for Vercel preview targets
+**When to Use:** Any E2E test running against Vercel preview/staging deployments (not local dev)
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — intermittent timeouts on preview
+
+#### Learning #168: Radix tab panel scoping — scope assertions to active tabpanel
+**Problem:** `getByText('card content')` matches cards in ALL tab panels (active + inactive). Inactive panels remain in DOM with `data-state="inactive"`. Tests find wrong elements or get ambiguous matches.
+**Solution:** Scope all tab content assertions to `[role="tabpanel"][data-state="active"]`. Use `page.locator('[role="tabpanel"][data-state="active"]').getByText(...)` to ensure you're testing only the visible tab.
+**Example:** Notification/intervention tab tests — cards must be scoped to active panel
+**When to Use:** Any E2E test interacting with Radix Tabs — always scope to active tabpanel
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — notification tab assertions matching wrong panel
 
 ---
 

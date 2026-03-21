@@ -45,11 +45,21 @@ npm run build
 # ESLint — ALWAYS required
 npm run lint
 
-# Tests — If stories with testable logic were modified
+# Unit Tests — If stories with testable logic were modified
 npm test
+
+# Playwright E2E Tests — ALWAYS required (runs against local or preview deployment)
+# Requires TARGET_URL env var (defaults to http://localhost:3000)
+# Requires auth credentials in .env.local (QA_GESTIONNAIRE_EMAIL, etc.)
+npm run qa:guided
 ```
 
 **If automated checks fail:** Stop immediately. Report failures. Do NOT proceed to lens review.
+
+**Playwright notes:**
+- Tests run against `TARGET_URL` (set in `.env.local` or env). For local dev, ensure `npm run dev` is running.
+- Auth setup runs first (storageState-based), then role-specific tests (gestionnaire, locataire, prestataire, multi-role).
+- If Playwright is not configured (missing env vars or no running server), report as WARNING (not BLOCKER) and proceed.
 
 ### Step 2: Gather Changed Files
 
@@ -129,6 +139,7 @@ For each changed file, apply all 4 lenses:
 | 3 user archetypes | Auth features test 3 types (Learning #009) | BLOCKER (auth) |
 | Edge cases | Null, empty, multi-team scenarios | WARNING |
 | E2E for workflows | Intervention workflow changes need E2E | BLOCKER |
+| Playwright E2E suite | `npm run qa:guided` passes (all shards) | BLOCKER |
 | Typecheck passes | `npx tsc --noEmit` clean | BLOCKER |
 
 ### Step 4: Generate Report

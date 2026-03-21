@@ -91,5 +91,3 @@ export class ReminderDetailPage {
     await expect(this.page.getByRole('button', { name: 'Annuler' })).not.toBeVisible()
   }
 }
-
-export default ReminderDetailPage

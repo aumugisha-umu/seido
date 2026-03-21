@@ -201,5 +201,21 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Deployment verification + AI Intervention Agent Phase 1*
 
 ## Files Recently Modified
-### 2026-03-21 02:25:57 (Auto-updated)
-- `C:/Users/arthu/Desktop/coding/seido-app/.github/workflows/ci.yml`
+### 2026-03-21 09:00:20 (Auto-updated)
+- `/home/user/seido/docs/plans/2026-03-21-e2e-testing-strategy-design.md`
+- `/home/user/seido/tasks/prd.json`
+- `/home/user/seido/tasks/progress.txt`
+- `/home/user/seido/tests/e2e/setup/auth.setup.ts`
+- `/home/user/seido/tests/e2e/playwright.config.ts`
+- `/home/user/seido/.gitignore`
+- `/home/user/seido/package.json`
+- `/home/user/seido/tests/e2e/smoke/auth-smoke.spec.ts`
+- `/home/user/seido/tests/e2e/pages/building-wizard.page.pw.ts`
+- `/home/user/seido/tests/e2e/pages/lot-wizard.page.pw.ts`
+- `/home/user/seido/tests/e2e/flows/property/building-creation.spec.ts`
+- `/home/user/seido/tests/e2e/flows/property/lot-creation.spec.ts`
+- `/home/user/seido/tests/e2e/pages/contract-wizard.page.pw.ts`
+- `/home/user/seido/tests/e2e/pages/intervention-wizard.page.pw.ts`
+- `/home/user/seido/tests/e2e/flows/contract/contract-creation.spec.ts`
+- `/home/user/seido/tests/e2e/flows/billing/billing-ui.spec.ts`
+- `/home/user/seido/tests/e2e/flows/billing/read-only-enforcement.spec.ts`

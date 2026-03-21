@@ -201,8 +201,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Deployment verification + AI Intervention Agent Phase 1*
 
 ## Files Recently Modified
-### 2026-03-21 02:05:37 (Auto-updated)
-- `C:/Users/arthu/Desktop/coding/seido-app/tests/qa-bot/pages/intervention-detail.page.ts`
-- `C:/Users/arthu/Desktop/coding/seido-app/tests/qa-bot/guided/email-system.spec.ts`
-- `C:/Users/arthu/Desktop/coding/seido-app/tests/qa-bot/guided/intervention-lifecycle.spec.ts`
-- `C:/Users/arthu/Desktop/coding/seido-app/.claude/skills/sp-quality-gate/SKILL.md`
+### 2026-03-21 02:25:57 (Auto-updated)
+- `C:/Users/arthu/Desktop/coding/seido-app/.github/workflows/ci.yml`

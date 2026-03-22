@@ -191,29 +191,37 @@ export async function setupAuth(targetUrl: string): Promise<void> {
 }
 
 // One setup test per role — Playwright runs them before dependent projects
-const roles = ['gestionnaire', 'locataire', 'prestataire'] as const
+// Guard: only register test() when running inside Playwright Test runner
+// (avoids crash when this file is imported by autonomous explorer via tsx)
+if (typeof process.env.PLAYWRIGHT_TEST_BASE_URL !== 'undefined' || !process.env.QA_STANDALONE) {
+  try {
+    const roles = ['gestionnaire', 'locataire', 'prestataire'] as const
 
-for (const role of roles) {
-  setup(`authenticate as ${role}`, async ({ page }) => {
-    const credentials = getCredentials()
-    const creds = credentials[role]
-    if (!creds) throw new Error(`No credentials found for role: ${role}`)
+    for (const role of roles) {
+      setup(`authenticate as ${role}`, async ({ page }) => {
+        const credentials = getCredentials()
+        const creds = credentials[role]
+        if (!creds) throw new Error(`No credentials found for role: ${role}`)
 
-    console.log(`[QA Setup] Authenticating ${role} (${creds.email})...`)
+        console.log(`[QA Setup] Authenticating ${role} (${creds.email})...`)
 
-    const cookies = await authenticateRole(creds.email, creds.password)
+        const cookies = await authenticateRole(creds.email, creds.password)
 
-    // Set cookies in the browser context
-    await page.context().addCookies(cookies)
+        // Set cookies in the browser context
+        await page.context().addCookies(cookies)
 
-    // Navigate to trigger middleware and verify auth works
-    const targetUrl = process.env.TARGET_URL || 'http://localhost:3000'
-    await page.goto(`${targetUrl}/${role}/dashboard`, { waitUntil: 'domcontentloaded' })
+        // Navigate to trigger middleware and verify auth works
+        const targetUrl = process.env.TARGET_URL || 'http://localhost:3000'
+        await page.goto(`${targetUrl}/${role}/dashboard`, { waitUntil: 'domcontentloaded' })
 
-    // Save storage state for this role's project
-    const authFile = AUTH_FILES[role]
-    await page.context().storageState({ path: authFile })
+        // Save storage state for this role's project
+        const authFile = AUTH_FILES[role]
+        await page.context().storageState({ path: authFile })
 
-    console.log(`[QA Setup] ${role} authenticated and storageState saved.`)
-  })
+        console.log(`[QA Setup] ${role} authenticated and storageState saved.`)
+      })
+    }
+  } catch {
+    // Silently skip test registration when not in Playwright runner
+  }
 }

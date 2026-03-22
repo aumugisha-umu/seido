@@ -32,16 +32,17 @@ export const EXPLORATION_BUDGET = {
   maxCostUsd: 5,
 } as const
 
-/** Claude API pricing (Sonnet) */
+/** Claude API pricing (Haiku 4.5) */
 export const API_PRICING = {
-  inputPer1k: 0.003,
-  outputPer1k: 0.015,
+  inputPer1k: 0.001,
+  outputPer1k: 0.005,
 } as const
 
 /** Navigation constants for autonomous exploration */
 export const NAVIGATION = {
   navigationTimeoutMs: 30_000,
-  postActionDelayMs: 1000,
+  postActionDelayMs: 300,
+  postFillDelayMs: 200,
   slowLoadThresholdMs: 5000,
   maxActionsPerPage: 10,
 } as const
@@ -75,9 +76,17 @@ export const ANOMALY_PATTERNS = {
   errorBoundary: ['Something went wrong', 'Erreur inattendue', 'Application error'],
   placeholderText: ['Lorem ipsum', 'TODO', 'undefined', 'NaN', '[object Object]'],
   /** Network requests to ignore (not bugs) */
-  networkNoise: ['contentsquare.net', 'googleusercontent.com', 'HMR', 'ERR_ABORTED', '_next/webpack-hmr'],
+  networkNoise: [
+    'contentsquare.net', 'googleusercontent.com', 'HMR', 'ERR_ABORTED',
+    '_next/webpack-hmr', 'vercel.live', 'customeriomail.com', 'email.poppy.be',
+    'favicon.ico', 'chrome-extension://',
+  ],
   /** Console messages to ignore */
-  consoleNoise: ['Download the React DevTools', 'webpack-hmr', 'Fast Refresh', '[HMR]', 'ReactDOM.preload'],
+  consoleNoise: [
+    'Download the React DevTools', 'webpack-hmr', 'Fast Refresh', '[HMR]',
+    'ReactDOM.preload', 'Content Security Policy', 'Vector Map', 'Falling back to Raster',
+    'net::ERR_FAILED', 'Failed to load resource',
+  ],
 } as const
 
 /** Anomaly type used by autonomous exploration */

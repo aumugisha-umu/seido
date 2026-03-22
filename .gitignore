@@ -54,6 +54,10 @@ blob-report/
 # QA Bot
 playwright/.auth/
 reports/
+exploration-report/
+
+# OpenClaw (contains secrets)
+openclaw/openclaw.json
 
 # temporary files
 *.tmp

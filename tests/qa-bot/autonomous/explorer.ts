@@ -179,7 +179,7 @@ async function executeAction(page: Page, action: SuggestedAction): Promise<boole
         }
 
         await input.first().fill(action.value || 'QA Bot Test')
-        await page.waitForTimeout(500)
+        await page.waitForTimeout(NAVIGATION.postFillDelayMs)
         return true
       }
 
@@ -199,7 +199,7 @@ async function executeAction(page: Page, action: SuggestedAction): Promise<boole
           // Select the first non-empty option
           await select.first().selectOption({ index: 1 })
         }
-        await page.waitForTimeout(500)
+        await page.waitForTimeout(NAVIGATION.postFillDelayMs)
         return true
       }
 
@@ -253,15 +253,15 @@ async function explorePage(
     if (navigationDuration > NAVIGATION.slowLoadThresholdMs) {
       allAnomalies.push({
         type: 'slow-load',
-        severity: 'low',
+        severity: 'medium',
         message: `Slow page load: ${navigationDuration}ms (threshold: ${NAVIGATION.slowLoadThresholdMs}ms)`,
         url: fullUrl,
         timestamp: new Date().toISOString(),
       })
     }
 
-    // Wait for page to settle
-    await page.waitForTimeout(NAVIGATION.postActionDelayMs)
+    // Wait for page to settle (network idle or 2s max)
+    await page.waitForLoadState('networkidle', { timeout: 2000 }).catch(() => {})
 
     // Check page content for static anomalies
     const contentAnomalies = await checkPageContent(page)
@@ -403,7 +403,10 @@ export async function main(): Promise<void> {
   let context: BrowserContext | null = null
 
   try {
-    browser = await chromium.launch({ headless: true })
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    })
     context = await browser.newContext({
       storageState: getStorageStatePath('gestionnaire'),
       viewport: { width: 1280, height: 720 },

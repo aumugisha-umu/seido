@@ -29,7 +29,7 @@ interface AnalysisResult {
 
 // ── Constants ──
 
-const MODEL = 'claude-sonnet-4-20250514'
+const MODEL = 'claude-haiku-4-5-20251001'
 const MAX_RETRIES = 3
 const INITIAL_BACKOFF_MS = 1000
 
@@ -72,16 +72,25 @@ export async function analyzePage(
 ): Promise<SuggestedAction[]> {
   const url = page.url()
 
-  // Capture accessibility tree
-  const snapshot = await page.accessibility.snapshot()
-  if (!snapshot) {
-    console.log(`[analyzer] No accessibility tree for ${url}`)
-    return []
+  // Capture accessibility tree (with fallback for newer Playwright versions)
+  let accessibilityTree: string
+
+  try {
+    // Try legacy API first (Playwright < 1.48)
+    const snapshot = await (page as any).accessibility?.snapshot()
+    if (snapshot) {
+      accessibilityTree = formatAccessibilityTree(snapshot)
+    } else {
+      // Fallback: extract interactive elements via DOM evaluation
+      accessibilityTree = await extractInteractiveElements(page)
+    }
+  } catch {
+    // Fallback: extract interactive elements via DOM evaluation
+    accessibilityTree = await extractInteractiveElements(page)
   }
 
-  const accessibilityTree = formatAccessibilityTree(snapshot)
   if (accessibilityTree.length < 50) {
-    console.log(`[analyzer] Accessibility tree too small for ${url} (${accessibilityTree.length} chars)`)
+    console.log(`[analyzer] Page tree too small for ${url} (${accessibilityTree.length} chars)`)
     return []
   }
 
@@ -245,6 +254,59 @@ function parseActions(text: string): SuggestedAction[] {
     console.log(`[analyzer] Failed to parse Claude response as JSON: ${cleaned.slice(0, 200)}`)
     return []
   }
+}
+
+/**
+ * DOM-based fallback for extracting interactive elements.
+ * Used when page.accessibility.snapshot() is unavailable (Playwright >= 1.48).
+ * Walks the DOM and collects buttons, links, inputs, selects, textareas,
+ * and ARIA-role elements into a compact text representation.
+ */
+async function extractInteractiveElements(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const lines: string[] = []
+
+    const selectors = [
+      'button', 'a[href]', 'input', 'select', 'textarea',
+      '[role="button"]', '[role="link"]', '[role="tab"]',
+      '[role="menuitem"]', '[role="checkbox"]', '[role="radio"]',
+      '[role="switch"]', '[role="combobox"]', '[role="listbox"]',
+      '[role="slider"]', '[role="spinbutton"]',
+    ]
+
+    const elements = document.querySelectorAll(selectors.join(', '))
+
+    for (const el of elements) {
+      const htmlEl = el as HTMLElement
+
+      // Skip hidden elements
+      if (htmlEl.offsetParent === null && htmlEl.style.position !== 'fixed') continue
+      if (htmlEl.getAttribute('aria-hidden') === 'true') continue
+
+      const tag = el.tagName.toLowerCase()
+      const role = el.getAttribute('role') || tag
+      const type = el.getAttribute('type') || ''
+      const name =
+        el.getAttribute('aria-label') ||
+        el.getAttribute('aria-labelledby') ||
+        el.getAttribute('name') ||
+        el.getAttribute('placeholder') ||
+        (el.textContent || '').trim().slice(0, 80)
+      const value = (el as HTMLInputElement).value || ''
+      const disabled = htmlEl.hasAttribute('disabled') || htmlEl.getAttribute('aria-disabled') === 'true'
+      const checked = el.getAttribute('aria-checked') ?? (el as HTMLInputElement).checked?.toString()
+
+      let line = `[${role}${type ? ':' + type : ''}]`
+      if (name) line += ` "${name}"`
+      if (value && tag !== 'a') line += ` value="${value.slice(0, 50)}"`
+      if (disabled) line += ' (disabled)'
+      if (checked === 'true' || checked === 'mixed') line += ` checked=${checked}`
+
+      lines.push(line)
+    }
+
+    return lines.join('\n')
+  })
 }
 
 function sleep(ms: number): Promise<void> {

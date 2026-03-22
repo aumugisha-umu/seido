@@ -2,6 +2,7 @@
 
 **Date:** 2026-03-21
 **Status:** Implemented
+**VPS:** Hostinger KVM 2 (2 vCPU, 8 Go RAM, 100 Go NVMe)
 
 ## Objectif
 
@@ -14,7 +15,7 @@ Mettre en place OpenClaw comme bot QA post-deploy qui navigue l'application SEID
 | Composant | Fichier | Role |
 |-----------|---------|------|
 | Config OpenClaw | `openclaw/openclaw.json` | Agent sandbox, browser config |
-| Skill QA | `openclaw/skills/seido-qa.md` | Instructions de test pour l'agent |
+| Skill QA | `openclaw/skills/seido-qa/SKILL.md` | Instructions de test pour l'agent |
 | Discovery Tree (JSON) | `docs/qa/discovery-tree.json` | Source de verite des chemins testables |
 | Discovery Tree (MD) | `docs/qa/discovery-tree.md` | Vue lisible auto-generee |
 | Script lancement | `scripts/openclaw-qa.sh` | Declencheur CLI / webhook |
@@ -30,8 +31,8 @@ Mettre en place OpenClaw comme bot QA post-deploy qui navigue l'application SEID
 ### Isolation
 
 - Agent `seido-qa` dans un sandbox (`mode: "all"`, `scope: "agent"`)
-- Workspace read-only (pas d'acces en ecriture au filesystem)
-- Outils autorises : browser + read uniquement
+- Workspace read-write (besoin d'ecrire les rapports, screenshots, et auth state)
+- Outils autorises : browser + read + write + exec (pour npm/playwright)
 - Browser dans le sandbox (pas sur le host)
 
 ### Comptes de test
@@ -50,9 +51,10 @@ Mettre en place OpenClaw comme bot QA post-deploy qui navigue l'application SEID
 ## Rapport
 
 Chaque run produit :
-1. `docs/qa/reports/{timestamp}.md` — toujours
-2. Screenshots dans `docs/qa/screenshots/{timestamp}/` — si anomalies
-3. GitHub Issue — si failures > 0
+1. `reports/qa-report-{date}-{sha}.md` — toujours
+2. Screenshots dans `exploration-report/screenshots/` — si anomalies
+3. GitHub Issue (labels: `qa-bot`, `bug`, `auto-generated`) — si anomalies Critical/High
+4. Email via Resend — toujours ("all clear" ou alerte anomalies)
 
 ## Auto-maintenance
 
@@ -62,6 +64,8 @@ Regle CLAUDE.md : toute modification de route, wizard, formulaire ou flow doit m
 
 - **Pas de comptes dedies** : reutilise les comptes E2E existants pour eviter la duplication
 - **JSON + MD** : le JSON est la source de verite, le MD est genere pour la lisibilite
-- **Sandbox strict** : l'agent ne peut que naviguer et lire, jamais ecrire sur le filesystem
+- **Sandbox controle** : l'agent peut naviguer, lire, ecrire (rapports) et exec (npm/playwright), mais pas edit/apply_patch ni messaging
 - **Preview only** : jamais lance sur la production
 - **Actions destructives OK** : sur comptes de test uniquement
+- **VPS Hostinger KVM 2** : guide de setup complet dans `docs/guides/openclaw-vps-setup.md`
+- **Declenchement** : webhook Vercel (post-deploy preview) + cron horaire + manuel via SSH

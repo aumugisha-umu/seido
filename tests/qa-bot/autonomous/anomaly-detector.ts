@@ -96,9 +96,14 @@ export function setupAnomalyDetector(page: Page): AnomalyDetectorResult {
     const failureText = failure?.errorText || 'Unknown error'
     if (failureText === 'net::ERR_ABORTED') return
 
+    // External resources failing = low severity, app API failures = high
+    const pageOrigin = new URL(page.url()).origin
+    const isAppRequest = url.startsWith(pageOrigin) || url.includes('supabase')
+    const severity: 'high' | 'low' = isAppRequest ? 'high' : 'low'
+
     anomalies.push({
       type: 'network-error',
-      severity: 'high',
+      severity,
       message: `${request.method()} ${url} — ${failureText}`,
       url: page.url(),
       timestamp: new Date().toISOString(),

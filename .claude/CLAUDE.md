@@ -18,6 +18,10 @@ git* → sp-quality-gate (autonomous, bypassPermissions)
      → 4-lens review + simplify quick-scan
      → Fix blockers autonomously if possible
      → Step 4.5: Knowledge Capture (compound? memory? CLAUDE.md? agents?)
+     → Step 4.6: Discovery Tree Sync
+        Si des routes/pages/wizards/flows ont ete modifies dans ce commit :
+        1. Mettre a jour docs/qa/discovery-tree.json (noeuds ajoutes/modifies/supprimes)
+        2. npx tsx scripts/generate-discovery-tree.ts (regenerer le markdown)
      → git add . && git commit && git push origin [branch]
 ```
 
@@ -58,8 +62,36 @@ Commands: `/sync-memory` (quick sync) | `/update-memory` (full update)
 ## Regles Obligatoires
 
 **Audit :** A chaque test, mettre a jour `docs/rapport-audit-complet-seido.md`
-**Docs First :** Consulter [Supabase](https://supabase.com/docs), [Next.js](https://nextjs.org/docs), [React](https://react.dev/learn) avant modification.
+**Docs First (context7 priority) :** Avant toute modification touchant une librairie externe (Supabase, Next.js, React, Stripe, Resend, shadcn/ui, etc.) :
+1. **D'abord** utiliser MCP context7 (`resolve-library-id` → `query-docs`) pour chercher la doc a jour
+2. **Si context7 n'a pas la lib ou la section** → consulter la doc officielle en ligne : [Supabase](https://supabase.com/docs), [Next.js](https://nextjs.org/docs), [React](https://react.dev/learn)
+3. **Ne jamais coder de memoire** une API/config quand la doc est accessible via context7
+
 **UX/UI :** Consulter `docs/design/ux-ui-decision-guide.md` pour toute modification UX/UI.
+
+**Test Maintenance (auto-update) :** Quand une modification touche :
+- Une route (`page.tsx` ajoutee/supprimee/renommee)
+- Un wizard/formulaire (etapes ajoutees/supprimees)
+- Un statut ou flow d'intervention (nouveau statut, transition modifiee)
+- Un bouton/action visible par l'utilisateur
+→ Mettre a jour **dans le meme changement** :
+1. `docs/qa/discovery-tree.json` — ajouter/modifier/supprimer le noeud concerne
+2. Les tests E2E impactes (`tests/e2e/`)
+3. Reggenerer le markdown : `npx tsx scripts/generate-discovery-tree.ts`
+
+**Invitations de test :** Toujours utiliser `demo+invite-{timestamp}@seido-app.com` pour les adresses creees lors des tests (E2E, integration).
+
+---
+
+## Discovery Tree (QA)
+
+L'arbre de decouverte est la **source de verite** de tous les chemins testables dans l'application :
+- **JSON** (source) : `docs/qa/discovery-tree.json` — source de verite, mis a jour a chaque changement de route/flow
+- **Markdown** (lisible) : `docs/qa/discovery-tree.md` — auto-genere via `npx tsx scripts/generate-discovery-tree.ts`
+- **103 noeuds** : 9 auth, 70 gestionnaire, 12 locataire, 12 prestataire + 4 scenarios cross-role
+- **3 modes** : discovery (lecture), creation (ecriture), destruction (suppression)
+
+Consulter cet arbre avant d'ajouter une nouvelle page ou de modifier un flow existant.
 
 ---
 
@@ -185,4 +217,4 @@ Invoquer `ultrathink-orchestrator` si : 3 tentatives echouees | multi-domaines (
 - **Skill Routing** (triggers, chains, compound): `sp-orchestration` skill
 
 ---
-**Last Updated**: 2026-03-14 | **Status**: Production Ready
+**Last Updated**: 2026-03-21 | **Status**: Production Ready

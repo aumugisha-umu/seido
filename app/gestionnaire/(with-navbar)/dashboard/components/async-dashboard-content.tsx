@@ -16,6 +16,9 @@ import {
   createServerReminderService,
   ConversationRepository,
 } from "@/lib/services"
+import { BankConnectionRepository } from "@/lib/services/repositories/bank-connection.repository"
+import { BankTransactionRepository } from "@/lib/services/repositories/bank-transaction.repository"
+import { RentCallRepository } from "@/lib/services/repositories/rent-call.repository"
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { ReminderStats } from "@/lib/types/reminder.types"
 import type { InterventionWithRelations } from "@/lib/services"
@@ -274,6 +277,87 @@ export async function AsyncDashboardContent({
     logger.warn('[ASYNC-DASHBOARD] Reminder stats fetch failed, skipping', { error: reminderStatsResult.reason })
   }
 
+  // Fetch bank dashboard data (separate try/catch — never breaks dashboard)
+  let bankData: {
+    hasBankConnection: boolean
+    revenue: number
+    expenses: number
+    collectionRate: number
+    toReconcileCount: number
+    overdueRentCalls: Array<{
+      id: string
+      lot_name: string
+      tenant_name: string
+      amount: number
+      days_overdue: number
+    }>
+  } = {
+    hasBankConnection: false,
+    revenue: 0,
+    expenses: 0,
+    collectionRate: 0,
+    toReconcileCount: 0,
+    overdueRentCalls: [],
+  }
+
+  try {
+    const bankConnectionRepo = new BankConnectionRepository(supabase)
+    const connections = await bankConnectionRepo.getConnectionsByTeam(team.id)
+
+    if (connections.length > 0) {
+      const bankTxRepo = new BankTransactionRepository(supabase)
+      const rentCallRepo = new RentCallRepository(supabase)
+
+      // Current month date range
+      const now = new Date()
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+
+      const [transactions, reconcileCount, overdueResult] = await Promise.all([
+        bankTxRepo.getTransactionsByDateRange(team.id, monthStart, monthEnd),
+        bankTxRepo.getToReconcileCount(team.id),
+        rentCallRepo.getOverdueRentCalls(team.id),
+      ])
+
+      const revenue = transactions
+        .filter((tx) => tx.amount > 0)
+        .reduce((sum, tx) => sum + tx.amount, 0)
+      const expenses = transactions
+        .filter((tx) => tx.amount < 0)
+        .reduce((sum, tx) => sum + tx.amount, 0)
+
+      // Map overdue rent calls — lot_name and tenant_name require joins
+      // For now, use lot_id as fallback; full join data would come from the API route
+      const overdueRentCalls = overdueResult.success
+        ? overdueResult.data.slice(0, 5).map((rc) => {
+            const dueDate = new Date(rc.due_date)
+            const today = new Date()
+            const diffMs = today.getTime() - dueDate.getTime()
+            const daysOverdue = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+
+            return {
+              id: rc.id,
+              lot_name: `Lot ${rc.lot_id.slice(0, 6)}`,
+              tenant_name: '',
+              amount: rc.total_expected - rc.total_received,
+              days_overdue: daysOverdue,
+            }
+          })
+        : []
+
+      bankData = {
+        hasBankConnection: true,
+        revenue,
+        expenses,
+        collectionRate: 0, // computed elsewhere
+        toReconcileCount: reconcileCount,
+        overdueRentCalls,
+      }
+    }
+  } catch (error) {
+    logger.warn('[ASYNC-DASHBOARD] Bank data fetch failed, skipping', { error })
+  }
+
   return (
     <ManagerDashboardV2
       stats={stats}
@@ -284,6 +368,7 @@ export async function AsyncDashboardContent({
       unreadThreads={unreadThreads?.threads}
       unreadThreadsTotalCount={unreadThreads?.totalCount}
       reminderStats={reminderStats}
+      bankData={bankData}
     />
   )
 }

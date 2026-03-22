@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 import { PlanningCardProps } from '../types'
 import { TimeSlotCard } from '../atoms'
-import { formatDate, formatTime } from '../utils/helpers'
+import { formatDate, formatTime, isFullDayTime } from '../utils/helpers'
 import { permissions } from '../utils'
 
 /**
@@ -100,7 +100,7 @@ export const PlanningCard = ({
                 </p>
                 <p className="text-lg font-semibold text-green-800">
                   {formatDate(scheduledDate)}
-                  {scheduledStartTime && ` • ${formatTime(scheduledStartTime)}`}
+                  {scheduledStartTime && !isFullDayTime(scheduledStartTime) && ` • ${formatTime(scheduledStartTime)}`}
                 </p>
               </div>
             </div>
@@ -230,7 +230,7 @@ export const CompactPlanning = ({
         <CalendarCheck className="h-4 w-4 text-green-600" />
         <span className="text-sm font-medium">
           {formatDate(scheduledDate)}
-          {scheduledStartTime && ` • ${formatTime(scheduledStartTime)}`}
+          {scheduledStartTime && !isFullDayTime(scheduledStartTime) && ` • ${formatTime(scheduledStartTime)}`}
         </span>
       </div>
     )

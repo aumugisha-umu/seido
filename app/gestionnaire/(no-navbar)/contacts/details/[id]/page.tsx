@@ -238,6 +238,16 @@ export default async function ContactDetailsPage({ params }: PageProps) {
     interventions = allInterventions.filter(i =>
       i.lot?.building?.team_id === currentUser.team_id
     )
+  } else if (contact.role === 'proprietaire') {
+    // Proprietaire : interventions des lots qu'il possède
+    const ownedLots = allLots.filter(lot =>
+      lot.lot_contacts?.some(lc =>
+        lc.user?.id === contact.id &&
+        (lc.user?.role === 'proprietaire' || lc.role === 'proprietaire')
+      )
+    )
+    const ownedLotIds = ownedLots.map(lot => lot.id)
+    interventions = allInterventions.filter(i => ownedLotIds.includes(i.lot_id))
   }
 
   // Filtrer les biens selon le rôle du contact
@@ -277,6 +287,15 @@ export default async function ContactDetailsPage({ params }: PageProps) {
       ...teamBuildings.map(building => ({ ...building, type: 'building' as const })),
       ...teamLots.map(lot => ({ ...lot, type: 'lot' as const }))
     ]
+  } else if (contact.role === 'proprietaire') {
+    // Proprietaire : lots qu'il possède
+    const ownedLots = allLots.filter(lot =>
+      lot.lot_contacts?.some(lc =>
+        lc.user?.id === contact.id &&
+        (lc.user?.role === 'proprietaire' || lc.role === 'proprietaire')
+      )
+    )
+    properties = ownedLots.map(lot => ({ ...lot, type: 'lot' as const }))
   }
 
   // ============================================================================

@@ -38,6 +38,11 @@
 | Blog articles | `blog/articles/*.md` |
 | **Stripe client** | **`lib/stripe.ts`** |
 | **Subscription service** | **`lib/services/domain/subscription.service.ts`** |
+| **Tink API service** | **`lib/services/domain/tink-api.service.ts`** |
+| **Bank sync service** | **`lib/services/domain/bank-sync.service.ts`** |
+| **Bank matching service** | **`lib/services/domain/bank-matching.service.ts`** |
+| **Bank types** | **`lib/types/bank.types.ts`** |
+| **Bank schemas (Zod)** | **`lib/validation/bank-schemas.ts`** |
 
 ## Commandes
 
@@ -80,15 +85,17 @@ components/billing/  # 11 billing UI components (NEW 2026-02-22)
 components/contracts/ # Supplier contract cards + building contracts tab
 components/operations/ # Reminder cards, list, navigator, stats widget (NEW 2026-03-20)
 components/recurrence/ # RRULE visual builder (NEW 2026-03-20)
+components/bank/       # Bank module UI — tabs, connection cards, transaction rows, reconciliation panel (NEW 2026-03-22)
 hooks/               # 66 custom hooks (+useSubscription, useReminders)
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
-  repositories/      # 25 repositories (+ reminder, recurrence)
-  domain/            # 40 services (logique metier + reminder)
+  repositories/      # 29 repositories (+ 4 bank: bank-connection, bank-transaction, rent-call, transaction-link)
+  domain/            # 44 services (+ 4 bank: tink-api, bank-sync, bank-matching, rent-call)
     email-notification/  # Module refactore (15 fichiers)
 app/actions/         # 21 server action files (+ supplier-contract-actions)
-app/api/             # 130 API routes (10 domaines + ai-phone + operations)
-  cron/              # 5 CRON jobs (trial-expiration, trial-notifications, behavioral-triggers, cleanup-webhook-events, recurrence-scan)
+app/api/             # 143 API routes (+13 bank endpoints)
+  cron/              # 9 CRON jobs (+4 bank: sync-bank-transactions, check-consent-expiry, generate-rent-calls, check-unpaid-rent-calls)
+  bank/              # Bank module API routes — connections, transactions, reconcile, sync, reports, OAuth, rent-call receipt (NEW 2026-03-22)
   stripe/            # Stripe webhook handler
   ai-phone/          # AI phone assistant webhook + usage (NEW 2026-03)
 tests/               # E2E test infrastructure (Puppeteer + Vitest)
@@ -133,7 +140,7 @@ lib/services/domain/
 
 ## Base de Donnees
 
-### Tables Principales (49 total - mis a jour 2026-03-20)
+### Tables Principales (56 total - mis a jour 2026-03-22)
 
 | Phase | Tables |
 |-------|--------|
@@ -146,7 +153,8 @@ lib/services/domain/
 | 7 | subscriptions, stripe_customers, stripe_invoices, stripe_webhook_events |
 | 8 | supplier_contracts, supplier_contract_documents |
 | 9 | ai_phone_calls, ai_phone_usage |
-| **10 (NEW)** | **reminders, recurrence_rules, recurrence_occurrences** |
+| 10 | reminders, recurrence_rules, recurrence_occurrences |
+| **11 (NEW)** | **bank_connections, bank_transactions, rent_calls, transaction_links, auto_linking_rules, property_expenses, security_deposits** |
 
 ### Stripe Schema (NOUVEAU 2026-02-22)
 

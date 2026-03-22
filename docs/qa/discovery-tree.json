@@ -1,0 +1,1383 @@
+{
+  "version": "2.0",
+  "lastUpdated": "2026-03-21T00:00:00Z",
+  "description": "Arbre de decouverte SEIDO — tous les chemins testables depuis la connexion, par role. Source de verite pour les tests E2E et le QA.",
+  "roles": {
+    "auth": {
+      "entry": "/auth/login",
+      "nodes": [
+        {
+          "id": "login",
+          "path": "/auth/login",
+          "label": "Page de connexion",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "email-field", "password-field", "submit-button", "google-oauth-button", "forgot-password-link", "signup-link"],
+          "children": ["login.submit", "login.google-oauth"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "login.submit",
+          "path": "/auth/login",
+          "label": "Connexion email/password",
+          "mode": "creation",
+          "checks": ["submit-success", "redirect-to-dashboard", "no-error-toast"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "login.google-oauth",
+          "path": "/auth/callback",
+          "label": "Connexion Google OAuth",
+          "mode": "creation",
+          "checks": ["oauth-redirect", "callback-success", "redirect-to-dashboard"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "signup",
+          "path": "/auth/signup",
+          "label": "Inscription",
+          "mode": "creation",
+          "checks": ["page-loads", "email-field", "password-field", "submit-button"],
+          "testData": { "email": "demo+invite-{timestamp}@seido-app.com" },
+          "children": ["signup.success"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "signup.success",
+          "path": "/auth/signup-success",
+          "label": "Confirmation inscription",
+          "mode": "discovery",
+          "checks": ["page-loads", "success-message"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "reset-password",
+          "path": "/auth/reset-password",
+          "label": "Mot de passe oublie",
+          "mode": "creation",
+          "checks": ["page-loads", "email-field", "submit-button", "success-toast"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "complete-profile",
+          "path": "/auth/complete-profile",
+          "label": "Completion du profil (onboarding)",
+          "mode": "creation",
+          "checks": ["page-loads", "form-fields", "submit-success", "redirect-to-dashboard"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "update-password",
+          "path": "/auth/update-password",
+          "label": "Changement de mot de passe",
+          "mode": "creation",
+          "checks": ["page-loads", "password-fields", "submit-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "unauthorized",
+          "path": "/auth/unauthorized",
+          "label": "Page 401",
+          "mode": "discovery",
+          "checks": ["page-loads", "error-message-displayed"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        }
+      ]
+    },
+    "gestionnaire": {
+      "entry": "/auth/login",
+      "nodes": [
+        {
+          "id": "dashboard",
+          "path": "/gestionnaire/dashboard",
+          "label": "Dashboard",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "stats-cards-visible", "pending-actions-list", "recent-interventions", "onboarding-progress-if-new"],
+          "children": ["biens", "operations", "contacts", "contrats", "mail", "parametres", "profile", "notifications", "aide", "import"],
+          "lastTested": null,
+          "status": "untested"
+        },
+
+        {
+          "id": "biens",
+          "path": "/gestionnaire/biens",
+          "label": "Liste des biens",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "tabs-immeubles-lots", "view-toggle-cards-list", "search-box", "filters-work"],
+          "children": ["biens.nouveau-immeuble", "biens.detail-immeuble", "biens.detail-lot"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "biens.nouveau-immeuble",
+          "path": "/gestionnaire/biens/immeubles/nouveau",
+          "label": "Creer un immeuble (wizard 5 etapes)",
+          "mode": "creation",
+          "checks": ["wizard-loads", "step1-info-immeuble", "step2-contacts", "step3-lots", "step4-documents", "step5-contrats", "all-steps-navigable", "submit-success", "redirect-to-detail", "toast-success"],
+          "testData": { "name": "Residence QA {date}", "address": "Rue de la Loi 16, 1000 Bruxelles" },
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "biens.detail-immeuble",
+          "path": "/gestionnaire/biens/immeubles/{id}",
+          "label": "Detail immeuble",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "address-displayed", "lots-tab", "documents-tab", "contacts-section", "interventions-count"],
+          "children": ["biens.modifier-immeuble", "biens.supprimer-immeuble", "biens.nouveau-lot"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "biens.modifier-immeuble",
+          "path": "/gestionnaire/biens/immeubles/modifier/{id}",
+          "label": "Modifier immeuble",
+          "mode": "creation",
+          "checks": ["form-prefilled", "submit-success", "redirect-to-detail", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "biens.supprimer-immeuble",
+          "path": "/gestionnaire/biens/immeubles/{id}",
+          "label": "Supprimer immeuble",
+          "mode": "destruction",
+          "checks": ["confirm-dialog", "toast-success", "removed-from-list"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "biens.nouveau-lot",
+          "path": "/gestionnaire/biens/lots/nouveau",
+          "label": "Creer un lot (wizard)",
+          "mode": "creation",
+          "checks": ["wizard-loads", "building-selector", "all-steps-navigable", "submit-success", "redirect-to-detail", "toast-success"],
+          "testData": { "name": "Apt QA-{n}", "surface": "75", "rooms": "2" },
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "biens.detail-lot",
+          "path": "/gestionnaire/biens/lots/{id}",
+          "label": "Detail lot",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "lot-info-displayed", "documents-section", "contracts-section", "tenants-section", "interventions-section"],
+          "children": ["biens.modifier-lot", "biens.supprimer-lot"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "biens.modifier-lot",
+          "path": "/gestionnaire/biens/lots/modifier/{id}",
+          "label": "Modifier lot",
+          "mode": "creation",
+          "checks": ["form-prefilled", "submit-success", "redirect-to-detail"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "biens.supprimer-lot",
+          "path": "/gestionnaire/biens/lots/{id}",
+          "label": "Supprimer lot",
+          "mode": "destruction",
+          "checks": ["confirm-dialog", "toast-success", "removed-from-list"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+
+        {
+          "id": "operations",
+          "path": "/gestionnaire/operations",
+          "label": "Operations (interventions + rappels)",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "tabs-interventions-rappels", "status-filters", "priority-filters", "property-filter", "date-range-filter", "provider-filter", "search-box", "sort-dropdown"],
+          "children": ["operations.nouvelle-intervention", "operations.detail-intervention", "operations.nouveau-rappel", "operations.detail-rappel"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.nouvelle-intervention",
+          "path": "/gestionnaire/operations/nouvelle-intervention",
+          "label": "Creer intervention (wizard 6 etapes)",
+          "mode": "creation",
+          "checks": ["wizard-loads", "step1-info-type-priority", "step2-property-selector", "step3-contacts-assignment", "step4-documents", "step5-supplier-contracts", "step6-scheduling", "submit-success", "redirect-to-detail", "toast-success"],
+          "testData": { "type": "Plomberie", "description": "Test QA automatise", "priority": "normal" },
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.detail-intervention",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Detail intervention",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "status-badge", "assignment-section", "timeline-activity", "tab-summary", "tab-time-slots", "tab-quotes", "tab-documents", "tab-conversations", "tab-comments"],
+          "children": [
+            "operations.modifier-intervention",
+            "operations.intervention-approuver",
+            "operations.intervention-rejeter",
+            "operations.intervention-assigner",
+            "operations.intervention-demander-devis",
+            "operations.intervention-programmer",
+            "operations.intervention-confirmer-creneau",
+            "operations.intervention-chat",
+            "operations.intervention-cloturer",
+            "operations.intervention-annuler",
+            "operations.intervention-documents"
+          ],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.modifier-intervention",
+          "path": "/gestionnaire/operations/interventions/modifier/{id}",
+          "label": "Modifier intervention",
+          "mode": "creation",
+          "checks": ["form-prefilled", "submit-success", "redirect-to-detail"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-approuver",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Approuver intervention (modal ApprovalModal)",
+          "mode": "creation",
+          "checks": ["modal-opens", "confirm-button", "status-changes-to-approuvee", "toast-success", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-rejeter",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Rejeter intervention (modal ApprovalModal)",
+          "mode": "creation",
+          "checks": ["modal-opens", "rejection-reason-field", "status-changes-to-rejetee", "toast-success", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-assigner",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Assigner prestataire",
+          "mode": "creation",
+          "checks": ["provider-selector", "assignment-success", "provider-visible-in-detail", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-demander-devis",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Demander devis (modal QuoteRequestModal)",
+          "mode": "creation",
+          "checks": ["modal-opens", "requires-quote-toggle", "submit-success", "notification-sent-to-provider"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-programmer",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Programmer intervention (modal ProgrammingModalFinal)",
+          "mode": "creation",
+          "checks": ["modal-opens", "3-modes-available-direct-propose-organize", "date-picker", "time-picker", "submit-success", "status-changes"],
+          "children": [
+            "operations.intervention-programmer-direct",
+            "operations.intervention-programmer-creneaux",
+            "operations.intervention-programmer-organiser"
+          ],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-programmer-direct",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Programmer — mode Date fixe",
+          "mode": "creation",
+          "checks": ["single-date-time", "submit-success", "status-planifiee", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-programmer-creneaux",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Programmer — mode Proposer creneaux (2+)",
+          "mode": "creation",
+          "checks": ["multi-slot-picker", "add-remove-slots", "submit-success", "status-planification", "notification-sent-to-tenant"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-programmer-organiser",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Programmer — mode Organiser (presta propose)",
+          "mode": "creation",
+          "checks": ["organize-mode-selected", "submit-success", "notification-sent-to-provider"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-confirmer-creneau",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Confirmer creneau selectionne (modal ChooseTimeSlotModal)",
+          "mode": "creation",
+          "checks": ["modal-opens", "slot-list-visible", "confirm-button", "status-planifiee", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-chat",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Chat — 3 threads (groupe, locataire, prestataire)",
+          "mode": "creation",
+          "checks": ["conversation-tabs-visible", "thread-group", "thread-tenant-to-managers", "thread-provider-to-managers", "send-message", "message-appears", "unread-counter-updates"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-cloturer",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Cloturer intervention (modal FinalizationModalLive)",
+          "mode": "creation",
+          "checks": ["modal-opens", "closure-comment-field", "confirm-button", "status-cloturee-par-gestionnaire", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-annuler",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Annuler intervention (modal CancelConfirmationModal)",
+          "mode": "destruction",
+          "checks": ["modal-opens", "confirm-button", "status-annulee", "toast-success", "notification-sent-to-all"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-documents",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Documents intervention (upload/download/view)",
+          "mode": "creation",
+          "checks": ["tab-documents", "upload-button", "file-picker", "upload-success", "document-visible-in-list", "download-works", "preview-modal-opens"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-devis-accepter",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Accepter devis (modal QuoteApprovalModal)",
+          "mode": "creation",
+          "checks": ["tab-quotes", "quote-visible", "accept-button", "modal-opens", "confirm", "status-devis-accepted", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.intervention-devis-rejeter",
+          "path": "/gestionnaire/operations/interventions/{id}",
+          "label": "Rejeter devis (modal QuoteRejectionModal)",
+          "mode": "creation",
+          "checks": ["reject-button", "modal-opens", "rejection-reason", "confirm", "status-devis-rejected"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+
+        {
+          "id": "operations.nouveau-rappel",
+          "path": "/gestionnaire/operations/nouveau-rappel",
+          "label": "Creer un rappel",
+          "mode": "creation",
+          "checks": ["form-loads", "title-field", "date-picker", "property-selector", "recurrence-options", "submit-success", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.detail-rappel",
+          "path": "/gestionnaire/operations/rappels/{id}",
+          "label": "Detail rappel",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "rappel-info-displayed", "status-badge"],
+          "children": ["operations.rappel-demarrer", "operations.rappel-completer", "operations.rappel-annuler", "operations.rappel-supprimer"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.rappel-demarrer",
+          "path": "/gestionnaire/operations/rappels/{id}",
+          "label": "Demarrer un rappel",
+          "mode": "creation",
+          "checks": ["action-button", "status-changes-to-started", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.rappel-completer",
+          "path": "/gestionnaire/operations/rappels/{id}",
+          "label": "Completer un rappel",
+          "mode": "creation",
+          "checks": ["action-button", "status-changes-to-completed", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.rappel-annuler",
+          "path": "/gestionnaire/operations/rappels/{id}",
+          "label": "Annuler un rappel",
+          "mode": "destruction",
+          "checks": ["confirm-dialog", "status-changes-to-cancelled", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "operations.rappel-supprimer",
+          "path": "/gestionnaire/operations/rappels/{id}",
+          "label": "Supprimer un rappel",
+          "mode": "destruction",
+          "checks": ["confirm-dialog", "toast-success", "removed-from-list"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+
+        {
+          "id": "contacts",
+          "path": "/gestionnaire/contacts",
+          "label": "Liste contacts",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "tabs-by-role-prestataire-locataire-proprietaire-gestionnaire", "search-box", "invitation-status-filter", "company-filter"],
+          "children": ["contacts.nouveau-prestataire", "contacts.nouveau-locataire", "contacts.nouveau-proprietaire", "contacts.detail", "contacts.societe"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.nouveau-prestataire",
+          "path": "/gestionnaire/contacts/nouveau?type=prestataire",
+          "label": "Creer contact prestataire",
+          "mode": "creation",
+          "checks": ["form-loads", "type-prefilled-prestataire", "name-fields", "email-field", "phone-field", "company-field", "submit-success", "toast-success"],
+          "testData": { "email": "demo+invite-{timestamp}@seido-app.com" },
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.nouveau-locataire",
+          "path": "/gestionnaire/contacts/nouveau?type=locataire",
+          "label": "Creer contact locataire",
+          "mode": "creation",
+          "checks": ["form-loads", "type-prefilled-locataire", "submit-success", "toast-success"],
+          "testData": { "email": "demo+invite-{timestamp}@seido-app.com" },
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.nouveau-proprietaire",
+          "path": "/gestionnaire/contacts/nouveau?type=proprietaire",
+          "label": "Creer contact proprietaire",
+          "mode": "creation",
+          "checks": ["form-loads", "type-prefilled-proprietaire", "submit-success", "toast-success"],
+          "testData": { "email": "demo+invite-{timestamp}@seido-app.com" },
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.detail",
+          "path": "/gestionnaire/contacts/details/{id}",
+          "label": "Detail contact",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "contact-info-displayed", "role-badge", "invitation-status", "linked-properties", "linked-interventions"],
+          "children": ["contacts.modifier", "contacts.inviter", "contacts.renvoyer-invitation", "contacts.annuler-invitation", "contacts.revoquer", "contacts.supprimer"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.modifier",
+          "path": "/gestionnaire/contacts/modifier/{id}",
+          "label": "Modifier contact",
+          "mode": "creation",
+          "checks": ["form-prefilled", "submit-success", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.inviter",
+          "path": "/gestionnaire/contacts/details/{id}",
+          "label": "Inviter contact (modal ContactInviteModal)",
+          "mode": "creation",
+          "checks": ["invite-button-visible", "modal-opens", "confirm", "toast-success", "status-changes-to-pending"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.renvoyer-invitation",
+          "path": "/gestionnaire/contacts/details/{id}",
+          "label": "Renvoyer invitation (modal ContactResendModal)",
+          "mode": "creation",
+          "checks": ["resend-button-visible-if-pending", "modal-opens", "confirm", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.annuler-invitation",
+          "path": "/gestionnaire/contacts/details/{id}",
+          "label": "Annuler invitation (modal ContactCancelModal)",
+          "mode": "destruction",
+          "checks": ["cancel-button-visible-if-pending", "modal-opens", "confirm", "toast-success", "status-reverts"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.revoquer",
+          "path": "/gestionnaire/contacts/details/{id}",
+          "label": "Revoquer acces (modal ContactRevokeModal)",
+          "mode": "destruction",
+          "checks": ["revoke-button-visible-if-active", "modal-opens", "confirm", "toast-success", "access-removed"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.supprimer",
+          "path": "/gestionnaire/contacts/details/{id}",
+          "label": "Supprimer contact (modal DeleteConfirmModal)",
+          "mode": "destruction",
+          "checks": ["confirm-dialog", "toast-success", "removed-from-list"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.societe",
+          "path": "/gestionnaire/contacts/societes/{id}",
+          "label": "Detail societe",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "company-info-displayed", "linked-contacts"],
+          "children": ["contacts.societe-modifier"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contacts.societe-modifier",
+          "path": "/gestionnaire/contacts/societes/modifier/{id}",
+          "label": "Modifier societe",
+          "mode": "creation",
+          "checks": ["form-prefilled", "submit-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+
+        {
+          "id": "contrats",
+          "path": "/gestionnaire/contrats",
+          "label": "Liste contrats",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "tabs-bail-fournisseur", "status-filter-draft-active-expired-terminated", "property-filter", "expiry-date-filter", "search-box"],
+          "children": ["contrats.nouveau-bail", "contrats.nouveau-fournisseur", "contrats.detail"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.nouveau-bail",
+          "path": "/gestionnaire/contrats/nouveau?type=bail",
+          "label": "Creer contrat bail (wizard 5 etapes)",
+          "mode": "creation",
+          "checks": ["wizard-loads", "step1-type-bail", "step2-property-selection", "step3-tenant-selection", "step4-dates-start-end-renewal", "step5-documents", "submit-success", "redirect-to-detail", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.nouveau-fournisseur",
+          "path": "/gestionnaire/contrats/nouveau?type=fournisseur",
+          "label": "Creer contrat fournisseur",
+          "mode": "creation",
+          "checks": ["wizard-loads", "supplier-selection", "submit-success", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.detail",
+          "path": "/gestionnaire/contrats/{id}",
+          "label": "Detail contrat",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "contract-info-displayed", "status-badge", "documents-section", "contacts-section", "property-section"],
+          "children": ["contrats.modifier", "contrats.activer", "contrats.resilier", "contrats.renouveler", "contrats.decision-echeance", "contrats.documents", "contrats.supprimer"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.modifier",
+          "path": "/gestionnaire/contrats/modifier/{id}",
+          "label": "Modifier contrat",
+          "mode": "creation",
+          "checks": ["form-prefilled", "submit-success", "redirect-to-detail"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.activer",
+          "path": "/gestionnaire/contrats/{id}",
+          "label": "Activer contrat",
+          "mode": "creation",
+          "checks": ["activate-button", "status-changes-to-active", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.resilier",
+          "path": "/gestionnaire/contrats/{id}",
+          "label": "Resilier contrat",
+          "mode": "destruction",
+          "checks": ["terminate-button", "confirm-dialog", "status-changes-to-terminated", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.renouveler",
+          "path": "/gestionnaire/contrats/{id}",
+          "label": "Renouveler contrat",
+          "mode": "creation",
+          "checks": ["renew-button", "date-picker", "submit-success", "new-end-date-displayed"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.decision-echeance",
+          "path": "/gestionnaire/contrats/{id}",
+          "label": "Decision echeance (renouveler/resilier)",
+          "mode": "creation",
+          "checks": ["decision-section-visible-if-expiring", "choice-renew-or-terminate", "submit-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.documents",
+          "path": "/gestionnaire/contrats/{id}",
+          "label": "Documents contrat (upload/download)",
+          "mode": "creation",
+          "checks": ["upload-button", "file-picker", "upload-success", "document-in-list", "download-works", "delete-document"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "contrats.supprimer",
+          "path": "/gestionnaire/contrats/{id}",
+          "label": "Supprimer contrat",
+          "mode": "destruction",
+          "checks": ["confirm-dialog", "toast-success", "removed-from-list"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+
+        {
+          "id": "mail",
+          "path": "/gestionnaire/mail",
+          "label": "Boite mail",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "tabs-inbox-sent-archived", "email-list-or-empty-state", "search-box", "unread-filter", "attachment-filter"],
+          "children": ["mail.composer", "mail.detail", "mail.lier-entite", "mail.blacklist"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "mail.composer",
+          "path": "/gestionnaire/mail",
+          "label": "Composer email (modal ComposeEmailModal)",
+          "mode": "creation",
+          "checks": ["compose-button", "modal-opens", "to-field", "subject-field", "body-editor", "attachment-upload", "send-success", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "mail.detail",
+          "path": "/gestionnaire/mail",
+          "label": "Lire un email (panneau detail)",
+          "mode": "discovery",
+          "checks": ["email-content-displayed", "sender-info", "date", "attachments-list", "reply-button", "linked-entities"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "mail.lier-entite",
+          "path": "/gestionnaire/mail",
+          "label": "Lier email a une entite (immeuble/lot/intervention/contrat)",
+          "mode": "creation",
+          "checks": ["link-button", "entity-selector", "link-success", "entity-appears-in-linked"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "mail.blacklist",
+          "path": "/gestionnaire/mail",
+          "label": "Gerer blacklist emails (modal BlacklistManager)",
+          "mode": "creation",
+          "checks": ["blacklist-button", "modal-opens", "add-email", "remove-email"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+
+        {
+          "id": "parametres",
+          "path": "/gestionnaire/parametres",
+          "label": "Parametres generaux",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "settings-sections-visible"],
+          "children": ["parametres.emails", "parametres.assistant-ia", "parametres.billing"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres.emails",
+          "path": "/gestionnaire/parametres/emails",
+          "label": "Connexions email (Gmail/Outlook OAuth)",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "connected-accounts-list", "connect-gmail-button", "connect-outlook-button", "sync-button", "disconnect-button"],
+          "children": ["parametres.emails-connecter", "parametres.emails-sync", "parametres.emails-deconnecter"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres.emails-connecter",
+          "path": "/gestionnaire/parametres/emails",
+          "label": "Connecter compte email (OAuth flow)",
+          "mode": "creation",
+          "checks": ["oauth-redirect", "callback-success", "account-appears-in-list"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres.emails-sync",
+          "path": "/gestionnaire/parametres/emails",
+          "label": "Synchroniser emails",
+          "mode": "creation",
+          "checks": ["sync-button", "loading-indicator", "sync-complete-toast"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres.emails-deconnecter",
+          "path": "/gestionnaire/parametres/emails",
+          "label": "Deconnecter compte email",
+          "mode": "destruction",
+          "checks": ["disconnect-button", "confirm-dialog", "account-removed-from-list"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres.assistant-ia",
+          "path": "/gestionnaire/parametres/assistant-ia",
+          "label": "Assistant IA telephonique",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "ai-config-visible", "toggle-enable-disable"],
+          "children": ["parametres.assistant-ia-historique"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres.assistant-ia-historique",
+          "path": "/gestionnaire/parametres/assistant-ia/historique",
+          "label": "Historique appels IA",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "call-history-list-or-empty"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres.billing",
+          "path": "/gestionnaire/settings/billing",
+          "label": "Facturation Stripe",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "plan-info-visible", "usage-lots-count", "upgrade-button", "portal-button"],
+          "children": ["parametres.billing-upgrade", "parametres.billing-portal"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres.billing-upgrade",
+          "path": "/gestionnaire/settings/billing",
+          "label": "Upgrade abonnement (modal UpgradeModal)",
+          "mode": "creation",
+          "checks": ["upgrade-button", "modal-opens", "plan-comparison", "stripe-checkout-redirect"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres.billing-portal",
+          "path": "/gestionnaire/settings/billing",
+          "label": "Portail client Stripe",
+          "mode": "discovery",
+          "checks": ["portal-button", "redirect-to-stripe-portal"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+
+        {
+          "id": "profile",
+          "path": "/gestionnaire/profile",
+          "label": "Profil utilisateur",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "avatar-section", "profile-form", "name-email-fields"],
+          "children": ["profile.modifier", "profile.avatar", "profile.password"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "profile.modifier",
+          "path": "/gestionnaire/profile",
+          "label": "Modifier profil (nom, telephone)",
+          "mode": "creation",
+          "checks": ["form-editable", "submit-success", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "profile.avatar",
+          "path": "/gestionnaire/profile",
+          "label": "Upload/supprimer avatar",
+          "mode": "creation",
+          "checks": ["upload-button", "file-picker", "preview-visible", "upload-success", "delete-avatar-button"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "profile.password",
+          "path": "/gestionnaire/profile",
+          "label": "Changer mot de passe",
+          "mode": "creation",
+          "checks": ["change-password-button", "current-password-field", "new-password-field", "submit-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "notifications",
+          "path": "/gestionnaire/notifications",
+          "label": "Centre de notifications",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "notification-list-or-empty", "mark-all-read-button", "click-notification-navigates"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "aide",
+          "path": "/gestionnaire/aide",
+          "label": "Page d'aide",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "help-content-visible"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "import",
+          "path": "/gestionnaire/import",
+          "label": "Import CSV (wizard 4 etapes)",
+          "mode": "creation",
+          "checks": ["wizard-loads", "step1-select-type", "step2-upload-map-columns", "step3-preview-data", "step4-execute", "import-success", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        }
+      ]
+    },
+    "locataire": {
+      "entry": "/auth/login",
+      "nodes": [
+        {
+          "id": "dashboard",
+          "path": "/locataire/dashboard",
+          "label": "Dashboard locataire",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "lot-info-visible", "interventions-list", "pending-actions"],
+          "children": ["lot-detail", "intervention-nouvelle", "intervention-detail", "profile", "notifications", "parametres"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "lot-detail",
+          "path": "/locataire/lots/{id}",
+          "label": "Detail du lot",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "lot-info-displayed", "documents-section"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-nouvelle",
+          "path": "/locataire/interventions/nouvelle-demande",
+          "label": "Nouvelle demande d'intervention (wizard)",
+          "mode": "creation",
+          "checks": ["form-loads", "lot-selection", "type-selection-categorie-then-type", "description-field", "photo-upload", "submit-success", "redirect-to-detail", "toast-success"],
+          "testData": { "type": "Plomberie", "description": "Fuite robinet cuisine — test QA" },
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-detail",
+          "path": "/locataire/interventions/{id}",
+          "label": "Detail intervention (vue locataire)",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "status-visible", "description-visible", "tab-summary", "tab-time-slots", "tab-documents", "tab-conversations"],
+          "children": ["intervention-selectionner-creneau", "intervention-valider-cloture", "intervention-chat-locataire", "intervention-documents-locataire"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-selectionner-creneau",
+          "path": "/locataire/interventions/{id}",
+          "label": "Selectionner creneau (modal MultiSlotResponseModal)",
+          "mode": "creation",
+          "checks": ["slots-visible-if-planification", "modal-opens", "slot-selection", "confirm", "status-selected", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-valider-cloture",
+          "path": "/locataire/interventions/{id}",
+          "label": "Valider cloture (modal TenantValidationSimple)",
+          "mode": "creation",
+          "checks": ["validate-button-visible-if-cloturee-par-prestataire", "modal-opens", "confirm", "status-cloturee-par-locataire", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-chat-locataire",
+          "path": "/locataire/interventions/{id}",
+          "label": "Chat locataire (thread tenant_to_managers)",
+          "mode": "creation",
+          "checks": ["conversation-tab", "thread-visible", "send-message", "message-appears"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-documents-locataire",
+          "path": "/locataire/interventions/{id}",
+          "label": "Documents intervention (vue locataire)",
+          "mode": "discovery",
+          "checks": ["tab-documents", "documents-list-visible", "download-works", "preview-modal"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "profile",
+          "path": "/locataire/profile",
+          "label": "Profil locataire",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "profile-form", "avatar-section"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "notifications",
+          "path": "/locataire/notifications",
+          "label": "Notifications locataire",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "notification-list-or-empty", "mark-all-read"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres",
+          "path": "/locataire/parametres",
+          "label": "Parametres locataire",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        }
+      ]
+    },
+    "prestataire": {
+      "entry": "/auth/login",
+      "nodes": [
+        {
+          "id": "dashboard",
+          "path": "/prestataire/dashboard",
+          "label": "Dashboard prestataire",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "assigned-interventions-list", "pending-actions"],
+          "children": ["intervention-detail", "profile", "notifications", "parametres"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-detail",
+          "path": "/prestataire/interventions/{id}",
+          "label": "Detail intervention (vue prestataire)",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "status-visible", "assignment-info", "tab-summary", "tab-time-slots", "tab-quotes", "tab-documents", "tab-conversations"],
+          "children": ["intervention-proposer-creneaux", "intervention-soumettre-devis", "intervention-cloturer-prestataire", "intervention-chat-prestataire", "intervention-documents-prestataire", "intervention-confirmer-participation"],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-proposer-creneaux",
+          "path": "/prestataire/interventions/{id}",
+          "label": "Proposer creneaux (modal MultiSlotResponseModal)",
+          "mode": "creation",
+          "checks": ["tab-time-slots", "propose-button", "modal-opens", "date-time-picker", "add-multiple-slots", "submit-success", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-soumettre-devis",
+          "path": "/prestataire/interventions/{id}",
+          "label": "Soumettre devis (modal QuoteSubmissionModal)",
+          "mode": "creation",
+          "checks": ["tab-quotes", "submit-quote-button", "modal-opens", "montant-field", "description-field", "type-estimation-or-final", "submit-success", "status-devis-sent", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-cloturer-prestataire",
+          "path": "/prestataire/interventions/{id}",
+          "label": "Cloturer intervention (modal SimpleWorkCompletionModal)",
+          "mode": "creation",
+          "checks": ["complete-button-visible-if-planifiee", "modal-opens", "comment-field", "confirm", "status-cloturee-par-prestataire", "toast-success", "notification-sent"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-chat-prestataire",
+          "path": "/prestataire/interventions/{id}",
+          "label": "Chat prestataire (thread provider_to_managers)",
+          "mode": "creation",
+          "checks": ["conversation-tab", "thread-visible", "send-message", "message-appears"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-documents-prestataire",
+          "path": "/prestataire/interventions/{id}",
+          "label": "Documents intervention (upload prestataire)",
+          "mode": "creation",
+          "checks": ["tab-documents", "upload-button", "file-picker", "upload-success", "document-visible"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "intervention-confirmer-participation",
+          "path": "/prestataire/interventions/{id}",
+          "label": "Confirmer participation a l'intervention",
+          "mode": "creation",
+          "checks": ["confirm-button-visible-if-assigned", "confirm-success", "toast-success"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "profile",
+          "path": "/prestataire/profile",
+          "label": "Profil prestataire",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "profile-form", "company-info-section", "avatar-section"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "notifications",
+          "path": "/prestataire/notifications",
+          "label": "Notifications prestataire",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors", "notification-list-or-empty", "mark-all-read"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        },
+        {
+          "id": "parametres",
+          "path": "/prestataire/parametres",
+          "label": "Parametres prestataire",
+          "mode": "discovery",
+          "checks": ["page-loads", "no-console-errors"],
+          "children": [],
+          "lastTested": null,
+          "status": "untested"
+        }
+      ]
+    },
+    "cross-role": {
+      "entry": "/auth/login",
+      "description": "Scenarios end-to-end impliquant plusieurs roles (switch login entre chaque phase)",
+      "scenarios": [
+        {
+          "id": "intervention-lifecycle",
+          "label": "Cycle de vie complet d'une intervention",
+          "phases": [
+            {
+              "phase": 1,
+              "label": "Demande",
+              "role": "locataire",
+              "actions": [
+                "Naviguer vers /locataire/interventions/nouvelle-demande",
+                "Selectionner le lot",
+                "Choisir categorie puis type: Plomberie",
+                "Remplir description + upload photo",
+                "Soumettre → verifier statut demande + toast + redirect"
+              ]
+            },
+            {
+              "phase": 2,
+              "label": "Approbation + Assignment",
+              "role": "gestionnaire",
+              "actions": [
+                "Verifier notification recue dans /notifications",
+                "Clic → detail intervention",
+                "Approuver via modal → statut approuvee",
+                "Assigner un prestataire via selector",
+                "Activer requires_quote si besoin"
+              ]
+            },
+            {
+              "phase": 3,
+              "label": "Devis",
+              "role": "prestataire",
+              "actions": [
+                "Verifier notification recue",
+                "Ouvrir detail intervention",
+                "Confirmer participation",
+                "Soumettre devis via modal (montant, description, type estimation)",
+                "Verifier statut devis sent"
+              ]
+            },
+            {
+              "phase": 4,
+              "label": "Acceptation devis + Planification",
+              "role": "gestionnaire",
+              "actions": [
+                "Recevoir notification devis",
+                "Onglet Devis → accepter devis via modal → statut accepted",
+                "Programmer intervention avec 2 creneaux via ProgrammingModal mode proposer",
+                "Verifier statut planification"
+              ]
+            },
+            {
+              "phase": 5,
+              "label": "Selection creneau",
+              "role": "locataire",
+              "actions": [
+                "Verifier notification creneaux proposes",
+                "Ouvrir detail intervention",
+                "Onglet Creneaux → selectionner un creneau via modal → status selected",
+                "Verifier confirmation envoyee"
+              ]
+            },
+            {
+              "phase": 6,
+              "label": "Confirmation creneau",
+              "role": "gestionnaire",
+              "actions": [
+                "Verifier notification creneau selectionne",
+                "Confirmer le creneau via ChooseTimeSlotModal → statut planifiee",
+                "Verifier date/heure affichees dans le detail"
+              ]
+            },
+            {
+              "phase": 7,
+              "label": "Chat cross-role",
+              "role": "gestionnaire",
+              "actions": [
+                "Envoyer message dans thread groupe",
+                "Switch → locataire: verifier message visible dans thread groupe",
+                "Locataire: envoyer message dans thread tenant_to_managers",
+                "Switch → gestionnaire: verifier message recu dans thread locataire",
+                "Switch → prestataire: envoyer message dans thread provider_to_managers",
+                "Switch → gestionnaire: verifier 3 threads avec messages corrects"
+              ]
+            },
+            {
+              "phase": 8,
+              "label": "Cloture sequentielle",
+              "role": "prestataire",
+              "actions": [
+                "Cloturer via SimpleWorkCompletionModal → statut cloturee_par_prestataire",
+                "Switch → locataire: valider via TenantValidationSimple → cloturee_par_locataire",
+                "Switch → gestionnaire: cloturer via FinalizationModalLive → cloturee_par_gestionnaire",
+                "Verifier intervention dans liste terminees (chaque role)",
+                "Verifier pas d'actions restantes (boutons grises ou absents)"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "intervention-annulation",
+          "label": "Annulation d'une intervention en cours",
+          "phases": [
+            {
+              "phase": 1,
+              "label": "Creation rapide",
+              "role": "gestionnaire",
+              "actions": [
+                "Creer intervention via wizard gestionnaire",
+                "Assigner prestataire",
+                "Approuver"
+              ]
+            },
+            {
+              "phase": 2,
+              "label": "Annulation",
+              "role": "gestionnaire",
+              "actions": [
+                "Annuler via CancelConfirmationModal → statut annulee",
+                "Verifier notification envoyee presta + locataire"
+              ]
+            },
+            {
+              "phase": 3,
+              "label": "Verification post-annulation",
+              "role": "locataire",
+              "actions": [
+                "Voir intervention annulee",
+                "Verifier pas d'actions disponibles",
+                "Switch → prestataire: meme verification"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "contact-invitation-flow",
+          "label": "Invitation et onboarding d'un contact",
+          "phases": [
+            {
+              "phase": 1,
+              "label": "Creation + invitation",
+              "role": "gestionnaire",
+              "actions": [
+                "Creer contact prestataire avec email demo+invite-{ts}@seido-app.com",
+                "Inviter via ContactInviteModal",
+                "Verifier statut pending"
+              ]
+            },
+            {
+              "phase": 2,
+              "label": "Gestion invitation",
+              "role": "gestionnaire",
+              "actions": [
+                "Renvoyer invitation via ContactResendModal",
+                "Annuler invitation via ContactCancelModal",
+                "Re-inviter",
+                "Revoquer acces via ContactRevokeModal"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "contract-lifecycle",
+          "label": "Cycle de vie d'un contrat bail",
+          "phases": [
+            {
+              "phase": 1,
+              "label": "Creation",
+              "role": "gestionnaire",
+              "actions": [
+                "Creer contrat bail via wizard (5 etapes)",
+                "Associer lot + locataire",
+                "Upload document"
+              ]
+            },
+            {
+              "phase": 2,
+              "label": "Activation + gestion",
+              "role": "gestionnaire",
+              "actions": [
+                "Activer le contrat",
+                "Verifier statut active",
+                "Ajouter/supprimer contacts",
+                "Upload documents supplementaires"
+              ]
+            },
+            {
+              "phase": 3,
+              "label": "Echeance + decision",
+              "role": "gestionnaire",
+              "actions": [
+                "Verifier alerte echeance (si applicable)",
+                "Prendre decision: renouveler ou resilier",
+                "Verifier nouveau statut"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

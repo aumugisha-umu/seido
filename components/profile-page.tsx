@@ -310,7 +310,7 @@ export default function ProfilePage({ role, dashboardPath, initialUser, teamName
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     onChange={handleAvatarUpload}
                     className="hidden"
                   />

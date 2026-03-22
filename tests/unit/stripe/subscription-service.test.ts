@@ -312,8 +312,8 @@ describe('SubscriptionService', () => {
       expect(SubscriptionService.mapStripeStatus('incomplete_expired')).toBe('incomplete_expired')
     })
 
-    it('falls back to active for unknown statuses', () => {
-      expect(SubscriptionService.mapStripeStatus('some_future_status')).toBe('active')
+    it('falls back to past_due for unknown statuses (fail-closed)', () => {
+      expect(SubscriptionService.mapStripeStatus('some_future_status')).toBe('past_due')
     })
   })
 
@@ -767,6 +767,7 @@ describe('SubscriptionService', () => {
         data: makeSub({ stripe_subscription_id: 'sub_abc', subscribed_lots: 5 }),
         error: null,
       })
+      ;(subRepo.getLotCount as any).mockResolvedValue({ data: 5, error: null })
       ;(mockStripe.subscriptions.retrieve as any).mockResolvedValue({
         customer: 'cus_abc',
         items: {
@@ -797,6 +798,7 @@ describe('SubscriptionService', () => {
         data: makeSub({ stripe_subscription_id: 'sub_abc', subscribed_lots: 5 }),
         error: null,
       })
+      ;(subRepo.getLotCount as any).mockResolvedValue({ data: 5, error: null })
       ;(mockStripe.subscriptions.retrieve as any).mockRejectedValue(new Error('API error'))
 
       const result = await service.previewUpgrade('team-1', 3)

@@ -1,0 +1,87 @@
+{
+  "project": "SEIDO",
+  "featureName": "Gestionnaire Verification — Bug Fixes Sprint 2",
+  "branchName": "preview",
+  "description": "7 bug fixes from the 2026-03-21 gestionnaire code verification. 3 CRITIQUE (hard delete → soft delete on buildings/lots, post-delete null team_id), 3 MOYEN (type mismatch, missing proprietaire role, as any cast), 1 BAS (avatar accept).",
+  "createdAt": "2026-03-21",
+  "prdSource": "docs/audit/2026-03-21-gestionnaire-verification.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add softDelete method to BaseRepository and use it for buildings/lots",
+      "description": "As a security auditor, I want buildings and lots to use soft delete (set deleted_at timestamp) instead of hard DELETE so that data is never permanently lost and audit trails are preserved.",
+      "acceptanceCriteria": [
+        "BaseRepository has a softDelete(id) method that sets deleted_at = now() and deleted_by = current user id",
+        "Building delete action calls softDelete instead of delete",
+        "Lot delete action calls softDelete instead of delete",
+        "Existing findById/findAll methods exclude soft-deleted records (where deleted_at IS NULL)",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added softDelete() to BaseRepository. BuildingService and LotService each got softDelete() wrappers that preserve validation (empty lots check, occupancy check). Note: findById/findAll don't filter deleted_at because RLS policies + active views already handle this."
+    },
+    {
+      "id": "US-002",
+      "title": "Fix post-delete null team_id query in building delete action",
+      "description": "As a developer, I want the building delete action to capture team_id BEFORE deletion so that revalidation tags work correctly.",
+      "acceptanceCriteria": [
+        "team_id is fetched before the delete/softDelete call in deleteBuildingAction",
+        "Revalidation tags use the pre-captured team_id",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "deleteBuildingAction now calls service.getById() before softDelete, capturing team_id. Lot delete action already had this pattern (pre-captured buildingId)."
+    },
+    {
+      "id": "US-003",
+      "title": "Add proprietaire role handling in contact detail page",
+      "description": "As a gestionnaire, I want to see interventions and properties for proprietaire contacts so that owner data is not silently hidden.",
+      "acceptanceCriteria": [
+        "proprietaire role has filtering logic for interventions (lots they own)",
+        "proprietaire role has filtering logic for properties (lots/buildings they own)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added proprietaire case to both intervention filtering (lots owned → interventions on those lots) and property filtering (lots owned). Uses lot_contacts.role or user.role to identify ownership."
+    },
+    {
+      "id": "US-004",
+      "title": "Remove (profile as any).team_id cast in profile pages",
+      "description": "As a developer, I want proper typing on profile.team_id access instead of unsafe 'as any' cast.",
+      "acceptanceCriteria": [
+        "gestionnaire/profile/page.tsx uses profile.team_id directly (no 'as any')",
+        "admin/profile/page.tsx uses profile.team_id directly (no 'as any')",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "profile from getServerAuthContext already has team_id?: string in its type definition. The 'as any' cast was unnecessary."
+    },
+    {
+      "id": "US-005",
+      "title": "Restrict avatar upload accept attribute",
+      "description": "As a security auditor, I want the avatar file picker to only accept safe image formats (jpeg, png, webp) matching server-side validation.",
+      "acceptanceCriteria": [
+        "profile-page.tsx accept attribute is 'image/jpeg,image/png,image/webp' instead of 'image/*'",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Changed accept from image/* to image/jpeg,image/png,image/webp matching server-side allowedTypes."
+    }
+  ]
+}

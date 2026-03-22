@@ -30,7 +30,7 @@ type SchedulingType = Database['public']['Enums']['intervention_scheduling_type'
  */
 export function determineInterventionStatus(
   option: 'direct' | 'propose' | 'organize',
-  directSchedule?: { date: string; startTime: string },
+  directSchedule?: { date: string; startTime?: string },
   requiresConfirmation?: boolean,
   requireQuote?: boolean
 ): InterventionStatus {
@@ -41,7 +41,6 @@ export function determineInterventionStatus(
   if (
     option === 'direct' &&
     directSchedule?.date &&
-    directSchedule?.startTime &&
     !requiresConfirmation
   ) {
     return 'planifiee'
@@ -69,10 +68,11 @@ export function mapOptionToSchedulingType(
 
 /**
  * Compute scheduled_date ISO string for fixed mode.
- * Replicates creation flow (route.ts lines 309-311).
+ * Time is optional — defaults to 00:00 when not provided.
  */
-export function computeScheduledDate(date: string, time: string): string {
-  return `${date}T${time}:00.000Z`
+export function computeScheduledDate(date: string, time?: string): string {
+  const resolvedTime = time || '00:00'
+  return `${date}T${resolvedTime}:00.000Z`
 }
 
 // ─────────────────────────────────────────────
@@ -93,15 +93,21 @@ export async function createFixedSlot(
   supabase: SupabaseClient<Database>,
   interventionId: string,
   date: string,
-  startTime: string,
+  startTime: string | undefined,
   endTime: string | undefined,
   userId: string,
   requiresConfirmation: boolean
 ): Promise<{ slotId: string | null; error: string | null }> {
-  // Calculate end_time: use provided or add 1 hour (route.ts lines 943-946)
+  // If no time specified, use full day (00:00 - 23:59)
+  const hasTime = startTime && startTime.includes(':') && startTime !== '00:00'
+  const resolvedStartTime = hasTime ? startTime : '00:00'
+
+  // Calculate end_time: use provided, full day if no time, or +1 hour
   let calculatedEndTime = endTime
-  if (!calculatedEndTime || calculatedEndTime === startTime) {
-    const [hours, minutes] = startTime.split(':').map(Number)
+  if (!hasTime) {
+    calculatedEndTime = '23:59'
+  } else if (!calculatedEndTime || calculatedEndTime === resolvedStartTime) {
+    const [hours, minutes] = resolvedStartTime.split(':').map(Number)
     const endHours = (hours + 1) % 24
     calculatedEndTime = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
   }
@@ -119,9 +125,9 @@ export async function createFixedSlot(
     .insert({
       intervention_id: interventionId,
       slot_date: date,
-      start_time: startTime,
+      start_time: resolvedStartTime,
       end_time: calculatedEndTime,
-      status: requiresConfirmation ? 'pending' : 'selected',       // route.ts line 966
+      status: requiresConfirmation ? 'pending' : 'selected',
       selected_by_manager: !requiresConfirmation,                    // route.ts line 967
       proposed_by: userId,                                           // route.ts line 968
     })

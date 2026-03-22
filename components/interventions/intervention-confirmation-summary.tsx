@@ -232,8 +232,8 @@ export function InterventionConfirmationSummary({
     if (data.scheduling?.type === 'immediate' && data.scheduling.slots?.[0]) {
       const slot = data.scheduling.slots[0]
       pairs.push({
-        label: 'Date & heure',
-        value: `${formatSlotDate(slot.date)} a ${slot.startTime}`,
+        label: slot.startTime ? 'Date & heure' : 'Date',
+        value: slot.startTime ? `${formatSlotDate(slot.date)} a ${slot.startTime}` : formatSlotDate(slot.date),
       })
     } else if (data.scheduling?.type === 'slots' && data.scheduling.slots && data.scheduling.slots.length > 0) {
       pairs.push({
@@ -243,7 +243,7 @@ export function InterventionConfirmationSummary({
           <div className="flex flex-col gap-1">
             {data.scheduling.slots.map((slot, idx) => (
               <span key={idx} className="text-sm">
-                {formatSlotDate(slot.date)} {slot.startTime === slot.endTime ? slot.startTime : `${slot.startTime} - ${slot.endTime}`}
+                {formatSlotDate(slot.date)}{slot.startTime && slot.endTime ? ` ${slot.startTime === slot.endTime ? slot.startTime : `${slot.startTime} - ${slot.endTime}`}` : ''}
               </span>
             ))}
           </div>

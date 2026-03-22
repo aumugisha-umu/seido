@@ -1,0 +1,104 @@
+{
+  "project": "SEIDO",
+  "featureName": "Security Audit Sprint 1 — Critical Fixes",
+  "branchName": "preview",
+  "description": "6 security fixes from the 2026-03-21 full-stack audit. Addresses 1 CRITIQUE (mass assignment), 1 HAUT (auth getSession), 1 HAUT (server actions Zod), and 3 MOYEN (CSP, CORS, Stripe status mapping).",
+  "createdAt": "2026-03-21",
+  "prdSource": "docs/audit/2026-03-21-full-stack-audit.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix mass assignment on /api/update-contact with Zod whitelist",
+      "description": "As a security auditor, I want the update-contact API to validate input with a Zod schema whitelist so that attackers cannot modify arbitrary fields (role, team_id, auth_user_id) via the service role client.",
+      "acceptanceCriteria": [
+        "Zod schema added to lib/validation/schemas.ts with explicit allowed fields (name, email, phone, provider_category, speciality, notes, company_name, company_id, display_name)",
+        "Route parses body through Zod schema before spreading into .update()",
+        "Invalid/extra fields are stripped (Zod .strict() or .pick())",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Replace getSession() with getUser() in auth-dal.ts",
+      "description": "As a security auditor, I want the auth DAL to use supabase.auth.getUser() (server-validated) instead of getSession() (client JWT only) so that the entire auth chain is secure against token forgery.",
+      "acceptanceCriteria": [
+        "lib/auth-dal.ts getUser() function calls supabase.auth.getUser() instead of supabase.auth.getSession()",
+        "Return type correctly extracts user from getUser() response",
+        "cache() wrapper preserved for deduplication",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Add Zod validation to lot-actions.ts",
+      "description": "As a security auditor, I want lot server actions to validate input with Zod schemas so that malformed payloads cannot bypass TypeScript type safety at runtime.",
+      "acceptanceCriteria": [
+        "Zod schema for updateCompleteLot input (lotId: uuid, lot: partial object with allowed fields, contacts: array)",
+        "Server action parses input through Zod before processing",
+        "Invalid input returns { success: false, error: 'Validation error: ...' }",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Condition unsafe-eval to dev only in CSP",
+      "description": "As a security auditor, I want unsafe-eval removed from the CSP in production so that XSS attacks cannot use eval()/new Function().",
+      "acceptanceCriteria": [
+        "next.config.js CSP script-src includes 'unsafe-eval' only when NODE_ENV === 'development'",
+        "Production CSP does NOT contain unsafe-eval",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Fix CORS wildcard on /api/company/lookup",
+      "description": "As a security auditor, I want the CORS origin to use the site URL instead of wildcard * so that only the SEIDO domain can call this API.",
+      "acceptanceCriteria": [
+        "OPTIONS handler uses NEXT_PUBLIC_SITE_URL or falls back to 'self' origin from request headers",
+        "No more * wildcard in production",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Add warning log in mapStripeStatus for unknown statuses",
+      "description": "As a security auditor, I want mapStripeStatus to log a warning and fail-closed (not 'active') when encountering an unknown Stripe status so that future Stripe changes don't silently grant access.",
+      "acceptanceCriteria": [
+        "mapStripeStatus logs logger.warn when status is not in the known map",
+        "Fallback changes from 'active' to 'past_due' (fail-closed)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": ""
+    }
+  ]
+}

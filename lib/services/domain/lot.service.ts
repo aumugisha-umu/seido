@@ -267,6 +267,42 @@ export class LotService {
   }
 
   /**
+   * Soft delete lot (sets deleted_at timestamp)
+   * Preserves data for audit trail while hiding from active queries.
+   */
+  async softDelete(id: string, deletedBy?: string) {
+    const existingLot = await this.repository.findByIdWithRelations(id)
+    if (!existingLot.success) return existingLot
+
+    if (!existingLot.data) {
+      return {
+        success: false as const,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Lot with ID ${id} not found`
+        }
+      }
+    }
+
+    const occupancyCheck = await this.lotContactRepository.isLotOccupied(id)
+    if (occupancyCheck.success && occupancyCheck.data) {
+      throw new ValidationException(
+        'Cannot delete an occupied lot. Please remove all tenants first.',
+        'lot_contacts',
+        id
+      )
+    }
+
+    const result = await this.repository.softDelete(id, deletedBy)
+
+    if (result.success) {
+      await this.logLotDeletion(existingLot.data)
+    }
+
+    return result
+  }
+
+  /**
    * Get lots by building
    */
   async getLotsByBuilding(buildingId: string) {

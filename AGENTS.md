@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-21
-**Total Learnings:** 168
+**Last Updated:** 2026-03-22
+**Total Learnings:** 183
 
 ---
 
@@ -544,6 +544,48 @@
 **When to Use:** Any component displaying time slot confirmation status or counting proposed slots
 **Added:** 2026-02-16 | **Source:** Finalization modal Planning & Estimation fix
 
+#### Learning #169: Mass assignment via service-role client — Zod .strict() whitelist required
+**Problem:** `POST /api/update-contact` used `createServiceRoleSupabaseClient()` (bypasses RLS) but accepted arbitrary fields from the request body. An attacker could set `role`, `team_id`, `is_active`, or any column.
+**Solution:** Add Zod schema with `.strict()` on the `updateData` object — only whitelisted fields pass. `safeParse()` rejects unknown keys. Service-role routes are the HIGHEST priority for input validation because RLS won't save you.
+**Example:** `app/api/update-contact/route.ts` + `lib/validation/schemas.ts:updateContactSchema`
+**When to Use:** Any API route using `createServiceRoleSupabaseClient()` — MUST have Zod `.strict()` validation
+**Added:** 2026-03-22 | **Source:** Full-stack audit Sprint 1 — US-001
+
+#### Learning #170: getSession() vs getUser() — JWT validation bypass
+**Problem:** `supabase.auth.getSession()` reads the JWT from the cookie WITHOUT server-side validation. A tampered or expired JWT is accepted as valid. The entire auth chain (`requireRole → getUserProfile → getUser`) was built on this.
+**Solution:** Replace with `supabase.auth.getUser()` which makes a server round-trip to validate the JWT. Wrap with `cache()` (React 19) to deduplicate — only 1 network call per request regardless of how many components call it.
+**Example:** `lib/auth-dal.ts:getUser()` — `cache(async () => supabase.auth.getUser())`
+**When to Use:** ALWAYS use `getUser()` for server-side auth. `getSession()` is only safe on client-side where the JWT was just issued.
+**Added:** 2026-03-22 | **Source:** Full-stack audit Sprint 1 — US-002
+
+#### Learning #171: Stripe mapStripeStatus must be fail-closed for unknown statuses
+**Problem:** `mapStripeStatus()` returned `'active'` as default for unrecognized Stripe statuses. A new Stripe status like `'paused'` or a webhook corruption would grant full access.
+**Solution:** Return `'past_due'` (restrictive) for unknown statuses + `logger.warn()`. This is fail-closed: users see a "payment issue" banner instead of silently getting free access. Known statuses are still mapped correctly.
+**Example:** `lib/services/domain/subscription.service.ts:mapStripeStatus()`
+**When to Use:** Any status mapping function with a default/fallback case — choose the most restrictive option, not the most permissive.
+**Added:** 2026-03-22 | **Source:** Full-stack audit Sprint 1 — US-006
+
+#### Learning #172: BaseRepository.delete() is hard DELETE — use softDelete() for entities with deleted_at
+**Problem:** `BaseRepository.delete()` uses `.delete()` (physical removal). Buildings and lots called this, permanently destroying data with no audit trail. Tables already had `deleted_at`/`deleted_by` columns but the base class never used them.
+**Solution:** Added `BaseRepository.softDelete(id, deletedBy?)` that sets `deleted_at = now()` with `.is('deleted_at', null)` guard (idempotent). Services must add `softDelete()` wrappers with their own validation (e.g., "no lots" check for buildings). Active views and RLS already filter `deleted_at IS NULL`.
+**Example:** `lib/services/core/base-repository.ts:softDelete()`, `lib/services/domain/building.service.ts:softDelete()`
+**When to Use:** Any entity with `deleted_at` column — NEVER use `repository.delete()`, always `repository.softDelete()`
+**Added:** 2026-03-22 | **Source:** Gestionnaire verification Sprint 2 — US-001
+
+#### Learning #173: Capture dependent data BEFORE mutation — post-delete queries return null
+**Problem:** `deleteBuildingAction` queried `team_id` from the building AFTER hard-deleting it. The query returned null, so `revalidateTag('buildings-team-${teamId}')` never executed. Stale cache persisted.
+**Solution:** Always fetch data you'll need for side effects BEFORE the mutation. Pattern: `const data = await service.getById(id)` → `await service.softDelete(id)` → use `data.team_id` for revalidation.
+**Example:** `app/gestionnaire/(no-navbar)/biens/immeubles/[id]/actions.ts:deleteBuildingAction`
+**When to Use:** Any delete/archive action that needs entity data for post-mutation side effects (revalidation, notifications, logging)
+**Added:** 2026-03-22 | **Source:** Gestionnaire verification Sprint 2 — US-002
+
+#### Learning #174: Role filtering must be exhaustive — proprietaire silently falls through
+**Problem:** Contact detail page filtered interventions/properties by role: prestataire → locataire → gestionnaire. The `proprietaire` role had no case, so owners saw zero data. No error, just empty arrays.
+**Solution:** Add explicit `else if (contact.role === 'proprietaire')` case. For proprietaires, filter by lots where `lot_contacts.role === 'proprietaire'` or `user.role === 'proprietaire'`, then map interventions on those lots.
+**Example:** `app/gestionnaire/(no-navbar)/contacts/details/[id]/page.tsx` — intervention + property filtering
+**When to Use:** Any role-based switch/if chain — verify ALL 5 roles are handled (gestionnaire, prestataire, locataire, proprietaire, admin), or add a catch-all with logging.
+**Added:** 2026-03-22 | **Source:** Gestionnaire verification Sprint 2 — US-003
+
 ### Planning & Documentation
 
 #### Learning #039: Verify codebase state BEFORE writing implementation plans
@@ -715,6 +757,69 @@
 **Example:** `tests/e2e/pages/intervention-detail.page.ts:345-358` — `robustClick` method
 **When to Use:** Any E2E click on Radix Portal elements (Dialog, AlertDialog, Popover, DropdownMenu)
 **Added:** 2026-02-21 | **Source:** Intervention workflow E2E — dialog confirm button click failures
+
+#### Learning #175: vi.hoisted() required for mock variables inside vi.mock() factories
+**Problem:** Vitest hoists `vi.mock()` calls to the top of the file, but variables declared after the import block aren't accessible inside the factory function. `const mockFn = vi.fn()` used inside `vi.mock(() => ({ default: mockFn }))` throws `ReferenceError: mockFn is not defined`.
+**Solution:** Use `const { mockFn } = vi.hoisted(() => ({ mockFn: vi.fn() }))`. `vi.hoisted()` declares variables that are also hoisted, making them available inside `vi.mock()` factories. For class mocks, use class expressions: `vi.fn().mockImplementation(() => ({ method: mockMethod }))`.
+**Example:** `tests/unit/bank/cron-routes.test.ts` — hoisted mocks for BankSyncService constructor
+**When to Use:** Any unit test that needs to mock a constructor or use mock variables inside `vi.mock()` factory
+**Added:** 2026-03-22 | **Source:** Bank Module Phase 1 — cron route tests
+
+#### Learning #176: Export pure functions from services for testability without mocking
+**Problem:** Testing business logic inside service classes requires mocking the entire service constructor, Supabase client, and repository chain. A 5-line function becomes a 50-line test setup.
+**Solution:** Export pure functions separately from the service file: `export function calculateMatchConfidence(...)`, `export function calculateDueDates(...)`, `export function isTokenExpiringSoon(...)`. These are testable with simple input→output assertions, no mocks needed. Keep the service class for orchestration.
+**Example:** `lib/services/domain/bank-matching.service.ts:calculateMatchConfidence()`, `lib/services/domain/rent-call.service.ts:calculateDueDates()`
+**When to Use:** Any service with deterministic business logic (scoring, calculations, date math, status mapping) — extract and export as pure functions
+**Added:** 2026-03-22 | **Source:** Bank Module Phase 1 — 113 tests, majority testing pure functions
+
+#### Learning #177: Tink API token is 30min, not 1h — refresh with 2-min buffer
+**Problem:** Tink V2 access tokens expire in 30 minutes (not 1 hour as some docs suggest). Using a 5-minute buffer meant tokens expired mid-sync for large accounts. The 401 error interrupted paginated transaction fetching.
+**Solution:** Store `token_expires_at` on connection record. Check `isTokenExpiringSoon(expiresAt, bufferMinutes=2)` before each sync. Refresh proactively. If a 401 occurs mid-fetch, refresh and retry once.
+**Example:** `lib/services/domain/bank-sync.service.ts:syncConnection()` — token check before fetch loop
+**When to Use:** Any integration with Tink API — always check token expiry with 2-min buffer before operations
+**Added:** 2026-03-22 | **Source:** Bank Module Phase 1 — US-003 Tink API service
+
+#### Learning #178: CSP unsafe-eval and CORS wildcard — dev-only, never production
+**Problem:** `next.config.js` had `'unsafe-eval'` in CSP `script-src` (needed for Next.js dev HMR) and CORS `Access-Control-Allow-Origin: *` on the company lookup route. Both are acceptable in development but create attack surface in production.
+**Solution:** CSP: `${process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : ''}`. CORS: Use `ALLOWED_ORIGIN || NEXT_PUBLIC_SITE_URL || request.headers.get('origin')` with explicit allowlist, never `*`.
+**Example:** `next.config.js:CSP header`, `app/api/company/lookup/route.ts:CORS headers`
+**When to Use:** Any security header that needs different behavior in dev vs prod — always use `NODE_ENV` conditional
+**Added:** 2026-03-22 | **Source:** Full-stack audit Sprint 1 — US-004, US-005
+
+#### Learning #179: IDOR on all `[id]` API routes — verify team_id ownership
+**Problem:** Bank API routes (`/api/bank/transactions/[id]/ignore`, `/api/bank/suggestions/[id]`, `/api/bank/transactions/[id]/reconcile`) accepted any transaction ID without verifying it belonged to the authenticated user's team. An attacker could manipulate transactions belonging to other teams by guessing UUIDs.
+**Solution:** Every `[id]` route must pass `teamId` to the repository query: `.eq('id', id).eq('team_id', teamId)`. The service layer (`reconcileTransaction`, `unlinkTransactionFromEntity`) must also verify `team_id` on all entities before operating. Pattern: auth context → extract teamId → pass to every query.
+**Example:** `app/api/bank/transactions/[id]/reconcile/route.ts`, `lib/services/domain/bank-matching.service.ts:reconcileTransaction`
+**When to Use:** ANY API route with `[id]` parameter in a multi-tenant app — always join on `team_id`
+**Added:** 2026-03-22 | **Source:** Bank Module simplify review — IDOR audit
+
+#### Learning #180: TOCTOU on counters — use atomic SQL RPC instead of read-then-write
+**Problem:** `updateRentCallPayment` did `SELECT total_received → UPDATE total_received + amount`. Two concurrent reconciliations could both read `0`, then both write `amount`, losing one payment. Classic Time-of-Check-Time-of-Use race condition.
+**Solution:** Replace with atomic SQL: `CREATE FUNCTION increment_rent_call_received(p_rent_call_id UUID, p_delta NUMERIC)` using `UPDATE SET total_received = GREATEST(0, COALESCE(total_received, 0) + p_delta)`. Single atomic operation, no read needed.
+**Example:** `supabase/migrations/20260322100000_add_increment_rent_call_received.sql`, `lib/services/domain/bank-matching.service.ts:updateRentCallPayment`
+**When to Use:** Any counter/accumulator field updated by concurrent operations — never read-then-write
+**Added:** 2026-03-22 | **Source:** Bank Module simplify review — TOCTOU fix
+
+#### Learning #181: Factory helper migration breaks constructor-level test mocks
+**Problem:** `subscription-actions.ts` migrated from `new SubscriptionService(stripe, repo, custRepo)` to `createServiceRoleSubscriptionService()` / `createSubscriptionService()` factory helpers. Tests only mocked the `SubscriptionService` class constructor — the factory created real instances internally, bypassing the mock entirely. All checkout/upgrade tests silently failed.
+**Solution:** When production code uses factory functions, mock the FACTORY MODULE (`vi.mock('@/lib/services/domain/subscription-helpers')`), not the class it instantiates. Return mock instances from the factory mock. Constructor-level mocks only work when `new Class()` is called directly in the code under test.
+**Example:** `tests/unit/stripe/subscription-actions.test.ts:28-44` — mock `subscription-helpers` returning mock service instances
+**When to Use:** Any test where the code under test uses a factory/helper to create service instances instead of `new Service()` directly
+**Added:** 2026-03-22 | **Source:** Pre-existing test failure fix — subscription-actions 4 failures
+
+#### Learning #182: `vi.fn().mockImplementation(() => obj)` is NOT constructible — use named function
+**Problem:** `vi.mock('...', () => ({ MyClass: vi.fn().mockImplementation(() => ({ method: mockFn })) }))` fails when the code does `new MyClass()`. Arrow functions lack `[[Construct]]` — they can't be called with `new`. Error: `is not a constructor`.
+**Solution:** Use a named function inside the mock factory: `function MockMyClass() { return { method: mockFn } }; return { MyClass: MockMyClass }`. Named functions have `[[Construct]]` and work with `new`.
+**Example:** `tests/unit/stripe/subscription-actions.test.ts:72-75` — `function MockSubscriptionRepository() { return { findByTeamId } }`
+**When to Use:** Any `vi.mock()` where the mocked export is used with `new` — always use `function`, never arrow/`vi.fn().mockImplementation`
+**Added:** 2026-03-22 | **Source:** Pre-existing test failure fix — SubscriptionRepository mock
+
+#### Learning #183: DST causes ±1h drift in day-based date arithmetic — widen test tolerance
+**Problem:** `30 * 24 * 60 * 60 * 1000` assumes every day is exactly 24 hours. During DST transitions (e.g., March/October in Europe), one day is 23h or 25h. A 30-day trial showed 2,588,400,000ms instead of 2,592,000,000ms — 1 hour short. Test with ±1s tolerance failed.
+**Solution:** Use ±2h tolerance for any test asserting on multi-day date differences: `expect(diff).toBeGreaterThanOrEqual(thirtyDaysMs - twoHoursMs)`. The business logic is correct — it's the assertion that's fragile.
+**Example:** `tests/unit/stripe/trial-initialization.test.ts:157-160` — 30-day trial window assertion
+**When to Use:** Any test comparing Date arithmetic spanning days — DST transitions affect `Date.now()` differences
+**Added:** 2026-03-22 | **Source:** Pre-existing test failure fix — trial-initialization timing
 
 ### Stripe Integration
 

@@ -614,7 +614,12 @@ export class SubscriptionService {
       unpaid: 'unpaid',
       paused: 'paused',
     }
-    return map[stripeStatus] ?? 'active'
+    const mapped = map[stripeStatus]
+    if (!mapped) {
+      logger.warn({ stripeStatus }, '⚠️ [STRIPE] Unknown subscription status — falling back to past_due (fail-closed)')
+      return 'past_due'
+    }
+    return mapped
   }
 
   private checkReadOnly(

@@ -158,7 +158,7 @@ export default function NouvelleInterventionClient({
   })
 
   const [schedulingType, setSchedulingType] = useState<"fixed" | "slots" | "flexible">("flexible")
-  const [fixedDateTime, setFixedDateTime] = useState({ date: "", time: "09:00" }) // ✅ Heure par défaut pour éviter oublis
+  const [fixedDateTime, setFixedDateTime] = useState({ date: "", time: "" }) // Heure optionnelle — vide = journée entière
   const [timeSlots, setTimeSlots] = useState<Array<{ date: string; startTime: string; endTime: string }>>([])
   const [globalMessage, setGlobalMessage] = useState("")
 
@@ -1419,7 +1419,7 @@ export default function NouvelleInterventionClient({
   }
 
   const addTimeSlot = (slot?: { date: string; startTime: string; endTime: string }) => {
-    setTimeSlots((prev) => [...prev, slot || { date: "", startTime: "09:00", endTime: "17:00" }])
+    setTimeSlots((prev) => [...prev, slot || { date: "", startTime: "", endTime: "" }])
   }
 
   const removeTimeSlot = (index: number) => {
@@ -1516,9 +1516,6 @@ export default function NouvelleInterventionClient({
           if (!fixedDateTime.date) {
             errors.push("Veuillez sélectionner une date pour l'intervention")
           }
-          if (!fixedDateTime.time) {
-            errors.push("Veuillez sélectionner une heure pour l'intervention")
-          }
         }
         if (schedulingType === 'slots') {
           if (!timeSlots || timeSlots.length === 0) {
@@ -1604,8 +1601,8 @@ export default function NouvelleInterventionClient({
 
         // Scheduling - Send scheduling type directly (valid values: 'fixed', 'flexible', 'slots')
         schedulingType: schedulingType,
-        fixedDateTime: schedulingType === 'fixed' && fixedDateTime.date && fixedDateTime.time
-          ? { date: fixedDateTime.date, time: fixedDateTime.time }
+        fixedDateTime: schedulingType === 'fixed' && fixedDateTime.date
+          ? { date: fixedDateTime.date, time: fixedDateTime.time || '' }
           : null,
         timeSlots: schedulingType === 'slots'
           ? timeSlots.map(slot => ({
@@ -2180,8 +2177,8 @@ export default function NouvelleInterventionClient({
                     type: 'immediate' as const,
                     slots: [{
                       date: fixedDateTime.date,
-                      startTime: fixedDateTime.time || '09:00',
-                      endTime: fixedDateTime.time || '09:00', // Même valeur = pas de range
+                      startTime: fixedDateTime.time || '',
+                      endTime: fixedDateTime.time || '',
                     }],
                   }
                 : schedulingType === 'flexible'

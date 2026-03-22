@@ -84,6 +84,32 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-22 - Bank Module Phase 1 + Full-Stack Audit + Gestionnaire Verification
+
+**Session: 3 major work streams — 28 stories total, 10 new AGENTS.md learnings**
+
+| Change | Description |
+|--------|-------------|
+| **Bank Module Phase 1** | 17 stories: Tink Open Banking OAuth, transaction sync (4h cron), rent call generation, 5-component reconciliation scoring, quittance PDF, dashboard widgets |
+| **Full-Stack Security Audit** | 128 checks across 6 domains. Sprint 1: 6 critical fixes (mass assignment Zod .strict(), getSession→getUser, CSP/CORS, Stripe fail-closed) |
+| **Gestionnaire Verification** | 93 files reviewed by 8 parallel agents. 5 bugs fixed: BaseRepository.softDelete(), pre-capture team_id, proprietaire role, type safety, avatar accept |
+
+**New infrastructure:**
+- 7 DB tables, 4 repositories, 4 services, 13 API endpoints, 4 crons, 10 components
+- 113 bank unit tests + 17 pre-existing test fixes (652 total passing)
+- BaseRepository.softDelete() available for all repositories
+
+**Key decisions:**
+- Soft delete in BaseRepository (centralized) vs per-repo (fragmented) → centralized
+- Fail-closed for unknown Stripe statuses (past_due, not active)
+- Tink token refresh with 2-min buffer (not 5-min, tokens are 30-min not 1h)
+- Pure function exports from services for zero-mock testing
+
+**Learnings:** AGENTS.md #169-178
+**Retrospective:** `docs/learnings/2026-03-22-audit-verification-bank-retrospective.md`
+
+---
+
 ### 2026-03-21 - QA Bot E2E Test Suite + Admin Invite + Email Enhancements
 
 **Session: Full Playwright QA bot suite, admin invite action, email system enhancements (70 files, +13,088/-444 lines)**
@@ -662,30 +688,31 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-03-20)
+## Metriques Projet (2026-03-22)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | **25** (+2: reminder, recurrence) |
-| Domain Services | **40** (+1: reminder) |
-| API Routes | **130** (+1: recurrence-scan cron) |
-| Hooks | **66** (+1: use-reminders) |
-| Components | **420** (+8: operations/reminder components) |
-| Pages | **83** (+5: operations pages) |
+| Repositories | **29** (+4 bank) |
+| Domain Services | **44** (+4 bank) |
+| API Routes | **143** (+13 bank) |
+| Hooks | **66** |
+| Components | **430** (+10 bank) |
+| Pages | **84** (+1 banque) |
 | Blog Articles | **23** |
-| DB Tables | **49** (+3: reminders, recurrence_rules, recurrence_occurrences) |
+| DB Tables | **56** (+7 bank) |
 | DB Enums | 39 |
-| DB Functions | **80** |
-| Migrations | **201** (+2) |
-| Server Actions | **18** files (+1: reminder-actions) |
+| DB Functions | **81** (+1 increment_rent_call_received) |
+| Migrations | **202** (+1 banking) |
+| Cron Jobs | **9** (+4 bank) |
+| Server Actions | **20** files (+2: bank-actions, rent-reminder-actions) |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **163** |
-| **systemPatterns.md Patterns** | **37** |
-| **Shared Cards** | **15** |
+| **AGENTS.md Learnings** | **183** |
+| **systemPatterns.md Patterns** | **40** |
+| **Unit Tests** | **652** (45 files) |
 | **E2E Test Files** | **8** |
 | **E2E Page Objects** | **8** |
-| **Unit Test Files** | **12** |
+| **Retrospectives** | **50** |
 | **Integration Test Files** | **5** |
 
 ### Metriques Ecosysteme .claude/ (2026-03-14)
@@ -771,5 +798,5 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | **2026-03-19** | **Email visibility plumbing** | **Private/shared email connections** | **OAuth+IMAP flows write visibility, listing/counts filter by access** |
 
 ---
-*Derniere mise a jour: 2026-03-20*
+*Derniere mise a jour: 2026-03-22*
 *Session: Operations section (reminders/recurrence) + AI agent design, 163 learnings in AGENTS.md, 48 retrospectives*

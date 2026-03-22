@@ -1,0 +1,5 @@
+# QA reports and screenshots are generated per-run, not versioned
+reports/*.md
+screenshots/*/
+!reports/.gitkeep
+!screenshots/.gitkeep

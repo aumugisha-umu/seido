@@ -107,11 +107,23 @@
       "Read(//tmp/**)",
       "Bash(do echo:*)",
       "Bash(TARGET_URL=https://seido-git-preview-seido-app.vercel.app/ npx playwright:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "WebFetch(domain:docs.us.tink.com)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(openclaw doctor:*)",
+      "Bash(openclaw agent:*)",
+      "Bash(BASE=\".claude/worktrees/agent-a3637939/.claude/worktrees/agent-a89ad2ed/.claude/worktrees/agent-a667cbb4\")",
+      "Read(//c/Users/arthu/Desktop/Coding/seido-app/.claude/worktrees/agent-a3637939/.claude/worktrees/agent-a89ad2ed/.claude/worktrees/agent-adc851b7/$BASE/app/api/bank/**)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []
   },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "context7"
+  ],
   "hooks": {
     "PreToolUse": [
       {

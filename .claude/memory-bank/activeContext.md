@@ -1,10 +1,46 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** QA Bot E2E suite shipped (114 tests, Playwright), admin invite feature, cancel bug fix deployed
-**Branch:** `preview`
-**Sprint:** Quality + Operations + AI features (Mar 2026)
-**Derniere analyse:** QA Bot E2E suite + cancelIntervention bug fix + admin invite — 2026-03-21
+**Objectif:** Bank Module Phase 1 MVP complete + Security audit fixes + Gestionnaire verification fixes
+**Branch:** `feature/bank-module`
+**Sprint:** Banking + Security + Quality (Mar 2026)
+**Derniere analyse:** Full-stack audit (128 checks) + gestionnaire verification (93 files) + bank module (17 stories) — 2026-03-22
+
+---
+
+## COMPLETE: Bank Module Phase 1 MVP (2026-03-22)
+
+Full Tink Open Banking integration: OAuth flow, transaction sync, rent call generation, reconciliation, dashboard widgets.
+
+### Key Changes
+- **7 new DB tables**: bank_connections, bank_transactions, rent_calls, transaction_links, auto_linking_rules, property_expenses, security_deposits
+- **Tink API service**: OAuth, token management (30min expiry), data fetching (accounts + transactions)
+- **Bank connection repository**: Encryption for tokens + IBAN, safe client projections
+- **Transaction sync**: 4h cron + manual trigger, 90-day lookback, deduplication
+- **Rent call generation**: Monthly cron, 4 payment frequencies, 3-month horizon, overdue detection (J+2)
+- **Reconciliation**: 5-component confidence scoring, manual search, undo support
+- **13 API endpoints**: Connections CRUD, transactions list/reconcile/ignore, sync, reports, suggestions
+- **Dashboard widgets**: Reconciliation count, cash flow, overdue rent
+- **Quittance PDF**: French legal compliance (Loi 6/7/1989)
+- **113 unit tests** across 9 test files, 0 regressions
+- **Sidebar**: Landmark icon added between Interventions and Emails
+
+### Security Audit Sprint 1 (6 fixes)
+- Zod `.strict()` on service-role update-contact route (mass assignment)
+- `getSession()` → `getUser()` in auth-dal (JWT validation)
+- CSP `unsafe-eval` dev-only conditional
+- CORS origin allowlist (no more `*`)
+- Stripe `mapStripeStatus` fail-closed for unknowns
+- Lot action Zod validation
+
+### Gestionnaire Verification Sprint 2 (5 fixes)
+- `BaseRepository.softDelete()` method (buildings + lots now soft-delete)
+- Pre-capture team_id before delete for revalidation
+- Proprietaire role handling in contact detail page
+- Removed `(profile as any).team_id` casts (2 files)
+- Avatar accept restricted to jpeg/png/webp
+
+**Learnings:** AGENTS.md #169-178
 
 ---
 
@@ -141,43 +177,44 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
-- [ ] Verify cancelIntervention bug fix in deployment (string | CancellationData)
-- [ ] AI Intervention Agent Phase 1 implementation (8 stories — design in docs/AI/ai-intervention-agent-design.md)
-- [ ] Test email visibility end-to-end (private vs shared connections)
-- [ ] Deploy preview branch and validate operations section + data sync in production
-- [ ] Dead revalidation cleanup -- remove 68 dead revalidatePath/revalidateTag calls (9 files)
+- [ ] Bank Module: Apply migration to linked DB + regenerate types
+- [ ] Bank Module: Test Tink OAuth flow in staging (Tink sandbox)
+- [ ] Bank Module: Configure Vercel cron jobs (4 new crons)
+- [ ] Deploy feature/bank-module branch to preview
+- [ ] Dead revalidation cleanup (68 dead revalidatePath/revalidateTag calls)
 
 ### Fonctionnalites a Venir
-- [ ] AI Intervention Agent Phase 2 (auto on demande, enriched notifications)
-- [ ] Email Visibility Phase 2 (sharing UI, permission management)
+- [ ] Bank Module Phase 2 (bulk reconciliation, auto-linking rules UI, owner payments)
+- [ ] AI Intervention Agent Phase 1 (8 stories)
+- [ ] Audit Sprint 2 (code quality) + Sprint 3 (tech debt)
+- [ ] Email Visibility Phase 2
 - [ ] Google Maps Integration Phase 2-3
-- [ ] Locataire lot details page (plan in docs/plans/)
-- [ ] Landing page AI redesign (plan in docs/plans/)
-- [ ] More blog articles (content marketing pipeline)
 - [ ] Dashboard analytics avance
-- [ ] WhatsApp agent integration (plan in docs/AI/)
+- [ ] WhatsApp agent integration
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-03-20)
+## Metriques Systeme (Mise a jour 2026-03-22)
 
 | Composant | Valeur |
 |-----------|--------|
-| **Tables DB** | **49** (+3: reminders, recurrence_rules, recurrence_occurrences) |
-| **Migrations** | **201** |
-| **API Routes** | **130** |
-| **Pages** | **83** (+5 operations pages) |
-| **Composants** | **420** (+8 operations components) |
-| **Hooks** | **66** (+1: use-reminders) |
-| **Services domain** | **40** (+1: reminder) |
-| **Repositories** | **25** (+2: reminder, recurrence) |
-| **DB Functions** | **80** |
+| **Tables DB** | **56** (+7 bank tables) |
+| **Migrations** | **202** |
+| **API Routes** | **143** (+13 bank endpoints) |
+| **Pages** | **84** (+1 banque page) |
+| **Composants** | **430** (+10 bank components) |
+| **Hooks** | **66** |
+| **Services domain** | **44** (+4 bank services) |
+| **Repositories** | **29** (+4 bank repositories) |
+| **DB Functions** | **81** |
+| **Cron jobs** | **9** (+4 bank crons) |
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **168** |
+| **AGENTS.md Learnings** | **183** |
+| **Unit tests** | **652** (45 files) |
 | **Blog articles** | **23** |
-| **Retrospectives** | **49** |
+| **Retrospectives** | **50** |
 | **.claude/ Skills** | **23** |
 | **.claude/ Agents** | **15** |
 | **.claude/ Rules** | **5** |
@@ -197,9 +234,13 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 ---
 
-*Derniere mise a jour: 2026-03-21 (QA bot E2E suite + admin invite + cancel bug fix)*
-*Focus: Deployment verification + AI Intervention Agent Phase 1*
+*Derniere mise a jour: 2026-03-22 (Bank Module Phase 1 + Security audit + Gestionnaire verification)
+*Focus: Bank Module deployment + Tink sandbox testing
 
 ## Files Recently Modified
-### 2026-03-21 02:25:57 (Auto-updated)
-- `C:/Users/arthu/Desktop/coding/seido-app/.github/workflows/ci.yml`
+### 2026-03-22 12:08:34 (Auto-updated)
+- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/techContext.md`
+- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/systemPatterns.md`
+- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/productContext.md`
+- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/progress.md`
+- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/activeContext.md`

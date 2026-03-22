@@ -378,7 +378,7 @@ export abstract class BaseRepository<
   }
 
   /**
-   * Delete record by ID
+   * Delete record by ID (hard delete)
    */
   async delete(_id: string): Promise<RepositoryResponse<boolean>> {
     try {
@@ -402,6 +402,39 @@ export abstract class BaseRepository<
       return createSuccessResponse(true)
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:delete`))
+    }
+  }
+
+  /**
+   * Soft delete record by ID (sets deleted_at timestamp)
+   * Use this for entities that should be preserved for audit trails.
+   * Tables must have deleted_at and optionally deleted_by columns.
+   */
+  async softDelete(id: string, deletedBy?: string): Promise<RepositoryResponse<boolean>> {
+    try {
+      validateUUID(id)
+
+      const updateData: Record<string, unknown> = {
+        deleted_at: new Date().toISOString()
+      }
+      if (deletedBy) {
+        updateData.deleted_by = deletedBy
+      }
+
+      const { error } = await this.supabase
+        .from(this.tableName as keyof Database['public']['Tables'])
+        .update(updateData)
+        .eq('id', id)
+        .is('deleted_at', null)
+
+      if (error) {
+        return createErrorResponse(handleError(error, `${this.tableName}:softDelete`))
+      }
+
+      logger.info({ table: this.tableName, id }, '[BASE-REPOSITORY] Soft delete success')
+      return createSuccessResponse(true)
+    } catch (error) {
+      return createErrorResponse(handleError(error, `${this.tableName}:softDelete`))
     }
   }
 

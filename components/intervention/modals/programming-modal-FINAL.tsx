@@ -872,7 +872,7 @@ export const ProgrammingModalFinal = ({
             <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
               <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
               <p className="text-blue-800 text-xs">
-                Les instructions ne seront pas visibles par le locataire. Seuls les contacts invités (ayant un compte) assignés à l'intervention pourront les consulter.
+                Les instructions ne seront pas visibles par le locataire. Seuls les contacts invités (ayant un compte) et assignés à l'intervention pourront les consulter.
               </p>
             </div>
           </div>

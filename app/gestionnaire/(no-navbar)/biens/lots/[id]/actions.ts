@@ -91,11 +91,11 @@ export async function deleteLotAction(
 
     const service = await createServerActionLotService()
 
-    // Get lot data before deletion to know which building to revalidate
+    // Get lot data before soft delete to know which building to revalidate
     const lotData = await service.getById(lotId)
     const buildingId = lotData.success ? lotData.data?.building_id : null
 
-    const result = await service.delete(lotId)
+    const result = await service.softDelete(lotId)
 
     if (result.success) {
       logger.info('✅ [DELETE-LOT-ACTION] Lot deleted successfully', {

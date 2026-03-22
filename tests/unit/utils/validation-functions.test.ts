@@ -43,17 +43,17 @@ describe("validateUUID (from error-handler)", () => {
   })
 })
 
-describe("service-types no longer exports duplicate validators", () => {
-  it("service-types does not export validateRequired", async () => {
+describe("service-types re-exports validators from error-handler", () => {
+  it("service-types exports validateRequired", async () => {
     const st = await import("@/lib/services/core/service-types")
-    expect((st as any).validateRequired).toBeUndefined()
+    expect((st as any).validateRequired).toBeDefined()
   })
-  it("service-types does not export validateEmail", async () => {
+  it("service-types exports validateEmail", async () => {
     const st = await import("@/lib/services/core/service-types")
-    expect((st as any).validateEmail).toBeUndefined()
+    expect((st as any).validateEmail).toBeDefined()
   })
-  it("service-types does not export validateUUID", async () => {
+  it("service-types exports validateUUID", async () => {
     const st = await import("@/lib/services/core/service-types")
-    expect((st as any).validateUUID).toBeUndefined()
+    expect((st as any).validateUUID).toBeDefined()
   })
 })

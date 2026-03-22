@@ -1,0 +1,79 @@
+{
+  "project": "SEIDO",
+  "featureName": "Admin Invite Gestionnaire",
+  "branchName": "preview",
+  "description": "Admin can invite gestionnaires by entering email/name/organization. Gestionnaire receives email with quick start steps, sets password, lands on dashboard with onboarding checklist.",
+  "createdAt": "2026-03-20",
+  "prdSource": "docs/plans/2026-03-20-admin-invite-gestionnaire-design.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Email type + template for admin invitation",
+      "description": "As an admin, I want the invitation email to include quick start steps so gestionnaires know what to do after setting their password",
+      "acceptanceCriteria": [
+        "AdminInvitationEmailProps added to emails/utils/types.ts",
+        "admin-invitation.tsx template created with EmailLayout/Header/Footer/Button components",
+        "Template includes: greeting, organization context, CTA button, 4 quick start steps, expiration warning",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Type added, template created with 4 quick start steps matching onboarding checklist"
+    },
+    {
+      "id": "US-002",
+      "title": "Email service method for admin invitation",
+      "description": "As the system, I need a sendAdminInvitationEmail() method following the existing pattern",
+      "acceptanceCriteria": [
+        "sendAdminInvitationEmail() added to emailService in lib/email/email-service.ts",
+        "Uses same pattern: dynamic import + renderEmail + sendEmailWithRetry",
+        "Subject: 'Bienvenue sur SEIDO — Votre espace de gestion vous attend'",
+        "Tags: category=auth, type=admin-invitation",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Method added following exact same pattern as other email methods"
+    },
+    {
+      "id": "US-003",
+      "title": "Server actions: invite + resend",
+      "description": "As an admin, I need server actions to invite gestionnaires and resend expired invitations",
+      "acceptanceCriteria": [
+        "inviteGestionnaireAction() in user-admin-actions.ts: creates auth user, trigger creates profile+team+subscription, generates magiclink, inserts user_invitations, sends email via after()",
+        "resendGestionnaireInvitationAction() in user-admin-actions.ts: generates new magiclink, updates invitation, resends email",
+        "Both verify admin role via getAdminContext()",
+        "Duplicate email check prevents re-invitation",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Trigger handles profile+team(org name)+subscription. Magic link for password setting. after() for non-blocking email. Cleanup on failure."
+    },
+    {
+      "id": "US-004",
+      "title": "Admin UI: invitation modal + resend button",
+      "description": "As an admin, I want a modal to invite gestionnaires and a resend button for pending/expired invitations",
+      "acceptanceCriteria": [
+        "Invite button added next to existing 'Nouvel utilisateur' button",
+        "Dialog with 4 fields: email, firstName, lastName, organization (all required)",
+        "Submit calls inviteGestionnaireAction, shows toast, refreshes list",
+        "Resend menu item in dropdown for pending/expired users",
+        "Resend calls resendGestionnaireInvitationAction, shows toast",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Send icon for invite button (outline variant), RotateCw for resend. Conditional rendering for pending/expired only."
+    }
+  ]
+}

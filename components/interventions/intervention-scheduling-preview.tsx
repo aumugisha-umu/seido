@@ -476,7 +476,9 @@ export function InterventionSchedulingPreview({
                                   <div className="flex items-center gap-1.5">
                                     <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                                     <span className="text-sm font-medium">
-                                      {slot.start_time?.substring(0, 5)} - {slot.end_time?.substring(0, 5)}
+                                      {slot.start_time === '00:00:00' && slot.end_time === '23:59:00'
+                                        ? 'Journée entière'
+                                        : `${slot.start_time?.substring(0, 5)} - ${slot.end_time?.substring(0, 5)}`}
                                     </span>
                                   </div>
                                   <Badge variant={getStatusVariant(slot.status)} className="text-xs h-5">
@@ -762,7 +764,7 @@ export function InterventionSchedulingPreview({
                     >
                       <span className="font-medium text-slate-700">Créneau {index + 1}:</span>{' '}
                       <span className="text-slate-600">
-                        {formatDate(slot.date)} de {formatTime(slot.startTime)} à {formatTime(slot.endTime)}
+                        {formatDate(slot.date)}{slot.startTime && slot.endTime ? ` de ${formatTime(slot.startTime)} à ${formatTime(slot.endTime)}` : ' (Journée entière)'}
                       </span>
                     </div>
                   ))}

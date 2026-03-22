@@ -28,7 +28,7 @@ export default async function AdminProfilePage() {
     first_name: firstName || undefined,
     last_name: lastName || undefined,
     role: profile.role,
-    team_id: (profile as any).team_id || undefined,
+    team_id: profile.team_id || undefined,
     phone: profile.phone || undefined,
     avatar_url: profile.avatar_url || undefined,
     created_at: profile.created_at || undefined,

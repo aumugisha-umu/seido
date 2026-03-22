@@ -1,4 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+vi.mock('@/lib/logger', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+}))
+
 import { StripeWebhookHandler } from '@/lib/services/domain/stripe-webhook.handler'
 import type Stripe from 'stripe'
 
@@ -11,13 +16,16 @@ import type Stripe from 'stripe'
 
 const createChainMock = (resolvedValue: unknown = { data: null, error: null }) => {
   const terminal = vi.fn().mockResolvedValue(resolvedValue)
-  const chain: Record<string, ReturnType<typeof vi.fn>> = {}
+  const chain: Record<string, ReturnType<typeof vi.fn>> & PromiseLike<unknown> = {
+    then: (resolve: (v: unknown) => unknown) => Promise.resolve(resolvedValue).then(resolve),
+  } as any
 
   chain.select = vi.fn().mockReturnValue(chain)
   chain.insert = vi.fn().mockReturnValue(chain)
   chain.update = vi.fn().mockReturnValue(chain)
   chain.upsert = vi.fn().mockReturnValue(chain)
   chain.eq = vi.fn().mockReturnValue(chain)
+  chain.is = vi.fn().mockReturnValue(chain)
   chain.limit = vi.fn().mockReturnValue(chain)
   chain.maybeSingle = terminal
   chain.single = terminal
@@ -31,7 +39,7 @@ const createMockSupabase = (config?: {
   subscriptionsFind?: { data: unknown; error: unknown }
   subscriptionsUpsert?: { data: unknown; error: unknown }
   subscriptionsUpdate?: { data: unknown; error: unknown }
-  subscriptionsLotCount?: { data: unknown; error: unknown }
+  subscriptionsLotCount?: { count: number; error: unknown }
   customersFind?: { data: unknown; error: unknown }
   customersCreate?: { data: unknown; error: unknown }
   invoicesUpsert?: { data: unknown; error: unknown }
@@ -54,13 +62,7 @@ const createMockSupabase = (config?: {
         const updateChain = createChainMock(config?.subscriptionsUpdate ?? { data: null, error: null })
 
         const proxy: Record<string, any> = {}
-        proxy.select = vi.fn().mockImplementation((cols: string) => {
-          if (cols === 'billable_properties') {
-            const lotChain = createChainMock(config?.subscriptionsLotCount ?? { data: { billable_properties: 0 }, error: null })
-            return lotChain.chain
-          }
-          return selectChain.chain
-        })
+        proxy.select = vi.fn().mockReturnValue(selectChain.chain)
         proxy.insert = vi.fn().mockReturnValue(upsertChain.chain)
         proxy.upsert = vi.fn().mockReturnValue(upsertChain.chain)
         proxy.update = vi.fn().mockReturnValue(updateChain.chain)
@@ -70,6 +72,11 @@ const createMockSupabase = (config?: {
         proxy.single = selectChain.terminal
 
         return proxy
+      }
+      case 'lots': {
+        // getLotCount now queries lots table with count: exact, head: true
+        const lotChain = createChainMock(config?.subscriptionsLotCount ?? { count: 0, error: null })
+        return lotChain.chain
       }
       case 'stripe_customers': {
         const selectChain = createChainMock(config?.customersFind ?? { data: null, error: null })
@@ -348,7 +355,7 @@ describe('StripeWebhookHandler', () => {
     it('transitions to read_only when >2 lots', async () => {
       const supabase = createMockSupabase({
         subscriptionsFind: { data: { id: 'sub-1', team_id: 'team-1' }, error: null },
-        subscriptionsLotCount: { data: { billable_properties: 5 }, error: null },
+        subscriptionsLotCount: { count: 5, error: null },
       })
       const handler = new StripeWebhookHandler(supabase)
 

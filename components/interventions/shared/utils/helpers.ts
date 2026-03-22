@@ -94,10 +94,32 @@ export const formatTime = (timeString: string): string => {
 }
 
 /**
+ * Vérifie si une heure correspond à "journée entière" (pas d'heure précise)
+ * Convention: start_time=00:00 = pas d'heure spécifiée
+ * Utile quand seul le start_time est disponible (ex: PlanningCard)
+ */
+export const isFullDayTime = (time: string | null | undefined): boolean => {
+  if (!time) return false
+  return time.substring(0, 5) === '00:00'
+}
+
+/**
+ * Vérifie si un créneau couvre la journée entière (pas d'heure précise)
+ * Convention: start_time=00:00 + end_time=23:59 = journée entière
+ */
+export const isFullDaySlot = (startTime: string, endTime: string): boolean => {
+  const start = startTime?.substring(0, 5)
+  const end = endTime?.substring(0, 5)
+  return start === '00:00' && end === '23:59'
+}
+
+/**
  * Formate une plage horaire
  * @example formatTimeRange("09:00", "12:00") => "9h00 - 12h00"
+ * @example formatTimeRange("00:00", "23:59") => "Journée entière"
  */
 export const formatTimeRange = (startTime: string, endTime: string): string => {
+  if (isFullDaySlot(startTime, endTime)) return 'Journée entière'
   return `${formatTime(startTime)} - ${formatTime(endTime)}`
 }
 

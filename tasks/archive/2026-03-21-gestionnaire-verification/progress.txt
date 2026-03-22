@@ -1,0 +1,33 @@
+# Progress Log — Gestionnaire Verification Bug Fixes Sprint 2
+# Started: 2026-03-21
+# Stories: 5/5 complete
+# Source: docs/audit/2026-03-21-gestionnaire-verification.md
+---
+
+## US-001: Add softDelete to BaseRepository + building/lot services (S) — DONE
+- Added `softDelete(id, deletedBy?)` method to BaseRepository (sets deleted_at + deleted_by)
+- Added `softDelete()` to BuildingService (validates no lots before delete)
+- Added `softDelete()` to LotService (validates not occupied before delete)
+- Building delete action now calls service.softDelete()
+- Lot delete action now calls service.softDelete()
+- Files: lib/services/core/base-repository.ts, lib/services/domain/building.service.ts, lib/services/domain/lot.service.ts, app/gestionnaire/(no-navbar)/biens/immeubles/[id]/actions.ts, app/gestionnaire/(no-navbar)/biens/lots/[id]/actions.ts
+
+## US-002: Fix post-delete null team_id (XS) — DONE
+- deleteBuildingAction now captures team_id via service.getById() BEFORE softDelete
+- Removed post-delete query that returned null
+- Files: app/gestionnaire/(no-navbar)/biens/immeubles/[id]/actions.ts
+
+## US-003: Add proprietaire role in contact detail (S) — DONE
+- Added proprietaire case for intervention filtering (lots owned → interventions)
+- Added proprietaire case for property filtering (lots owned)
+- Uses lot_contacts.role or user.role to identify ownership
+- Files: app/gestionnaire/(no-navbar)/contacts/details/[id]/page.tsx
+
+## US-004: Remove (profile as any).team_id casts (XS) — DONE
+- Changed to profile.team_id (type already supports it)
+- Files: app/gestionnaire/(with-navbar)/profile/page.tsx, app/admin/(with-navbar)/profile/page.tsx
+
+## US-005: Restrict avatar accept attribute (XS) — DONE
+- Changed accept="image/*" to accept="image/jpeg,image/png,image/webp"
+- Matches server-side allowedTypes validation
+- Files: components/profile-page.tsx

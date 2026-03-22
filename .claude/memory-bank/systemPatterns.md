@@ -10,14 +10,16 @@
 |  - Page data loading          |  - Interactive forms         |
 |  - Auth via getServerAuth()   |  - Real-time updates         |
 +-------------------------------------------------------------+
-|                    Domain Services (63)                      |
+|                    Domain Services (67)                      |
 |  intervention, notification, email, scheduling, subscription |
+|  tink-api, bank-sync, bank-matching, rent-call              |
 +-------------------------------------------------------------+
-|                    Repositories (25)                         |
+|                    Repositories (29)                         |
 |  intervention, notification, user, building, subscription    |
+|  bank-connection, bank-transaction, rent-call, tx-link       |
 +-------------------------------------------------------------+
 |                    Supabase (PostgreSQL + RLS)               |
-|  46 tables | 80 fonctions | 210 indexes | 47 triggers       |
+|  56 tables | 81 fonctions | 220+ indexes | 50+ triggers     |
 +-------------------------------------------------------------+
 ```
 
@@ -570,8 +572,57 @@ tests/qa-bot/
 
 > Source: tests/qa-bot/
 
+### 39. Soft Delete Pattern (NOUVEAU 2026-03-22)
+
+Entities with `deleted_at` column MUST use `softDelete()`, NEVER `delete()`:
+
+```typescript
+// BaseRepository provides softDelete for ALL repositories
+async softDelete(id: string, deletedBy?: string): Promise<RepositoryResponse<boolean>>
+
+// Services wrap with domain validation
+async softDelete(id: string, deletedBy?: string) {
+  const existing = await this.repository.findByIdWithRelations(id)
+  if (isErrorResponse(existing)) return existing
+  // Domain validation (e.g., no lots for buildings, not occupied for lots)
+  return this.repository.softDelete(id, deletedBy)
+}
+
+// Actions pre-capture data needed for side effects
+const data = await service.getById(id) // BEFORE delete
+const teamId = data.success ? data.data?.team_id : null
+await service.softDelete(id)
+// Use teamId for revalidation AFTER
+```
+
+**Tables with deleted_at:** buildings, lots, users, contracts, interventions, emails, quotes, comments, reminders, bank_connections
+**Active views** and **RLS policies** already filter `deleted_at IS NULL`.
+
+> Source: lib/services/core/base-repository.ts:softDelete()
+
+### 40. Bank Module Architecture (NOUVEAU 2026-03-22)
+
+Open Banking integration via Tink V2 API:
+
+```
+Tink Link (OAuth) → bank_connections (encrypted tokens)
+                  → bank_transactions (4h cron sync)
+                  → transaction_links (reconciliation)
+                  → rent_calls (auto-generated from contracts)
+```
+
+**Key patterns:**
+- **Encryption:** Tokens + IBAN encrypted at rest, safe client projections (no sensitive fields)
+- **Token lifecycle:** 30-min access token, refresh with 2-min buffer before expiry
+- **Deduplication:** `ON CONFLICT (tink_transaction_id) DO NOTHING`
+- **Reconciliation:** 5-component confidence scoring (ref 40%, amount 25%, approx 15%, name 15%, date 5%)
+- **Rent call generation:** Monthly cron, 4 frequencies (mensuel/trimestriel/semestriel/annuel), 3-month horizon
+- **Data invalidation:** `bank_transactions` + `rent_calls` entity types in broadcast system
+
+> Source: lib/services/domain/tink-api.service.ts, lib/services/domain/bank-sync.service.ts
+
 ---
-*Derniere mise a jour: 2026-03-21*
-*Analyse approfondie: 420 composants, 66 hooks, 40 services, 25 repositories*
-*Total patterns: 38 (+1: Playwright QA Bot architecture)*
+*Derniere mise a jour: 2026-03-22*
+*Analyse approfondie: 430 composants, 66 hooks, 44 services, 29 repositories*
+*Total patterns: 40 (+2: Soft Delete, Bank Module architecture)*
 *References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*

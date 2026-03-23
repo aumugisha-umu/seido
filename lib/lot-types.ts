@@ -54,6 +54,20 @@ export const LOT_CATEGORY_CONFIG = {
   }
 } as const
 
+// Styles saturés pour l'état sélectionné des catégories (contraste WCAG AA)
+export const LOT_CATEGORY_SELECTED_STYLES: Record<LotCategory, { bg: string; text: string; border: string; iconBg: string; iconText: string }> = {
+  appartement: { bg: 'bg-blue-600', text: 'text-white', border: 'border-blue-600', iconBg: 'bg-blue-500', iconText: 'text-white' },
+  maison: { bg: 'bg-emerald-600', text: 'text-white', border: 'border-emerald-600', iconBg: 'bg-emerald-500', iconText: 'text-white' },
+  garage: { bg: 'bg-violet-600', text: 'text-white', border: 'border-violet-600', iconBg: 'bg-violet-500', iconText: 'text-white' },
+  local_commercial: { bg: 'bg-orange-600', text: 'text-white', border: 'border-orange-600', iconBg: 'bg-orange-500', iconText: 'text-white' },
+  autre: { bg: 'bg-slate-700', text: 'text-white', border: 'border-slate-700', iconBg: 'bg-slate-600', iconText: 'text-white' },
+}
+
+// Helper function pour obtenir les styles de sélection d'une catégorie
+export function getLotCategorySelectedStyles(category: LotCategory) {
+  return LOT_CATEGORY_SELECTED_STYLES[category]
+}
+
 // Helper function pour obtenir la configuration d'une catégorie
 export function getLotCategoryConfig(category: LotCategory) {
   return LOT_CATEGORY_CONFIG[category]

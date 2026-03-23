@@ -56,7 +56,7 @@ import type { ScheduledInterventionData } from "@/components/contract/interventi
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { buildingSteps } from "@/lib/step-configurations"
-import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
+import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import { logger, logError } from '@/lib/logger'
 import { usePropertyDocumentUpload } from '@/hooks/use-property-document-upload'
@@ -429,62 +429,16 @@ export default function NewImmeubleePage({
     }
   }, [currentStep, lots])
 
-  // Mettre a jour automatiquement la reference des lots quand leur categorie change
-  useEffect(() => {
-    if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
-      return // Attendre que les donnees de categorie soient chargees
-    }
-
-    // Creer dynamiquement le pattern base sur tous les labels de categorie possibles
-    const allCategories = getAllLotCategories()
-    const categoryLabels = allCategories.map(cat => cat.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    const generatedReferencePattern = new RegExp(`^(${categoryLabels.join('|')})\\s+\\d+$`)
-
-    // Verifier chaque lot pour voir si sa reference doit etre mise a jour
-    const lotsToUpdate: { id: string; newReference: string }[] = []
-
-    lots.forEach(lot => {
-      const category = lot.category || "appartement"
-      const categoryConfig = getLotCategoryConfig(category)
-      const lotsOfSameCategory = lots.filter(l => l.category === category)
-      const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const lotIndex = lotsOfSameCategory.findIndex(l => l.id === lot.id)
-      const nextNumber = currentCategoryCount + lotIndex + 1
-      const newDefaultReference = `${categoryConfig.label} ${nextNumber}`
-      
-      const currentReference = lot.reference
-      const isEmptyOrDefault = !currentReference || generatedReferencePattern.test(currentReference)
-
-      // Ne mettre a jour que si la reference est vide ou generee par defaut
-      if (isEmptyOrDefault && currentReference !== newDefaultReference) {
-        lotsToUpdate.push({ id: lot.id, newReference: newDefaultReference })
-      }
-    })
-
-    // Appliquer toutes les mises a jour en une seule fois
-    if (lotsToUpdate.length > 0) {
-      setLots(prevLots => 
-        prevLots.map(lot => {
-          const update = lotsToUpdate.find(u => u.id === lot.id)
-          return update ? { ...lot, reference: update.newReference } : lot
-        })
-      )
-    }
-  }, [lots.map(lot => lot.category).join(','), categoryCountsByTeam])
-
   // Initialiser automatiquement le premier lot quand on arrive à l'étape 2
   useEffect(() => {
     if (currentStep === 2 && lots.length === 0 && categoryCountsByTeam !== undefined) {
       logger.info('🏗️ [IMMEUBLE] Auto-initializing first lot at step 2')
 
-      const category = "appartement"
-      const categoryConfig = getLotCategoryConfig(category)
-      const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const nextNumber = currentCategoryCount + 1
+      const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
 
       const initialLot: Lot = {
         id: `lot1`,
-        reference: `${categoryConfig.label} ${nextNumber}`,
+        reference: `Lot ${totalTeamLots + 1}`,
         floor: "0",
         doorNumber: "",
         description: "",
@@ -512,15 +466,10 @@ export default function NewImmeubleePage({
       setUpgradeModalOpen(true)
       return
     }
-    // Generer la reference basee sur la categorie par defaut (appartement)
-    const category = "appartement"
-    const categoryConfig = getLotCategoryConfig(category)
-    const currentCategoryCount = categoryCountsByTeam[category] || 0
-    const nextNumber = currentCategoryCount + lots.filter(lot => lot.category === category).length + 1
-    
+    const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
     const newLot: Lot = {
       id: `lot${lots.length + 1}`,
-      reference: `${categoryConfig.label} ${nextNumber}`,
+      reference: `Lot ${totalTeamLots + lots.length + 1}`,
       floor: "0",
       doorNumber: "",
       description: "",
@@ -536,15 +485,6 @@ export default function NewImmeubleePage({
     setLots(lots.map((lot) => {
       if (lot.id === id) {
         const updatedLot = { ...lot, [field]: value }
-        
-        // Si la catégorie change, recalculer la référence
-        if (field === 'category') {
-          const categoryConfig = getLotCategoryConfig(value)
-          const currentCategoryCount = categoryCountsByTeam[value] || 0
-          const existingLotsOfCategory = lots.filter(l => l.category === value && l.id !== id).length
-          const nextNumber = currentCategoryCount + existingLotsOfCategory + 1
-          updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
-        }
         
         return updatedLot
       }

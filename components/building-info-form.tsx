@@ -18,7 +18,7 @@ import {
   DoorOpen,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
-import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
+import { LotCategory, getLotCategoryConfig, getAllLotCategories, LOT_CATEGORY_SELECTED_STYLES } from "@/lib/lot-types"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { createBuildingService } from "@/lib/services"
 import { AddressFieldsWithMap, type GeocodeResult } from "@/components/google-maps"
@@ -212,6 +212,7 @@ export const BuildingInfoForm = ({
               {getAllLotCategories().map((category) => {
                 const Icon = iconComponents[category.icon as keyof typeof iconComponents]
                 const isSelected = (buildingInfo.category || "appartement") === category.key
+                const selectedStyles = LOT_CATEGORY_SELECTED_STYLES[category.key as LotCategory]
 
                 return (
                   <label
@@ -228,7 +229,7 @@ export const BuildingInfoForm = ({
                         flex items-center gap-1.5 px-3 py-2 rounded-full border-2 transition-all duration-200
                         ${
                           isSelected
-                            ? `${category.bgColor} ${category.borderColor} ${category.color} shadow-sm font-medium`
+                            ? `${selectedStyles.bg} ${selectedStyles.border} ${selectedStyles.text} shadow-sm font-medium`
                             : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                         }
                       `}

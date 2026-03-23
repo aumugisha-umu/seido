@@ -238,9 +238,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Focus: Bank Module deployment + Tink sandbox testing
 
 ## Files Recently Modified
-### 2026-03-22 12:08:34 (Auto-updated)
-- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/techContext.md`
-- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/systemPatterns.md`
-- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/productContext.md`
-- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/progress.md`
-- `C:/Users/arthu/desktop/coding/seido-app/.claude/memory-bank/activeContext.md`
+### 2026-03-23 22:02:11 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/seido-app/docs/Sales/sales-pitch-kit.md`

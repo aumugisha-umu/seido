@@ -12,7 +12,7 @@ import {
   MoreHorizontal,
   Check
 } from "lucide-react"
-import { LotCategory, getAllLotCategories} from "@/lib/lot-types"
+import { LotCategory, getAllLotCategories, LOT_CATEGORY_SELECTED_STYLES } from "@/lib/lot-types"
 
 interface LotCategorySelectorProps {
   value: LotCategory
@@ -32,6 +32,8 @@ const iconComponents = {
   Store,
   MoreHorizontal
 }
+
+const CATEGORY_SELECTED_STYLES = LOT_CATEGORY_SELECTED_STYLES
 
 export function LotCategorySelector({
   value,
@@ -71,13 +73,15 @@ export function LotCategorySelector({
             const IconComponent = iconComponents[category.icon as keyof typeof iconComponents]
             const isSelected = value === category.key
             
+            const styles = CATEGORY_SELECTED_STYLES[category.key]
+
             return (
               <div
                 key={category.key}
-                className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm ${
-                  isSelected 
-                    ? "border-blue-500 bg-blue-50 shadow-sm" 
-                    : "border-slate-200 bg-white"
+                className={`flex items-center space-x-3 p-3 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${
+                  isSelected
+                    ? `${styles.bg} ${styles.border} shadow-sm`
+                    : "border-slate-200 bg-white hover:border-slate-300"
                 }`}
                 onClick={() => handleCategorySelect(category.key)}
                 tabIndex={0}
@@ -93,21 +97,21 @@ export function LotCategorySelector({
               >
                 <RadioGroupItem value={category.key} className="mt-0.5" />
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                  isSelected ? "bg-blue-100" : "bg-slate-100"
+                  isSelected ? styles.iconBg : "bg-slate-100"
                 }`}>
                   <IconComponent className={`w-4 h-4 ${
-                    isSelected ? "text-blue-600" : "text-slate-600"
+                    isSelected ? styles.iconText : "text-slate-600"
                   }`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className={`font-medium text-sm ${
-                    isSelected ? "text-blue-900" : "text-slate-700"
+                    isSelected ? styles.text : "text-slate-700"
                   }`}>
                     {category.key === 'local_commercial' ? 'Local commercial' : category.label}
                   </div>
                 </div>
                 {isSelected && (
-                  <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                  <Check className={`w-4 h-4 ${styles.text} flex-shrink-0`} />
                 )}
               </div>
             )
@@ -137,15 +141,17 @@ export function LotCategorySelector({
           const IconComponent = iconComponents[category.icon as keyof typeof iconComponents]
           const isSelected = value === category.key
           
+          const styles = CATEGORY_SELECTED_STYLES[category.key]
+
           return (
             <Button
               key={category.key}
               type="button"
               variant="ghost"
-              className={`relative h-auto p-3 lg:p-4 flex flex-col items-center space-y-1.5 lg:space-y-2 border-2 rounded-xl transition-all duration-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
-                isSelected 
-                  ? "border-blue-500 bg-blue-50 shadow-sm" 
-                  : "border-slate-200 bg-white"
+              className={`relative h-auto p-3 lg:p-4 flex flex-col items-center space-y-1.5 lg:space-y-2 border-2 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 ${
+                isSelected
+                  ? `${styles.bg} ${styles.border} shadow-sm`
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
               }`}
               onClick={() => handleCategorySelect(category.key)}
               aria-pressed={isSelected}
@@ -153,16 +159,16 @@ export function LotCategorySelector({
             >
               {/* Icon */}
               <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-lg flex items-center justify-center transition-colors ${
-                isSelected ? "bg-blue-100" : "bg-slate-100"
+                isSelected ? styles.iconBg : "bg-slate-100"
               }`}>
                 <IconComponent className={`w-4 h-4 lg:w-5 lg:h-5 ${
-                  isSelected ? "text-blue-600" : "text-slate-600"
+                  isSelected ? styles.iconText : "text-slate-600"
                 }`} />
               </div>
-              
+
               {/* Label */}
               <div className={`font-medium text-xs lg:text-sm text-center leading-tight ${
-                isSelected ? "text-blue-900" : "text-slate-700"
+                isSelected ? styles.text : "text-slate-700"
               } ${category.key === 'local_commercial' ? 'max-w-16 lg:max-w-20' : ''}`}>
                 {category.key === 'local_commercial' ? (
                   <>
@@ -173,10 +179,10 @@ export function LotCategorySelector({
                   category.label
                 )}
               </div>
-              
+
               {/* Selection indicator */}
               {isSelected && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 lg:w-5 lg:h-5 bg-blue-600 rounded-full flex items-center justify-center shadow-sm">
+                <div className={`absolute -top-1 -right-1 w-4 h-4 lg:w-5 lg:h-5 ${styles.bg} rounded-full flex items-center justify-center shadow-sm ring-2 ring-white`}>
                   <Check className="w-2.5 h-2.5 lg:w-3 lg:h-3 text-white" />
                 </div>
               )}

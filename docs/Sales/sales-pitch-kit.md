@@ -7,6 +7,119 @@
 
 ---
 
+## Buyer Profile — Cold Calling Campaign
+
+> Cette section donne a l'equipe commerciale toutes les informations necessaires pour qualifier, cibler et convaincre les prospects lors de la campagne de cold calling.
+
+### Typologie d'entreprise
+
+| Champ | Detail |
+|-------|--------|
+| **Secteur** | Agences immobilieres / Syndics de copropriete / Societes de gestion locative / Administrateurs de biens |
+| **Taille cible** | 2-20 salaries, 80-500 lots geres (coeur de cible). Solo < 80 lots = freemium. > 500 lots = enterprise |
+| **Maturite digitale** | Partielle a moderee — 54% utilisent encore Excel (Pickspace 2019), 60% des PME au niveau 1 de digitalisation (Numiconsult 2024). Outils actuels : Excel + WhatsApp + email + 1 logiciel silo (LOCKimmo, Vilogi, ICS) |
+| **Problematiques** | Boucles de communication chronophages (15h/sem — AppFolio 2023), coordination maintenance (39% y passent 20h+/mois — DoorLoop), migration terrifiante (facilite percue : 2.74/10 — ANGC), conformite reglementaire croissante |
+| **Zone geographique** | **Belgique** : Bruxelles (1 935 agents), Flandre occ. (1 603), Anvers (1 503) = 46% du marche. **France** : Ile-de-France (~6 000 agences), Lyon, Bordeaux, PACA |
+| **Niveau CA** | Agence moyenne FR : 7-10% TTC du loyer CC en honoraires GL. Syndic BE : ~26 EUR/mois/lot. Portefeuille valorise a **250% du CA de gestion** (leservicedegestion.fr) |
+| **Flux logistique** | Reactif : declencheur (appel/email/WhatsApp) → recherche info → transmission → attente → relance → boucle (jours/semaines). 62% travaillent 50+ h/semaine (Buildium via TealHQ) |
+
+### Comportement
+
+| Champ | Detail |
+|-------|--------|
+| **Comportements operationnels** | Mode pompier permanent — 66% du temps sur taches non-strategiques (AppFolio/NAA 2023). Communication multi-canal non centralisee (WhatsApp 80%, email 15%, tel 5%). Delai moyen de reponse : 6 jours (Spliit). Un gestionnaire sans outil adapte plafonne a 100-150 dossiers ; avec un bon logiciel : 200-300 (Garantme) |
+| **Motivations principales** | 1. **Gagner du temps** (15h/sem optimisables). 2. **Croitre sans recruter** (91% des societes — Buildium 2026). 3. **Se conformer** aux nouvelles obligations (rapport mensuel ecrit BE, tracabilite ALUR FR). 4. **Reduire les erreurs** (88% des spreadsheets contiennent des erreurs — U. Hawaii). 5. **Retenir les locataires** (31% resteraient si plus reactif — Buildium 2026) |
+| **Pains** | 1. **Coordination maintenance** = #1 (72% — JoinBeagle 2025). 2. **Communication overload** (73% des locataires attendent reponse le jour meme — TenantCloud). 3. **Admin time sink** (40% du temps — TealHQ). 4. **Conformite reglementaire** (60% rapportent une charge accrue — Resimpli). 5. **Impayes / cash flow** (taux de retard passe de 8.8% a 11.7% — HousingWire 2025). 6. **Document chaos** (spreadsheets + post-its + emails). 7. **Team coordination** (versions differentes, doublons, demandes oubliees) |
+
+### Devises du segment
+
+| Type de gestionnaire | Ce qu'il dit |
+|---------------------|-------------|
+| **Oriente operations ("Le Pompier")** | *"Je passe mes journees a eteindre des feux. Entre les appels des locataires, les relances d'artisans, et les proprietaires qui veulent des nouvelles — je n'ai jamais le temps de travailler SUR mon activite."* |
+| **Oriente donnees ("Le Controleur")** | *"Mon Excel a 47 onglets et je suis le seul a comprendre les formules. Si je pars en vacances, personne ne peut reprendre."* |
+| **Oriente conformite ("Le Juriste")** | *"Chaque annee, une nouvelle loi. DPE, encadrement des loyers, loi Climat... Je passe plus de temps a verifier ma conformite qu'a gerer mes biens."* |
+| **Oriente service client ("L'Hotelier")** | *"Mes locataires attendent une reponse dans l'heure, mes proprietaires veulent un reporting impeccable. Je veux offrir un service 5 etoiles mais mes outils sont de l'epoque du fax."* |
+
+### Marche adressable
+
+| Zone | Operateurs totaux | Dans la cible SEIDO (80-500 lots, 2-20 pers.) | Source |
+|------|-------------------|-----------------------------------------------|--------|
+| **Belgique** | ~11 000 agents IPI (dont 2 635 syndics actifs) | **3 000-5 000** structures | IPI Rapport 2024 |
+| **France** | ~30 000 agences + 15 430 cartes "gestion" + 5 061 cartes "syndic" | **15 000-20 000** structures | FNAIM / SUD Habitat 2026 |
+| **Total** | ~56 000 | **18 000-25 000** | — |
+
+### Qui cibler — Decision maker
+
+| Taille entreprise | Decideur (signe) | Champion (ressent la douleur) | Gatekeeper |
+|-------------------|------------------|-------------------------------|------------|
+| **TPE < 5 pers.** (67% du marche) | Le gerant (= utilisateur) | Meme personne | Aucun — decroche lui-meme |
+| **Petite agence 5-15 pers.** | Directeur / Associe gerant | Gestionnaire locatif senior | Secretaire / assistante |
+| **Cabinet syndic** | Syndic titulaire / Directeur | Gestionnaire de copropriete | Accueil / standard |
+| **Agence moyenne 15-30 pers.** | Directeur + DAF/RAF | Responsable gestion locative | Assistante de direction |
+
+**Poste cible cold call :** Gerant, Directeur, Responsable gestion locative, Syndic titulaire
+
+### Cycle de vente estime
+
+| Segment | ACV | Duree cycle | Notes |
+|---------|-----|-------------|-------|
+| Solo / TPE (< 80 lots) | < 1 000 EUR/an | 14-40 jours | Decision rapide, ROI-driven |
+| Petite agence (80-300 lots) | 1 000-5 000 EUR/an | 1-3 mois | Coeur de cible, trial 30j decisive |
+| Agence moyenne (300-1 000 lots) | 5 000-15 000 EUR/an | 2-4 mois | Besoin demo + validation equipe |
+| Grande agence (1 000+ lots) | > 15 000 EUR/an | 4-9 mois+ | Hors cible court terme |
+
+### Criteres d'achat (par poids)
+
+| Critere | Poids | Source |
+|---------|-------|--------|
+| Rapport qualite-prix | **30%** | BailFacile 2026 |
+| Fonctionnalites (suivi, quittances, maintenance) | **25%** | BailFacile 2026 |
+| Avis utilisateurs / confiance | **20%** | BailFacile 2026 |
+| Facilite d'utilisation | **15%** | Seiitra |
+| Qualite du support | **10%** | ANGC (TIMCI excelle a 4.46/5 hotline) |
+
+### Objections principales et reponses
+
+| Objection | Frequence | Reponse SEIDO |
+|-----------|-----------|---------------|
+| **"La migration est trop compliquee"** | #1 (facilite percue : 2.74/10 — ANGC) | "On vous accompagne de A a Z. Import CSV/Excel en 1 clic, et votre historique est preserve." |
+| **"Ca coute trop cher"** | Forte (67% ont budget < 5 000 EUR/an) | "A partir de 5 EUR/lot/mois. Vous gagnez 15h/semaine — ca represente 36 000 EUR/an en temps recupere." |
+| **"Mon equipe ne va pas l'adopter"** | Forte | "Interface pensee pour etre plus simple que WhatsApp. Onboarding < 10 min. Vos locataires et prestataires ont leur propre portail — ca reduit VOS appels." |
+| **"On fonctionne bien comme ca"** | Inertie = concurrent #1 | "62% des gestionnaires travaillent 50+ heures/semaine. Combien d'heures par semaine passez-vous a coordonner les interventions ?" |
+| **"J'ai deja un logiciel"** | Moyenne | "Est-ce qu'il connecte vos locataires, vos prestataires et vos proprietaires sur la meme plateforme ? C'est ca qui elimine les boucles." |
+
+### Intelligence cold calling
+
+| Parametre | Recommandation | Source |
+|-----------|---------------|--------|
+| **Meilleurs jours** | **Mardi et mercredi** (44% des demos bookees) | Trellus.ai 2025 |
+| **Meilleur creneau initial** | **10h-11h30** pour premier contact | SalesHive 2025 |
+| **Creneau conversion** | **16h-17h** (+71% vs midi) | Cleverly 2026 |
+| **Jours a eviter** | Lundi matin (rattrapage urgences weekend), vendredi apres-midi (terrain) | — |
+| **Taux conversion cold call** | 2-3% moyen (1 RDV / 35-50 appels). Top performers : 5-8% | SalesHive 2025 |
+| **Taux SaaS/tech** | 0.81% (le plus bas cross-industries) → viser 2-3% avec script SEIDO | Focus Digital 2025 |
+| **Donnees propres** | +75% de conversion vs listes non verifiees | SalesHive 2025 |
+| **Opener optimal** | Permission-based : "Nous travaillons avec des gestionnaires comme [ref] qui nous disent que leur plus gros probleme c'est [pain]. Est-ce aussi votre cas ?" (+2.5x — RAIN Group) | Instantly.ai 2025 |
+| **Approche** | **Pain-focused d'abord**, ROI en follow-up. 82% des decideurs disent que les commerciaux sont mal prepares | HubSpot 2024 |
+
+### Hook d'ouverture recommande
+
+> **"Bonjour [Prenom], je suis [Nom] de SEIDO. On travaille avec des gestionnaires en [ville] qui nous disent passer entre 10 et 15 heures par semaine a coordonner les interventions entre locataires et prestataires — est-ce que c'est quelque chose que vous vivez aussi ?"**
+
+Si oui → qualifier le nombre de lots, les outils actuels, la douleur dominante.
+Si non → "Combien de temps estimez-vous y passer ?" (ils sous-estiment toujours → opportunite de recadrer avec les chiffres AppFolio).
+
+### Levier reglementaire (argument de cloture)
+
+| Pays | Obligation recente | Impact | Argument SEIDO |
+|------|-------------------|--------|----------------|
+| **Belgique** | Rapport mensuel ecrit obligatoire au client (AR 28/09/2023, en vigueur 01/02/2024) | Charge admin directe | "SEIDO genere automatiquement le rapport mensuel a partir de vos interventions. Conformite sans effort." |
+| **Belgique** | PV AG dans 30 jours + transmission documents au successeur | Documentation lourde | "Tous vos documents centralises, transmissibles en 1 clic." |
+| **France** | DPE G interdit a la location depuis jan 2025 ; F en 2028 | Suivi parc obligatoire | "Suivez le statut DPE de chaque lot dans SEIDO. Alertes automatiques." |
+| **France** | Tracabilite ALUR + formation 42h/3 ans | Admin + conformite | "Historique complet auditable, conforme ALUR." |
+
+---
+
 ## Concept cle : Les Boucles
 
 Le framing central de tous les pitchs est le concept de **boucle** :

@@ -25,7 +25,7 @@ import {
   DoorOpen,
   FileText
 } from "lucide-react"
-import { LotCategory, getAllLotCategories, getLotCategoryConfig } from "@/lib/lot-types"
+import { LotCategory, getAllLotCategories, getLotCategoryConfig, LOT_CATEGORY_SELECTED_STYLES } from "@/lib/lot-types"
 
 /**
  * Component Icon Map
@@ -203,6 +203,7 @@ export function LotInputCardV2({
               {categories.map((category) => {
                 const Icon = iconComponents[category.icon as keyof typeof iconComponents]
                 const isSelected = lot.category === category.key
+                const selectedStyles = LOT_CATEGORY_SELECTED_STYLES[category.key as LotCategory]
 
                 return (
                   <label
@@ -219,7 +220,7 @@ export function LotInputCardV2({
                         flex items-center gap-1.5 px-3 py-2 rounded-full border-2 transition-all duration-200
                         ${
                           isSelected
-                            ? `${category.bgColor} ${category.borderColor} ${category.color} shadow-sm font-medium`
+                            ? `${selectedStyles.bg} ${selectedStyles.border} ${selectedStyles.text} shadow-sm font-medium`
                             : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                         }
                       `}

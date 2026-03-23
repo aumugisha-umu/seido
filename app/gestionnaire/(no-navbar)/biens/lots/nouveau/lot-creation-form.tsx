@@ -36,7 +36,7 @@ import LotCategorySelector from "@/components/ui/lot-category-selector"
 import type { CreateContactData } from "@/app/gestionnaire/dashboard/actions"
 
 
-import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
+import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
 import { GoogleMapsProvider } from "@/components/google-maps"
 import { logger, logError } from '@/lib/logger'
 import { useSaveFormState, useRestoreFormState } from '@/hooks/use-form-persistence'
@@ -256,7 +256,7 @@ export default function LotCreationForm({
   const [independentLots, setIndependentLots] = useState<IndependentLot[]>([
     {
       id: initialLotId,
-      reference: "Lot 1",
+      reference: "",
       category: "appartement",
       street: "",
       postalCode: "",
@@ -436,36 +436,29 @@ export default function LotCreationForm({
   // Initialiser la référence par défaut pour les nouveaux immeubles
   // Note: Désactivé car l'option "new" redirige maintenant vers la page de création d'immeuble
 
-  // Initialiser et mettre à jour automatiquement la référence du lot
+  // Initialiser la référence par défaut "Lot X" une seule fois au chargement
+  const hasInitializedReference = useRef(false)
   useEffect(() => {
-    if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
-      return // Attendre que les données de catégorie soient chargées
+    if (hasInitializedReference.current) return
+    if (!categoryCountsByTeam) return
+
+    const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
+    const defaultRef = `Lot ${totalTeamLots + 1}`
+
+    // Mettre à jour la référence du lot unique (mode single)
+    if (!lotData.reference) {
+      setLotData(prev => ({ ...prev, reference: defaultRef }))
     }
 
-    // Générer la nouvelle référence par défaut basée sur la catégorie actuelle
-    const category = lotData.category || "appartement"
-    const categoryConfig = getLotCategoryConfig(category)
-    const currentCategoryCount = categoryCountsByTeam[category] || 0
-    const nextNumber = currentCategoryCount + 1
-    const newDefaultReference = `${categoryConfig.label} ${nextNumber}`
-    
-    // Vérifier si la référence actuelle est vide ou correspond à une référence générée par défaut
-    const currentReference = lotData.reference
-    
-    // Créer dynamiquement le pattern basé sur tous les labels de catégorie possibles
-    const allCategories = getAllLotCategories()
-    const categoryLabels = allCategories.map(cat => cat.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    const generatedReferencePattern = new RegExp(`^(${categoryLabels.join('|')})\\s+\\d+$`)
-    const isEmptyOrDefault = !currentReference || generatedReferencePattern.test(currentReference)
-
-    // Ne mettre à jour que si la référence est vide ou générée par défaut
-    if (isEmptyOrDefault && currentReference !== newDefaultReference) {
-      setLotData(prev => ({
-        ...prev,
-        reference: newDefaultReference
-      }))
+    // Mettre à jour le premier lot indépendant s'il est vide
+    if (independentLots.length > 0 && !independentLots[0].reference) {
+      setIndependentLots(prev => prev.map((lot, i) =>
+        i === 0 ? { ...lot, reference: defaultRef } : lot
+      ))
     }
-  }, [lotData.category, categoryCountsByTeam, lotData.reference])
+
+    hasInitializedReference.current = true
+  }, [categoryCountsByTeam])
 
   // ✅ Initialisation automatique du premier lot (pour mode "existing building")
   // NOTE: This hook MUST be called before any early returns to respect React's Rules of Hooks
@@ -477,13 +470,11 @@ export default function LotCreationForm({
       logger.info("🏠 [MULTI-LOT] Auto-initializing first lot...")
 
       const category: LotCategory = "appartement"
-      const categoryConfig = getLotCategoryConfig(category)
-      const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const nextNumber = currentCategoryCount + 1
+      const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
 
       const initialLot = {
         id: "lot1",
-        reference: `${categoryConfig.label} ${nextNumber}`,
+        reference: `Lot ${totalTeamLots + 1}`,
         floor: "0",
         doorNumber: "",
         description: "",
@@ -804,14 +795,11 @@ export default function LotCreationForm({
     }
 
     const category: LotCategory = "appartement"
-    const categoryConfig = getLotCategoryConfig(category)
-    const currentCategoryCount = categoryCountsByTeam[category] || 0
-    const existingLotsOfCategory = lots.filter(l => l.category === category).length
-    const nextNumber = currentCategoryCount + existingLotsOfCategory + 1
+    const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
 
     const newLot = {
       id: `lot${Date.now()}`,
-      reference: `${categoryConfig.label} ${nextNumber}`,
+      reference: `Lot ${totalTeamLots + lots.length + 1}`,
       floor: "0",
       doorNumber: "",
       description: "",
@@ -908,15 +896,6 @@ export default function LotCreationForm({
       if (lot.id === lotId) {
         const updatedLot = { ...lot, [field]: value }
 
-        // Si la catégorie change, recalculer la référence
-        if (field === 'category') {
-          const categoryConfig = getLotCategoryConfig(value as LotCategory)
-          const currentCategoryCount = categoryCountsByTeam[value] || 0
-          const existingLotsOfCategory = lots.filter(l => l.category === value && l.id !== lotId).length
-          const nextNumber = currentCategoryCount + existingLotsOfCategory + 1
-          updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
-        }
-
         return updatedLot
       }
       return lot
@@ -939,10 +918,10 @@ export default function LotCreationForm({
       setUpgradeModalOpen(true)
       return
     }
-    const nextNumber = independentLots.length + 1
+    const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
     const newLot: IndependentLot = {
       id: `independent-lot-${Date.now()}`,
-      reference: `Lot ${nextNumber}`,
+      reference: `Lot ${totalTeamLots + independentLots.length + 1}`,
       category: "appartement",
       street: "",
       postalCode: "",
@@ -1050,14 +1029,6 @@ export default function LotCreationForm({
       return prevLots.map(lot => {
         if (lot.id === lotId) {
           const updatedLot = { ...lot, [field]: value }
-
-          // Si la catégorie change, on peut recalculer la référence
-          if (field === 'category') {
-            const categoryConfig = getLotCategoryConfig(value as LotCategory)
-            const existingLotsOfCategory = prevLots.filter(l => l.category === value && l.id !== lotId).length
-            const nextNumber = existingLotsOfCategory + 1
-            updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
-          }
 
           logger.info("✅ [PAGE] Lot updated:", { lotId, field, newValue: updatedLot[field] })
           return updatedLot

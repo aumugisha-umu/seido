@@ -1,4 +1,4 @@
-name: QA Bot
+name: QA Bot (SEIDO Assistant)
 
 on:
   repository_dispatch:

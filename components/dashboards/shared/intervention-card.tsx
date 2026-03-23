@@ -57,6 +57,7 @@ interface InterventionCardProps {
     lot?: any
     building?: any
     location?: string
+    scheduled_date?: string | null
     quotes?: any[]
     timeSlots?: any[]
     requires_quote?: boolean
@@ -395,7 +396,7 @@ export const InterventionCard = memo(function InterventionCard({
         )}
       </div>
 
-      {/* Status Banner - Action message only */}
+      {/* Status Banner - Action message + scheduled date/time inline */}
       <div className={cn(
         "border rounded-lg px-3 py-2 mb-3 w-full",
         isAlert
@@ -410,11 +411,35 @@ export const InterventionCard = memo(function InterventionCard({
             <Clock className={cn("h-3 w-3", isAlert ? 'text-orange-600' : 'text-blue-600')} />
           </div>
           <p className={cn(
-            "text-sm font-medium",
+            "text-sm font-medium flex-1 min-w-0",
             isAlert ? 'text-orange-900 dark:text-orange-200' : 'text-blue-900 dark:text-blue-200'
           )}>
             {actionMessage}
           </p>
+          {(() => {
+            const selectedSlot = intervention.timeSlots?.find((s: any) => s.status === 'selected')
+            const scheduledDate = selectedSlot?.slot_date || intervention.scheduled_date
+            if (!scheduledDate) return null
+
+            const date = new Date(scheduledDate)
+            const formattedDate = date.toLocaleDateString('fr-FR', {
+              weekday: 'short',
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })
+            const startTime = selectedSlot?.start_time
+            const formattedTime = startTime ? startTime.substring(0, 5) : null
+
+            return (
+              <span className={cn(
+                "text-sm font-semibold whitespace-nowrap flex-shrink-0",
+                isAlert ? 'text-orange-700 dark:text-orange-300' : 'text-blue-700 dark:text-blue-300'
+              )}>
+                {formattedDate}{formattedTime ? ` · ${formattedTime}` : ''}
+              </span>
+            )
+          })()}
         </div>
       </div>
 

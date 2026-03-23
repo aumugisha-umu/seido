@@ -35,8 +35,9 @@ import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
 import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 import type { ReminderStats } from "@/lib/types/reminder.types"
-import type { BankWidgetsSectionProps } from "@/components/bank/dashboard-bank-widgets"
-import { BankWidgetsSection } from "@/components/bank/dashboard-bank-widgets"
+// Bank module hidden until Tink app is approved in production
+// import type { BankWidgetsSectionProps } from "@/components/bank/dashboard-bank-widgets"
+// import { BankWidgetsSection } from "@/components/bank/dashboard-bank-widgets"
 
 // Type for intervention row from Supabase (used in realtime callback)
 type DbIntervention = Database['public']['Tables']['interventions']['Row']
@@ -62,10 +63,10 @@ interface ManagerDashboardProps {
     unreadThreads?: UnreadThread[]
     unreadThreadsTotalCount?: number
     reminderStats?: ReminderStats
-    bankData?: BankWidgetsSectionProps
+    // bankData?: BankWidgetsSectionProps  // Bank module hidden until Tink approved
 }
 
-export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount, reminderStats, bankData }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount, reminderStats }: ManagerDashboardProps) {
     const router = useRouter()
     // Local state for interventions (enables realtime updates)
     const [interventions, setInterventions] = useState(initialInterventions)
@@ -268,12 +269,7 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
                     </div>
                 )}
 
-                {/* Bank Widgets Section */}
-                {bankData && (
-                    <div className="lg:order-3 mb-4">
-                        <BankWidgetsSection {...bankData} />
-                    </div>
-                )}
+                {/* Bank Widgets Section — hidden until Tink approved */}
 
                 {/* Content Section - Unified InterventionsNavigator */}
                 <div

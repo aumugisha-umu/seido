@@ -6020,6 +6020,17 @@ export type Database = {
           team_id: string
         }[]
       }
+      search_global: {
+        Args: { p_query: string; p_team_id: string }
+        Returns: {
+          entity_id: string
+          entity_type: string
+          rank: number
+          subtitle: string
+          title: string
+          url: string
+        }[]
+      }
       upsert_ai_phone_usage: {
         Args: { p_minutes: number; p_month: string; p_team_id: string }
         Returns: undefined

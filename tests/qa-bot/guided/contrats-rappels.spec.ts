@@ -12,11 +12,11 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { ContractWizardPage } from '../pages/contract-wizard.page'
-import { ReminderWizardPage } from '../pages/reminder-wizard.page'
-import { ReminderDetailPage } from '../pages/reminder-detail.page'
-import { dismissBanners, waitForContent, waitForSuccessToast, waitForToastContaining } from '../helpers/selectors'
-import { TIMEOUTS } from '../helpers/constants'
+import { ContractWizardPage } from '../../shared/pages/contract-wizard.page'
+import { ReminderWizardPage } from '../../shared/pages/reminder-wizard.page'
+import { ReminderDetailPage } from '../../shared/pages/reminder-detail.page'
+import { dismissBanners, waitForContent, waitForSuccessToast, waitForToastContaining } from '../../shared/helpers/selectors'
+import { TIMEOUTS } from '../../shared/helpers/constants'
 
 // ============================================================================
 // HELPERS

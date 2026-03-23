@@ -7,9 +7,10 @@
 
 import * as path from 'node:path'
 import { test, expect } from '@playwright/test'
-import { BillingPage } from '../pages/billing.page'
-import { dismissBanners, waitForContent } from '../helpers/selectors'
-import { TIMEOUTS, ANOMALY_PATTERNS } from '../helpers/constants'
+import { BillingPage } from '../../shared/pages/billing.page'
+import { dismissBanners, waitForContent } from '../../shared/helpers/selectors'
+import { TIMEOUTS } from '../../shared/helpers/constants'
+import { ANOMALY_PATTERNS } from '../helpers/constants'
 
 const LOCATAIRE_AUTH = path.resolve(__dirname, '../../../playwright/.auth/locataire.json')
 const PRESTATAIRE_AUTH = path.resolve(__dirname, '../../../playwright/.auth/prestataire.json')
@@ -28,6 +29,14 @@ test.describe('Billing', () => {
   test('Page renders', async () => {
     await billing.goto()
     // expectLoaded already checks for "Votre abonnement"
+  })
+
+  test('Pricing cards visible', async ({ page }) => {
+    await billing.goto()
+    // Should show pricing info (/an, /mois, EUR)
+    const bodyText = await page.locator('body').innerText()
+    const hasPricing = /\/an|\/mois|EUR|€/i.test(bodyText)
+    expect(hasPricing).toBe(true)
   })
 
   test('Subscription status — carte visible', async ({ page }) => {

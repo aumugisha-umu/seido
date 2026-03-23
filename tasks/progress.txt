@@ -1,181 +1,43 @@
-# Progress Log — Bank Module Phase 1 MVP (Tink Integration)
-# Started: 2026-03-21
-# Stories: 17/17 COMPLETE
-# Branch: feature/bank-module
-# Design doc: docs/banking/2026-03-19-bank-module-tink-integration.md (v3)
-# Tests: 652 total unit tests passing (45 files), 0 failures
+# Progress Log — E2E Migration: Puppeteer → Playwright + Shared POMs
+# Started: 2026-03-23
+# Stories: 6 total
+# Branch: preview
 ---
 
-## US-001: Banking schema migration (M) — DONE
-- 7 tables: bank_connections, bank_transactions, rent_calls, transaction_links, auto_linking_rules, property_expenses, security_deposits
-- RLS with is_team_manager() on all tables, per-action policies (no FOR ALL)
-- 5 partial unique indexes on transaction_links (NULL-safe deduplication)
-- rent_calls.total_expected as GENERATED ALWAYS AS column
-- contracts.auto_rent_calls BOOLEAN added
-- updated_at triggers for all new tables
-- Files: supabase/migrations/20260321100000_add_banking_schema.sql
+## 2026-03-23 — US-001: Create shared POM layer + helpers (M)
+- Created tests/shared/pages/ with 12 Playwright POMs + index.ts barrel
+- Created tests/shared/helpers/ (selectors.ts, constants.ts, types.ts)
+- Created tests/shared/fixtures/test-accounts.ts
+- NEW: intervention-request.page.ts rewritten from Puppeteer → Playwright
+- QA Bot POMs (tests/qa-bot/pages/) converted to thin re-exports
+- All 8 QA Bot guided specs updated to import from ../../shared/pages/
+- Lint: 0 errors, 2 warnings (pre-existing unused params in contract-wizard)
 
-## US-002: TypeScript types + bank types file (S) — DONE
-- All Tink API types (TinkTransaction, TinkAccount, TinkTokenResponse, TinkAmountValue)
-- DB row types (BankConnectionRow, BankTransactionRow, RentCallRow, etc.)
-- Safe client types (BankConnectionSafe — no encrypted fields)
-- DTOs (CreateBankConnectionDTO, CreateTransactionLinkDTO)
-- Matching types (MatchSuggestion, ConfidenceLevel), report types (BankReportData)
-- parseTinkAmount with string|number support
-- Files: lib/types/bank.types.ts
+## 2026-03-23 — US-002: E2E Playwright config + auth setup (S)
+- Created tests/e2e/playwright.config.ts (4 projects: setup, gestionnaire, locataire, prestataire)
+- Created tests/e2e/setup/auth.setup.ts (Supabase GoTrue REST API, storageState output)
+- Updated package.json: test:e2e → Playwright, added debug/headed/preview variants
+- Legacy Puppeteer kept as test:e2e:legacy during migration
 
-## US-003: Tink API service (M) — DONE
-- OAuth: getClientToken, exchangeAuthCode, refreshUserToken
-- User mgmt: createTinkUser (permanent user, 1 per team)
-- Tink Link: buildTinkLinkUrl with all scopes incl. balances:read
-- Data V2: fetchAccounts, fetchTransactions (paginated), fetchAllTransactions (auto-paginate)
-- Consent: fetchProviderConsents
-- Errors: TinkAuthError (401), TinkRateLimitError (429 + Retry-After)
-- Files: lib/services/domain/tink-api.service.ts
+## 2026-03-23 — US-003: Rewrite 4 unique Puppeteer tests (M)
+- Created intervention-locataire.locataire.spec.ts (Playwright)
+- Created intervention-workflow.spec.ts (Playwright + test-data factories)
+- Created stripe-checkout.spec.ts (env-gated STRIPE_E2E)
+- Created stripe-readonly.spec.ts (env-gated READ_ONLY_E2E)
 
-## US-004: Bank connection repository + encryption (S) — DONE
-- EncryptionService: encrypt/decrypt for access_token, refresh_token, IBAN
-- Safe projection for client (no encrypted fields exposed)
-- Token refresh: updateTokens re-encrypts
-- Sync state management: updateSyncState
-- Blacklist toggle, soft delete, find Tink user for team
-- Expiring connections query (for consent alerts)
-- Files: lib/services/repositories/bank-connection.repository.ts
+## 2026-03-23 — US-004: Merge overlapping tests (S)
+- intervention-gestionnaire → fully covered by intervention-lifecycle.spec.ts
+- billing-ui → pricing cards test added to billing-settings.spec.ts
+- Trial banner/onboarding checklist = soft assertions, not ported
 
-## US-005: OAuth flow routes (M) — DONE
-- GET /api/bank/oauth/authorize: CSRF state in httpOnly cookie, Tink Link redirect URL generation
-- GET /api/bank/oauth/callback: code exchange, account fetch, connection creation with Promise.allSettled
-- Reuses existing Tink user if team already has one (findTinkUserIdForTeam)
-- Tests: 17 tests in tests/unit/bank/oauth-routes.test.ts
-- Files: app/api/bank/oauth/authorize/route.ts, app/api/bank/oauth/callback/route.ts
+## 2026-03-23 — US-005: Cleanup Puppeteer (S)
+- Deleted 20+ files: POMs, helpers, global-setup, vitest config, all .e2e.ts tests
+- npm uninstall puppeteer
+- Removed test:e2e:legacy script
+- Final E2E structure: playwright.config.ts + setup/ + specs/
 
-## US-006: Bank transaction repository + sync service (M) — DONE
-- bank-transaction.repository.ts: 6 methods with full filter chain, Tink mapping
-- bank-sync.service.ts: syncConnection (token refresh, 90-day lookback), syncAllConnections
-- Exported pure functions: mapTinkTransactionToRow, isTokenExpiringSoon, getSyncStartDate
-- Tests: 13 + 9 = 22 tests
-- Files: lib/services/repositories/bank-transaction.repository.ts, lib/services/domain/bank-sync.service.ts
+## 2026-03-23 — US-006: Update documentation (XS)
+- CLAUDE.md: test:e2e → Playwright, added test:e2e:debug
+- Memory: removed Puppeteer patterns, updated project state
 
-## US-007: Sync cron + consent expiry (S) — DONE
-- sync-bank-transactions: CRON_SECRET auth, maxDuration=120, calls syncAllConnections
-- check-consent-expiry: marks expired as disconnected, warns about expiring connections
-- Learning: vi.hoisted() + class expression for mock constructors in vi.mock() factories
-- Tests: 12 tests in tests/unit/bank/cron-routes.test.ts
-- Files: app/api/cron/sync-bank-transactions/route.ts, app/api/cron/check-consent-expiry/route.ts
-
-## US-008: Rent call repository + generation service + cron (M) — DONE
-- rent-call.repository.ts: 10 methods, upsert with onConflict: 'contract_id,due_date'
-- rent-call.service.ts: calculateDueDates (4 frequencies, day clamping), 3-month horizon
-- generate-rent-calls cron (monthly), check-unpaid-rent-calls cron (daily, overdue after J+2)
-- Exported pure: calculateRentCallStatus, calculateDueDates
-- Tests: 7 + 11 = 18 tests
-- Files: lib/services/repositories/rent-call.repository.ts, lib/services/domain/rent-call.service.ts, 2 cron routes
-
-## US-009: Transaction link repository + reconciliation service (M) — DONE
-- transaction-link.repository.ts: 5 methods, entity FK mapping per entity_type
-- bank-matching.service.ts: 5-component confidence scoring (ref 40%, amount 25%, approx 15%, name 15%, date 5%)
-- reconcileTransaction: creates link + updates transaction status + updates rent_call total_received
-- unlinkTransactionFromEntity: reverts all side effects
-- Tests: 23 + 9 = 32 tests
-- Files: lib/services/repositories/transaction-link.repository.ts, lib/services/domain/bank-matching.service.ts
-
-## US-010: API routes (M) — DONE
-- 5 Zod schemas in lib/validation/bank-schemas.ts
-- 9 route files under app/api/bank/ — 13 endpoints total
-- Connections: GET/POST /connections, DELETE/PATCH /connections/[id], PATCH /connections/[id]/blacklist
-- Transactions: GET /transactions, POST/DELETE /transactions/[id]/reconcile, PATCH /transactions/[id]/ignore
-- Others: POST /sync, GET /reports, GET /transactions/[id]/suggestions
-- Files: app/api/bank/**, lib/validation/bank-schemas.ts
-
-## US-011: Server actions (S) — DONE
-- bank-actions.ts: reconcileTransactionAction, unlinkTransactionAction, ignoreTransactionAction, triggerManualSyncAction
-- rent-reminder-actions.ts: sendRentReminderAction with 24h cooldown
-- data-invalidation-server.ts: server-side broadcast helper
-- DataEntity union extended with 'bank_transactions' | 'rent_calls'
-- Tests: 12 tests in tests/unit/bank/bank-actions.test.ts
-- Files: app/actions/bank-actions.ts, app/actions/rent-reminder-actions.ts, lib/data-invalidation-server.ts
-
-## US-012: Banque page + sidebar + tabs (S) — DONE
-- Landmark icon added to gestionnaire-sidebar.tsx (between Interventions and Emails)
-- Server Component page with getServerAuthContext('gestionnaire')
-- banque-tabs.tsx: URL-driven tab state (transactions/comptes/regles/rapports)
-- empty-bank-state.tsx: empty state with CTA
-- Files: app/gestionnaire/(with-navbar)/banque/**, components/bank/banque-tabs.tsx, components/bank/empty-bank-state.tsx
-
-## US-013: Comptes tab (M) — DONE
-- comptes-tab.tsx: grid layout with connection cards
-- connection-card.tsx: sync status badges (green/red/amber/gray), blacklist toggle, delete AlertDialog, relative time
-- Connect button redirects to /api/bank/oauth/authorize
-- Files: components/bank/comptes-tab.tsx, components/bank/connection-card.tsx
-
-## US-014: Transactions tab (M) — DONE
-- transactions-tab.tsx: API fetch, responsive table (desktop) / cards (mobile), pagination
-- transaction-row.tsx: TransactionTableRow + TransactionCard, formatAmount with U+2212 minus
-- transaction-filters.tsx: debounced search, status/compte/date/amount filters
-- Files: components/bank/transactions-tab.tsx, components/bank/transaction-row.tsx, components/bank/transaction-filters.tsx
-
-## US-015: Reconciliation panel (M) — DONE
-- reconciliation-panel.tsx: Sheet right (desktop 480px) / bottom sheet (mobile 85vh)
-- Suggestion fetching via /api/bank/transactions/[id]/suggestions
-- Reconcile + ignore actions with toast feedback
-- suggestion-card.tsx: confidence color bands (green >85, amber 50-85, gray 20-50), entity type icons
-- Files: components/bank/reconciliation-panel.tsx, components/bank/suggestion-card.tsx
-
-## US-016: Dashboard widgets (M) — DONE
-- dashboard-bank-widgets.tsx: ReconciliationWidget, CashFlowWidget, OverdueRentWidget, BankWidgetsSection
-- Wired into async-dashboard-content.tsx via Promise.all (parallel fetch pattern)
-- Rendered in manager-dashboard-v2.tsx
-- Graceful fallback: zero state when no bank data
-- Files: components/bank/dashboard-bank-widgets.tsx, 2 existing files modified
-
-## US-017: Quittance de loyer PDF (S) — DONE
-- GET /api/bank/rent-calls/[id]/receipt: print-optimized HTML
-- French legal compliance (Loi 6/7/1989): gestionnaire, locataire, lot address, period, amounts, payment date
-- XSS protection via escapeHtml()
-- Joins rent_call → contract → lot + building + tenant data
-- Files: app/api/bank/rent-calls/[id]/receipt/route.ts
-
----
-## Learnings
-- vi.hoisted() is REQUIRED for mock variables used inside vi.mock() factories (hoisting issue)
-- Class expression in vi.mock() for constructor mocks (vi.fn().mockImplementation fails)
-- Windows filename length limits break git worktree with deep nesting — run agents without worktree for deep paths
-- Promise.allSettled for bulk operations (bank account creation, rent call generation) — resilient to partial failures
-- Exported pure functions from services (calculateMatchConfidence, calculateDueDates, isTokenExpiringSoon) enable testing without mocking
-
----
-
-## 2026-03-22 — Compound: Full-Stack Audit + Gestionnaire Verification
-
-### Security Sprint 1 (6 stories)
-- Zod .strict() on service-role route (mass assignment fix)
-- getSession() → getUser() (JWT validation)
-- CSP unsafe-eval dev-only, CORS origin allowlist
-- Stripe mapStripeStatus fail-closed (past_due default)
-- Lot action Zod validation
-- Learnings: #169-#171, #178
-
-### Gestionnaire Verification Sprint 2 (5 stories)
-- BaseRepository.softDelete() added (buildings + lots now soft-delete)
-- Pre-capture team_id before delete for revalidation
-- Proprietaire role handling in contact detail page
-- Removed (profile as any).team_id casts (2 files)
-- Avatar accept restricted to jpeg/png/webp
-- Learnings: #172-#174
-
-### Bank Module Phase 1 (17 stories, 113 tests)
-- Full Tink Open Banking integration (OAuth, sync, reconciliation)
-- 7 new tables, 13 API endpoints, 4 crons, 3 dashboard widgets
-- Learnings: #175-#177
-
-## 2026-03-22 16:00 — Bank Module Simplify Review + Test Regression Fix
-- IDOR fixes on 3 bank API `[id]` routes (team_id ownership verification)
-- TOCTOU fix: atomic RPC `increment_rent_call_received` replaces read-then-write
-- Token deduplication: 3 Tink OAuth functions → shared `requestToken()` helper
-- `formatDateFR` extracted to `lib/utils/date-formatting.ts` (2 files deduplicated)
-- XSS fix: `escapeHtml()` on receipt HTML template
-- Cron route standardization: 4 routes → `createServiceRoleSupabaseClient()`
-- Fixed 17 pre-existing test failures across 9 files (0 remaining)
-  - Root causes: factory mock mismatch, getLotCount migration, DST timing, missing logger mocks
-- Files: 49 files changed, +1618/-341 lines
-- Learnings: #179-#183
+# MIGRATION COMPLETE — 6/6 stories

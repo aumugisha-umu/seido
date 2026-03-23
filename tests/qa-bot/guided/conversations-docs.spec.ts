@@ -8,15 +8,15 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { InterventionDetailPage } from '../pages/intervention-detail.page'
-import { NotificationsPage } from '../pages/notifications.page'
+import { InterventionDetailPage } from '../../shared/pages/intervention-detail.page'
+import { NotificationsPage } from '../../shared/pages/notifications.page'
 import {
   createRoleContext,
   dismissBanners,
   waitForContent,
   waitForSuccessToast,
-} from '../helpers/selectors'
-import { TIMEOUTS } from '../helpers/constants'
+} from '../../shared/helpers/selectors'
+import { TIMEOUTS } from '../../shared/helpers/constants'
 
 // ---------------------------------------------------------------------------
 // Conversations sur intervention

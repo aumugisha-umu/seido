@@ -4,7 +4,7 @@
 
 **Version:** 2.0 | **Last Updated:** 2026-03-21T00:00:00Z
 
-**Coverage:** 0/103 passed | 0 failed | 103 untested
+**Coverage:** 0/104 passed | 0 failed | 104 untested
 
 ---
 
@@ -12,6 +12,7 @@
 
 Entry: `/auth/login`
 
+[ ] **Recherche globale (Cmd+K)** (discovery) `*`
 [ ] **Dashboard** (discovery) `/gestionnaire/dashboard`
   - [ ] **Liste des biens** (discovery) `/gestionnaire/biens`
     - [ ] **Creer un immeuble (wizard 5 etapes)** (creation) `/gestionnaire/biens/immeubles/nouveau`

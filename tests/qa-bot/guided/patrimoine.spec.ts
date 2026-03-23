@@ -6,15 +6,15 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { BuildingWizardPage } from '../pages/building-wizard.page'
-import { LotWizardPage } from '../pages/lot-wizard.page'
-import { NotificationsPage } from '../pages/notifications.page'
+import { BuildingWizardPage } from '../../shared/pages/building-wizard.page'
+import { LotWizardPage } from '../../shared/pages/lot-wizard.page'
+import { NotificationsPage } from '../../shared/pages/notifications.page'
 import {
   dismissBanners,
   waitForContent,
   waitForSuccessToast,
-} from '../helpers/selectors'
-import { TIMEOUTS } from '../helpers/constants'
+} from '../../shared/helpers/selectors'
+import { TIMEOUTS } from '../../shared/helpers/constants'
 
 test.use({ storageState: 'playwright/.auth/gestionnaire.json' })
 

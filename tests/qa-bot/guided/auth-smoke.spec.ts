@@ -10,9 +10,9 @@ import path from 'path'
 
 import { test, expect } from '@playwright/test'
 
-import { DashboardPage } from '../pages/dashboard.page'
-import { dismissBanners, waitForContent } from '../helpers/selectors'
-import { TIMEOUTS } from '../helpers/constants'
+import { DashboardPage } from '../../shared/pages/dashboard.page'
+import { dismissBanners, waitForContent } from '../../shared/helpers/selectors'
+import { TIMEOUTS } from '../../shared/helpers/constants'
 
 const AUTH_DIR = path.resolve(__dirname, '../../../playwright/.auth')
 

@@ -14,13 +14,13 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { MailHubPage } from '../pages/mail-hub.page'
+import { MailHubPage } from '../../shared/pages/mail-hub.page'
 import {
   dismissBanners,
   waitForContent,
   waitForSuccessToast,
-} from '../helpers/selectors'
-import { TIMEOUTS } from '../helpers/constants'
+} from '../../shared/helpers/selectors'
+import { TIMEOUTS } from '../../shared/helpers/constants'
 
 /** Selector matching email list items across possible class patterns */
 const EMAIL_ITEM_SELECTOR = '[class*="email-list-item"], [role="listitem"], [class*="EmailListItem"]'

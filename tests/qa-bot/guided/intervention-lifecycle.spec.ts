@@ -11,12 +11,12 @@
  */
 
 import { test, expect, type Page, type BrowserContext } from '@playwright/test'
-import { InterventionWizardPage } from '../pages/intervention-wizard.page'
-import { InterventionDetailPage } from '../pages/intervention-detail.page'
-import { DashboardPage } from '../pages/dashboard.page'
-import { NotificationsPage } from '../pages/notifications.page'
-import { dismissBanners, waitForContent, waitForSuccessToast } from '../helpers/selectors'
-import { TIMEOUTS } from '../helpers/constants'
+import { InterventionWizardPage } from '../../shared/pages/intervention-wizard.page'
+import { InterventionDetailPage } from '../../shared/pages/intervention-detail.page'
+import { DashboardPage } from '../../shared/pages/dashboard.page'
+import { NotificationsPage } from '../../shared/pages/notifications.page'
+import { dismissBanners, waitForContent, waitForSuccessToast } from '../../shared/helpers/selectors'
+import { TIMEOUTS } from '../../shared/helpers/constants'
 
 // ─── Shared State Across Serial Tests ──────────────────────────
 

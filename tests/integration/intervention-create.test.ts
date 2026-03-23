@@ -13,6 +13,7 @@ import {
   createTestIntervention,
   getTestTeamId,
   getTestLotId,
+  getTestBuildingId,
   getTestUserId,
   getTestIntervention,
   cleanupTestInterventions,
@@ -116,12 +117,24 @@ describe('intervention creation', () => {
     expect(intervention.lot_id).toBe(lotId)
   })
 
-  it('requires either lot_id or building_id (valid_intervention_location CHECK)', async () => {
-    // This should fail due to the CHECK constraint
+  it('allows both lot_id and building_id to be NULL (AI phone calls)', async () => {
+    // Since migration 20260309120000, both NULL is allowed for AI phone interventions
+    const intervention = await createTestIntervention({
+      teamId,
+      title: 'Integration: no location',
+    })
+    expect(intervention.lot_id).toBeNull()
+    expect(intervention.building_id).toBeNull()
+  })
+
+  it('rejects both lot_id and building_id set (valid_intervention_location CHECK)', async () => {
+    // The constraint prevents BOTH being set simultaneously
     await expect(
       createTestIntervention({
         teamId,
-        title: 'Integration: no location',
+        lotId,
+        buildingId: await getTestBuildingId(teamId),
+        title: 'Integration: both locations',
       })
     ).rejects.toThrow('valid_intervention_location')
   })

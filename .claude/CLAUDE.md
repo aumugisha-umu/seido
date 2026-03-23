@@ -122,8 +122,9 @@ npx tsc --noEmit [file]  # Validation TS ciblee
 npm run supabase:types   # Regenerer lib/database.types.ts
 npm run supabase:migrate # Nouvelle migration
 npm test                 # Unit tests (vitest)
-npm run test:e2e         # E2E tests (Puppeteer + vitest)
+npm run test:e2e         # E2E tests (Playwright)
 npm run test:e2e:headed  # E2E with visible browser
+npm run test:e2e:debug   # E2E with Playwright inspector
 ```
 
 > Complete list: `techContext.md`

@@ -6,9 +6,9 @@
  */
 
 import { test, expect } from '@playwright/test'
-import { NotificationsPage } from '../pages/notifications.page'
-import { dismissBanners, waitForContent } from '../helpers/selectors'
-import { TIMEOUTS } from '../helpers/constants'
+import { NotificationsPage } from '../../shared/pages/notifications.page'
+import { dismissBanners, waitForContent } from '../../shared/helpers/selectors'
+import { TIMEOUTS } from '../../shared/helpers/constants'
 
 // ─── Gestionnaire ────────────────────────────────────────
 

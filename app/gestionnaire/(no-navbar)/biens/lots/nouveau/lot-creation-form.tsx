@@ -27,7 +27,8 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 import { createLotService, createContactInvitationService } from "@/lib/services"
 import type { Team, User as UserType, Contact } from "@/lib/services/core/service-types"
 import { toast } from "sonner"
-import { batchAssignContactsToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction, getBuildingExistingDocuments } from "./actions"
+import { createLotAction, batchAssignContactsToLotAction, getBuildingWithRelations, getBuildingExistingDocuments } from "./actions"
+import { createLotsCompositeAction, type CompositeLot, type CompositeContact, type CompositeIntervention } from "@/app/actions/create-lots-composite"
 
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -1241,6 +1242,65 @@ export default function LotCreationForm({
     await batchAssignContactsToLotAction(assignments)
   }
 
+  // Shared helpers for composite payload building (used by both existing_building and independent modes)
+  const buildCompositeContacts = (lotsArray: Array<{ id: string }>): CompositeContact[] => {
+    const contacts: CompositeContact[] = []
+    lotsArray.forEach((lot, lotIndex) => {
+      const lotManagers = assignedManagersByLot[lot.id] || []
+      lotManagers.forEach((manager, index) => {
+        contacts.push({ lotIndex, userId: manager.id, isPrimary: index === 0 })
+      })
+      const lotContacts = lotContactAssignments[lot.id] || {}
+      Object.values(lotContacts).forEach(assignedContacts => {
+        assignedContacts.forEach((contact: Contact, index: number) => {
+          contacts.push({ lotIndex, userId: contact.id, isPrimary: index === 0 })
+        })
+      })
+    })
+    return contacts
+  }
+
+  const buildCompositeInterventions = (lotsCount: number): CompositeIntervention[] => {
+    const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+    if (toCreate.length === 0) return []
+    const interventions: CompositeIntervention[] = []
+    for (let lotIndex = 0; lotIndex < lotsCount; lotIndex++) {
+      for (const iv of toCreate) {
+        interventions.push({
+          lotIndex,
+          title: iv.title,
+          description: iv.description,
+          interventionTypeCode: iv.interventionTypeCode,
+          scheduledDate: iv.scheduledDate?.toISOString(),
+          assignedUsers: iv.assignedUsers,
+        })
+      }
+    }
+    return interventions
+  }
+
+  const fireAndForgetDocUploads = (
+    lotsArray: Array<{ id: string }>,
+    createdLots: Array<{ id: string; lotIndex: number }>,
+    teamId: string
+  ) => {
+    const createdLotsMap = new Map(createdLots.map(cl => [cl.lotIndex, cl]))
+    const docPromises: Promise<unknown>[] = []
+    for (let i = 0; i < lotsArray.length; i++) {
+      const upload = lotDocUploads[lotsArray[i].id]
+      const createdLot = createdLotsMap.get(i)
+      if (upload?.hasFiles && createdLot) {
+        docPromises.push(
+          uploadLotDocs(lotsArray[i].id, createdLot.id, teamId)
+            .catch((err: unknown) => logger.error(`⚠️ Doc upload failed for lot ${createdLot.id}:`, err))
+        )
+      }
+    }
+    if (docPromises.length > 0) {
+      Promise.allSettled(docPromises).then(() => logger.info('Document uploads completed'))
+    }
+  }
+
   const handleFinish = async () => {
     if (isSubmitting) return // Double-submission guard
     setIsSubmitting(true)
@@ -1257,111 +1317,53 @@ export default function LotCreationForm({
       return
     }
 
-    // 🆕 MODE MULTI-LOTS pour immeuble existant
+    // 🆕 MODE MULTI-LOTS pour immeuble existant — Composite Action (1 round-trip)
     if (lotData.buildingAssociation === "existing" && lots.length > 0) {
       try {
         logger.info(`🚀 Creating ${lots.length} lots for building:`, lotData.selectedBuilding)
 
-        // Créer tous les lots en parallèle (1st lot checks subscription, rest skip)
-        const lotCreationPromises = lots.map(async (lot, lotIndex) => {
-          try {
-            const lotDataToCreate = {
-              reference: lot.reference,
-              building_id: lotData.selectedBuilding || null,
-              floor: parseInt(String(lot.floor)) || 0,
-              apartment_number: lot.doorNumber || null,
-              category: lot.category,
-              description: lot.description || null,
-              team_id: userTeam.id,
-            }
+        // Build composite payload
+        const compositeLots: CompositeLot[] = lots.map(lot => ({
+          reference: lot.reference,
+          category: lot.category,
+          floor: parseInt(String(lot.floor)) || 0,
+          doorNumber: lot.doorNumber || null,
+          description: lot.description || null,
+        }))
 
-            const result = await createLotAction(lotDataToCreate, {
-              skipSubscriptionCheck: lotIndex > 0, // Only 1st lot checks subscription
-            })
-
-            if (!result.success || !result.data) {
-              logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
-              return null
-            }
-
-            return { lot, createdLot: result.data }
-          } catch (error) {
-            logger.error(`❌ Error creating lot ${lot.reference}:`, error)
-            return null
-          }
+        const result = await createLotsCompositeAction({
+          teamId: userTeam.id,
+          mode: 'existing_building',
+          buildingId: lotData.selectedBuilding || undefined,
+          lots: compositeLots,
+          contacts: buildCompositeContacts(lots),
+          interventions: buildCompositeInterventions(lots.length),
         })
 
-        const creationResults = await Promise.all(lotCreationPromises)
-        const successfulCreations = creationResults.filter((r): r is NonNullable<typeof r> => r !== null)
-
-        logger.info(`✅ Created ${successfulCreations.length}/${lots.length} lots`)
-
-        // Batch assign all contacts + managers across ALL lots in a single server action
-        const allAssignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
-        for (const { lot, createdLot } of successfulCreations) {
-          const lotManagers = assignedManagersByLot[lot.id] || []
-          lotManagers.forEach((manager, index) => {
-            allAssignments.push({ lotId: createdLot.id, userId: manager.id, isPrimary: index === 0 })
-          })
-
-          const lotContacts = lotContactAssignments[lot.id] || {}
-          Object.values(lotContacts).forEach(contacts => {
-            contacts.forEach((contact: Contact, index: number) => {
-              allAssignments.push({ lotId: createdLot.id, userId: contact.id, isPrimary: index === 0 })
-            })
-          })
-        }
-
-        if (allAssignments.length > 0) {
-          await batchAssignContactsToLotAction(allAssignments)
-        }
-
-        // Create interventions + upload documents for ALL lots in parallel
-        const allPostCreationPromises: Promise<unknown>[] = []
-
-        for (const { createdLot } of successfulCreations) {
-          allPostCreationPromises.push(
-            createInterventionsForLot(createdLot.id, userTeam.id)
-          )
-        }
-
-        for (const { lot, createdLot } of successfulCreations) {
-          const upload = lotDocUploads[lot.id]
-          if (upload?.hasFiles) {
-            allPostCreationPromises.push(
-              uploadLotDocs(lot.id, createdLot.id, userTeam.id)
-                .catch((docError: unknown) => logger.error(`⚠️ Document upload failed for lot ${createdLot.id}:`, docError))
-            )
-          }
-        }
-
-        await Promise.allSettled(allPostCreationPromises)
-
-        if (successfulCreations.length === 0) {
-          toast.error("Erreur", { description: "Aucun lot n'a pu être créé." })
+        if (!result.success || !result.createdLots?.length) {
+          toast.error("Erreur", { description: result.error || "Aucun lot n'a pu être créé." })
           setIsSubmitting(false)
           return
         }
 
-        // Succès - Rediriger vers la page de l'immeuble (navigation immédiate)
-        toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's créés' : ' créé'} avec succès`, { description: `Les lots ont été créés et assignés à l'immeuble.` })
+        fireAndForgetDocUploads(lots, result.createdLots, userTeam.id)
+
+        toast.success(`${result.createdLots.length} lot${result.createdLots.length > 1 ? 's créés' : ' créé'} avec succès`, { description: `Les lots ont été créés et assignés à l'immeuble.` })
         realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
-        router.push(`/gestionnaire/biens/immeubles/${lotData.selectedBuilding}`)
+        window.location.href = `/gestionnaire/biens/immeubles/${lotData.selectedBuilding}`
 
         return
       } catch (error) {
-        // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
         if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
           throw error
         }
-
         logger.error("❌ Error in multi-lot creation:", error)
         toast.error("Erreur lors de la création des lots", { description: "Une erreur est survenue. Veuillez réessayer." })
         return
       }
     }
 
-    // 🆕 MODE MULTI-LOTS INDÉPENDANTS
+    // 🆕 MODE MULTI-LOTS INDÉPENDANTS — Composite Action (1 round-trip)
     if (lotData.buildingAssociation === "independent" && independentLots.length > 0) {
       try {
         // Validation finale avant soumission
@@ -1372,150 +1374,52 @@ export default function LotCreationForm({
           return
         }
 
-        logger.info(`🚀 Creating ${independentLots.length} independent lots`)
+        logger.info(`🚀 Creating ${independentLots.length} independent lots (composite)`)
 
-        // Mapping country names to database enum values (lowercase French)
-        const countryToDBEnum: Record<string, string> = {
-          "Belgique": "belgique",
-          "France": "france",
-          "Luxembourg": "luxembourg",
-          "Pays-Bas": "pays-bas",
-          "Allemagne": "allemagne"
-        }
+        // Build composite payload with address data per lot
+        const compositeLots: CompositeLot[] = independentLots.map(lot => ({
+          reference: lot.reference,
+          category: lot.category,
+          floor: lot.floor ? parseInt(lot.floor) : null,
+          doorNumber: lot.doorNumber || null,
+          description: lot.description || null,
+          address: (lot.street || lot.city) ? {
+            street: lot.street,
+            postalCode: lot.postalCode,
+            city: lot.city,
+            country: lot.country,
+            latitude: lot.latitude,
+            longitude: lot.longitude,
+            placeId: lot.placeId,
+            formattedAddress: lot.formattedAddress,
+          } : undefined,
+        }))
 
-        // Créer tous les lots en parallèle (TOUJOURS créer adresse dans table centralisée)
-        const lotCreationPromises = independentLots.map(async (lot, lotIndex) => {
-          try {
-            let addressId: string | null = null
-
-            // Step 1: ALWAYS create address in centralized table (with or without geocode data)
-            // This ensures consistency - all addresses go through the addresses table
-            if (lot.street || lot.city) {
-              logger.info(`📍 [INDEPENDENT-LOT] Creating address for lot ${lot.reference}`, {
-                street: lot.street,
-                postalCode: lot.postalCode,
-                city: lot.city,
-                country: lot.country,
-                hasGeocode: !!(lot.latitude && lot.longitude),
-                latitude: lot.latitude,
-                longitude: lot.longitude,
-                placeId: lot.placeId,
-                formattedAddress: lot.formattedAddress
-              })
-              const addressResult = await createAddressAction({
-                street: lot.street,
-                postalCode: lot.postalCode,
-                city: lot.city,
-                country: lot.country,
-                // Include geocode data if available
-                latitude: lot.latitude,
-                longitude: lot.longitude,
-                placeId: lot.placeId,
-                formattedAddress: lot.formattedAddress
-              }, userTeam.id)
-
-              if (addressResult.success && addressResult.data) {
-                addressId = addressResult.data.id
-                logger.info(`✅ [INDEPENDENT-LOT] Address created: ${addressId}`)
-              } else {
-                logger.warn(`⚠️ [INDEPENDENT-LOT] Failed to create address: ${addressResult.error?.message}`)
-              }
-            }
-
-            // Step 2: Create lot with address_id link
-            // Note: After migration 20260129200002, lots table no longer has street/postal_code/city/country columns
-            // All address data is stored in centralized addresses table via address_id
-            const lotDataToCreate = {
-              reference: lot.reference,
-              building_id: null, // NULL = independent lot
-              address_id: addressId, // Link to centralized address table
-              floor: lot.floor ? parseInt(lot.floor) : null,
-              apartment_number: lot.doorNumber || null,
-              category: lot.category,
-              description: lot.description || null,
-              team_id: userTeam.id,
-            }
-
-            const result = await createLotAction(lotDataToCreate, {
-              skipSubscriptionCheck: lotIndex > 0, // Only 1st lot checks subscription
-            })
-
-            if (!result.success || !result.data) {
-              logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
-              return null
-            }
-
-            return { lot, createdLot: result.data }
-          } catch (error) {
-            logger.error(`❌ Error creating lot ${lot.reference}:`, error)
-            return null
-          }
+        const result = await createLotsCompositeAction({
+          teamId: userTeam.id,
+          mode: 'independent',
+          lots: compositeLots,
+          contacts: buildCompositeContacts(independentLots),
+          interventions: buildCompositeInterventions(independentLots.length),
         })
 
-        const creationResults = await Promise.all(lotCreationPromises)
-        const successfulCreations = creationResults.filter((r): r is NonNullable<typeof r> => r !== null)
-
-        logger.info(`✅ Created ${successfulCreations.length}/${independentLots.length} independent lots`)
-
-        // Batch assign all contacts + managers across ALL lots in a single server action
-        const allIndependentAssignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
-        for (const { lot, createdLot } of successfulCreations) {
-          const lotManagers = assignedManagersByLot[lot.id] || []
-          lotManagers.forEach((manager, index) => {
-            allIndependentAssignments.push({ lotId: createdLot.id, userId: manager.id, isPrimary: index === 0 })
-          })
-
-          const lotContacts = lotContactAssignments[lot.id] || {}
-          Object.values(lotContacts).forEach(contacts => {
-            contacts.forEach((contact: Contact, index: number) => {
-              allIndependentAssignments.push({ lotId: createdLot.id, userId: contact.id, isPrimary: index === 0 })
-            })
-          })
-        }
-
-        if (allIndependentAssignments.length > 0) {
-          await batchAssignContactsToLotAction(allIndependentAssignments)
-        }
-
-        // Create interventions + upload documents for ALL lots in parallel
-        const allIndependentPostCreationPromises: Promise<unknown>[] = []
-
-        for (const { createdLot } of successfulCreations) {
-          allIndependentPostCreationPromises.push(
-            createInterventionsForLot(createdLot.id, userTeam.id)
-          )
-        }
-
-        for (const { lot, createdLot } of successfulCreations) {
-          const upload = lotDocUploads[lot.id]
-          if (upload?.hasFiles) {
-            allIndependentPostCreationPromises.push(
-              uploadLotDocs(lot.id, createdLot.id, userTeam.id)
-                .catch((docError: unknown) => logger.error(`⚠️ Document upload failed for lot ${createdLot.id}:`, docError))
-            )
-          }
-        }
-
-        await Promise.allSettled(allIndependentPostCreationPromises)
-
-        if (successfulCreations.length === 0) {
-          toast.error("Erreur", { description: "Aucun lot n'a pu être créé." })
+        if (!result.success || !result.createdLots?.length) {
+          toast.error("Erreur", { description: result.error || "Aucun lot n'a pu être créé." })
           setIsSubmitting(false)
           return
         }
 
-        // Succès - Rediriger vers la page des biens (navigation immédiate)
-        toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
+        fireAndForgetDocUploads(independentLots, result.createdLots, userTeam.id)
+
+        toast.success(`${result.createdLots.length} lot${result.createdLots.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
         realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
-        router.push(`/gestionnaire/biens/lots/${successfulCreations[0].createdLot.id}`)
+        window.location.href = `/gestionnaire/biens/lots/${result.createdLots[0].id}`
 
         return
       } catch (error) {
-        // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
         if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
           throw error
         }
-
         logger.error("❌ Error in independent multi-lot creation:", error)
         toast.error("Erreur lors de la création des lots indépendants", { description: "Une erreur est survenue. Veuillez réessayer." })
         return
@@ -1588,7 +1492,7 @@ export default function LotCreationForm({
       // Succès - Rediriger vers la page des biens (navigation immédiate)
       toast.success("Lot créé avec succès", { description: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.` })
       realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
-      router.push(`/gestionnaire/biens/lots/${createdLot.id}`)
+      window.location.href = `/gestionnaire/biens/lots/${createdLot.id}`
 
     } catch (error) {
       // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur

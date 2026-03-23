@@ -895,18 +895,24 @@ export default function NewImmeubleePage({
         }
       }
 
-      const postCreationResults = await Promise.allSettled(allPostCreationPromises)
-      const failedCount = postCreationResults.filter(r => r.status === 'rejected').length
-      if (failedCount > 0) {
-        logger.warn({ failedCount, total: postCreationResults.length }, 'Some post-creation tasks failed')
+      // Fire-and-forget: don't await post-creation tasks — redirect immediately
+      if (allPostCreationPromises.length > 0) {
+        Promise.allSettled(allPostCreationPromises).then(results => {
+          const failedCount = results.filter(r => r.status === 'rejected').length
+          if (failedCount > 0) {
+            logger.warn({ failedCount, total: results.length }, 'Some post-creation tasks failed')
+          } else {
+            logger.info(`All ${results.length} post-creation tasks completed`)
+          }
+        })
       }
 
-      // Succès - Rediriger vers la page des biens
+      // Succès - Rediriger immédiatement
       toast.success("Immeuble créé avec succès", {
         description: `L'immeuble "${result.data.building.name}" a été créé avec ${result.data.lots.length} lot(s).`
       })
       realtime?.broadcastInvalidation(['buildings', 'lots', 'stats'])
-      router.push(`/gestionnaire/biens/immeubles/${result.data.building.id}`)
+      window.location.href = `/gestionnaire/biens/immeubles/${result.data.building.id}`
 
     } catch (err) {
       logger.error("Error creating building:", err)

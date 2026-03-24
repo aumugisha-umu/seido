@@ -135,7 +135,7 @@ export const StepProgressHeader = ({
 
         {/* Progress Bar — at bottom of header */}
         <div
-          className="absolute bottom-0 left-0 h-0.5 bg-blue-600 transition-all duration-500 ease-out"
+          className="absolute bottom-0 left-0 h-0.5 bg-blue-600 transition-all duration-300 ease-out"
           style={{ width: `${progressPercentage}%` }}
         />
       </div>

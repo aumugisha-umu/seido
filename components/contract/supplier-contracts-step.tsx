@@ -118,7 +118,7 @@ export function SupplierContractsStep({
   }, [contracts, onContractsChange])
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       <div className="text-center max-w-2xl mx-auto mb-2">
         <h2 className="text-2xl font-bold mb-2">Contrats fournisseurs</h2>
         <p className="text-sm text-muted-foreground">

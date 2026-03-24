@@ -70,31 +70,31 @@ export function LandingHeader({
             <nav className="hidden md:flex items-center gap-6 lg:gap-8 flex-1 justify-center">
               <a
                 href="#features"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors whitespace-nowrap leading-9"
               >
                 Fonctionnalités
               </a>
               <a
                 href="#pricing"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors whitespace-nowrap leading-9"
               >
                 Tarifs
               </a>
               <a
                 href="#contact"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors whitespace-nowrap leading-9"
               >
                 Contact
               </a>
               <a
                 href="#faq"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors whitespace-nowrap leading-9"
               >
                 FAQ
               </a>
               <Link
                 href="/blog"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors whitespace-nowrap leading-9"
               >
                 Blog
               </Link>
@@ -114,7 +114,7 @@ export function LandingHeader({
                       'text-sm font-medium transition-colors whitespace-nowrap leading-9',
                       isActive
                         ? 'text-white border-b-2 border-blue-500 pb-1'
-                        : 'text-white/70 hover:text-white'
+                        : 'text-white/80 hover:text-white'
                     )}
                   >
                     {item.label}
@@ -129,7 +129,7 @@ export function LandingHeader({
             <nav className="hidden md:flex items-center gap-6 flex-1 justify-center">
               <Link
                 href="/"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors whitespace-nowrap leading-9"
               >
                 Accueil
               </Link>
@@ -139,7 +139,7 @@ export function LandingHeader({
                   'text-sm font-medium transition-colors whitespace-nowrap leading-9',
                   pathname === '/blog'
                     ? 'text-white border-b-2 border-blue-500 pb-1'
-                    : 'text-white/70 hover:text-white'
+                    : 'text-white/80 hover:text-white'
                 )}
               >
                 Tous les articles

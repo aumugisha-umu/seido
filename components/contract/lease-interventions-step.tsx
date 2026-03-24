@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
-import { CalendarCheck, FileSearch, PenLine, Banknote, UserPlus, Users } from 'lucide-react'
+import { CalendarCheck, FileSearch, Banknote, UserPlus, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 import { InterventionPlannerStep } from './intervention-planner-step'
@@ -24,7 +24,7 @@ import type { InterventionPlannerRef } from '@/lib/types/intervention-planner.ty
 import type { ScheduledInterventionData, InterventionAssignment } from './intervention-schedule-row'
 import type { ContractDocumentType } from '@/lib/types/contract.types'
 import type { InterventionPlannerSection } from '@/lib/types/intervention-planner.types'
-import { createEmptyCustomIntervention } from '@/lib/constants/property-interventions'
+import { createEmptyCustomIntervention, createEmptyCustomReminder } from '@/lib/constants/property-interventions'
 import { LEASE_ASSIGNABLE_ROLES, ROLE_COLORS } from '@/lib/constants/assignable-roles'
 import { CONTACT_TYPE_TO_ROLE } from '@/lib/constants/assignable-roles'
 
@@ -72,11 +72,17 @@ export function LeaseInterventionsStep({
 
   // ─── Intervention grouping ──────────────────────────────────
 
-  const { customInterventions, standardInterventions, documentInterventions } = useMemo(() => {
-    const custom = scheduledInterventions.filter(i => i.key.startsWith('custom_'))
-    const standard = scheduledInterventions.filter(i => !i.key.startsWith('retrieve_document_') && !i.key.startsWith('custom_'))
+  const { interventionRows, reminderRows, documentRows } = useMemo(() => {
+    const interventions = scheduledInterventions.filter(i =>
+      !i.key.startsWith('retrieve_document_') &&
+      (i.itemType === 'intervention' || (!i.itemType && !i.key.startsWith('custom_reminder_')))
+    )
+    const reminders = scheduledInterventions.filter(i =>
+      !i.key.startsWith('retrieve_document_') &&
+      (i.itemType === 'reminder' || i.key.startsWith('custom_reminder_'))
+    )
     const documents = scheduledInterventions.filter(i => i.key.startsWith('retrieve_document_'))
-    return { customInterventions: custom, standardInterventions: standard, documentInterventions: documents }
+    return { interventionRows: interventions, reminderRows: reminders, documentRows: documents }
   }, [scheduledInterventions])
 
   // ─── Rent reminder logic ────────────────────────────────────
@@ -128,6 +134,10 @@ export function LeaseInterventionsStep({
     onInterventionsChange(prev =>
       prev.map(i => i.key === key ? { ...i, description } : i)
     )
+  }, [onInterventionsChange])
+
+  const handleAddCustomReminder = useCallback(() => {
+    onInterventionsChange(prev => [...prev, createEmptyCustomReminder()])
   }, [onInterventionsChange])
 
   // ─── External contact handlers (rent reminders) ─────────────
@@ -277,43 +287,52 @@ export function LeaseInterventionsStep({
   // ─── Build sections ─────────────────────────────────────────
 
   const sections: InterventionPlannerSection[] = useMemo(() => {
-    const result: InterventionPlannerSection[] = [
-      {
-        id: 'custom',
-        title: 'Interventions personnalisées',
-        icon: PenLine,
-        iconColorClass: 'text-indigo-500',
-        rows: customInterventions,
-        allowCustomAdd: true,
-      },
-      {
-        id: 'rent_reminders',
-        title: 'Rappels de paiement',
-        rows: [],
-        renderCustom: renderRentReminders,
-      },
-    ]
+    const result: InterventionPlannerSection[] = []
 
-    if (standardInterventions.length > 0) {
+    // Section 1: Interventions (états des lieux + custom interventions)
+    if (interventionRows.length > 0) {
       result.push({
-        id: 'standard',
-        title: 'Suivis standard du bail',
-        rows: standardInterventions,
+        id: 'interventions',
+        title: 'Interventions',
+        sectionType: 'intervention',
+        rows: interventionRows,
       })
     }
 
-    if (documentInterventions.length > 0) {
+    // Section 2: Rent reminders (custom inline rendering)
+    result.push({
+      id: 'rent_reminders',
+      title: 'Rappels de paiement',
+      sectionType: 'reminder',
+      rows: [],
+      renderCustom: renderRentReminders,
+    })
+
+    // Section 3: Admin reminders (indexation, charges, assurance + custom reminders)
+    if (reminderRows.length > 0) {
+      result.push({
+        id: 'admin_reminders',
+        title: 'Rappels administratifs',
+        sectionType: 'reminder',
+        collapsible: true,
+        rows: reminderRows,
+      })
+    }
+
+    // Section 4: Missing documents
+    if (documentRows.length > 0) {
       result.push({
         id: 'documents',
-        title: `Documents à récupérer (${documentInterventions.length})`,
+        title: `Documents à récupérer (${documentRows.length})`,
         icon: FileSearch,
         iconColorClass: 'text-amber-500',
-        rows: documentInterventions,
+        sectionType: 'reminder',
+        rows: documentRows,
       })
     }
 
     return result
-  }, [customInterventions, standardInterventions, documentInterventions, renderRentReminders])
+  }, [interventionRows, reminderRows, documentRows, renderRentReminders])
 
   // ─── Render ─────────────────────────────────────────────────
 
@@ -321,7 +340,7 @@ export function LeaseInterventionsStep({
     <InterventionPlannerStep
       ref={plannerRef}
       title="Planifier les suivis du bail"
-      subtitle="Programmez les interventions liées à ce contrat de location. Vous pouvez modifier les dates ou désactiver certaines tâches. Cette étape est optionnelle."
+      subtitle="Programmez les interventions et rappels liés à ce contrat de location. Vous pouvez modifier les dates ou désactiver certaines tâches. Cette étape est optionnelle."
       headerIcon={CalendarCheck}
       sections={sections}
       scheduledInterventions={scheduledInterventions}
@@ -332,6 +351,7 @@ export function LeaseInterventionsStep({
       allowedContactIds={{ tenant: leaseTenantIds }}
       preSelectContactIds={{ tenant: leaseTenantIds }}
       onAddCustomIntervention={handleAddCustomIntervention}
+      onAddCustomReminder={handleAddCustomReminder}
       onDeleteCustomIntervention={handleDeleteCustomIntervention}
       onCustomTitleChange={handleCustomTitleChange}
       onCustomDescriptionChange={handleCustomDescriptionChange}

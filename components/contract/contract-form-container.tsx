@@ -16,7 +16,7 @@ import { LeaseInterventionsStep, type RentReminderConfig } from '@/components/co
 import type { ScheduledInterventionData } from '@/components/contract/intervention-schedule-row'
 import { ParticipantChip } from '@/components/interventions/shared/layout/participants-row'
 import {
-  LEASE_INTERVENTION_TEMPLATES,
+  LEASE_ALL_TEMPLATES,
   createMissingDocumentIntervention,
   resolveTemplateText,
   INSURANCE_EXPIRY_NEXT_DAY_VALUE,
@@ -48,7 +48,7 @@ import {
 } from 'lucide-react'
 import { InterventionPlannerStep } from '@/components/contract/intervention-planner-step'
 import { SUPPLIER_ASSIGNABLE_ROLES } from '@/lib/constants/assignable-roles'
-import { createSupplierReminderIntervention, createEmptySupplierCustomIntervention } from '@/lib/constants/supplier-interventions'
+import { createSupplierReminderIntervention, createEmptySupplierCustomIntervention, createEmptySupplierCustomReminder } from '@/lib/constants/supplier-interventions'
 import type { InterventionPlannerSection } from '@/lib/types/intervention-planner.types'
 import { SupplierContractsStep } from '@/components/contract/supplier-contracts-step'
 import { SupplierConfirmationStep } from '@/components/contract/supplier-confirmation-step'
@@ -352,6 +352,10 @@ export default function ContractFormContainer({
     })
   }, [currentUser])
 
+  const handleSupplierAddCustomReminder = useCallback(() => {
+    setSupplierScheduledInterventions(prev => [...prev, createEmptySupplierCustomReminder(currentUser)])
+  }, [currentUser])
+
   const handleSupplierDeleteCustom = useCallback((key: string) => {
     setSupplierScheduledInterventions(prev => prev.filter(i => i.key !== key))
   }, [])
@@ -429,7 +433,7 @@ export default function ContractFormContainer({
     const endDate = calculateContractEndDate(formData.startDate, formData.durationMonths)
 
     // Filtrer les templates selon le type de charges
-    const applicableTemplates = LEASE_INTERVENTION_TEMPLATES.filter(template => {
+    const applicableTemplates = LEASE_ALL_TEMPLATES.filter(template => {
       if (!template.applicableChargesTypes) return true
       return template.applicableChargesTypes.includes(formData.chargesType as ChargesType)
     })
@@ -484,7 +488,9 @@ export default function ContractFormContainer({
         isAutoCalculated: true,
         availableOptions: options,
         selectedSchedulingOption: defaultOption,
-        assignedUsers: defaultAssignedUsers
+        assignedUsers: defaultAssignedUsers,
+        ...(template.itemType ? { itemType: template.itemType } : {}),
+        ...(template.recurrenceRule ? { recurrenceRule: template.recurrenceRule } : {}),
       }
     })
 
@@ -901,6 +907,52 @@ export default function ContractFormContainer({
         toast.success(`${result.data!.count} contrat(s) fournisseur(s) créé(s)`)
       }
 
+      // Create custom interventions and custom reminders
+      const customItems = supplierScheduledInterventions.filter(i => i.key.startsWith('custom_') && i.enabled && i.scheduledDate)
+      if (customItems.length > 0) {
+        const customInterventionItems = customItems.filter(i => i.itemType === 'intervention')
+        const customReminderItems = customItems.filter(i => i.itemType === 'reminder')
+
+        await Promise.all([
+          customInterventionItems.length > 0 ? (async () => {
+            const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+            await Promise.allSettled(
+              customInterventionItems.map(item => createInterventionAction({
+                title: item.title,
+                description: item.description,
+                type: item.interventionTypeCode,
+                urgency: 'basse',
+                lot_id: formData.lotId || undefined,
+                building_id: selectedBuildingId || undefined,
+                team_id: teamId,
+                requested_date: item.scheduledDate || undefined
+              }, {
+                useServiceRole: true,
+                assignments: item.assignedUsers.length > 0
+                  ? item.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                  : undefined
+              }))
+            )
+          })() : Promise.resolve(),
+          customReminderItems.length > 0 ? (async () => {
+            const { createWizardRemindersAction } = await import('@/app/actions/reminder-actions')
+            await createWizardRemindersAction(
+              customReminderItems.map(r => ({
+                title: r.title,
+                description: r.description,
+                due_date: r.scheduledDate ? new Date(r.scheduledDate).toISOString() : undefined,
+                lot_id: formData.lotId || undefined,
+                building_id: selectedBuildingId || undefined,
+                assignments: r.assignedUsers.length > 0
+                  ? r.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                  : undefined
+              })),
+              { team_id: teamId }
+            )
+          })() : Promise.resolve(),
+        ])
+      }
+
       // Redirect to building or lot detail
       if (selectedBuildingId) {
         router.push(`/gestionnaire/biens/immeubles/${selectedBuildingId}`)
@@ -976,8 +1028,10 @@ export default function ContractFormContainer({
         }
 
         // Compute rent reminder dates synchronously before parallel phase (pure date math)
-        const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
-        let reminderDates: Date[] = []
+        const allEnabled = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+        const toCreateInterventions = allEnabled.filter(i => i.itemType !== 'reminder')
+        const toCreateReminders = allEnabled.filter(i => i.itemType === 'reminder')
+        const reminderDates: Date[] = []
         if (rentReminderConfig.enabled && formData.startDate && formData.durationMonths) {
           const leaseStart = parseLocalDate(formData.startDate)
           const leaseEnd = calculateContractEndDate(formData.startDate, formData.durationMonths)
@@ -1001,11 +1055,11 @@ export default function ContractFormContainer({
           })() : Promise.resolve(),
 
           // Op 2: Create scheduled interventions
-          toCreate.length > 0 ? (async () => {
-            logger.info(`[CONTRACT-FORM] Creating ${toCreate.length} interventions...`)
+          toCreateInterventions.length > 0 ? (async () => {
+            logger.info(`[CONTRACT-FORM] Creating ${toCreateInterventions.length} interventions...`)
             const { createInterventionAction } = await import('@/app/actions/intervention-actions')
             const results = await Promise.allSettled(
-              toCreate.map(async (intervention) => createInterventionAction({
+              toCreateInterventions.map(async (intervention) => createInterventionAction({
                 title: intervention.title,
                 description: intervention.description,
                 type: intervention.interventionTypeCode,
@@ -1052,6 +1106,29 @@ export default function ContractFormContainer({
               logger.info({ ...batchResult.data, contractId }, 'Rent payment reminders created (batch)')
             } else {
               logger.warn({ error: batchResult.error, contractId }, 'Batch rent reminders failed')
+            }
+          })() : Promise.resolve(),
+
+          // Op 4: Create scheduled reminders
+          toCreateReminders.length > 0 ? (async () => {
+            logger.info(`[CONTRACT-FORM] Creating ${toCreateReminders.length} reminders...`)
+            const { createWizardRemindersAction } = await import('@/app/actions/reminder-actions')
+            const result = await createWizardRemindersAction(
+              toCreateReminders.map(r => ({
+                title: r.title,
+                description: r.description,
+                due_date: r.scheduledDate ? new Date(r.scheduledDate).toISOString() : undefined,
+                rrule: r.recurrenceRule,
+                assignments: r.assignedUsers.length > 0
+                  ? r.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                  : undefined
+              })),
+              { team_id: teamId, lot_id: formData.lotId!, contract_id: contractId }
+            )
+            if (result.success && result.data) {
+              logger.info({ ...result.data, contractId }, 'Lease reminders created')
+            } else {
+              logger.warn({ error: result.error, contractId }, 'Lease reminders creation failed')
             }
           })() : Promise.resolve(),
         ])
@@ -1167,32 +1244,55 @@ export default function ContractFormContainer({
               }}
             />
           )
-        case 2: { // Interventions — Reminder configuration via shared planner
-          const customInterventions = supplierScheduledInterventions.filter(i => i.key.startsWith('custom_'))
-          const contractInterventions = supplierScheduledInterventions.filter(i => !i.key.startsWith('custom_'))
+        case 2: { // Interventions & reminders via shared planner
+          const interventionRows = supplierScheduledInterventions.filter(i => i.itemType === 'intervention')
+          const contractReminders = supplierScheduledInterventions.filter(i =>
+            i.itemType === 'reminder' && !i.key.startsWith('custom_reminder_')
+          )
+          const customReminders = supplierScheduledInterventions.filter(i =>
+            i.itemType === 'reminder' && i.key.startsWith('custom_reminder_')
+          )
 
-          const supplierSections: InterventionPlannerSection[] = [
-            {
-              id: 'custom',
-              title: 'Rappels personnalisés',
+          const supplierSections: InterventionPlannerSection[] = []
+
+          if (interventionRows.length > 0) {
+            supplierSections.push({
+              id: 'custom_interventions',
+              title: 'Interventions personnalisées',
               icon: Calendar,
               iconColorClass: 'text-indigo-500',
-              rows: customInterventions,
-              allowCustomAdd: true,
-            },
-            {
+              rows: interventionRows,
+              sectionType: 'intervention',
+            })
+          }
+
+          if (contractReminders.length > 0) {
+            supplierSections.push({
               id: 'contract_reminders',
               title: 'Rappels de fin de contrat',
               icon: Bell,
               iconColorClass: 'text-amber-500',
-              rows: contractInterventions,
-            },
-          ]
+              rows: contractReminders,
+              sectionType: 'reminder',
+            })
+          }
+
+          if (customReminders.length > 0) {
+            supplierSections.push({
+              id: 'custom_reminders',
+              title: 'Rappels personnalisés',
+              icon: Bell,
+              iconColorClass: 'text-amber-500',
+              rows: customReminders,
+              sectionType: 'reminder',
+              collapsible: true,
+            })
+          }
 
           return (
             <InterventionPlannerStep
-              title="Rappels d'échéance"
-              subtitle="Programmez des rappels avant les dates d'échéance de vos contrats fournisseurs. Cette étape est optionnelle."
+              title="Planifier les suivis du contrat"
+              subtitle="Programmez les interventions et rappels liés à vos contrats fournisseurs. Cette étape est optionnelle."
               headerIcon={CalendarCheck}
               sections={supplierSections}
               scheduledInterventions={supplierScheduledInterventions}
@@ -1201,6 +1301,7 @@ export default function ContractFormContainer({
               assignableRoles={SUPPLIER_ASSIGNABLE_ROLES}
               allowedContactTypes={['manager', 'provider']}
               onAddCustomIntervention={handleSupplierAddCustom}
+              onAddCustomReminder={handleSupplierAddCustomReminder}
               onDeleteCustomIntervention={handleSupplierDeleteCustom}
               onCustomTitleChange={handleSupplierCustomTitleChange}
               onCustomDescriptionChange={handleSupplierCustomDescriptionChange}

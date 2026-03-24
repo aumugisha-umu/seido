@@ -1159,7 +1159,7 @@ export default function NewImmeubleePage({
 
         {/* Step 4: Interventions (building-level + per-lot) */}
         {currentStep === 4 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Building-level interventions — in a Card */}
             <Card className="shadow-sm overflow-hidden">
               <CardContent className="px-4 py-4">

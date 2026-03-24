@@ -509,7 +509,7 @@ export function ContactCreationClient({
       <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pt-4 pb-4">
         <div className="content-max-width">
           {/* Step content will be rendered here */}
-          <div className="bg-card rounded-lg border border-border shadow-sm p-6 transition-all duration-500">
+          <div className="bg-card rounded-lg border border-border shadow-sm p-6 transition-all duration-300">
             {currentStep === 1 && (
               <Step1Type
                 contactType={formData.contactType}

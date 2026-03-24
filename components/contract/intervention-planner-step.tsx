@@ -206,7 +206,7 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
   // ─── Render ─────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto">
         <div className="flex items-center justify-center gap-2 mb-2">

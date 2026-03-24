@@ -281,7 +281,7 @@ export function PropertyInterventionsStep({
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       {/* Header — hidden when parent provides its own section header */}
       {!hideHeader && (
         <div className="text-center max-w-2xl mx-auto">

@@ -1124,7 +1124,7 @@ export default function ContractFormContainer({
       switch (currentStep) {
         case 0: // Property selection (building or lot)
           return (
-            <div className="flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="text-center max-w-2xl mx-auto mb-4 flex-shrink-0">
                 <h2 className="text-2xl font-bold mb-2">Sélectionnez le bien</h2>
                 <p className="text-muted-foreground">
@@ -1219,7 +1219,7 @@ export default function ContractFormContainer({
       // Step 0: Lot Selection - Layout style Patrimoine avec tabs Immeubles/Lots
       case 0:
         return (
-          <div className="flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Header fixe */}
             <div className="text-center max-w-2xl mx-auto mb-4 flex-shrink-0">
               <h2 className="text-2xl font-bold mb-2">Sélectionnez le lot</h2>
@@ -1280,7 +1280,7 @@ export default function ContractFormContainer({
       // Step 2: Documents (optionnel)
       case 2:
         return (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="text-center max-w-2xl mx-auto mb-4">
               <h2 className="text-2xl font-bold mb-2">Documents du bail</h2>
               <p className="text-muted-foreground">

@@ -78,7 +78,7 @@ export function SuccessHeader({
         <div
           className={cn(
             "flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center",
-            "animate-in zoom-in duration-500",
+            "animate-in zoom-in duration-300",
             "shadow-lg",
             isTenant
               ? "bg-gradient-to-br from-green-400 to-emerald-500"
@@ -97,7 +97,7 @@ export function SuccessHeader({
           <div className="flex items-center gap-2 mb-1">
             <h2
               className={cn(
-                "text-lg font-bold leading-tight animate-in fade-in slide-in-from-left-3 duration-500",
+                "text-lg font-bold leading-tight animate-in fade-in slide-in-from-left-3 duration-300",
                 isTenant ? "text-green-900" : "text-blue-900"
               )}
             >
@@ -105,7 +105,7 @@ export function SuccessHeader({
             </h2>
             <CheckCircle2
               className={cn(
-                "w-5 h-5 animate-in zoom-in duration-700 delay-300",
+                "w-5 h-5 animate-in zoom-in duration-400 delay-300",
                 isTenant ? "text-green-600" : "text-blue-600"
               )}
             />
@@ -113,7 +113,7 @@ export function SuccessHeader({
 
           <p
             className={cn(
-              "text-sm animate-in fade-in slide-in-from-left-3 duration-700 delay-100",
+              "text-sm animate-in fade-in slide-in-from-left-3 duration-400 delay-100",
               isTenant ? "text-green-700" : "text-blue-700"
             )}
           >

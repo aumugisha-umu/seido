@@ -175,7 +175,7 @@ export function Sparkline({
             viewBox={`0 0 ${width} ${height}`}
             className={cn(
                 "overflow-visible",
-                animated && "animate-in fade-in duration-500",
+                animated && "animate-in fade-in duration-300",
                 className
             )}
             role="img"
@@ -186,7 +186,7 @@ export function Sparkline({
                 <path
                     d={areaPath}
                     fill={effectiveFillColor}
-                    className={animated ? "animate-in fade-in duration-700" : ""}
+                    className={animated ? "animate-in fade-in duration-300" : ""}
                 />
             )}
 
@@ -198,7 +198,7 @@ export function Sparkline({
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className={animated ? "animate-in fade-in duration-500" : ""}
+                className={animated ? "animate-in fade-in duration-300" : ""}
             />
 
             {/* End dot */}

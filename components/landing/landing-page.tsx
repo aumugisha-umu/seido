@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -40,8 +41,14 @@ import type { ArticleMeta } from '@/lib/blog'
 function FadeIn({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) {
     const [isVisible, setIsVisible] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
+    const prefersReducedMotion = useReducedMotion()
 
     useEffect(() => {
+        if (prefersReducedMotion) {
+            setIsVisible(true)
+            return
+        }
+
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
@@ -57,7 +64,11 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
         }
 
         return () => observer.disconnect()
-    }, [])
+    }, [prefersReducedMotion])
+
+    if (prefersReducedMotion) {
+        return <div className={className}>{children}</div>
+    }
 
     return (
         <div

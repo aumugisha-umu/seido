@@ -141,10 +141,13 @@ export const StatsCard = memo(function StatsCard({
                 "shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden group",
                 "dark:backdrop-blur-sm dark:shadow-none",
                 styles.card,
-                isClickable && "cursor-pointer hover:transform hover:-translate-y-1",
+                isClickable && "cursor-pointer hover:transform hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                 alertRing && "ring-2 ring-amber-500",
                 className
             )}
+            tabIndex={isClickable ? 0 : undefined}
+            role={isClickable ? "button" : undefined}
+            onKeyDown={isClickable ? (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick() } } : undefined}
             onClick={isClickable ? handleClick : undefined}
         >
             <CardContent className="stats-card__content p-3 relative">

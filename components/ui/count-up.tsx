@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useReducedMotion } from '@/hooks/use-reduced-motion'
 
 interface CountUpProps {
     end: number
@@ -14,6 +15,7 @@ export function CountUp({ end, duration = 2000, suffix = '', prefix = '', separa
     const [count, setCount] = useState(0)
     const countRef = useRef<HTMLSpanElement>(null)
     const [isVisible, setIsVisible] = useState(false)
+    const prefersReducedMotion = useReducedMotion()
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -35,6 +37,12 @@ export function CountUp({ end, duration = 2000, suffix = '', prefix = '', separa
 
     useEffect(() => {
         if (!isVisible) return
+
+        // Skip animation if user prefers reduced motion
+        if (prefersReducedMotion) {
+            setCount(end)
+            return
+        }
 
         let startTime: number | null = null
         let animationFrameId: number
@@ -61,7 +69,7 @@ export function CountUp({ end, duration = 2000, suffix = '', prefix = '', separa
         animationFrameId = requestAnimationFrame(animate)
 
         return () => cancelAnimationFrame(animationFrameId)
-    }, [isVisible, end, duration])
+    }, [isVisible, end, duration, prefersReducedMotion])
 
     const formatNumber = (num: number) => {
         if (!separator) return num.toString()

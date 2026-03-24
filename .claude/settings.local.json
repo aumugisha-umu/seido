@@ -92,11 +92,54 @@
       "WebFetch(domain:nordigen.com)",
       "WebFetch(domain:docs.tink.com)",
       "WebFetch(domain:tink.com)",
-      "WebFetch(domain:merchantmachine.co.uk)"
+      "WebFetch(domain:merchantmachine.co.uk)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:sdk.vercel.ai)",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:openai.github.io)",
+      "WebFetch(domain:playwright.dev)",
+      "WebFetch(domain:docs.github.com)",
+      "WebFetch(domain:vercel.com)",
+      "Bash(cp:*)",
+      "Bash(TARGET_URL=https://seido-git-preview-seido-app.vercel.app npx playwright:*)",
+      "Bash(npx playwright:*)",
+      "Bash(echo \"Exit: $?\")",
+      "Read(//tmp/**)",
+      "Bash(do echo:*)",
+      "Bash(TARGET_URL=https://seido-git-preview-seido-app.vercel.app/ npx playwright:*)",
+      "Bash(head:*)",
+      "WebFetch(domain:docs.us.tink.com)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs",
+      "Bash(openclaw doctor:*)",
+      "Bash(openclaw agent:*)",
+      "Bash(BASE=\".claude/worktrees/agent-a3637939/.claude/worktrees/agent-a89ad2ed/.claude/worktrees/agent-a667cbb4\")",
+      "Read(//c/Users/arthu/Desktop/Coding/seido-app/.claude/worktrees/agent-a3637939/.claude/worktrees/agent-a89ad2ed/.claude/worktrees/agent-adc851b7/$BASE/app/api/bank/**)",
+      "Bash(mkdir:*)",
+      "Bash(ssh:*)",
+      "WebFetch(domain:be.brussels)",
+      "WebFetch(domain:logement.wallonie.be)",
+      "WebFetch(domain:www.epc-keuring.vlaanderen)",
+      "WebFetch(domain:www.appartement.be)",
+      "WebFetch(domain:myindex.be)",
+      "WebFetch(domain:www.snpc-nems.be)",
+      "WebFetch(domain:www.droitsquotidiens.be)",
+      "WebFetch(domain:www.eigenaarsbond.be)",
+      "WebFetch(domain:seeds.law)",
+      "WebFetch(domain:www.localsvastgoed.be)",
+      "WebFetch(domain:www.pim.be)",
+      "WebFetch(domain:blog.degandpartners.com)",
+      "WebFetch(domain:www.centrius.be)",
+      "WebFetch(domain:www.titeca.be)",
+      "WebFetch(domain:www.home-consult.be)"
     ],
     "deny": [],
     "ask": []
   },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "context7"
+  ],
   "hooks": {
     "PreToolUse": [
       {
@@ -127,6 +170,16 @@
           {
             "type": "command",
             "command": "node .claude/scripts/track-changes.js",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/scripts/post-commit-memory-sync.js",
             "timeout": 10
           }
         ]

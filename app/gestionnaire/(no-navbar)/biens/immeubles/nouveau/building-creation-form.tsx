@@ -259,6 +259,7 @@ export default function NewImmeubleePage({
     if (clampedStep > maxStepReached) {
       setMaxStepReached(clampedStep)
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // Handler pour le clic sur une étape dans le header

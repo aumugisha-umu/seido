@@ -267,6 +267,23 @@ Le skill `frontend-design` est le point d'entree pour toute generation de code U
 
 ---
 
+## Pre-Delivery Checklist
+
+### Qualite Visuelle
+- [ ] Skip link présent dans le layout principal
+- [ ] Shadow scale cohérent (5 niveaux max)
+- [ ] Un seul CTA primaire par section
+
+### Interaction
+- [ ] Press feedback visible en 80-150ms (scale 0.95-1.05 ou highlight)
+- [ ] Exit animations 60-70% de la durée d'entrée
+- [ ] Animations interruptibles (pas de blocage user)
+
+### Layout
+- [ ] Adaptive gutters (px-4 → px-6 → px-8 par breakpoint)
+
+---
+
 ## Integration Agents
 
 - **frontend-developer**: Specs composants, patterns interaction

@@ -127,6 +127,7 @@ export function KPIMobileGrid({ cards, className, hideHeroCard = false }: KPIMob
                         key={card.id}
                         role={card.onClick ? "button" : undefined}
                         tabIndex={card.onClick ? 0 : undefined}
+                        aria-label={card.onClick ? `${card.label}: ${card.value}` : undefined}
                         className={cn(
                             "flex-1 min-w-[68px]",
                             "flex flex-col items-center justify-center",
@@ -139,12 +140,12 @@ export function KPIMobileGrid({ cards, className, hideHeroCard = false }: KPIMob
                         <span className="text-base font-bold text-foreground leading-none">
                             {card.value}
                         </span>
-                        <span className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate max-w-full">
+                        <span className="text-xs text-muted-foreground leading-tight mt-0.5 truncate max-w-full">
                             {stripLabels[card.id] || card.label}
                         </span>
                         {card.badge && (
                             <span className={cn(
-                                "text-[10px] font-medium px-1 rounded-full leading-tight mt-0.5",
+                                "text-xs font-medium px-1 rounded-full leading-tight mt-0.5",
                                 badgeStyles[card.badge.variant]
                             )}>
                                 {card.badge.text}

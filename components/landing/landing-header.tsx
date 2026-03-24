@@ -154,6 +154,7 @@ export function LandingHeader({
                 variant="ghost"
                 size="sm"
                 className="text-white hover:bg-white/10 hover:text-white px-2 sm:px-3"
+                aria-label="Se connecter"
               >
                 <LogIn className="h-4 w-4 sm:hidden" />
                 <span className="hidden sm:inline">Se connecter</span>

@@ -90,6 +90,38 @@ export const BuildingInfoForm = ({
 }: BuildingInfoFormProps) => {
   const { user } = useAuth()
 
+  // Inline blur validation state
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const isRequiredField = (name: string): boolean => {
+    // Name (reference) is always required
+    if (name === 'name') return true
+    return false
+  }
+
+  const handleFieldBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.currentTarget
+    setFieldErrors(prev => {
+      const next = { ...prev }
+      if (!value?.trim() && isRequiredField(name)) {
+        next[name] = 'Ce champ est obligatoire'
+      } else {
+        delete next[name]
+      }
+      return next
+    })
+  }
+
+  const clearFieldError = (name: string) => {
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const next = { ...prev }
+        delete next[name]
+        return next
+      })
+    }
+  }
+
   // Team-scoped building name uniqueness
   const [isCheckingName, setIsCheckingName] = useState(false)
   const [isDuplicateName, setIsDuplicateName] = useState(false)
@@ -156,10 +188,12 @@ export const BuildingInfoForm = ({
               value={buildingInfo.name || ""}
               onChange={(e) => {
                 const newName = e.target.value
+                clearFieldError('name')
                 // ✅ FIX: Use direct value update instead of functional updater
                 setBuildingInfo({ ...buildingInfo, name: newName })
               }}
               onBlur={(e) => {
+                handleFieldBlur(e)
                 const domValue = e.target.value
                 const newName = domValue
                 // ✅ FIX: Use direct value update
@@ -167,12 +201,16 @@ export const BuildingInfoForm = ({
                   setBuildingInfo({ ...buildingInfo, name: newName })
                 }
               }}
-              className={`mt-1 h-10 sm:h-11 ${isDuplicateName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-              aria-invalid={isDuplicateName}
+              className={`mt-1 h-10 sm:h-11 ${isDuplicateName || fieldErrors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+              aria-invalid={!!(isDuplicateName || fieldErrors.name)}
+              aria-describedby={fieldErrors.name ? 'name-error' : isDuplicateName ? 'name-duplicate' : undefined}
               required
             />
+            {fieldErrors.name && (
+              <p id="name-error" className="text-sm text-destructive mt-1">{fieldErrors.name}</p>
+            )}
             {isDuplicateName && (
-              <p className="text-xs text-red-600 mt-1" role="alert">{duplicateMessage}</p>
+              <p id="name-duplicate" className="text-xs text-red-600 mt-1" role="alert">{duplicateMessage}</p>
             )}
           </div>
 
@@ -284,6 +322,7 @@ export const BuildingInfoForm = ({
             value={buildingInfo.name || ""}
             onChange={(e) => {
               const newName = e.target.value
+              clearFieldError('name')
               // Si onNameChange est fourni (immeuble avec contrôle auto-fill), l'utiliser
               if (onNameChange) {
                 onNameChange(newName)
@@ -293,6 +332,7 @@ export const BuildingInfoForm = ({
               }
             }}
             onBlur={(e) => {
+              handleFieldBlur(e)
               const domValue = e.target.value
               const newName = domValue
               // Si onNameChange est fourni (immeuble avec contrôle auto-fill), l'utiliser
@@ -307,15 +347,19 @@ export const BuildingInfoForm = ({
                 }
               }
             }}
-            className={`mt-1 h-10 sm:h-11 ${isDuplicateName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-            aria-invalid={isDuplicateName}
+            className={`mt-1 h-10 sm:h-11 ${isDuplicateName || fieldErrors.name ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+            aria-invalid={!!(isDuplicateName || fieldErrors.name)}
+            aria-describedby={fieldErrors.name ? 'name-error' : isDuplicateName ? 'name-duplicate' : undefined}
             required
           />
           <p className="text-xs text-gray-500 mt-1">
             Référence unique pour identifier facilement votre immeuble (requis)
           </p>
+          {fieldErrors.name && (
+            <p id="name-error" className="text-sm text-destructive mt-1">{fieldErrors.name}</p>
+          )}
           {isDuplicateName && (
-            <p className="text-xs text-red-600 mt-1" role="alert">{duplicateMessage}</p>
+            <p id="name-duplicate" className="text-xs text-red-600 mt-1" role="alert">{duplicateMessage}</p>
           )}
         </div>
       )}
@@ -386,9 +430,11 @@ export const BuildingInfoForm = ({
               </Label>
               <Input
                 id="floor"
+                name="floor"
                 placeholder="0"
                 value={buildingInfo.floor || ""}
                 onChange={(e) => setBuildingInfo({ ...buildingInfo, floor: e.target.value })}
+                onBlur={handleFieldBlur}
                 className="mt-1 h-10 sm:h-11"
               />
             </div>
@@ -398,9 +444,11 @@ export const BuildingInfoForm = ({
               </Label>
               <Input
                 id="doorNumber"
+                name="doorNumber"
                 placeholder="A, 101, etc."
                 value={buildingInfo.doorNumber || ""}
                 onChange={(e) => setBuildingInfo({ ...buildingInfo, doorNumber: e.target.value })}
+                onBlur={handleFieldBlur}
                 className="mt-1 h-10 sm:h-11"
               />
             </div>
@@ -413,9 +461,11 @@ export const BuildingInfoForm = ({
         </Label>
         <Textarea
           id="description"
+          name="description"
           placeholder={`Ajoutez un commentaire sur votre ${entityType}...`}
           value={buildingInfo.description || ""}
           onChange={(e) => setBuildingInfo({ ...buildingInfo, description: e.target.value })}
+          onBlur={handleFieldBlur}
           className="mt-1 min-h-[100px] sm:min-h-[120px] text-sm sm:text-base"
         />
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { useMapsLibrary } from '@vis.gl/react-google-maps'
 import { MapPin, Hash, Loader2, Building2, Globe, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -129,6 +129,37 @@ export function AddressFieldsWithMap({
   required = false,
   className
 }: AddressFieldsWithMapProps) {
+  // Inline blur validation state for address fields
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const isRequiredAddressField = (name: string): boolean => {
+    if (!required) return false
+    return ['address-street', 'address-postalCode', 'address-city'].includes(name)
+  }
+
+  const handleAddressBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { id, value } = e.currentTarget
+    setFieldErrors(prev => {
+      const next = { ...prev }
+      if (!value?.trim() && isRequiredAddressField(id)) {
+        next[id] = 'Ce champ est obligatoire'
+      } else {
+        delete next[id]
+      }
+      return next
+    })
+  }
+
+  const clearAddressError = (id: string) => {
+    if (fieldErrors[id]) {
+      setFieldErrors(prev => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+    }
+  }
+
   // Geocoding library
   const geocoding = useMapsLibrary('geocoding')
 
@@ -178,6 +209,9 @@ export function AddressFieldsWithMap({
       city: address.city,
       country: address.country
     }
+
+    // Clear any address field errors since autocomplete filled them
+    setFieldErrors({})
 
     // Update internal coordinates state
     setCoords({ lat: address.latitude, lng: address.longitude })
@@ -343,11 +377,20 @@ export function AddressFieldsWithMap({
             <Input
               id="address-street"
               value={street}
-              onChange={(e) => handleFieldChange('street', e.target.value)}
+              onChange={(e) => {
+                clearAddressError('address-street')
+                handleFieldChange('street', e.target.value)
+              }}
+              onBlur={handleAddressBlur}
               placeholder="Rue de la Paix 42"
               disabled={disabled}
               required={required}
+              aria-invalid={!!fieldErrors['address-street']}
+              aria-describedby={fieldErrors['address-street'] ? 'address-street-error' : undefined}
             />
+            {fieldErrors['address-street'] && (
+              <p id="address-street-error" className="text-sm text-destructive mt-1">{fieldErrors['address-street']}</p>
+            )}
           </div>
 
           {/* Postal Code and City */}
@@ -359,11 +402,20 @@ export function AddressFieldsWithMap({
               <Input
                 id="address-postalCode"
                 value={postalCode}
-                onChange={(e) => handleFieldChange('postalCode', e.target.value)}
+                onChange={(e) => {
+                  clearAddressError('address-postalCode')
+                  handleFieldChange('postalCode', e.target.value)
+                }}
+                onBlur={handleAddressBlur}
                 placeholder="1000"
                 disabled={disabled}
                 required={required}
+                aria-invalid={!!fieldErrors['address-postalCode']}
+                aria-describedby={fieldErrors['address-postalCode'] ? 'address-postalCode-error' : undefined}
               />
+              {fieldErrors['address-postalCode'] && (
+                <p id="address-postalCode-error" className="text-sm text-destructive mt-1">{fieldErrors['address-postalCode']}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -373,11 +425,20 @@ export function AddressFieldsWithMap({
               <Input
                 id="address-city"
                 value={city}
-                onChange={(e) => handleFieldChange('city', e.target.value)}
+                onChange={(e) => {
+                  clearAddressError('address-city')
+                  handleFieldChange('city', e.target.value)
+                }}
+                onBlur={handleAddressBlur}
                 placeholder="Bruxelles"
                 disabled={disabled}
                 required={required}
+                aria-invalid={!!fieldErrors['address-city']}
+                aria-describedby={fieldErrors['address-city'] ? 'address-city-error' : undefined}
               />
+              {fieldErrors['address-city'] && (
+                <p id="address-city-error" className="text-sm text-destructive mt-1">{fieldErrors['address-city']}</p>
+              )}
             </div>
           </div>
 

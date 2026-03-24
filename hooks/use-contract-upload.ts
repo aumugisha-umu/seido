@@ -249,7 +249,7 @@ export const useContractUpload = ({
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
 
-          logger.error({ error, file: fileWithPreview.file.name }, 'Contract file upload error')
+          logger.error({ error: errorMessage, fileName: fileWithPreview.file.name, fileType: fileWithPreview.file.type, fileSize: fileWithPreview.file.size }, 'Contract file upload error')
 
           // Update status to error
           setFiles(prev => prev.map(f =>

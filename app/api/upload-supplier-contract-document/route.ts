@@ -10,9 +10,17 @@ function generateUniqueFilename(originalFilename: string): string {
   const timestamp = Date.now()
   const randomString = Math.random().toString(36).substring(2, 8)
   const extension = originalFilename.split('.').pop() || ''
-  const nameWithoutExt = originalFilename.split('.').slice(0, -1).join('.').replace(/[^a-zA-Z0-9._-]/g, '_')
+  const nameWithoutExt = originalFilename.split('.').slice(0, -1).join('.')
+  // NFD normalization strips accents (é→e), regex removes remaining non-ASCII
+  const sanitized = nameWithoutExt
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 100)
 
-  return `${timestamp}-${randomString}-${nameWithoutExt}.${extension}`
+  return `${timestamp}-${randomString}-${sanitized}.${extension}`
 }
 
 export async function POST(request: NextRequest) {

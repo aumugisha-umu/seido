@@ -88,7 +88,7 @@ export function LandingHeader({
       'text-sm font-medium transition-colors whitespace-nowrap leading-9 relative pb-1',
       activeSection === sectionId
         ? 'text-white font-semibold border-b-2 border-blue-500'
-        : 'text-white/70 hover:text-white border-b-2 border-transparent'
+        : 'text-white/80 hover:text-white border-b-2 border-transparent'
     )
 
   return (
@@ -144,7 +144,7 @@ export function LandingHeader({
               </a>
               <Link
                 href="/blog"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9 pb-1 border-b-2 border-transparent"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors whitespace-nowrap leading-9 pb-1 border-b-2 border-transparent"
               >
                 Blog
               </Link>
@@ -164,7 +164,7 @@ export function LandingHeader({
                       'text-sm font-medium transition-colors whitespace-nowrap leading-9',
                       isActive
                         ? 'text-white border-b-2 border-blue-500 pb-1'
-                        : 'text-white/70 hover:text-white'
+                        : 'text-white/80 hover:text-white'
                     )}
                   >
                     {item.label}
@@ -179,7 +179,7 @@ export function LandingHeader({
             <nav className="hidden md:flex items-center gap-6 flex-1 justify-center">
               <Link
                 href="/"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className="text-sm font-medium text-white/80 hover:text-white transition-colors whitespace-nowrap leading-9"
               >
                 Accueil
               </Link>
@@ -189,7 +189,7 @@ export function LandingHeader({
                   'text-sm font-medium transition-colors whitespace-nowrap leading-9',
                   pathname === '/blog'
                     ? 'text-white border-b-2 border-blue-500 pb-1'
-                    : 'text-white/70 hover:text-white'
+                    : 'text-white/80 hover:text-white'
                 )}
               >
                 Tous les articles

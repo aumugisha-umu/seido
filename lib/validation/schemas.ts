@@ -164,7 +164,7 @@ export const inviteUserSchema = z.object({
   role: z.enum(['admin', 'gestionnaire', 'locataire', 'prestataire', 'proprietaire', 'garant'], {
     errorMap: () => ({ message: 'Invalid role' })
   }),
-  providerCategory: z.enum(['prestataire', 'autre']).optional().nullable(),
+  providerCategory: z.enum(['artisan', 'services', 'energie', 'assurance', 'administration', 'juridique', 'notaire', 'syndic', 'prestataire', 'autre']).optional().nullable(),
   teamId: uuidSchema,
   phone: phoneSchema.nullable(),
   notes: z.string().max(2000).trim().optional().nullable(),
@@ -318,7 +318,7 @@ export const createContactSchema = z.object({
   role: z.enum(['gestionnaire', 'locataire', 'prestataire', 'proprietaire', 'garant'], {
     errorMap: () => ({ message: 'Invalid contact role' })
   }),
-  provider_category: z.enum(['prestataire', 'autre']).optional().nullable(),
+  provider_category: z.enum(['artisan', 'services', 'energie', 'assurance', 'administration', 'juridique', 'notaire', 'syndic', 'prestataire', 'autre']).optional().nullable(),
   speciality: z.string().max(100).trim().optional().nullable(),
   team_id: uuidSchema,
   is_active: z.boolean().optional().default(true),

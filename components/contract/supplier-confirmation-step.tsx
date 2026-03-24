@@ -60,6 +60,19 @@ export function SupplierConfirmationStep({
   const formatCost = (cost: number) =>
     cost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
+  // Annual cost calculation
+  const annualMultiplier: Record<string, number> = {
+    mensuel: 12, trimestriel: 4, semestriel: 2, annuel: 1, unique: 1,
+  }
+  const getAnnualCost = (cost: number | null, frequency: string) => {
+    if (!cost || cost <= 0 || !frequency || frequency === 'unique') return null
+    return cost * (annualMultiplier[frequency] || 1)
+  }
+  const totalAnnualCost = contracts.reduce((sum, c) => {
+    const annual = getAnnualCost(c.cost, c.costFrequency)
+    return sum + (annual || 0)
+  }, 0)
+
   // Total cost across all contracts (if same frequency)
   const allSameFrequency = contracts.every(c => c.costFrequency === contracts[0]?.costFrequency)
   const totalCost = contracts.reduce((sum, c) => sum + (c.cost || 0), 0)
@@ -119,9 +132,15 @@ export function SupplierConfirmationStep({
                 },
                 {
                   label: 'Cout',
-                  value: contract.cost !== null && contract.cost > 0
-                    ? `${formatCost(contract.cost)} € / ${contract.costFrequency ? getFrequencyLabel(contract.costFrequency) : ''}`
-                    : undefined,
+                  value: (() => {
+                    if (!contract.cost || contract.cost <= 0) return undefined
+                    const base = `${formatCost(contract.cost)} \u20AC / ${contract.costFrequency ? getFrequencyLabel(contract.costFrequency) : ''}`
+                    const annual = getAnnualCost(contract.cost, contract.costFrequency)
+                    if (annual && contract.costFrequency !== 'annuel') {
+                      return `${base} (${formatCost(annual)} \u20AC/an)`
+                    }
+                    return base
+                  })(),
                   empty: !contract.cost || contract.cost === 0,
                 },
                 {
@@ -210,17 +229,15 @@ export function SupplierConfirmationStep({
             label: 'Nombre de contrats',
             value: `${contracts.length} contrat${contracts.length > 1 ? 's' : ''} fournisseur${contracts.length > 1 ? 's' : ''}`,
           },
+          ...(allSameFrequency && totalCost > 0 && contracts[0]?.costFrequency
+            ? [{
+                label: `Total ${getFrequencyLabel(contracts[0].costFrequency)}`,
+                value: `${formatCost(totalCost)} \u20AC`,
+              }]
+            : []),
         ]}
-        totalLabel={
-          allSameFrequency && totalCost > 0 && contracts[0]?.costFrequency
-            ? `Total ${getFrequencyLabel(contracts[0].costFrequency)}`
-            : undefined
-        }
-        totalValue={
-          allSameFrequency && totalCost > 0 && contracts[0]?.costFrequency
-            ? `${formatCost(totalCost)} \u20AC`
-            : undefined
-        }
+        totalLabel={totalAnnualCost > 0 ? 'Total annuel' : undefined}
+        totalValue={totalAnnualCost > 0 ? `${formatCost(totalAnnualCost)} \u20AC/an` : undefined}
       />
     </ConfirmationPageShell>
   )

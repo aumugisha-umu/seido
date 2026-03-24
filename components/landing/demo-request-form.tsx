@@ -119,8 +119,7 @@ export function DemoRequestForm({
       }
 
       onSuccess?.()
-    } catch (error) {
-      console.error('Error submitting demo request:', error)
+    } catch (_error) {
       alert('Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setIsSubmitting(false)

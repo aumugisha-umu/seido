@@ -145,7 +145,7 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
 
         // 3. Trigger focus animation
         setFocusInterventions(true)
-        setTimeout(() => setFocusInterventions(false), 1500)
+        setTimeout(() => setFocusInterventions(false), 300)
 
         // 4. Reset initialActiveTab so ContentNavigator returns to uncontrolled mode
         // This allows the user to freely click other tabs afterwards

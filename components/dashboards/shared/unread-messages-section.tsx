@@ -139,11 +139,11 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
         {/* Thread list — collapsible */}
         <div className={cn(
           "transition-all duration-200 overflow-hidden",
-          isCollapsed ? "max-h-0" : "max-h-[2000px]"
+          isCollapsed ? "max-h-0" : "max-h-screen"
         )}>
         <div className={cn(
           "divide-y divide-border/50",
-          visibleThreads.length > MAX_VISIBLE && "max-h-[222px] overflow-y-auto"
+          visibleThreads.length > MAX_VISIBLE && "max-h-[224px] overflow-y-auto"
         )}>
           {visibleThreads.map(thread => {
             const config = THREAD_TYPE_CONFIG[thread.threadType] || THREAD_TYPE_CONFIG.group

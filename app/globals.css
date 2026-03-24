@@ -877,7 +877,7 @@ input[autocomplete="cc-number"],
 
   /* Sticky footer base styles (without negative margins) */
   .sticky-footer-base {
-    @apply sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 mt-6;
+    @apply sticky bottom-0 z-20 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 mt-6;
   }
 
   /* Negative margins to extend sticky footer full-width
@@ -888,7 +888,7 @@ input[autocomplete="cc-number"],
 
   /* Complete sticky footer (base + full-width) */
   .sticky-footer {
-    @apply sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 mt-6 -mx-5 sm:-mx-6 lg:-mx-10;
+    @apply sticky bottom-0 z-20 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 mt-6 -mx-5 sm:-mx-6 lg:-mx-10;
   }
 
   /* ============================================

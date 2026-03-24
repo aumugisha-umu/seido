@@ -236,7 +236,7 @@ export default function DashboardHeader({
       <header 
         className={cn(
           "header",
-          "transition-[top] duration-300 ease-in-out"
+          "transition-[top] duration-300 ease-out"
         )}
         style={{ top: isBannerVisible ? PWA_BANNER_HEIGHT : 0 }}
       >
@@ -370,7 +370,7 @@ export default function DashboardHeader({
 
       {/* Menu mobile/tablet overlay */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-30">
+        <div className="lg:hidden fixed inset-0 z-40">
           {/* Overlay backdrop */}
           <div
             className="fixed inset-0 bg-foreground/50 backdrop-blur-sm"

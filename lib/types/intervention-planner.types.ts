@@ -39,6 +39,10 @@ export interface InterventionPlannerSection {
   allowCustomAdd?: boolean
   /** Custom render function for non-standard sections (e.g. rent reminders) */
   renderCustom?: () => React.ReactNode
+  /** Visual differentiation: 'intervention' (indigo) or 'reminder' (amber) */
+  sectionType?: 'intervention' | 'reminder'
+  /** Whether this section can be collapsed (auto-collapsed on mobile) */
+  collapsible?: boolean
 }
 
 /** Props for the shared InterventionPlannerStep wrapper */
@@ -69,6 +73,8 @@ export interface InterventionPlannerStepProps {
 
   /** Custom intervention CRUD (delegated to parent) */
   onAddCustomIntervention?: () => void
+  /** Add a custom reminder (internal task, no external parties) */
+  onAddCustomReminder?: () => void
   onDeleteCustomIntervention?: (key: string) => void
   onCustomTitleChange?: (key: string, title: string) => void
   onCustomDescriptionChange?: (key: string, description: string) => void

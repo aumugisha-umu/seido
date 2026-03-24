@@ -60,6 +60,8 @@ export interface PropertyInterventionTemplate {
     /** Nombre de jours/mois avant l'expiration */
     offsetMonths: number
   }>
+  /** Distinguishes interventions (external parties) from reminders (internal tasks) */
+  itemType?: 'intervention' | 'reminder'
 }
 
 // ─── BUILDING intervention templates ─────────────────────────────
@@ -266,7 +268,8 @@ export function createMissingPropertyDocumentIntervention(
       { value: 'now_plus_14d', label: 'Dans 14 jours', calculateDate: () => addDays(new Date(), 14) },
       { value: 'now_plus_1m', label: 'Dans 1 mois', calculateDate: () => addMonths(new Date(), 1) }
     ],
-    defaultSchedulingOption: 'now_plus_7d'
+    defaultSchedulingOption: 'now_plus_7d',
+    itemType: 'reminder'
   }
 }
 

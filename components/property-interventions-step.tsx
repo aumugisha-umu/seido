@@ -126,7 +126,9 @@ export function PropertyInterventionsStep({
       isAutoCalculated: true,
       availableOptions: options,
       selectedSchedulingOption: defaultOption,
-      assignedUsers: defaultAssignedUsers
+      assignedUsers: defaultAssignedUsers,
+      // Propagate itemType if template defines it (missing docs = 'reminder')
+      ...(template.itemType ? { itemType: template.itemType } : {})
     }))
 
     onInterventionsChange(prev => {

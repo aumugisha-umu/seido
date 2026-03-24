@@ -29,6 +29,7 @@ import {
   UserPlus,
   Users,
   PenLine,
+  RefreshCw,
   X
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -72,6 +73,10 @@ export interface ScheduledInterventionData {
   availableOptions: SchedulingOption[]
   selectedSchedulingOption: string
   assignedUsers: InterventionAssignment[]
+  /** Distinguishes interventions (involve external parties) from reminders (internal tasks) */
+  itemType?: 'intervention' | 'reminder'
+  /** RRULE string for recurrent items (e.g. "FREQ=YEARLY") */
+  recurrenceRule?: string
 }
 
 
@@ -113,6 +118,10 @@ export function InterventionScheduleRow({
   const isCustomDate = intervention.selectedSchedulingOption === CUSTOM_DATE_VALUE
   const assignCount = intervention.assignedUsers.length
   const [popoverOpen, setPopoverOpen] = useState(false)
+
+  const isReminder = intervention.itemType === 'reminder'
+  const recurrenceLabel = intervention.recurrenceRule?.includes('YEARLY') ? 'Annuel'
+    : intervention.recurrenceRule?.includes('MONTHLY') ? 'Mensuel' : null
 
   const handleToggle = useCallback((checked: boolean) => {
     onToggle(checked)
@@ -157,8 +166,10 @@ export function InterventionScheduleRow({
   return (
     <div
       className={cn(
-        "flex items-start gap-3 p-4 rounded-lg border transition-colors",
-        "bg-card border-border",
+        "flex items-start gap-3 p-4 rounded-lg border border-l-4 transition-colors",
+        isReminder
+          ? "bg-amber-50/40 border-l-amber-500"
+          : "bg-indigo-50/40 border-l-indigo-500",
         className
       )}
     >
@@ -205,14 +216,31 @@ export function InterventionScheduleRow({
               />
             </div>
           ) : (
-            <h4
-              className={cn(
-                "font-medium text-sm",
-                !intervention.enabled && "text-muted-foreground"
+            <>
+              <h4
+                className={cn(
+                  "font-medium text-sm",
+                  !intervention.enabled && "text-muted-foreground"
+                )}
+              >
+                {intervention.title}
+              </h4>
+              {recurrenceLabel && (
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">
+                        <RefreshCw className="h-3 w-3" />
+                        {recurrenceLabel}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      Ce rappel sera recréé automatiquement
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
-            >
-              {intervention.title}
-            </h4>
+            </>
           )}
         </div>
         {isEditable ? (
@@ -297,7 +325,9 @@ export function InterventionScheduleRow({
             </PopoverTrigger>
             <PopoverContent align="end" className="w-48 p-1.5">
               <div className="space-y-0.5">
-                <p className="text-xs font-medium text-muted-foreground px-2 py-1">Ajouter des...</p>
+                <p className="text-xs font-medium text-muted-foreground px-2 py-1">
+                  {isReminder ? 'Assigner à un gestionnaire' : 'Ajouter des...'}
+                </p>
                 {(assignableRoles ?? ALL_ASSIGNABLE_ROLES).map(({ type, label, Icon, color }) => (
                   <Button
                     key={type}

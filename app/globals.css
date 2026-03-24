@@ -1059,6 +1059,17 @@ input[autocomplete="cc-number"],
   transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Skeleton delay — prevents flash on fast connections */
+@keyframes skeleton-delayed-show {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.skeleton-delayed {
+  opacity: 0;
+  animation: skeleton-delayed-show 0s ease-out 300ms forwards;
+}
+
 /* Reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
 
@@ -1069,8 +1080,13 @@ input[autocomplete="cc-number"],
   .animate-checkmark-appear,
   .slide-out-right,
   .slide-out-left,
-  .fade-scale-out {
+  .fade-scale-out,
+  .skeleton-delayed {
     animation: none;
+  }
+
+  .skeleton-delayed {
+    opacity: 1;
   }
 
   .transition-smooth,

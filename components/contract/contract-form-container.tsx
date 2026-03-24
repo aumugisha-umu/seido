@@ -754,17 +754,23 @@ export default function ContractFormContainer({
   }, [formData, overlapCheckResult, isSupplierMode, selectedBuildingId, supplierContracts, scheduledInterventions, supplierScheduledInterventions])
 
   // Navigation
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
   const handleNext = useCallback(() => {
     if (!validateStep(currentStep)) {
       toast.error('Veuillez compléter tous les champs requis')
       return
     }
     setCurrentStep(prev => Math.min(prev + 1, activeSteps.length - 1))
-  }, [currentStep, validateStep, activeSteps.length])
+    scrollToTop()
+  }, [currentStep, validateStep, activeSteps.length, scrollToTop])
 
   const handlePrevious = useCallback(() => {
     setCurrentStep(prev => Math.max(prev - 1, 0))
-  }, [setCurrentStep])
+    scrollToTop()
+  }, [setCurrentStep, scrollToTop])
 
   const handleStepClick = useCallback((stepNumber: number) => {
     // stepNumber est 1-indexed (du header), convertir en 0-indexed pour le state
@@ -772,13 +778,15 @@ export default function ContractFormContainer({
     // En mode edit, toutes les étapes sont cliquables
     if (mode === 'edit') {
       setCurrentStep(stepIndex)
+      scrollToTop()
       return
     }
     // En mode create, permettre la navigation vers les étapes déjà visitées
     if (stepIndex <= maxStepReached) {
       setCurrentStep(stepIndex)
+      scrollToTop()
     }
-  }, [mode, maxStepReached, setCurrentStep])
+  }, [mode, maxStepReached, setCurrentStep, scrollToTop])
 
   // Sync contacts for edit mode
   const syncContacts = useCallback(async (contractId: string) => {

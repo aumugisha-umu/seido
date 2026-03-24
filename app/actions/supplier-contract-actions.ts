@@ -8,13 +8,9 @@
  */
 
 import { createServerActionSupplierContractService } from '@/lib/services/domain/supplier-contract.service'
-import { createServiceRoleSupabaseClient } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
-import { after } from 'next/server'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
-import type { Database } from '@/lib/database.types'
-import { createInterventionNotification } from './notification-actions'
 
 // ============================================================================
 // TYPES
@@ -203,31 +199,9 @@ async function createReminderInterventions(
   userId: string
 ): Promise<void> {
   try {
-    // Match created contracts to form contracts by index (same order)
     const reminderEntries = Object.entries(reminders).filter(([, config]) => config.enabled)
-
     if (reminderEntries.length === 0) return
 
-    const supabase = createServiceRoleSupabaseClient()
-
-    // Build intervention rows for contracts with enabled reminders and a valid notice_date
-    const interventionRows: Array<{
-      title: string
-      description: string
-      type: Database['public']['Enums']['intervention_type']
-      urgency: Database['public']['Enums']['intervention_urgency']
-      status: Database['public']['Enums']['intervention_status']
-      lot_id: string | null
-      building_id: string | null
-      team_id: string
-      created_by: string
-      scheduled_date: string
-      scheduling_method: string
-    }> = []
-
-    // Build reference → reminderConfig lookup (order-independent matching)
-    // Reminders are keyed by tempId; formContracts carry the reference for each tempId
-    // We match created DB contracts to reminders via reference (safe regardless of insert order)
     const refToReminder = new Map<string, { enabled: boolean; assignedUsers: Array<{ userId: string; role: string }> }>()
     const allTempIds = Object.keys(reminders)
     for (let i = 0; i < formContracts.length; i++) {
@@ -237,111 +211,55 @@ async function createReminderInterventions(
       }
     }
 
-    // Track reminder configs in same order as interventionRows for assignment matching
-    const matchedReminderConfigs: Array<{ enabled: boolean; assignedUsers: Array<{ userId: string; role: string }> }> = []
+    const reminderInputs: Array<{
+      title: string; description: string; due_date: string
+      contract_id: string; assigned_to: string | null
+      lot_id: string | null; building_id: string | null
+    }> = []
 
     for (const contract of createdContracts) {
       if (!contract.notice_date) continue
-
       const reminderConfig = refToReminder.get(contract.reference)
       if (!reminderConfig?.enabled) continue
 
-      matchedReminderConfigs.push(reminderConfig)
-      interventionRows.push({
+      reminderInputs.push({
         title: `Rappel échéance — ${contract.reference}`,
         description: `Le contrat fournisseur "${contract.reference}" arrive à échéance. Vérifiez si vous souhaitez le renouveler.`,
-        type: 'autre_technique' as Database['public']['Enums']['intervention_type'],
-        urgency: 'normale' as Database['public']['Enums']['intervention_urgency'],
-        status: 'planifiee' as Database['public']['Enums']['intervention_status'],
+        due_date: contract.notice_date + 'T09:00:00.000Z',
+        contract_id: contract.id,
+        assigned_to: reminderConfig.assignedUsers?.[0]?.userId ?? null,
         lot_id: lotId,
         building_id: buildingId,
-        team_id: teamId,
-        created_by: userId,
-        scheduled_date: contract.notice_date + 'T09:00:00.000Z',
-        scheduling_method: 'direct',
-        creation_source: 'wizard',
       })
     }
 
-    if (interventionRows.length === 0) return
+    if (reminderInputs.length === 0) return
 
-    const { data: interventions, error: insertError } = await supabase
-      .from('interventions')
-      .insert(interventionRows)
-      .select('id, scheduled_date')
+    const { createServerActionReminderService } = await import('@/lib/services')
+    const reminderService = await createServerActionReminderService()
 
-    if (insertError || !interventions) {
-      logger.error({ error: insertError }, 'Failed to create supplier contract reminder interventions')
-      return
-    }
-
-    // Create time slots
-    const timeSlotRows = interventions.map(i => ({
-      intervention_id: i.id,
-      slot_date: i.scheduled_date?.split('T')[0] || '',
-      start_time: '09:00',
-      end_time: '10:00',
-      is_selected: true,
-      status: 'selected' as Database['public']['Enums']['time_slot_status'],
-      proposed_by: userId,
-      selected_by_manager: true,
-    }))
-
-    const { data: timeSlots, error: slotError } = await supabase
-      .from('intervention_time_slots')
-      .insert(timeSlotRows)
-      .select('id, intervention_id')
-
-    if (!slotError && timeSlots && timeSlots.length > 0) {
-      await Promise.all(
-        timeSlots.map(slot =>
-          supabase
-            .from('interventions')
-            .update({ selected_slot_id: slot.id })
-            .eq('id', slot.intervention_id)
-        )
+    const results = await Promise.allSettled(
+      reminderInputs.map(input =>
+        reminderService.create({
+          title: input.title,
+          description: input.description,
+          due_date: input.due_date,
+          priority: 'normale',
+          assigned_to: input.assigned_to,
+          building_id: input.building_id ?? null,
+          lot_id: input.lot_id ?? null,
+          contact_id: null,
+          contract_id: input.contract_id,
+          team_id: teamId,
+          created_by: userId,
+        })
       )
-    }
+    )
 
-    // Bulk insert all assignments in a single call
-    const VALID_ROLES = ['gestionnaire', 'prestataire', 'locataire'] as const
-    const allAssignmentRows: Array<{ intervention_id: string; user_id: string; role: string; assigned_by: string }> = []
-    for (let i = 0; i < interventions.length; i++) {
-      const reminderConfig = matchedReminderConfigs[i]
-      if (!reminderConfig?.assignedUsers?.length) continue
-
-      for (const a of reminderConfig.assignedUsers) {
-        if ((VALID_ROLES as readonly string[]).includes(a.role)) {
-          allAssignmentRows.push({
-            intervention_id: interventions[i].id,
-            user_id: a.userId,
-            role: a.role,
-            assigned_by: userId,
-          })
-        }
-      }
-    }
-    if (allAssignmentRows.length > 0) {
-      await supabase.from('intervention_assignments').insert(allAssignmentRows)
-    }
-
-    // Deferred notifications
-    after(async () => {
-      const results = await Promise.allSettled(
-        interventions.map(i => createInterventionNotification(i.id))
-      )
-      results.forEach((result, i) => {
-        if (result.status === 'rejected') {
-          logger.warn({ error: result.reason, interventionId: interventions[i].id },
-            'Supplier contract reminder notification failed (non-blocking)')
-        }
-      })
-    })
-
-    logger.info({
-      count: interventions.length,
-    }, 'Supplier contract reminder interventions created')
+    const created = results.filter(r => r.status === 'fulfilled').length
+    const failed = results.length - created
+    logger.info({ created, failed }, 'Supplier contract reminders created')
   } catch (error) {
-    logger.error({ error }, 'Failed to create reminder interventions (non-blocking)')
+    logger.error({ error }, 'Failed to create supplier contract reminders (non-blocking)')
   }
 }

@@ -253,6 +253,146 @@ export async function createReminderAction(
   }
 }
 
+// ============================================================================
+// WIZARD BATCH CREATE
+// ============================================================================
+
+interface WizardReminderInput {
+  title: string
+  description?: string
+  due_date?: string
+  lot_id?: string
+  building_id?: string
+  contract_id?: string
+  contact_id?: string
+  assigned_to?: string
+  rrule?: string
+  assignments?: Array<{ userId: string; role: string }>
+}
+
+/**
+ * Create reminders from a wizard context (JSON input, batch-capable).
+ * Supports recurrence rules (RRULE) for annual/monthly reminders.
+ */
+export async function createWizardRemindersAction(
+  reminders: WizardReminderInput[],
+  options: {
+    team_id: string
+    lot_id?: string
+    contract_id?: string
+  }
+): Promise<ActionResult<{ created: number; failed: number }>> {
+  const authContext = await getServerActionAuthContextOrNull('gestionnaire')
+  if (!authContext) {
+    return { success: false, error: 'Authentification requise' }
+  }
+  const { profile, team } = authContext
+
+  if (team.id !== options.team_id) {
+    return { success: false, error: 'Equipe invalide' }
+  }
+
+  if (!reminders.length) {
+    return { success: true, data: { created: 0, failed: 0 } }
+  }
+
+  try {
+    const reminderService = await createServerActionReminderService()
+    let created = 0
+    let failed = 0
+
+    const results = await Promise.allSettled(
+      reminders.map(async (input) => {
+        const result = await reminderService.create({
+          title: input.title,
+          description: input.description ?? null,
+          due_date: input.due_date ?? null,
+          priority: 'normale',
+          assigned_to: input.assignments?.[0]?.userId ?? input.assigned_to ?? null,
+          building_id: input.building_id ?? null,
+          lot_id: input.lot_id ?? options.lot_id ?? null,
+          contact_id: input.contact_id ?? null,
+          contract_id: input.contract_id ?? options.contract_id ?? null,
+          team_id: team.id,
+          created_by: profile.id,
+        })
+
+        // Handle recurrence rule if provided
+        if (input.rrule && result.id) {
+          try {
+            const ruleRepo = await createServerActionRecurrenceRuleRepository()
+            const occRepo = await createServerActionRecurrenceOccurrenceRepository()
+            const dtstart = input.due_date || new Date().toISOString()
+
+            const rule = await ruleRepo.create({
+              team_id: team.id,
+              created_by: profile.id,
+              rrule: input.rrule,
+              dtstart,
+              source_type: 'reminder',
+              source_template: {
+                title: input.title,
+                description: input.description || null,
+                priority: 'normale',
+                assigned_to: input.assignments?.[0]?.userId || null,
+                lot_id: input.lot_id || options.lot_id || null,
+                contract_id: input.contract_id || options.contract_id || null,
+              },
+              auto_create: true,
+              notify_days_before: 1,
+              is_active: true,
+            })
+
+            await reminderService.update(result.id, { recurrence_rule_id: rule.id })
+
+            // Generate first batch of occurrences (next 10)
+            try {
+              const { RRule: RRuleLib } = await import('rrule')
+              const dtstartClean = dtstart.replace(/[-:]/g, '').split('.')[0] + 'Z'
+              const rruleObj = RRuleLib.fromString(
+                `DTSTART:${dtstartClean}\nRRULE:${input.rrule}`
+              )
+              const nextDates = rruleObj.all((_date: Date, i: number) => i < 10)
+              if (nextDates.length > 0) {
+                await occRepo.createBatch(
+                  nextDates.map((date) => ({
+                    rule_id: rule.id,
+                    team_id: team.id,
+                    occurrence_date: date.toISOString().split('T')[0],
+                    status: 'pending',
+                  }))
+                )
+              }
+            } catch (rruleErr) {
+              logger.warn({ err: rruleErr }, 'rrule.js not available, skipping occurrence generation')
+            }
+          } catch (recurrenceErr) {
+            logger.error({ err: recurrenceErr }, 'Failed to create recurrence rule for wizard reminder')
+          }
+        }
+
+        return result
+      })
+    )
+
+    for (const r of results) {
+      if (r.status === 'fulfilled') created++
+      else failed++
+    }
+
+    if (created > 0) {
+      after(() => {
+        logger.info({ created, failed, contractId: options.contract_id }, 'Wizard reminders created')
+      })
+    }
+
+    return { success: true, data: { created, failed } }
+  } catch (err) {
+    logger.error({ err }, 'Failed to create wizard reminders')
+    return { success: false, error: 'Erreur lors de la creation des rappels' }
+  }
+}
+
 /**
  * Update an existing reminder
  */

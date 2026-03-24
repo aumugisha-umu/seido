@@ -165,7 +165,7 @@ export const StatsCard = memo(function StatsCard({
 
                     {/* Value + Sublabel */}
                     <div className="stats-card__value-container flex items-baseline gap-1.5 mt-1">
-                        <span className={cn("stats-card__value text-2xl font-bold", styles.value)}>
+                        <span className={cn("stats-card__value text-2xl font-bold tabular-nums", styles.value)}>
                             {value}
                         </span>
                         {sublabel && (

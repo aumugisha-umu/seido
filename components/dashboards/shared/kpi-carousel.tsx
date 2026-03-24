@@ -133,7 +133,7 @@ export function KPIMobileGrid({ cards, className, hideHeroCard = false }: KPIMob
                         onClick={card.onClick}
                         onKeyDown={card.onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') card.onClick?.() } : undefined}
                     >
-                        <span className="text-base font-bold text-foreground leading-none">
+                        <span className="text-base font-bold text-foreground leading-none tabular-nums">
                             {card.value}
                         </span>
                         <span className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate max-w-full">

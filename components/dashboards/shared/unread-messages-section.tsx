@@ -6,6 +6,7 @@ import { MessageSquare, Check, ExternalLink, CheckCheck, ChevronDown } from 'luc
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { markThreadAsReadAction, markAllThreadsAsReadAction } from '@/app/actions/conversation-actions'
 import type { UnreadThread } from '@/lib/services/repositories/conversation-repository'
 
@@ -167,9 +168,16 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
                   {/* Intervention info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {thread.interventionTitle}
-                      </span>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm font-medium text-foreground truncate">
+                              {thread.interventionTitle}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>{thread.interventionTitle}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       {thread.interventionReference && (
                         <span className="text-xs text-muted-foreground shrink-0">
                           {thread.interventionReference}
@@ -184,10 +192,19 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      <span className="font-medium text-foreground/70">{thread.lastMessage.senderName}:</span>{' '}
-                      {thread.lastMessage.content}
-                    </p>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-xs text-muted-foreground truncate">
+                            <span className="font-medium text-foreground/70">{thread.lastMessage.senderName}:</span>{' '}
+                            {thread.lastMessage.content}
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[300px]">
+                          <p><span className="font-medium">{thread.lastMessage.senderName}:</span> {thread.lastMessage.content}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
 
                   {/* Time */}
@@ -226,17 +243,33 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
                     <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-1.5" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                        <span className="text-sm font-medium text-foreground truncate">
-                          {thread.interventionTitle}
-                        </span>
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-sm font-medium text-foreground truncate">
+                                {thread.interventionTitle}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>{thread.interventionTitle}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 h-4 font-medium', config.bgClass)}>
                           {config.shortLabel}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mb-2">
-                        <span className="font-medium text-foreground/70">{thread.lastMessage.senderName}:</span>{' '}
-                        {thread.lastMessage.content}
-                      </p>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="text-xs text-muted-foreground truncate mb-2">
+                              <span className="font-medium text-foreground/70">{thread.lastMessage.senderName}:</span>{' '}
+                              {thread.lastMessage.content}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[300px]">
+                            <p><span className="font-medium">{thread.lastMessage.senderName}:</span> {thread.lastMessage.content}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] text-muted-foreground">
                           {formatTimeAgo(thread.lastMessage.createdAt)}

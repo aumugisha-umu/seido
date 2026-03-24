@@ -333,10 +333,10 @@ export function QuoteSubmissionForm({
       )
     } else if (!validation.isValid) {
       return (
-        <div className="text-sm text-red-600 mt-1 flex items-center">
+        <p id={`${field}-error`} className="text-sm text-red-600 mt-1 flex items-center">
           <AlertTriangle className="w-4 h-4 mr-1" />
           {validation.error}
-        </div>
+        </p>
       )
     }
     return null
@@ -449,6 +449,12 @@ export function QuoteSubmissionForm({
                   min="0"
                   value={formData.laborCost}
                   onChange={(e) => handleInputChange('laborCost', e.target.value)}
+                  onBlur={(e) => {
+                    const validation = validateField('laborCost', e.target.value)
+                    setFieldValidations(prev => ({ ...prev, laborCost: validation }))
+                  }}
+                  aria-invalid={fieldValidations.laborCost ? !fieldValidations.laborCost.isValid : undefined}
+                  aria-describedby={fieldValidations.laborCost && !fieldValidations.laborCost.isValid ? 'laborCost-error' : undefined}
                   placeholder="0.00"
                   className={`h-11 ${getInputClasses('laborCost')}`}
                   required
@@ -467,6 +473,12 @@ export function QuoteSubmissionForm({
                     id="workDetails"
                     value={formData.workDetails}
                     onChange={(e) => handleInputChange('workDetails', e.target.value)}
+                    onBlur={(e) => {
+                      const validation = validateField('workDetails', e.target.value)
+                      setFieldValidations(prev => ({ ...prev, workDetails: validation }))
+                    }}
+                    aria-invalid={fieldValidations.workDetails ? !fieldValidations.workDetails.isValid : undefined}
+                    aria-describedby={fieldValidations.workDetails && !fieldValidations.workDetails.isValid ? 'workDetails-error' : undefined}
                     placeholder="Description détaillée des étapes, méthodes et matériaux à utiliser..."
                     className={`resize-none min-h-[200px] ${getInputClasses('workDetails')}`}
                     required

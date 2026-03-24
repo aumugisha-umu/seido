@@ -65,6 +65,36 @@ export function SupplierContractsStep({
   const [selectingForTempId, setSelectingForTempId] = useState<string | null>(null)
   // Track which cards are collapsed (by tempId). New cards start expanded.
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
+  // Per-card field validation errors keyed by `${tempId}.${field}`
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const handleCardBlur = useCallback((tempId: string, field: string, value: unknown) => {
+    const key = `${tempId}.${field}`
+    setFieldErrors(prev => {
+      const next = { ...prev }
+      switch (field) {
+        case 'reference':
+          if (!value || !(value as string).trim()) next[key] = 'La référence est requise'
+          else delete next[key]
+          break
+        case 'supplier':
+          if (!value) next[key] = 'Le fournisseur est requis'
+          else delete next[key]
+          break
+      }
+      return next
+    })
+  }, [])
+
+  const clearCardFieldError = useCallback((tempId: string, field: string) => {
+    const key = `${tempId}.${field}`
+    setFieldErrors(prev => {
+      if (!prev[key]) return prev
+      const next = { ...prev }
+      delete next[key]
+      return next
+    })
+  }, [])
 
   const toggleCollapse = useCallback((tempId: string) => {
     setCollapsedIds(prev => {
@@ -207,10 +237,19 @@ export function SupplierContractsStep({
                           <Label size="sm">Référence</Label>
                           <Input
                             value={contract.reference}
-                            onChange={(e) => updateContract(contract.tempId, 'reference', e.target.value)}
+                            onChange={(e) => {
+                              updateContract(contract.tempId, 'reference', e.target.value)
+                              clearCardFieldError(contract.tempId, 'reference')
+                            }}
+                            onBlur={() => handleCardBlur(contract.tempId, 'reference', contract.reference)}
+                            aria-invalid={!!fieldErrors[`${contract.tempId}.reference`]}
+                            aria-describedby={fieldErrors[`${contract.tempId}.reference`] ? `${contract.tempId}-reference-error` : undefined}
                             placeholder="CF-IMM-001"
                             className="h-9 font-mono bg-white/80"
                           />
+                          {fieldErrors[`${contract.tempId}.reference`] && (
+                            <p id={`${contract.tempId}-reference-error`} className="text-xs text-destructive mt-1">{fieldErrors[`${contract.tempId}.reference`]}</p>
+                          )}
                         </div>
                         <div className="space-y-1.5 flex-1">
                           <Label icon={User} size="sm" required>Fournisseur</Label>
@@ -219,8 +258,11 @@ export function SupplierContractsStep({
                             variant="outline"
                             className={cn(
                               "h-9 w-full justify-start font-normal bg-white/80",
-                              !contract.supplierId && "text-muted-foreground"
+                              !contract.supplierId && "text-muted-foreground",
+                              fieldErrors[`${contract.tempId}.supplier`] && "border-destructive"
                             )}
+                            aria-invalid={!!fieldErrors[`${contract.tempId}.supplier`]}
+                            aria-describedby={fieldErrors[`${contract.tempId}.supplier`] ? `${contract.tempId}-supplier-error` : undefined}
                             onClick={() => {
                               setSelectingForTempId(contract.tempId)
                               contactSelectorRef.current?.openContactModal(
@@ -228,12 +270,16 @@ export function SupplierContractsStep({
                                 contract.supplierId ? [contract.supplierId] : []
                               )
                             }}
+                            onBlur={() => handleCardBlur(contract.tempId, 'supplier', contract.supplierId)}
                           >
                             <User className="h-3.5 w-3.5 mr-2 shrink-0" />
                             <span className="truncate">
                               {contract.supplierName || 'Sélectionner un prestataire'}
                             </span>
                           </Button>
+                          {fieldErrors[`${contract.tempId}.supplier`] && (
+                            <p id={`${contract.tempId}-supplier-error`} className="text-xs text-destructive mt-1">{fieldErrors[`${contract.tempId}.supplier`]}</p>
+                          )}
                         </div>
                       </div>
                     </div>

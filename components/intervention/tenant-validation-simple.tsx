@@ -35,6 +35,7 @@ export function TenantValidationSimple({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [voiceNote, setVoiceNote] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [commentsBlurred, setCommentsBlurred] = useState(false)
 
   // Synchroniser le mode quand initialMode change (ex: clic sur Valider vs Contester)
   useEffect(() => {
@@ -185,7 +186,18 @@ export function TenantValidationSimple({
             <Textarea
               id="comments"
               value={comments}
-              onChange={(e) => setComments(e.target.value)}
+              onChange={(e) => {
+                setComments(e.target.value)
+                if (error && mode === 'reject' && e.target.value.trim()) setError(null)
+              }}
+              onBlur={() => {
+                setCommentsBlurred(true)
+                if (mode === 'reject' && !comments.trim()) {
+                  setError('Le commentaire est obligatoire pour contester les travaux')
+                }
+              }}
+              aria-invalid={mode === 'reject' && commentsBlurred && !comments.trim() ? true : undefined}
+              aria-describedby={mode === 'reject' && commentsBlurred && !comments.trim() ? 'comments-error' : undefined}
               placeholder={
                 isApproveMode
                   ? "Ajoutez un commentaire sur les travaux réalisés (optionnel)"
@@ -194,6 +206,9 @@ export function TenantValidationSimple({
               rows={4}
               className={error && mode === 'reject' && !comments.trim() ? 'border-red-500' : ''}
             />
+            {mode === 'reject' && commentsBlurred && !comments.trim() && (
+              <p id="comments-error" className="text-xs text-red-600 mt-1">Le commentaire est obligatoire pour contester les travaux</p>
+            )}
             {mode === 'reject' && (
               <p className="text-xs text-gray-500">
                 Veuillez décrire précisément les problèmes constatés

@@ -79,6 +79,40 @@ export function Step2Company({
   onFieldChange,
   onGeocodeResult
 }: Step2CompanyProps) {
+  // Field-level blur validation errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const handleBlur = (field: string) => {
+    const errors = { ...fieldErrors }
+
+    if (companyMode !== 'new') {
+      setFieldErrors({})
+      return
+    }
+
+    switch (field) {
+      case 'companyName':
+        if (!companyName?.trim()) {
+          errors.companyName = 'Le nom de la societe est requis'
+        } else {
+          delete errors.companyName
+        }
+        break
+    }
+
+    setFieldErrors(errors)
+  }
+
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => {
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
+  }
+
   // Geocoding library
   const geocoding = useMapsLibrary('geocoding')
 
@@ -415,9 +449,15 @@ export function Step2Company({
               <Input
                 id="company-name"
                 value={companyName || ''}
-                onChange={(e) => onFieldChange('companyName', e.target.value)}
+                onChange={(e) => { onFieldChange('companyName', e.target.value); clearFieldError('companyName') }}
+                onBlur={() => handleBlur('companyName')}
                 placeholder="ACME SPRL"
+                aria-invalid={!!fieldErrors.companyName}
+                aria-describedby={fieldErrors.companyName ? 'company-name-error' : undefined}
               />
+              {fieldErrors.companyName && (
+                <p id="company-name-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.companyName}</p>
+              )}
             </div>
 
             <div className="space-y-2">

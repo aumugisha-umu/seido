@@ -95,8 +95,8 @@ export function LandingHeader({
     <header
       className={cn(
         'sticky top-0 z-50 border-b border-white/10',
-        'bg-[#0f172a]/70 backdrop-blur-xl',
-        'supports-[backdrop-filter]:bg-[#0f172a]/40',
+        'bg-slate-950/70 backdrop-blur-xl',
+        'supports-[backdrop-filter]:bg-slate-950/40',
         className
       )}
     >

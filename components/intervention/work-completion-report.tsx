@@ -62,10 +62,39 @@ export function WorkCompletionReport({
 
   const [error, setError] = useState<string | null>(null)
   const [currentSection, setCurrentSection] = useState<'details' | 'photos' | 'qa'>('details')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const handleBlur = (field: string, value: string | number) => {
+    setFieldErrors(prev => {
+      const next = { ...prev }
+      switch (field) {
+        case 'workSummary':
+          if (!String(value).trim()) next[field] = 'Le résumé des travaux est requis'
+          else delete next[field]
+          break
+        case 'workDetails':
+          if (!String(value).trim()) next[field] = 'La description détaillée est requise'
+          else delete next[field]
+          break
+        case 'actualDurationHours':
+          if (!value || Number(value) <= 0) next[field] = 'La durée réelle doit être positive'
+          else delete next[field]
+          break
+        case 'actualCost':
+          if (value !== undefined && value !== '' && Number(value) < 0) next[field] = 'Le coût ne peut pas être négatif'
+          else delete next[field]
+          break
+      }
+      return next
+    })
+  }
 
   const handleInputChange = (field: keyof WorkCompletionReportData, value: string | number | File[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     setError(null)
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => { const next = { ...prev }; delete next[field]; return next })
+    }
   }
 
   const handleQAChange = (field: keyof WorkCompletionReportData['qualityAssurance'], value: boolean) => {
@@ -209,10 +238,16 @@ export function WorkCompletionReport({
                       id="workSummary"
                       value={formData.workSummary}
                       onChange={(e) => handleInputChange('workSummary', e.target.value)}
+                      onBlur={(e) => handleBlur('workSummary', e.target.value)}
+                      aria-invalid={!!fieldErrors.workSummary}
+                      aria-describedby={fieldErrors.workSummary ? 'workSummary-error' : undefined}
                       placeholder="Résumé concis des travaux réalisés"
                       rows={3}
                       required
                     />
+                    {fieldErrors.workSummary && (
+                      <p id="workSummary-error" className="text-xs text-destructive mt-1">{fieldErrors.workSummary}</p>
+                    )}
                   </div>
 
                   <div>
@@ -221,10 +256,16 @@ export function WorkCompletionReport({
                       id="workDetails"
                       value={formData.workDetails}
                       onChange={(e) => handleInputChange('workDetails', e.target.value)}
+                      onBlur={(e) => handleBlur('workDetails', e.target.value)}
+                      aria-invalid={!!fieldErrors.workDetails}
+                      aria-describedby={fieldErrors.workDetails ? 'workDetails-error' : undefined}
                       placeholder="Description précise des interventions, méthodes utilisées, étapes suivies..."
                       rows={5}
                       required
                     />
+                    {fieldErrors.workDetails && (
+                      <p id="workDetails-error" className="text-xs text-destructive mt-1">{fieldErrors.workDetails}</p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -237,9 +278,15 @@ export function WorkCompletionReport({
                         min="0.5"
                         value={formData.actualDurationHours || ''}
                         onChange={(e) => handleInputChange('actualDurationHours', parseFloat(e.target.value) || 0)}
+                        onBlur={(e) => handleBlur('actualDurationHours', parseFloat(e.target.value) || 0)}
+                        aria-invalid={!!fieldErrors.actualDurationHours}
+                        aria-describedby={fieldErrors.actualDurationHours ? 'actualDurationHours-error' : undefined}
                         placeholder="Ex: 4.5"
                         required
                       />
+                      {fieldErrors.actualDurationHours && (
+                        <p id="actualDurationHours-error" className="text-xs text-destructive mt-1">{fieldErrors.actualDurationHours}</p>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="actualCost">Coût réel (€)</Label>
@@ -250,8 +297,14 @@ export function WorkCompletionReport({
                         min="0"
                         value={formData.actualCost || ''}
                         onChange={(e) => handleInputChange('actualCost', parseFloat(e.target.value) || undefined)}
+                        onBlur={(e) => handleBlur('actualCost', e.target.value)}
+                        aria-invalid={!!fieldErrors.actualCost}
+                        aria-describedby={fieldErrors.actualCost ? 'actualCost-error' : undefined}
                         placeholder="Optionnel"
                       />
+                      {fieldErrors.actualCost && (
+                        <p id="actualCost-error" className="text-xs text-destructive mt-1">{fieldErrors.actualCost}</p>
+                      )}
                     </div>
                   </div>
 

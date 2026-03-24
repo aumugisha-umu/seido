@@ -155,6 +155,32 @@ export default function LeaseFormDetailsMergedV1({
   onOverlapCheckChange,
   className
 }: LeaseFormDetailsMergedV1Props) {
+  // Field-level blur validation errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const handleBlur = (field: string, value: string | number) => {
+    const errors = { ...fieldErrors }
+    switch (field) {
+      case 'startDate':
+        if (!value) errors[field] = 'La date de début est requise'
+        else delete errors[field]
+        break
+      case 'durationMonths':
+        if (!value || value === 0) errors[field] = 'La durée est requise'
+        else delete errors[field]
+        break
+      case 'rentAmount':
+        if (!value || Number(value) <= 0) errors[field] = 'Le loyer doit être un nombre positif'
+        else delete errors[field]
+        break
+      case 'chargesAmount':
+        if (Number(value) < 0) errors[field] = 'Les charges ne peuvent pas être négatives'
+        else delete errors[field]
+        break
+    }
+    setFieldErrors(errors)
+  }
+
   // État pour la vérification de chevauchement
   const [overlapCheck, setOverlapCheck] = useState<OverlapCheckState>({
     isChecking: false,
@@ -532,12 +558,21 @@ export default function LeaseFormDetailsMergedV1({
                   type="text"
                   inputMode="decimal"
                   value={formatNumberInput(rentAmount)}
-                  onChange={(e) => onFieldChange('rentAmount', parseFormattedNumber(e.target.value))}
+                  onChange={(e) => {
+                    onFieldChange('rentAmount', parseFormattedNumber(e.target.value))
+                    if (fieldErrors.rentAmount) setFieldErrors(prev => { const next = { ...prev }; delete next.rentAmount; return next })
+                  }}
+                  onBlur={() => handleBlur('rentAmount', rentAmount)}
+                  aria-invalid={!!fieldErrors.rentAmount}
+                  aria-describedby={fieldErrors.rentAmount ? 'rentAmount-error' : undefined}
                   className="pr-6 h-9 text-right"
                   placeholder="0"
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
               </div>
+              {fieldErrors.rentAmount && (
+                <p id="rentAmount-error" className="text-xs text-destructive mt-1">{fieldErrors.rentAmount}</p>
+              )}
             </div>
 
             {/* Charges amount + type grouped together */}
@@ -565,12 +600,21 @@ export default function LeaseFormDetailsMergedV1({
                     type="text"
                     inputMode="decimal"
                     value={formatNumberInput(chargesAmount)}
-                    onChange={(e) => onFieldChange('chargesAmount', parseFormattedNumber(e.target.value))}
+                    onChange={(e) => {
+                      onFieldChange('chargesAmount', parseFormattedNumber(e.target.value))
+                      if (fieldErrors.chargesAmount) setFieldErrors(prev => { const next = { ...prev }; delete next.chargesAmount; return next })
+                    }}
+                    onBlur={() => handleBlur('chargesAmount', chargesAmount)}
+                    aria-invalid={!!fieldErrors.chargesAmount}
+                    aria-describedby={fieldErrors.chargesAmount ? 'chargesAmount-error' : undefined}
                     className="pr-6 h-9 text-right"
                     placeholder="0"
                   />
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
                 </div>
+                {fieldErrors.chargesAmount && (
+                  <p id="chargesAmount-error" className="text-xs text-destructive mt-1">{fieldErrors.chargesAmount}</p>
+                )}
                 {/* Segmented control pill for charges type */}
                 <div className="inline-flex h-9 rounded-md border border-border overflow-hidden">
                   <RadioGroup

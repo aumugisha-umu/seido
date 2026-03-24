@@ -404,6 +404,30 @@ export function createEmptyCustomIntervention(
     selectedSchedulingOption: 'now_plus_7d',
     assignedUsers: currentUser
       ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
-      : []
+      : [],
+    itemType: 'intervention' as const,
+  }
+}
+
+/** Create an empty custom reminder for user to fill in */
+export function createEmptyCustomReminder(
+  currentUser?: { id: string; name: string }
+): ScheduledInterventionData {
+  return {
+    key: `custom_reminder_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    title: '',
+    description: '',
+    interventionTypeCode: 'autre_administratif',
+    icon: 'PenLine',
+    colorClass: 'text-amber-500',
+    enabled: true,
+    scheduledDate: addDays(new Date(), 7),
+    isAutoCalculated: true,
+    availableOptions: CUSTOM_INTERVENTION_SCHEDULING_OPTIONS,
+    selectedSchedulingOption: 'now_plus_7d',
+    assignedUsers: currentUser
+      ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
+      : [],
+    itemType: 'reminder' as const,
   }
 }

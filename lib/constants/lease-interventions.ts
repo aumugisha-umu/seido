@@ -55,6 +55,10 @@ export interface LeaseInterventionTemplate {
   schedulingOptions: SchedulingOption[]
   /** Valeur de l'option par défaut */
   defaultSchedulingOption: string
+  /** Discriminant: 'intervention' (default) or 'reminder' */
+  itemType?: 'intervention' | 'reminder'
+  /** RFC 5545 recurrence rule (e.g. 'FREQ=YEARLY;INTERVAL=1') */
+  recurrenceRule?: string
 }
 
 /**
@@ -84,8 +88,32 @@ export const LEASE_INTERVENTION_TEMPLATES: LeaseInterventionTemplate[] = [
       { value: 'start_date', label: 'Le jour du début du bail', calculateDate: (s) => s },
       { value: 'start_minus_7d', label: '1 semaine avant le début', calculateDate: (s) => addDays(s, -7) }
     ],
-    defaultSchedulingOption: 'start_date'
+    defaultSchedulingOption: 'start_date',
+    itemType: 'intervention'
   },
+  {
+    key: 'exit_inspection',
+    title: 'État des lieux de sortie',
+    description: 'Inspection du logement avant fin de bail',
+    interventionTypeCode: 'etat_des_lieux_sortie',
+    icon: 'ClipboardX',
+    colorClass: 'text-rose-500',
+    calculateDefaultDate: (_, endDate) => addMonths(endDate, -1),
+    enabledByDefault: true,
+    schedulingOptions: [
+      { value: 'end_minus_1m', label: '1 mois avant l\'échéance', calculateDate: (_, e) => addMonths(e, -1) },
+      { value: 'end_minus_14d', label: '2 semaines avant l\'échéance', calculateDate: (_, e) => addDays(e, -14) },
+      { value: 'end_date', label: 'Le jour de l\'échéance', calculateDate: (_, e) => e }
+    ],
+    defaultSchedulingOption: 'end_minus_1m',
+    itemType: 'intervention'
+  }
+]
+
+/**
+ * Rappels récurrents liés à un bail (non-interventions)
+ */
+export const LEASE_REMINDER_TEMPLATES: LeaseInterventionTemplate[] = [
   {
     key: 'rent_indexation',
     title: 'Indexation du loyer',
@@ -99,7 +127,9 @@ export const LEASE_INTERVENTION_TEMPLATES: LeaseInterventionTemplate[] = [
       { value: 'start_plus_12m', label: '12 mois après le début', calculateDate: (s) => addMonths(s, 12) },
       { value: 'start_plus_11m', label: '11 mois après le début', calculateDate: (s) => addMonths(s, 11) }
     ],
-    defaultSchedulingOption: 'start_plus_12m'
+    defaultSchedulingOption: 'start_plus_12m',
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1'
   },
   {
     key: 'charges_indexation',
@@ -118,7 +148,9 @@ export const LEASE_INTERVENTION_TEMPLATES: LeaseInterventionTemplate[] = [
       { value: 'start_plus_12m', label: '12 mois après le début', calculateDate: (s) => addMonths(s, 12) },
       { value: 'start_plus_11m', label: '11 mois après le début', calculateDate: (s) => addMonths(s, 11) }
     ],
-    defaultSchedulingOption: 'start_plus_12m'
+    defaultSchedulingOption: 'start_plus_12m',
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1'
   },
   {
     key: 'charges_regularization',
@@ -134,7 +166,9 @@ export const LEASE_INTERVENTION_TEMPLATES: LeaseInterventionTemplate[] = [
       { value: 'start_plus_12m', label: '12 mois après le début', calculateDate: (s) => addMonths(s, 12) },
       { value: 'start_plus_11m', label: '11 mois après le début', calculateDate: (s) => addMonths(s, 11) }
     ],
-    defaultSchedulingOption: 'start_plus_12m'
+    defaultSchedulingOption: 'start_plus_12m',
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1'
   },
   {
     key: 'insurance_reminder',
@@ -149,24 +183,16 @@ export const LEASE_INTERVENTION_TEMPLATES: LeaseInterventionTemplate[] = [
       { value: 'start_plus_11m', label: '11 mois après le début', calculateDate: (s) => addMonths(s, 11) },
       { value: 'end_minus_1m', label: '1 mois avant l\'échéance', calculateDate: (_, e) => addMonths(e, -1) }
     ],
-    defaultSchedulingOption: 'start_plus_11m'
-  },
-  {
-    key: 'exit_inspection',
-    title: 'État des lieux de sortie',
-    description: 'Inspection du logement avant fin de bail',
-    interventionTypeCode: 'etat_des_lieux_sortie',
-    icon: 'ClipboardX',
-    colorClass: 'text-rose-500',
-    calculateDefaultDate: (_, endDate) => addMonths(endDate, -1),
-    enabledByDefault: true,
-    schedulingOptions: [
-      { value: 'end_minus_1m', label: '1 mois avant l\'échéance', calculateDate: (_, e) => addMonths(e, -1) },
-      { value: 'end_minus_14d', label: '2 semaines avant l\'échéance', calculateDate: (_, e) => addDays(e, -14) },
-      { value: 'end_date', label: 'Le jour de l\'échéance', calculateDate: (_, e) => e }
-    ],
-    defaultSchedulingOption: 'end_minus_1m'
+    defaultSchedulingOption: 'start_plus_11m',
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1'
   }
+]
+
+/** Combined list for backward compatibility */
+export const LEASE_ALL_TEMPLATES: LeaseInterventionTemplate[] = [
+  ...LEASE_INTERVENTION_TEMPLATES,
+  ...LEASE_REMINDER_TEMPLATES
 ]
 
 /**
@@ -192,7 +218,8 @@ export function createMissingDocumentIntervention(
       { value: 'now_plus_14d', label: 'Dans 14 jours', calculateDate: () => addDays(new Date(), 14) },
       { value: 'now_plus_1m', label: 'Dans 1 mois', calculateDate: () => addMonths(new Date(), 1) }
     ],
-    defaultSchedulingOption: 'now_plus_7d'
+    defaultSchedulingOption: 'now_plus_7d',
+    itemType: 'reminder'
   }
 }
 
@@ -211,6 +238,10 @@ export interface ResolvedLeaseInterventionTemplate {
   defaultDate: Date
   schedulingOptions: SchedulingOption[]
   defaultSchedulingOption: string
+  /** Discriminant: 'intervention' (default) or 'reminder' */
+  itemType?: 'intervention' | 'reminder'
+  /** RFC 5545 recurrence rule (e.g. 'FREQ=YEARLY;INTERVAL=1') */
+  recurrenceRule?: string
 }
 
 /**
@@ -224,7 +255,7 @@ export function generateLeaseInterventions(
   missingDocuments: ContractDocumentType[] = []
 ): ResolvedLeaseInterventionTemplate[] {
   // Filtrer les interventions selon le type de charges
-  const applicableTemplates = LEASE_INTERVENTION_TEMPLATES.filter(template => {
+  const applicableTemplates = LEASE_ALL_TEMPLATES.filter(template => {
     if (!template.applicableChargesTypes) return true
     return template.applicableChargesTypes.includes(chargesType)
   })

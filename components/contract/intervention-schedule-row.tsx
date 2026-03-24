@@ -72,6 +72,10 @@ export interface ScheduledInterventionData {
   availableOptions: SchedulingOption[]
   selectedSchedulingOption: string
   assignedUsers: InterventionAssignment[]
+  /** Discriminant: 'intervention' (default) or 'reminder' */
+  itemType?: 'intervention' | 'reminder'
+  /** RFC 5545 recurrence rule (e.g. 'FREQ=YEARLY;INTERVAL=1') */
+  recurrenceRule?: string
 }
 
 

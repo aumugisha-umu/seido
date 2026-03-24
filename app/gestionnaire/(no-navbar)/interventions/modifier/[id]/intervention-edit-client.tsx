@@ -125,6 +125,39 @@ export default function InterventionEditClient({
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState("")
 
+  // Field-level blur validation errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const handleBlur = (field: string) => {
+    const errors = { ...fieldErrors }
+
+    switch (field) {
+      case 'title':
+        if (!formData.title.trim()) {
+          errors.title = 'Le titre est requis'
+        } else {
+          delete errors.title
+        }
+        break
+      case 'description':
+        // Optional, no validation needed
+        delete errors.description
+        break
+    }
+
+    setFieldErrors(errors)
+  }
+
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => {
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
+  }
+
   // Form state - pre-filled with initial data
   const [formData, setFormData] = useState({
     title: initialData.intervention.title || "",
@@ -571,9 +604,15 @@ export default function InterventionEditClient({
                         <Input
                           placeholder="Ex: Fuite d'eau dans la salle de bain"
                           value={formData.title}
-                          onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                          onChange={(e) => { setFormData((prev) => ({ ...prev, title: e.target.value })); clearFieldError('title') }}
+                          onBlur={() => handleBlur('title')}
                           className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          aria-invalid={!!fieldErrors.title}
+                          aria-describedby={fieldErrors.title ? 'title-error' : undefined}
                         />
+                        {fieldErrors.title && (
+                          <p id="title-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.title}</p>
+                        )}
                       </div>
 
                       {/* Type + Urgence */}

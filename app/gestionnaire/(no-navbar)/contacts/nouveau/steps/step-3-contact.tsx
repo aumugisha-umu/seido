@@ -66,6 +66,51 @@ export function Step3Contact({
   linkedContractId,
   linkedSupplierContractId
 }: Step3ContactProps) {
+  // Field-level blur validation errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const handleBlur = (field: string) => {
+    const errors = { ...fieldErrors }
+
+    switch (field) {
+      case 'firstName':
+        if (personOrCompany === 'person' && !firstName?.trim()) {
+          errors.firstName = 'Le prenom est requis'
+        } else {
+          delete errors.firstName
+        }
+        break
+      case 'lastName':
+        if (personOrCompany === 'person' && !lastName?.trim()) {
+          errors.lastName = 'Le nom est requis'
+        } else {
+          delete errors.lastName
+        }
+        break
+      case 'email':
+        if (inviteToApp && !email?.trim()) {
+          errors.email = "L'email est requis pour envoyer une invitation"
+        } else if (email?.trim() && !isValidEmail(email)) {
+          errors.email = "Le format de l'email est invalide"
+        } else {
+          delete errors.email
+        }
+        break
+    }
+
+    setFieldErrors(errors)
+  }
+
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => {
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
+  }
+
   // État pour le statut de vérification email
   const [emailStatus, setEmailStatus] = useState<{
     checking: boolean
@@ -153,10 +198,16 @@ export function Step3Contact({
             <Input
               id="first-name"
               value={firstName || ''}
-              onChange={(e) => onFieldChange('firstName', e.target.value)}
+              onChange={(e) => { onFieldChange('firstName', e.target.value); clearFieldError('firstName') }}
+              onBlur={() => handleBlur('firstName')}
               placeholder="Jean"
               aria-required={personOrCompany === 'person'}
+              aria-invalid={!!fieldErrors.firstName}
+              aria-describedby={fieldErrors.firstName ? 'first-name-error' : undefined}
             />
+            {fieldErrors.firstName && (
+              <p id="first-name-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.firstName}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="last-name" icon={User} required={personOrCompany === 'person'}>
@@ -168,10 +219,16 @@ export function Step3Contact({
             <Input
               id="last-name"
               value={lastName || ''}
-              onChange={(e) => onFieldChange('lastName', e.target.value)}
+              onChange={(e) => { onFieldChange('lastName', e.target.value); clearFieldError('lastName') }}
+              onBlur={() => handleBlur('lastName')}
               placeholder="Dupont"
               aria-required={personOrCompany === 'person'}
+              aria-invalid={!!fieldErrors.lastName}
+              aria-describedby={fieldErrors.lastName ? 'last-name-error' : undefined}
             />
+            {fieldErrors.lastName && (
+              <p id="last-name-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.lastName}</p>
+            )}
           </div>
         </div>
       </div>
@@ -202,12 +259,13 @@ export function Step3Contact({
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => onFieldChange('email', e.target.value.trim())}
+                onChange={(e) => { onFieldChange('email', e.target.value.trim()); clearFieldError('email') }}
+                onBlur={() => handleBlur('email')}
                 placeholder="jean.dupont@example.com"
                 className={emailStatus?.existsInCurrentTeam ? 'border-amber-500 focus-visible:ring-amber-500' : ''}
                 aria-required={inviteToApp}
-                aria-invalid={emailStatus?.existsInCurrentTeam || false}
-                aria-describedby={emailStatus?.existsInCurrentTeam ? 'email-error' : undefined}
+                aria-invalid={!!fieldErrors.email || (emailStatus?.existsInCurrentTeam || false)}
+                aria-describedby={fieldErrors.email ? 'email-format-error' : emailStatus?.existsInCurrentTeam ? 'email-error' : undefined}
               />
               {emailStatus?.checking && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -215,6 +273,9 @@ export function Step3Contact({
                 </div>
               )}
             </div>
+            {fieldErrors.email && (
+              <p id="email-format-error" className="text-xs text-destructive mt-1" role="alert">{fieldErrors.email}</p>
+            )}
             {/* Indicateur si contact existant */}
             {emailStatus?.existsInCurrentTeam && (
               <p id="email-error" className="text-xs text-amber-600 dark:text-amber-400 mt-1" role="alert">

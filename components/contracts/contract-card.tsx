@@ -7,6 +7,7 @@ import { SeidoBadge } from '@/components/ui/seido-badge'
 import { ContractDatesDisplay } from './contract-dates-display'
 import { ContractContactsPreview } from './contract-contacts-preview'
 import { Eye, Edit, Trash2, Building2, Euro, MoreVertical } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,9 +95,16 @@ export function ContractCard({
         <div className={headerClass}>
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {/* Title and badge inline */}
-            <h3 className="contract-card__title font-medium text-foreground truncate text-sm">
-              {contract.title}
-            </h3>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <h3 className="contract-card__title font-medium text-foreground truncate text-sm">
+                    {contract.title}
+                  </h3>
+                </TooltipTrigger>
+                <TooltipContent>{contract.title}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <SeidoBadge type="contract" value={contract.status} size="sm" showIcon />
           </div>
 

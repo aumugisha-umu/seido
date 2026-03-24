@@ -399,7 +399,14 @@ export function ContractsListView({
                   {/* Title Cell */}
                   <TableCell className="font-medium">
                     <div className="flex flex-col gap-0.5">
-                      <span className="truncate font-semibold">{contract.title}</span>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="truncate font-semibold">{contract.title}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{contract.title}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </TableCell>
 
@@ -413,7 +420,14 @@ export function ContractsListView({
                     <div className="flex items-start gap-1.5">
                       <Building2 className="h-3.5 w-3.5 mt-0.5 text-slate-500 flex-shrink-0" />
                       <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">{locationText}</div>
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="text-sm font-medium truncate">{locationText}</div>
+                            </TooltipTrigger>
+                            <TooltipContent>{locationText}{addressText ? ` - ${addressText}` : ''}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         {addressText && (
                           <div className="text-xs text-slate-500 truncate">{addressText}</div>
                         )}

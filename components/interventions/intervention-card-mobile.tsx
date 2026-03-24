@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Building2, MapPin, Calendar, MoreVertical, Loader2 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { InterventionWithRelations } from '@/lib/services'
 import {
   getStatusColor,
@@ -156,7 +157,14 @@ export function InterventionCardMobile({
           {isAlert && (
             <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
           )}
-          <span className="text-sm font-medium truncate">{intervention.title}</span>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-sm font-medium truncate">{intervention.title}</span>
+              </TooltipTrigger>
+              <TooltipContent>{intervention.title}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           <Badge className={cn(getStatusColor(intervention.status), "text-[11px]")}>

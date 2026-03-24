@@ -33,18 +33,27 @@ Agent(subagent_type: "superpowers:code-reviewer", mode: "bypassPermissions")
 
 Or execute directly with all bash commands chained — no individual approval needed.
 
-## Integration with "git*" Flow
+## Integration with "git*" Flow — Triage
 
-When the user types "git*" (global CLAUDE.md trigger for auto-commit):
+When the user types "git*", the CALLER (not this skill) triages first:
+
+### LIGHT gate (default)
+For: UI changes, config, styling, docs, simple fixes, single-concern refactors.
+**Does NOT invoke this skill.** The caller runs `npm run lint` directly, does a quick review, and commits.
+
+### FULL gate (this skill)
+For: security/auth/RLS, DB migrations, new server actions with business logic, billing/subscription, cross-cutting (3+ domains).
+**Invokes this skill** as an autonomous agent.
 
 ```
 1. User types: git*
-2. Launch quality gate autonomously (bypassPermissions)
-3. Run ALL automated checks (lint, build, tests, Playwright) in chained commands
-4. Perform 4-lens code review on changed files
-5. Present ONLY the final report to the user
-6. IF blockers found → Fix blockers autonomously → Re-run checks
-7. IF approved → Proceed with git add . && git commit && git push
+2. Caller triages → FULL gate needed
+3. Launch quality gate autonomously (bypassPermissions)
+4. Run automated checks (lint, build, tests)
+5. Perform 4-lens code review on changed files
+6. Present ONLY the final report to the user
+7. IF blockers found → Fix blockers autonomously → Re-run checks
+8. IF approved → Proceed with git add . && git commit && git push
 ```
 
 **Key principle:** The user only intervenes when there are blockers that require a decision. Clean passes proceed directly to commit.

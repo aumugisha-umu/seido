@@ -12,17 +12,28 @@
 **Runs autonomously — no manual validation needed.** Only ask user if a blocker requires a design decision.
 
 ```
-git* → sp-quality-gate (autonomous, bypassPermissions)
-     → Automated: lint && build && tests && Playwright E2E
-        (auto-starts `npm run dev` if no server running, waits 30s)
-     → 4-lens review + simplify quick-scan
-     → Fix blockers autonomously if possible
-     → Step 4.5: Knowledge Capture (compound? memory? CLAUDE.md? agents?)
-     → Step 4.6: Discovery Tree Sync
-        Si des routes/pages/wizards/flows ont ete modifies dans ce commit :
-        1. Mettre a jour docs/qa/discovery-tree.json (noeuds ajoutes/modifies/supprimes)
-        2. npx tsx scripts/generate-discovery-tree.ts (regenerer le markdown)
-     → git add . && git commit && git push origin [branch]
+git* → Triage: LIGHT or FULL quality gate?
+
+LIGHT (default — UI, config, styling, docs, simple fixes, single-concern):
+  → npm run lint
+  → Quick eyeball review of changed files (no agent)
+  → git add . && git commit && git push origin [branch]
+
+FULL (security, auth, RLS, DB migrations, multi-domain, new features with business logic):
+  → sp-quality-gate (autonomous, bypassPermissions)
+  → Automated: lint && build && tests && Playwright E2E
+  → 4-lens review + simplify quick-scan
+  → Fix blockers autonomously
+  → Knowledge Capture + Discovery Tree Sync
+  → git add . && git commit && git push origin [branch]
+
+Triggers for FULL gate:
+  - Touches auth/RLS/middleware/security
+  - New DB migration or schema change
+  - New server action with business logic
+  - Changes to billing/subscription/payment
+  - Cross-cutting changes (3+ domains: DB+API+UI)
+  - User explicitly asks for full review
 ```
 
 ## Skill & Agent Routing (First Response)

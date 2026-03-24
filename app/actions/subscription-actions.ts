@@ -63,10 +63,37 @@ export async function getSubscriptionStatus(): Promise<ActionResult<Subscription
       return { success: false, error: 'Authentication required' }
     }
 
+    const serviceRoleClient = createServiceRoleSupabaseClient()
+    const serviceRoleRepo = new SubscriptionRepository(serviceRoleClient)
     const service = createSubscriptionService(auth.supabase)
+
     // Pass service_role repo for lazy sync writes (user client can only SELECT)
-    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
-    const data = await service.getSubscriptionInfo(auth.team.id, serviceRoleRepo)
+    let data = await service.getSubscriptionInfo(auth.team.id, serviceRoleRepo)
+
+    // Fallback: if no subscription exists (deleted row, missed trigger, etc.),
+    // recreate a free_tier subscription so the app doesn't break
+    if (!data) {
+      logger.warn('[SUBSCRIPTION-ACTION] No subscription found for team — creating fallback free_tier', {
+        teamId: auth.team.id,
+      })
+      const { error: insertError } = await serviceRoleRepo.create({
+        team_id: auth.team.id,
+        status: 'trialing',
+        trial_start: new Date().toISOString(),
+        trial_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        billable_properties: 0,
+        subscribed_lots: 0,
+      })
+      if (insertError) {
+        logger.error('[SUBSCRIPTION-ACTION] Fallback subscription creation failed:', {
+          teamId: auth.team.id,
+          error: insertError,
+        })
+      } else {
+        // Re-fetch after creation
+        data = await service.getSubscriptionInfo(auth.team.id, serviceRoleRepo)
+      }
+    }
 
     return { success: true, data }
   } catch (error) {

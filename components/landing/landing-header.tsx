@@ -1,13 +1,14 @@
 'use client'
 
 /**
- * LandingHeader - Header réutilisable pour la landing et les pages légales
+ * LandingHeader - Header reutilisable pour la landing et les pages legales
  *
  * @example
  * <LandingHeader showNav={true} />           // Landing page
- * <LandingHeader showLegalNav={true} />      // Pages légales avec navigation
+ * <LandingHeader showLegalNav={true} />      // Pages legales avec navigation
  */
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -18,14 +19,17 @@ import { cn } from '@/lib/utils'
 // Navigation items for legal pages
 const legalNavItems = [
   { href: '/conditions-generales', label: 'CGU' },
-  { href: '/confidentialite', label: 'Confidentialité' },
+  { href: '/confidentialite', label: 'Confidentialite' },
   { href: '/cookies', label: 'Cookies' },
 ]
 
+// Section IDs for scroll-spy (must match href anchors)
+const SCROLL_SPY_SECTIONS = ['features', 'pricing', 'contact', 'faq']
+
 export interface LandingHeaderProps {
-  /** Afficher la navigation landing (Fonctionnalités, Pour qui, Tarifs) */
+  /** Afficher la navigation landing (Fonctionnalites, Pour qui, Tarifs) */
   showNav?: boolean
-  /** Afficher la navigation légale (CGU, Confidentialité, Cookies) */
+  /** Afficher la navigation legale (CGU, Confidentialite, Cookies) */
   showLegalNav?: boolean
   /** Afficher la navigation blog (Accueil, Tous les articles) */
   showBlogNav?: boolean
@@ -40,6 +44,52 @@ export function LandingHeader({
   className
 }: LandingHeaderProps) {
   const pathname = usePathname()
+  const [activeSection, setActiveSection] = useState<string | null>(null)
+
+  // Scroll-spy: observe section visibility using IntersectionObserver
+  useEffect(() => {
+    if (!showNav) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Find the first intersecting section (top-most visible)
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id)
+            return
+          }
+        }
+      },
+      {
+        // rootMargin: negative top to account for sticky header, large bottom to detect early
+        rootMargin: '-80px 0px -40% 0px',
+        threshold: 0.1,
+      }
+    )
+
+    const elements: Element[] = []
+    for (const sectionId of SCROLL_SPY_SECTIONS) {
+      const el = document.getElementById(sectionId)
+      if (el) {
+        observer.observe(el)
+        elements.push(el)
+      }
+    }
+
+    return () => {
+      for (const el of elements) {
+        observer.unobserve(el)
+      }
+    }
+  }, [showNav])
+
+  const getLandingNavClass = (sectionId: string) =>
+    cn(
+      'text-sm font-medium transition-colors whitespace-nowrap leading-9 relative pb-1',
+      activeSection === sectionId
+        ? 'text-white font-semibold border-b-2 border-blue-500'
+        : 'text-white/70 hover:text-white border-b-2 border-transparent'
+    )
 
   return (
     <header
@@ -70,31 +120,31 @@ export function LandingHeader({
             <nav className="hidden md:flex items-center gap-6 lg:gap-8 flex-1 justify-center">
               <a
                 href="#features"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className={getLandingNavClass('features')}
               >
-                Fonctionnalités
+                Fonctionnalites
               </a>
               <a
                 href="#pricing"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className={getLandingNavClass('pricing')}
               >
                 Tarifs
               </a>
               <a
                 href="#contact"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className={getLandingNavClass('contact')}
               >
                 Contact
               </a>
               <a
                 href="#faq"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className={getLandingNavClass('faq')}
               >
                 FAQ
               </a>
               <Link
                 href="/blog"
-                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9 pb-1 border-b-2 border-transparent"
               >
                 Blog
               </Link>

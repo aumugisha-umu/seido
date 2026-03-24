@@ -109,6 +109,37 @@ export function IndependentLotInputCardV2({
   hideActions = false,
   showGoogleMaps = true
 }: IndependentLotInputCardV2Props) {
+  // Inline blur validation state
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({})
+
+  const isRequiredField = (name: string): boolean => {
+    return name === 'reference'
+  }
+
+  const handleFieldBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const fieldName = e.currentTarget.name || e.currentTarget.id
+    const value = e.currentTarget.value
+    setFieldErrors(prev => {
+      const next = { ...prev }
+      if (!value?.trim() && isRequiredField(fieldName)) {
+        next[fieldName] = 'Ce champ est obligatoire'
+      } else {
+        delete next[fieldName]
+      }
+      return next
+    })
+  }
+
+  const clearFieldError = (name: string) => {
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const next = { ...prev }
+        delete next[name]
+        return next
+      })
+    }
+  }
+
   const categories = getAllLotCategories()
   const categoryConfig = getLotCategoryConfig(lot.category)
 
@@ -261,13 +292,23 @@ export function IndependentLotInputCardV2({
               </Label>
               <Input
                 id={`reference-${lot.id}`}
+                name="reference"
                 value={lot.reference || ""}
-                onChange={(e) => onUpdate("reference", e.target.value)}
+                onChange={(e) => {
+                  clearFieldError('reference')
+                  onUpdate("reference", e.target.value)
+                }}
+                onBlur={handleFieldBlur}
                 placeholder="Ex: Appartement 3"
-                className="h-9 text-sm"
+                className={`h-9 text-sm ${fieldErrors.reference ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 required
                 aria-required="true"
+                aria-invalid={!!fieldErrors.reference}
+                aria-describedby={fieldErrors.reference ? `reference-${lot.id}-error` : undefined}
               />
+              {fieldErrors.reference && (
+                <p id={`reference-${lot.id}-error`} className="text-sm text-destructive mt-1">{fieldErrors.reference}</p>
+              )}
             </div>
 
             {/* Category - Right Column */}
@@ -360,8 +401,10 @@ export function IndependentLotInputCardV2({
               </Label>
               <Input
                 id={`floor-${lot.id}`}
+                name="floor"
                 value={lot.floor || ""}
                 onChange={(e) => onUpdate("floor", e.target.value)}
+                onBlur={handleFieldBlur}
                 placeholder="Ex: 2"
                 className="h-9 text-sm"
                 aria-label="Numéro d'étage"
@@ -379,8 +422,10 @@ export function IndependentLotInputCardV2({
               </Label>
               <Input
                 id={`door-${lot.id}`}
+                name="doorNumber"
                 value={lot.doorNumber || ""}
                 onChange={(e) => onUpdate("doorNumber", e.target.value)}
+                onBlur={handleFieldBlur}
                 placeholder="Ex: A, 12, A-bis"
                 className="h-9 text-sm"
                 aria-label="Numéro de porte"
@@ -398,8 +443,10 @@ export function IndependentLotInputCardV2({
             </Label>
             <Textarea
               id={`description-${lot.id}`}
+              name="description"
               value={lot.description || ""}
               onChange={(e) => onUpdate("description", e.target.value)}
+              onBlur={handleFieldBlur}
               placeholder="Informations supplémentaires sur le lot..."
               className="text-sm min-h-[72px] resize-none"
               rows={3}

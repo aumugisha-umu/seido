@@ -49,8 +49,8 @@
 
   /* Body Small - Lists, card content (accessible minimum) */
   .landing-body-sm {
-    @apply text-[0.9375rem] leading-relaxed;
-    /* 15px - above WCAG minimum */
+    @apply text-base md:text-[0.9375rem] leading-relaxed;
+    /* 16px mobile → 15px desktop - above WCAG minimum */
   }
 
   /* Caption - Footnotes, small details */

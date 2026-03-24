@@ -54,7 +54,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body
-        className={`h-screen font-sans ${GeistSans.variable} ${GeistMono.variable} overflow-x-hidden`}
+        className={`min-h-dvh font-sans ${GeistSans.variable} ${GeistMono.variable} overflow-x-hidden`}
         suppressHydrationWarning={true}
       >
         <PWARegister />

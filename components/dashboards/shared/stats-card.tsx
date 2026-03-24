@@ -138,7 +138,7 @@ export const StatsCard = memo(function StatsCard({
             data-stats-card={id}
             className={cn(
                 "stats-card",
-                "shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl overflow-hidden group",
+                "shadow-sm hover:shadow-md transition-[box-shadow,transform] duration-300 rounded-2xl overflow-hidden group",
                 "dark:backdrop-blur-sm dark:shadow-none",
                 styles.card,
                 isClickable && "cursor-pointer hover:transform hover:-translate-y-1",
@@ -165,7 +165,7 @@ export const StatsCard = memo(function StatsCard({
 
                     {/* Value + Sublabel */}
                     <div className="stats-card__value-container flex items-baseline gap-1.5 mt-1">
-                        <span className={cn("stats-card__value text-2xl font-bold", styles.value)}>
+                        <span className={cn("stats-card__value text-2xl font-bold tabular-nums", styles.value)}>
                             {value}
                         </span>
                         {sublabel && (
@@ -190,8 +190,8 @@ export const StatsCard = memo(function StatsCard({
                                 width={100}
                                 height={24}
                                 showFill
-                                strokeColor={variant === 'success' ? 'rgb(16, 185, 129)' : 'rgb(99, 102, 241)'}
-                                fillColor={variant === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(99, 102, 241, 0.15)'}
+                                strokeColor={variant === 'success' ? 'var(--color-chart-1)' : 'var(--color-primary)'}
+                                fillColor={variant === 'success' ? 'color-mix(in srgb, var(--color-chart-1) 15%, transparent)' : 'color-mix(in srgb, var(--color-primary) 15%, transparent)'}
                             />
                         </div>
                     )}

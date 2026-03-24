@@ -62,7 +62,7 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
     return (
         <div
             ref={ref}
-            className={`transition-all duration-700 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} ${className}`}
+            className={`transition-[opacity,transform] duration-300 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} ${className}`}
             style={{ transitionDelay: `${delay}ms` }}
         >
             {children}
@@ -92,7 +92,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
             <main>
             {/* Hero Section - Background Video with Overlay */}
-            <section className="relative z-10 min-h-[600px] md:min-h-[calc(100vh-73px)] flex items-center justify-start overflow-hidden">
+            <section className="relative z-10 min-h-[600px] md:min-h-[calc(100dvh-73px)] flex items-center justify-start overflow-hidden">
                 {/* Background Video - Desktop only, Image on mobile */}
                 <div className="absolute inset-0 z-0 bg-[#131426]">
                     {/* Mobile: Static gradient background */}
@@ -183,7 +183,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <div className="grid md:grid-cols-3 gap-8 text-center mb-8">
                     <FadeIn delay={0}>
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors">
-                            <div className="landing-h1 text-red-400 mb-2">
+                            <div className="landing-h1 text-red-400 mb-2 tabular-nums">
                                 <CountUp end={40} suffix="%" />
                             </div>
                             <div className="landing-body text-white/80 font-medium">de votre temps <strong>englouti</strong> par les urgences</div>
@@ -191,7 +191,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </FadeIn>
                     <FadeIn delay={100}>
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors">
-                            <div className="landing-h1 text-red-400 mb-2">
+                            <div className="landing-h1 text-red-400 mb-2 tabular-nums">
                                 <CountUp end={36000} suffix="€" separator=" " />
                             </div>
                             <div className="landing-body text-white/80 font-medium"><strong>partis en fumée</strong> chaque année</div>
@@ -199,7 +199,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </FadeIn>
                     <FadeIn delay={200}>
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors">
-                            <div className="landing-h1 text-red-400 mb-2">
+                            <div className="landing-h1 text-red-400 mb-2 tabular-nums">
                                 <CountUp end={2} suffix="h" />
                             </div>
                             <div className="landing-body text-white/80 font-medium"><strong>récupérables par jour</strong> avec le bon outil</div>
@@ -326,10 +326,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 {/* Gestionnaire Hero Card */}
                 <div id="roles" className="mb-16">
                     <FadeIn delay={0}>
-                        <div className="relative group rounded-3xl overflow-hidden hover:-translate-y-2 transition-transform duration-500">
+                        <div className="relative group rounded-3xl overflow-hidden hover:-translate-y-2 transition-transform duration-300">
                             {/* Gradient glow effect */}
-                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 rounded-3xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity duration-500" />
-                            <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 rounded-3xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity duration-300" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                             <div className="relative p-8 md:p-10 bg-[#1e293b]/70 border border-blue-500/30 backdrop-blur-md">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center">
@@ -375,8 +375,8 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <div className="grid md:grid-cols-2 gap-8 mb-16">
                     {/* Portail Prestataire - Benefice gestionnaire */}
                     <FadeIn delay={150} className="h-full">
-                        <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 transition-transform duration-500">
-                            <div className="absolute inset-0 bg-gradient-to-b from-green-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                        <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 transition-transform duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-b from-green-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                             <div className="relative p-8 bg-[#1e293b]/50 border border-white/10 backdrop-blur-md h-full">
                                 <div className="flex items-center gap-3 mb-4">
                                     <Wrench className="w-8 h-8 text-green-400" />
@@ -409,8 +409,8 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
                     {/* Portail Locataire - Benefice gestionnaire */}
                     <FadeIn delay={250} className="h-full">
-                        <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 transition-transform duration-500">
-                            <div className="absolute inset-0 bg-gradient-to-b from-orange-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                        <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 transition-transform duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-b from-orange-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                             <div className="relative p-8 bg-[#1e293b]/50 border border-white/10 backdrop-blur-md h-full">
                                 <div className="flex items-center gap-3 mb-4">
                                     <Home className="w-8 h-8 text-orange-400" />

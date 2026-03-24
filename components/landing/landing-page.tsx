@@ -79,7 +79,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
     const [lotCount, setLotCount] = useState(3)
 
     return (
-        <div className="min-h-screen bg-[#0f172a] text-white selection:bg-purple-500 selection:text-white">
+        <div className="min-h-screen bg-slate-950 text-white selection:bg-purple-500 selection:text-white">
             {/* Background Gradients */}
             <div className="fixed inset-0 z-0 pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[120px]" />
@@ -94,9 +94,9 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             {/* Hero Section - Background Video with Overlay */}
             <section className="relative z-10 min-h-[600px] md:min-h-[calc(100vh-73px)] flex items-center justify-start overflow-hidden">
                 {/* Background Video - Desktop only, Image on mobile */}
-                <div className="absolute inset-0 z-0 bg-[#131426]">
+                <div className="absolute inset-0 z-0 bg-slate-950">
                     {/* Mobile: Static gradient background */}
-                    <div className="block md:hidden absolute inset-0 bg-gradient-to-br from-[#0f1629] via-[#1a1f3a] to-[#0f172a]" />
+                    <div className="block md:hidden absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
                     
                     {/* Desktop: Video background */}
                     <video
@@ -112,8 +112,8 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </video>
                     
                     {/* Gradient Overlay - Darker on left for text readability, transparent on right to show video */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#131426]/95 via-[#131426]/70 md:via-[#131426]/60 to-[#131426]/80 md:to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#131426]/40 via-transparent to-[#131426]/60" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/70 md:via-slate-950/60 to-slate-950/80 md:to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/60" />
                 </div>
 
                 <div className="container mx-auto px-4 py-12 md:py-0 relative z-10">
@@ -208,7 +208,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 </div>
 
                 <FadeIn delay={300}>
-                    <p className="text-center landing-caption text-white/40 max-w-2xl mx-auto italic mb-16">
+                    <p className="text-center text-sm leading-relaxed text-white/40 max-w-2xl mx-auto italic mb-16">
                         Sur base d'un gestionnaire avec 100 biens en gestion et un taux horaire brut de 45€ (moyenne belge, source Federia/IPI)
                     </p>
                 </FadeIn>
@@ -330,14 +330,14 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             {/* Gradient glow effect */}
                             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 rounded-3xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity duration-500" />
                             <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative p-8 md:p-10 bg-[#1e293b]/70 border border-blue-500/30 backdrop-blur-md">
+                            <div className="relative p-8 md:p-10 bg-slate-800/70 border border-blue-500/30 backdrop-blur-md">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center">
                                         <Building2 className="w-6 h-6 text-white" />
                                     </div>
                                     <div>
                                         <h3 className="landing-h3 text-white">Fini la recherche. Fini l&apos;attente.</h3>
-                                        <p className="landing-caption text-blue-300">L&apos;info est là avant même que vous la cherchiez.</p>
+                                        <p className="text-sm leading-relaxed text-blue-300">L&apos;info est là avant même que vous la cherchiez.</p>
                                     </div>
                                 </div>
                                 <ul className="grid md:grid-cols-3 gap-4">
@@ -354,7 +354,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                         <span><strong className="line-through text-red-400/60 mr-1">Relance</strong> <strong>→ Devis en 2 clics</strong> — demander, comparer, valider. Sans email.</span>
                                     </li>
                                 </ul>
-                                <p className="mt-6 landing-caption text-white/40">+ tableaux de bord, chat intégré, pilotage prestataires — chaque boucle se ferme en quelques clics.</p>
+                                <p className="mt-6 text-sm leading-relaxed text-white/40">+ tableaux de bord, chat intégré, pilotage prestataires — chaque boucle se ferme en quelques clics.</p>
                             </div>
                         </div>
                     </FadeIn>
@@ -377,12 +377,12 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     <FadeIn delay={150} className="h-full">
                         <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 transition-transform duration-500">
                             <div className="absolute inset-0 bg-gradient-to-b from-green-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative p-8 bg-[#1e293b]/50 border border-white/10 backdrop-blur-md h-full">
+                            <div className="relative p-8 bg-slate-800/50 border border-white/10 backdrop-blur-md h-full">
                                 <div className="flex items-center gap-3 mb-4">
                                     <Wrench className="w-8 h-8 text-green-400" />
                                     <div>
                                         <h3 className="landing-h4 text-white">Le Portail Prestataire</h3>
-                                        <p className="landing-caption text-green-400/80">Coupe les étapes 3 à 5 : transmission, attente, relance.</p>
+                                        <p className="text-sm leading-relaxed text-green-400/80">Coupe les étapes 3 à 5 : transmission, attente, relance.</p>
                                     </div>
                                 </div>
                                 <p className="landing-body-sm text-white/60 mb-5">Le prestataire agit et met à jour — vous n&apos;êtes plus le relais.</p>
@@ -401,7 +401,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     </li>
                                 </ul>
                                 <div className="mt-5 pt-4 border-t border-white/10">
-                                    <p className="landing-caption text-white/40">→ Vous ne transmettez plus, vous ne relancez plus</p>
+                                    <p className="text-sm leading-relaxed text-white/40">→ Vous ne transmettez plus, vous ne relancez plus</p>
                                 </div>
                             </div>
                         </div>
@@ -411,12 +411,12 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     <FadeIn delay={250} className="h-full">
                         <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 transition-transform duration-500">
                             <div className="absolute inset-0 bg-gradient-to-b from-orange-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative p-8 bg-[#1e293b]/50 border border-white/10 backdrop-blur-md h-full">
+                            <div className="relative p-8 bg-slate-800/50 border border-white/10 backdrop-blur-md h-full">
                                 <div className="flex items-center gap-3 mb-4">
                                     <Home className="w-8 h-8 text-orange-400" />
                                     <div>
                                         <h3 className="landing-h4 text-white">Le Portail Locataire</h3>
-                                        <p className="landing-caption text-orange-400/80">Coupe les étapes 1 et 6 : le déclencheur est structuré, plus de recommencement.</p>
+                                        <p className="text-sm leading-relaxed text-orange-400/80">Coupe les étapes 1 et 6 : le déclencheur est structuré, plus de recommencement.</p>
                                     </div>
                                 </div>
                                 <p className="landing-body-sm text-white/60 mb-5">Le locataire signale proprement et suit tout seul — il n&apos;a plus besoin de rappeler.</p>
@@ -435,7 +435,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     </li>
                                 </ul>
                                 <div className="mt-5 pt-4 border-t border-white/10">
-                                    <p className="landing-caption text-white/40">→ Plus de cycle : signaler → résolu, point final</p>
+                                    <p className="text-sm leading-relaxed text-white/40">→ Plus de cycle : signaler → résolu, point final</p>
                                 </div>
                             </div>
                         </div>
@@ -547,7 +547,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </section >
 
             {/* Upcoming Features - Roadmap */}
-            < section className="relative z-10 container mx-auto px-4 py-24 bg-[#1e293b]/30" aria-labelledby="heading-roadmap" >
+            < section className="relative z-10 container mx-auto px-4 py-24 bg-slate-800/30" aria-labelledby="heading-roadmap" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm font-medium mb-6">
@@ -765,7 +765,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </section >
 
             {/* FAQ Section */}
-            < section id="faq" className="relative z-10 bg-[#1e293b]/30 py-24" aria-labelledby="heading-faq" >
+            < section id="faq" className="relative z-10 bg-slate-800/30 py-24" aria-labelledby="heading-faq" >
                 <div className="container mx-auto px-4">
                     <FadeIn>
                         <div className="text-center mb-12">
@@ -888,7 +888,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </main>
 
             {/* Footer */}
-            < footer className="relative z-10 border-t border-white/10 bg-[#020617] py-12" >
+            < footer className="relative z-10 border-t border-white/10 bg-slate-950 py-12" >
                 <div className="container mx-auto px-4">
                     <div className="grid md:grid-cols-4 gap-8 mb-8">
                         <div>
@@ -902,10 +902,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     className="h-9 w-auto"
                                 />
                             </div>
-                            <p className="landing-caption text-white/40 mb-4">
+                            <p className="text-sm leading-relaxed text-white/40 mb-4">
                                 Moins de boucles. Plus de temps.
                             </p>
-                            <p className="landing-caption text-white/40 text-xs">
+                            <p className="text-sm leading-relaxed text-white/40 text-xs">
                                 © {new Date().getFullYear()} SEIDO. Tous droits réservés.
                             </p>
                         </div>
@@ -953,7 +953,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
             {/* Demo Request Modal */}
             < Dialog open={showDemoModal} onOpenChange={setShowDemoModal} >
-                <DialogContent className="bg-[#1e293b] border-white/10 text-white sm:max-w-lg">
+                <DialogContent className="bg-slate-800 border-white/10 text-white sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold">Demander une démo</DialogTitle>
                         <DialogDescription className="text-white/60">

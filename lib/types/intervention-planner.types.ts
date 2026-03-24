@@ -39,6 +39,10 @@ export interface InterventionPlannerSection {
   allowCustomAdd?: boolean
   /** Custom render function for non-standard sections (e.g. rent reminders) */
   renderCustom?: () => React.ReactNode
+  /** Discriminant: 'intervention' or 'reminder' section */
+  sectionType?: 'intervention' | 'reminder'
+  /** Whether the section can be collapsed */
+  collapsible?: boolean
 }
 
 /** Props for the shared InterventionPlannerStep wrapper */
@@ -72,6 +76,7 @@ export interface InterventionPlannerStepProps {
   onDeleteCustomIntervention?: (key: string) => void
   onCustomTitleChange?: (key: string, title: string) => void
   onCustomDescriptionChange?: (key: string, description: string) => void
+  onAddCustomReminder?: () => void
 
   /**
    * Assigned users for keys outside scheduledInterventions

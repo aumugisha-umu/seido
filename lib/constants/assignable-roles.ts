@@ -40,3 +40,6 @@ export const ROLE_COLORS: Record<string, string> = {
   prestataire: 'bg-green-100 text-green-700 border-green-200',
   locataire: 'bg-blue-100 text-blue-700 border-blue-200',
 }
+
+/** Only gestionnaires for reminder assignment */
+export const GESTIONNAIRE_ONLY_ROLES = ALL_ASSIGNABLE_ROLES.filter(r => r.type === 'manager')

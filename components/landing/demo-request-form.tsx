@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * DemoRequestForm - Formulaire de demande de démo réutilisable
+ * DemoRequestForm - Formulaire de demande de demo reutilisable
  *
  * Architecture BEM:
  * - Block: demo-form
@@ -17,6 +17,8 @@
  */
 
 import { useState } from 'react'
+import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -38,11 +40,11 @@ export interface DemoFormData {
 }
 
 export interface DemoRequestFormProps {
-  /** Style adapté au contexte */
+  /** Style adapte au contexte */
   variant?: 'modal' | 'inline'
-  /** Callback avec les données du formulaire */
+  /** Callback avec les donnees du formulaire */
   onSubmit?: (data: DemoFormData) => void | Promise<void>
-  /** Callback appelé après soumission réussie */
+  /** Callback appele apres soumission reussie */
   onSuccess?: () => void
   /** Classes CSS additionnelles */
   className?: string
@@ -85,6 +87,41 @@ const styles = {
 }
 
 // ============================================================================
+// Validation
+// ============================================================================
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+interface FieldValidation {
+  fieldId: string
+  name: string
+  required: boolean
+  validate?: (value: string) => string | null
+}
+
+const FIELD_VALIDATIONS: FieldValidation[] = [
+  { fieldId: 'demo-name', name: 'name', required: true },
+  {
+    fieldId: 'demo-email',
+    name: 'email',
+    required: true,
+    validate: (value: string) => {
+      if (value && !EMAIL_REGEX.test(value)) return 'Adresse email invalide'
+      return null
+    },
+  },
+  { fieldId: 'demo-message', name: 'message', required: true },
+]
+
+const validateField = (name: string, value: string): string | null => {
+  const config = FIELD_VALIDATIONS.find(f => f.name === name)
+  if (!config) return null
+  if (config.required && !value.trim()) return 'Ce champ est requis'
+  if (config.validate) return config.validate(value)
+  return null
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
@@ -95,6 +132,18 @@ export function DemoRequestForm({
   className
 }: DemoRequestFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    const error = validateField(name, value)
+    setFieldErrors(prev => {
+      if (error) return { ...prev, [name]: error }
+      const next = { ...prev }
+      delete next[name]
+      return next
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -111,16 +160,34 @@ export function DemoRequestForm({
         message: formData.get('message') as string,
       }
 
+      // Validate all required fields
+      const errors: Record<string, string> = {}
+      for (const field of FIELD_VALIDATIONS) {
+        const value = (formData.get(field.name) as string) || ''
+        const error = validateField(field.name, value)
+        if (error) errors[field.name] = error
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors)
+        // Focus first invalid field
+        const firstErrorField = FIELD_VALIDATIONS.find(f => errors[f.name])
+        if (firstErrorField) {
+          document.getElementById(firstErrorField.fieldId)?.focus()
+        }
+        setIsSubmitting(false)
+        return
+      }
+
       if (onSubmit) {
         await onSubmit(data)
       } else {
-        // Comportement par défaut: alert
-        alert('Merci ! Notre équipe vous contactera sous 24h.')
+        toast.success('Merci ! Notre equipe vous contactera sous 24h.')
       }
 
       onSuccess?.()
     } catch (_error) {
-      alert('Une erreur est survenue. Veuillez réessayer.')
+      toast.error('Une erreur est survenue. Veuillez réessayer.')
     } finally {
       setIsSubmitting(false)
     }
@@ -143,15 +210,21 @@ export function DemoRequestForm({
             placeholder="Jean Dupont"
             required
             className={styles.input}
+            onBlur={handleBlur}
+            aria-invalid={!!fieldErrors.name}
+            aria-describedby={fieldErrors.name ? 'demo-name-error' : undefined}
           />
+          {fieldErrors.name && (
+            <p id="demo-name-error" className="text-sm text-destructive mt-1">{fieldErrors.name}</p>
+          )}
         </div>
       </div>
 
-      {/* Ligne 2: Société + Nombre de biens gérés (half + half) */}
+      {/* Ligne 2: Societe + Nombre de biens geres (half + half) */}
       <div className={styles.row}>
         <div className={cn(styles.field, styles.fieldHalf)}>
           <Label htmlFor="demo-company" className={styles.label}>
-            Société (optionnel)
+            Societe (optionnel)
           </Label>
           <Input
             id="demo-company"
@@ -166,7 +239,7 @@ export function DemoRequestForm({
           </Label>
           <Select name="lotsCount" required aria-labelledby="label-lotsCount">
             <SelectTrigger className={styles.input} aria-labelledby="label-lotsCount">
-              <SelectValue placeholder="Sélectionner" />
+              <SelectValue placeholder="Selectionner" />
             </SelectTrigger>
             <SelectContent className="bg-landing-card border-white/20">
               <SelectItem value="1-10" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">1 - 10 lots</SelectItem>
@@ -182,7 +255,7 @@ export function DemoRequestForm({
         </div>
       </div>
 
-      {/* Ligne 3: Email + Téléphone (half + half) */}
+      {/* Ligne 3: Email + Telephone (half + half) */}
       <div className={styles.row}>
         <div className={cn(styles.field, styles.fieldHalf)}>
           <Label htmlFor="demo-email" className={styles.label}>
@@ -195,11 +268,17 @@ export function DemoRequestForm({
             placeholder="jean@exemple.com"
             required
             className={styles.input}
+            onBlur={handleBlur}
+            aria-invalid={!!fieldErrors.email}
+            aria-describedby={fieldErrors.email ? 'demo-email-error' : undefined}
           />
+          {fieldErrors.email && (
+            <p id="demo-email-error" className="text-sm text-destructive mt-1">{fieldErrors.email}</p>
+          )}
         </div>
         <div className={cn(styles.field, styles.fieldHalf)}>
           <Label htmlFor="demo-phone" className={styles.label}>
-            Téléphone (optionnel)
+            Telephone (optionnel)
           </Label>
           <Input
             id="demo-phone"
@@ -224,7 +303,13 @@ export function DemoRequestForm({
             rows={variant === 'inline' ? 4 : 3}
             required
             className={styles.textarea}
+            onBlur={handleBlur}
+            aria-invalid={!!fieldErrors.message}
+            aria-describedby={fieldErrors.message ? 'demo-message-error' : undefined}
           />
+          {fieldErrors.message && (
+            <p id="demo-message-error" className="text-sm text-destructive mt-1">{fieldErrors.message}</p>
+          )}
         </div>
       </div>
 
@@ -234,6 +319,7 @@ export function DemoRequestForm({
         disabled={isSubmitting}
         className={styles.submit}
       >
+        {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
         {isSubmitting ? 'Envoi en cours...' : 'Envoyer la demande'}
       </Button>
     </form>

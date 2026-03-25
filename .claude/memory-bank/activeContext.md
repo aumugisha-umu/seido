@@ -282,7 +282,14 @@ Fixed email domain across entire codebase (28 files). All `@seido.app` reference
 ---
 
 ## Files Recently Modified
-### 2026-03-25 (Auto-updated)
-- `lib/email/resend-client.ts` — EMAIL_CONFIG domain update
-- `emails/templates/**/*.tsx` — 28 templates domain fix
-- `emails/components/*.tsx` — footer/header domain fix
+### 2026-03-25 12:01:53 (Auto-updated)
+- `C:/Users/arthu/.claude/plans/woolly-petting-canyon.md`
+- `C:/Users/arthu/Desktop/Coding/seido-app/lib/email/resend-client.ts`
+- `C:/Users/arthu/Desktop/Coding/seido-app/lib/services/domain/email-reply.service.ts`
+- `C:/Users/arthu/Desktop/Coding/seido-app/emails/components/email-footer.tsx`
+- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/welcome.tsx`
+- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/signup-confirmation.tsx`
+- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/password-reset.tsx`
+- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/password-changed.tsx`
+- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/team-addition.tsx`
+- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/billing/payment-failed.tsx`

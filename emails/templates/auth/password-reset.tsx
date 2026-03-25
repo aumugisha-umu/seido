@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { PasswordResetEmailProps } from '@/emails/utils/types'
 
 export const PasswordResetEmail = ({
@@ -82,8 +83,8 @@ export const PasswordResetEmail = ({
           <Text className="text-gray-700 text-sm leading-relaxed m-0">
             Si vous n'êtes pas à l'origine de cette demande, ignorez cet email et
             contactez immédiatement notre support à{' '}
-            <Link href="mailto:support@seido-app.com" className="text-danger no-underline">
-              support@seido-app.com
+            <Link href={`mailto:${EMAIL_CONFIG.supportEmail}`} className="text-danger no-underline">
+              {EMAIL_CONFIG.supportEmail}
             </Link>
             . Votre mot de passe actuel reste inchangé.
           </Text>

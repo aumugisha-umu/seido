@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-03-25
-**Total Learnings:** 193
+**Total Learnings:** 194
 
 ---
 
@@ -1424,6 +1424,13 @@
 **Example:** Notification/intervention tab tests — cards must be scoped to active panel
 **When to Use:** Any E2E test interacting with Radix Tabs — always scope to active tabpanel
 **Added:** 2026-03-21 | **Source:** QA bot E2E suite — notification tab assertions matching wrong panel
+
+#### Learning #169: Centralize hardcoded email/domain strings into EMAIL_CONFIG
+**Problem:** After migrating `seido.app` → `seido-app.com`, email addresses (`support@`, `contact@`) and URLs (`https://seido-app.com/...`) were hardcoded across 15+ files (templates, footer, reply service). A domain change required a multi-file grep-and-replace sweep — error-prone and easy to miss files.
+**Solution:** Add all email addresses to `EMAIL_CONFIG` in `lib/email/resend-client.ts` (`from`, `supportEmail`, `contactEmail`, `appUrl`). Email templates and components import `EMAIL_CONFIG` instead of hardcoding strings. Exception: UI-facing pages (landing, legal, auth) keep hardcoded strings — importing server-side config into client components adds unnecessary complexity for rarely-changing text.
+**Example:** `emails/components/email-footer.tsx` — `${EMAIL_CONFIG.appUrl}/privacy` instead of `https://seido-app.com/privacy`
+**When to Use:** Any time you see hardcoded email addresses or app URLs in email templates — always use `EMAIL_CONFIG`
+**Added:** 2026-03-25 | **Source:** Post-domain-migration centralization cleanup
 
 ---
 

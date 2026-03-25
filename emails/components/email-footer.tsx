@@ -6,6 +6,7 @@
 
 import * as React from 'react'
 import { Section, Text, Link } from '@react-email/components'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 
 export const EmailFooter = () => {
   const currentYear = new Date().getFullYear()
@@ -23,21 +24,21 @@ export const EmailFooter = () => {
       {/* Liens utiles */}
       <Text className="text-gray-500 text-xs leading-tight m-0">
         <Link
-          href="https://seido-app.com/unsubscribe"
+          href={`${EMAIL_CONFIG.appUrl}/unsubscribe`}
           className="text-gray-600 no-underline"
         >
           Se désabonner
         </Link>
         {' | '}
         <Link
-          href="https://seido-app.com/privacy"
+          href={`${EMAIL_CONFIG.appUrl}/privacy`}
           className="text-gray-600 no-underline ml-2"
         >
           Politique de confidentialité
         </Link>
         {' | '}
         <Link
-          href="mailto:contact@seido-app.com"
+          href={`mailto:${EMAIL_CONFIG.contactEmail}`}
           className="text-gray-600 no-underline ml-2"
         >
           Contact

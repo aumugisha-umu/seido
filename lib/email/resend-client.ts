@@ -47,6 +47,11 @@ export const EMAIL_CONFIG = {
   })(),
 
   /**
+   * Email de contact général
+   */
+  contactEmail: process.env.CONTACT_EMAIL || 'contact@seido-app.com',
+
+  /**
    * Nom de l'application
    */
   appName: 'SEIDO',

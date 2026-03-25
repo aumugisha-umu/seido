@@ -68,3 +68,9 @@
 - Implemented: LIGHT gate (lint only) for UI/config/styling changes, FULL gate reserved for security/auth/DB/billing
 - Files: `.claude/CLAUDE.md`, `.claude/skills/sp-quality-gate/SKILL.md`
 - Decision: Token-conscious triage based on change scope — saves ~80% tokens on routine commits
+
+## 2026-03-25 — Refactor: Centralize email config — eliminate hardcoded domains
+- Implemented: Added `contactEmail` to EMAIL_CONFIG, replaced `noreply` → `notifications` in reply service fallbacks, replaced hardcoded `support@seido-app.com` with `EMAIL_CONFIG.supportEmail` in 6 templates, replaced hardcoded URLs/contact in email footer with `EMAIL_CONFIG.appUrl`/`EMAIL_CONFIG.contactEmail`
+- Files: `lib/email/resend-client.ts`, `lib/services/domain/email-reply.service.ts`, `emails/components/email-footer.tsx`, 6 templates in `emails/templates/`
+- Learnings: UI-facing pages (landing, legal) intentionally keep hardcoded strings — importing server config into client components is unnecessary overhead
+- Decision: EMAIL_CONFIG is now the single source of truth for all email sending config (from, support, contact, appUrl, appName)

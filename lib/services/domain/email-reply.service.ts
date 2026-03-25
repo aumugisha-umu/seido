@@ -100,7 +100,7 @@ export class EmailReplyService {
       logger.warn({}, '⚠️ [EMAIL-REPLY] REPLY_TO_SECRET not configured - using fallback')
       // En dev sans secret, retourner une adresse de fallback (pas de tracking)
       // Format RFC 5322 requis par Resend: "Display Name <email@domain.com>"
-      return `SEIDO <noreply@${INBOUND_DOMAIN}>`
+      return `SEIDO <notifications@${INBOUND_DOMAIN}>`
     }
 
     const hash = this.generateHash('intervention', interventionId)
@@ -171,7 +171,7 @@ export class EmailReplyService {
   ): string {
     if (!REPLY_TO_SECRET) {
       logger.warn({}, '⚠️ [EMAIL-REPLY] REPLY_TO_SECRET not configured - using fallback')
-      return `SEIDO <noreply@${INBOUND_DOMAIN}>`
+      return `SEIDO <notifications@${INBOUND_DOMAIN}>`
     }
 
     const hash = this.generateConversationHash(interventionId, threadType)

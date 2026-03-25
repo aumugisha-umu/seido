@@ -50,6 +50,20 @@ export class ReminderService {
   }
 
   /**
+   * Get reminders linked to a specific lot
+   */
+  async getByLot(lotId: string, teamId: string): Promise<ReminderWithRelations[]> {
+    return this.repo.findByLot(lotId, teamId)
+  }
+
+  /**
+   * Get reminders linked to a building or any of its lots
+   */
+  async getByBuilding(buildingId: string, lotIds: string[], teamId: string): Promise<ReminderWithRelations[]> {
+    return this.repo.findByBuilding(buildingId, lotIds, teamId)
+  }
+
+  /**
    * Create a new reminder
    */
   async create(data: ReminderInsert): Promise<{ id: string }> {

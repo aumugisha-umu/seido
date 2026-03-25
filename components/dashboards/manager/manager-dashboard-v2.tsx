@@ -24,6 +24,9 @@ import {
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { UnreadMessagesSection } from "@/components/dashboards/shared/unread-messages-section"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+import { TaskTypeSegment, type TaskType } from "@/components/operations/task-type-segment"
+import { RemindersNavigator } from "@/components/operations/reminders-navigator"
+import { useReminderActions } from "@/hooks/use-reminder-actions"
 import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { TrialUpgradeModal } from "@/components/billing/trial-upgrade-modal"
 import { useSubscription } from "@/hooks/use-subscription"
@@ -34,7 +37,7 @@ import { PageActions } from "@/components/page-actions"
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
 import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
-import type { ReminderStats } from "@/lib/types/reminder.types"
+import type { ReminderStats, ReminderWithRelations } from "@/lib/types/reminder.types"
 // Bank module hidden until Tink app is approved in production
 // import type { BankWidgetsSectionProps } from "@/components/bank/dashboard-bank-widgets"
 // import { BankWidgetsSection } from "@/components/bank/dashboard-bank-widgets"
@@ -63,11 +66,13 @@ interface ManagerDashboardProps {
     unreadThreads?: UnreadThread[]
     unreadThreadsTotalCount?: number
     reminderStats?: ReminderStats
+    reminders?: ReminderWithRelations[]
     // bankData?: BankWidgetsSectionProps  // Bank module hidden until Tink approved
 }
 
-export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount, reminderStats }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount, reminderStats, reminders = [] }: ManagerDashboardProps) {
     const router = useRouter()
+    const { handleStartReminder, handleCompleteReminder, handleCancelReminder } = useReminderActions()
     // Local state for interventions (enables realtime updates)
     const [interventions, setInterventions] = useState(initialInterventions)
 
@@ -134,6 +139,9 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
         checkQuotaWarning()
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
+
+    // Operations tab state (Interventions vs Reminders)
+    const [activeOperationType, setActiveOperationType] = useState<TaskType>('intervention')
 
     // Scroll-to-interventions + focus animation state
     const interventionsRef = useRef<HTMLDivElement>(null)
@@ -271,28 +279,44 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
 
                 {/* Bank Widgets Section — hidden until Tink approved */}
 
-                {/* Content Section - Unified InterventionsNavigator */}
+                {/* Operations Section (Interventions + Reminders) */}
                 <div
                     ref={interventionsRef}
                     className={cn(
-                        "dashboard__content lg:order-4 lg:max-h-[700px] transition-all duration-300 rounded-lg",
+                        "dashboard__content lg:order-4 lg:max-h-[700px] transition-all duration-300 rounded-lg space-y-4",
                         focusInterventions && "ring-2 ring-amber-400/60 ring-offset-2"
                     )}
                 >
-                    <InterventionsNavigator
-                        interventions={interventions}
-                        userContext="gestionnaire"
-                        tabsPreset="dashboard"
-                        showHeader={true}
-                        headerConfig={{
-                            title: "Interventions",
-                            icon: Wrench
-                        }}
-                        showSortOptions={true}
-                        showCombinedFilter={true}
-                        compact={true}
-                        initialActiveTab={initialActiveTab}
+                    <TaskTypeSegment
+                        activeType={activeOperationType}
+                        onTypeChange={setActiveOperationType}
+                        interventionCount={interventions.length}
+                        reminderCount={reminders.length}
                     />
+
+                    {activeOperationType === 'intervention' ? (
+                        <InterventionsNavigator
+                            interventions={interventions}
+                            userContext="gestionnaire"
+                            tabsPreset="dashboard"
+                            showHeader={false}
+                            showSortOptions={true}
+                            showCombinedFilter={true}
+                            compact={true}
+                            initialActiveTab={initialActiveTab}
+                        />
+                    ) : (
+                        <RemindersNavigator
+                            reminders={reminders}
+                            onStart={handleStartReminder}
+                            onComplete={handleCompleteReminder}
+                            onCancel={handleCancelReminder}
+                            emptyStateConfig={{
+                                title: 'Aucun rappel',
+                                description: 'Creez des rappels depuis la section Operations',
+                            }}
+                        />
+                    )}
                 </div>
             </div>
 

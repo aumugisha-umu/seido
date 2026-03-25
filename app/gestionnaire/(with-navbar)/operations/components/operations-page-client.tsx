@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Plus, Bell } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { PageActions } from '@/components/page-actions'
 import { TaskTypeSegment, type TaskType } from '@/components/operations/task-type-segment'
 import { RemindersNavigator } from '@/components/operations/reminders-navigator'
 import { InterventionsPageClient } from '../../interventions/interventions-page-client'
-import { startReminderAction, completeReminderAction, cancelReminderAction } from '@/app/actions/reminder-actions'
-import { useRealtimeOptional } from '@/contexts/realtime-context'
+import { useReminderActions } from '@/hooks/use-reminder-actions'
 import { useNavigationPending } from '@/hooks/use-navigation-pending'
 import { useSubscription } from '@/hooks/use-subscription'
 import type { ReminderWithRelations } from '@/lib/types/reminder.types'
@@ -36,7 +34,7 @@ export function OperationsPageClient({
 }: OperationsPageClientProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const realtime = useRealtimeOptional()
+  const { handleStartReminder, handleCompleteReminder, handleCancelReminder } = useReminderActions()
   const { isPending: isNavigatingIntervention, navigate: navigateIntervention } = useNavigationPending()
   const { isPending: isNavigatingReminder, navigate: navigateReminder } = useNavigationPending()
   const { isReadOnly, loading: subscriptionLoading } = useSubscription()
@@ -50,43 +48,6 @@ export function OperationsPageClient({
     url.searchParams.set('type', type)
     window.history.replaceState({}, '', url.toString())
   }
-
-  // ============================================================================
-  // REMINDER QUICK ACTIONS
-  // ============================================================================
-
-  const handleStartReminder = useCallback(async (id: string) => {
-    const result = await startReminderAction(id)
-    if (result.success) {
-      toast.success('Rappel demarre')
-      realtime?.broadcastInvalidation(['reminders'])
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }, [realtime, router])
-
-  const handleCompleteReminder = useCallback(async (id: string) => {
-    const result = await completeReminderAction(id)
-    if (result.success) {
-      toast.success('Rappel termine')
-      realtime?.broadcastInvalidation(['reminders'])
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }, [realtime, router])
-
-  const handleCancelReminder = useCallback(async (id: string) => {
-    const result = await cancelReminderAction(id)
-    if (result.success) {
-      toast.success('Rappel annule')
-      realtime?.broadcastInvalidation(['reminders'])
-      router.refresh()
-    } else {
-      toast.error(result.error)
-    }
-  }, [realtime, router])
 
   return (
     <>

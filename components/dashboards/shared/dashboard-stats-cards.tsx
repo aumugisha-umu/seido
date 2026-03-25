@@ -68,15 +68,13 @@ export function DashboardStatsCards({
     reminderStats
 }: DashboardStatsCardsProps) {
     const isManager = buildingsCount !== undefined
-    const hasReminders = reminderStats && (reminderStats.due_today > 0 || reminderStats.overdue > 0 || reminderStats.en_cours > 0 || reminderStats.en_attente > 0)
+    const hasActiveReminders = reminderStats && (reminderStats.due_today > 0 || reminderStats.overdue > 0 || reminderStats.en_cours > 0 || reminderStats.en_attente > 0)
 
     return (
         <div className={cn(
             "dashboard-stats-cards grid grid-cols-1 gap-3 lg:gap-4",
             isManager
-                ? hasReminders
-                    ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
-                    : "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+                ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
                 : "md:grid-cols-3"
         )}>
             {/* Card 1: Actions requises (Always First) */}
@@ -189,36 +187,46 @@ export function DashboardStatsCards({
                 href="/gestionnaire/operations"
             />
 
-            {/* Card 6: Rappels (Manager Only, conditional) */}
-            {hasReminders && reminderStats && (
-                <StatsCard
-                    id="reminders"
-                    label="Rappels"
-                    value={reminderStats.due_today}
-                    sublabel="aujourd'hui"
-                    secondaryValue={
-                        <div className="flex flex-col gap-0.5">
-                            {reminderStats.overdue > 0 && (
-                                <span className="text-destructive font-medium flex items-center gap-1 text-xs">
-                                    <AlertTriangle className="h-3 w-3" />
-                                    {reminderStats.overdue} en retard
-                                </span>
-                            )}
-                            {reminderStats.en_attente > 0 && (
-                                <span className="text-muted-foreground flex items-center gap-1 text-xs">
-                                    <Clock className="h-3 w-3" />
-                                    {reminderStats.en_attente} en attente
-                                </span>
-                            )}
-                        </div>
-                    }
-                    icon={Bell}
-                    iconColor={reminderStats.overdue > 0 ? "text-red-500" : "text-amber-500"}
-                    variant={reminderStats.overdue > 0 ? "warning" : "default"}
-                    href="/gestionnaire/operations?type=rappel"
-                    alertRing={reminderStats.overdue > 0}
-                />
-            )}
+            {/* Card 6: Rappels (Manager Only, always visible) */}
+            {isManager && (() => {
+                const dueTodayCount = reminderStats?.due_today ?? 0
+                const overdueCount = reminderStats?.overdue ?? 0
+                const enAttenteCount = reminderStats?.en_attente ?? 0
+                const enCoursCount = reminderStats?.en_cours ?? 0
+                const totalActive = enAttenteCount + enCoursCount
+
+                return (
+                    <StatsCard
+                        id="reminders"
+                        label="Rappels"
+                        value={hasActiveReminders ? dueTodayCount : totalActive}
+                        sublabel={hasActiveReminders ? "aujourd'hui" : "Aucun rappel actif"}
+                        secondaryValue={
+                            hasActiveReminders ? (
+                                <div className="flex flex-col gap-0.5">
+                                    {overdueCount > 0 && (
+                                        <span className="text-destructive font-medium flex items-center gap-1 text-xs">
+                                            <AlertTriangle className="h-3 w-3" />
+                                            {overdueCount} en retard
+                                        </span>
+                                    )}
+                                    {enAttenteCount > 0 && (
+                                        <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                                            <Clock className="h-3 w-3" />
+                                            {enAttenteCount} en attente
+                                        </span>
+                                    )}
+                                </div>
+                            ) : null
+                        }
+                        icon={Bell}
+                        iconColor={overdueCount > 0 ? "text-red-500" : hasActiveReminders ? "text-amber-500" : "text-muted-foreground"}
+                        variant={overdueCount > 0 ? "warning" : "default"}
+                        href="/gestionnaire/operations?type=rappel"
+                        alertRing={overdueCount > 0}
+                    />
+                )
+            })()}
         </div>
     )
 }

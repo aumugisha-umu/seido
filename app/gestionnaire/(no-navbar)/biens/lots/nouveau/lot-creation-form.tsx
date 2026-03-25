@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2, Paperclip, Wrench, Calendar } from "lucide-react"
+import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2, Paperclip, Wrench, Bell, Calendar } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
@@ -2359,8 +2359,10 @@ export default function LotCreationForm({
               recommended: slot.recommended,
             }))
 
-            // Interventions (shared across all lots in independent mode)
+            // Interventions & reminders (shared across all lots in independent mode)
             const enabledInterventions = scheduledInterventions.filter(i => i.enabled)
+            const interventionItems = enabledInterventions.filter(i => i.itemType !== 'reminder')
+            const reminderItems = enabledInterventions.filter(i => i.itemType === 'reminder')
 
             return (
               <div
@@ -2437,15 +2439,13 @@ export default function LotCreationForm({
                 </ConfirmationSection>
 
                 {/* Interventions */}
-                <ConfirmationSection title="Interventions" compact>
-                  {enabledInterventions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground/60 italic">Aucune intervention planifiee</p>
-                  ) : (
+                {interventionItems.length > 0 && (
+                  <ConfirmationSection title={`Interventions planifiees (${interventionItems.length})`} compact>
                     <div className="space-y-2">
-                      {enabledInterventions.map(intervention => (
+                      {interventionItems.map(intervention => (
                         <div key={intervention.key} className="flex items-center gap-3 rounded-lg border bg-card p-2.5">
-                          <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                            <Calendar className="h-3.5 w-3.5 text-primary" />
+                          <div className="h-7 w-7 rounded-md bg-indigo-50 flex items-center justify-center shrink-0">
+                            <Wrench className="h-3.5 w-3.5 text-indigo-600" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{intervention.title}</p>
@@ -2462,8 +2462,41 @@ export default function LotCreationForm({
                         </div>
                       ))}
                     </div>
-                  )}
-                </ConfirmationSection>
+                  </ConfirmationSection>
+                )}
+
+                {/* Rappels */}
+                {reminderItems.length > 0 && (
+                  <ConfirmationSection title={`Rappels (${reminderItems.length})`} compact>
+                    <div className="space-y-2">
+                      {reminderItems.map(reminder => (
+                        <div key={reminder.key} className="flex items-center gap-3 rounded-lg border bg-card p-2.5">
+                          <div className="h-7 w-7 rounded-md bg-amber-50 flex items-center justify-center shrink-0">
+                            <Bell className="h-3.5 w-3.5 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{reminder.title}</p>
+                            {reminder.scheduledDate && (
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(reminder.scheduledDate).toLocaleDateString('fr-FR', {
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ConfirmationSection>
+                )}
+
+                {interventionItems.length === 0 && reminderItems.length === 0 && (
+                  <ConfirmationSection title="Interventions" compact>
+                    <p className="text-sm text-muted-foreground/60 italic">Aucune intervention planifiee</p>
+                  </ConfirmationSection>
+                )}
               </div>
             )
           })}

@@ -52,6 +52,8 @@ Triggers for FULL gate:
 
 **Skip for:** single-file edit, quick question, typo fix, config change, rename.
 
+**Agent dispatch:** When spawning agents, include `Read .claude/agents/_base-template.md first` in the prompt for full SEIDO context.
+
 ---
 
 ## Memory Bank
@@ -150,51 +152,9 @@ npm run test:e2e:debug   # E2E with Playwright inspector
 
 ---
 
-## Code Craftsmanship Standards (Embedded from /simplify)
-
-**Applied automatically during ALL code writing.**
-
-### Before Writing Code (Reuse Search)
-1. **Grep the codebase** for similar functions before creating new ones (`lib/utils/`, `lib/constants/`, `components/ui/`, adjacent files)
-2. **If existing utility does 80%+ of what you need** — extend it, don't create a new one
-3. **Check shadcn/ui** before creating UI components
-4. **Check existing constants/enums** before using string literals
-
-### While Writing Code (Quality Guardrails)
-| Anti-Pattern | Correct Pattern |
-|---|---|
-| Redundant state (derived from existing) | Compute from source state |
-| Parameter sprawl (adding params) | Generalize or restructure |
-| Copy-paste with variation | Extract shared abstraction |
-| Stringly-typed (raw strings) | Use constants/enums/unions |
-| `any` types | Proper TypeScript types |
-| `console.log` | Remove or use `logger` |
-| Inline styles | Tailwind classes |
-| Hardcoded colors | CSS variables from `globals.css` |
-
-### After Writing Code (Efficiency Self-Check)
-- [ ] No N+1 queries (batch with `Promise.all`)
-- [ ] Independent async ops run in parallel (not sequential)
-- [ ] No redundant DB queries (same data fetched twice)
-- [ ] No TOCTOU (check-then-act) — operate directly, handle errors
-- [ ] No overly broad queries (loading all when filtering for one)
-- [ ] Event listeners / subscriptions cleaned up on unmount
-- [ ] Separate try-catch for JSON.parse vs business logic errors
-
----
-
-## Parallel Execution Protocol
-
-**For ANY multi-task execution (3+ independent tasks or 2+ tasks touching different file domains):**
-
-1. **Analyze parallelizability:** Map file dependencies — tasks touching different files can run in parallel
-2. **Branch awareness:** `git branch --show-current` — worktrees MUST branch from the CURRENT branch, not main
-3. **Dispatch:** Launch one Agent per domain with `isolation: "worktree"` + `mode: "bypassPermissions"`. Each agent commits on its worktree branch.
-4. **Post-agent simplify:** Each agent runs Craftsmanship Standards self-check on its changes before finishing
-5. **Merge:** Sequentially merge each worktree branch into the current branch (`git merge <branch> --no-edit`)
-6. **Cleanup:** `git worktree remove` + `git branch -D` for each worktree, then `git worktree prune`
-
-**Do NOT parallelize when:** tasks share files, output of one feeds another, or total changes < 3 files.
+**Code Craftsmanship:** Applied automatically during all code writing. Full checklist: `.claude/skills/sp-simplify/craftsmanship-standards.md`
+**Parallel Execution:** See `sp-dispatching-parallel-agents` skill for full protocol. Key rule: worktrees branch from CURRENT branch, not main.
+**Design Quality:** Anti-AI-slop criteria: `docs/design/design-evaluation-criteria.md`
 
 ---
 
@@ -229,4 +189,4 @@ Invoquer `ultrathink-orchestrator` si : 3 tentatives echouees | multi-domaines (
 - **Skill Routing** (triggers, chains, compound): `sp-orchestration` skill
 
 ---
-**Last Updated**: 2026-03-21 | **Status**: Production Ready
+**Last Updated**: 2026-03-25 | **Status**: Production Ready

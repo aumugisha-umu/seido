@@ -33,7 +33,7 @@ Ralph is the **single entry point** for implementing any non-trivial feature in 
 Phase A: DISCOVERY ── Step 1-2: Entry + PRD (delegates to sp-prd if needed)
 Phase B: DECOMPOSITION ── Step 3-4: prd.json + user validation
 Phase C: IMPLEMENTATION ── Step 5: Story-by-story TDD loop
-Phase D: VALIDATION ── Step 6-7: Quality gate + final report
+Phase D: VALIDATION ── Step 6-8: Feature evaluation + quality gate + final report
 ```
 
 ---
@@ -204,21 +204,35 @@ Continue?
 
 ## Phase D: VALIDATION
 
-### Step 6: Final Quality Gate
+### Step 6: Feature Evaluation (separate context)
 
-When ALL stories `passes: true`:
+When ALL stories `passes: true`, launch the **feature-evaluator** agent in a separate context:
+
+```
+Agent: feature-evaluator
+Input:
+  - Feature name + acceptance criteria from tasks/prd.json
+  - Files changed: git diff main...HEAD --name-only (or base branch)
+  - Implementation diff: git diff main...HEAD
+```
+
+The evaluator scores against 3 axes: Security (40%), Patterns (30%), Design Quality (30%).
+
+**If passed (score >= 7.0, no axis < 5.0):** Proceed to Step 7.
+**If failed:** Read evaluator feedback, fix issues, re-run evaluator. Max 2 retries before asking user.
+
+### Step 7: Final Quality Gate
 
 ```bash
-npx tsc --noEmit    # TypeScript
 npm run lint         # ESLint
 npm test             # All tests
 ```
 
 Review changed files through 4 lenses (Security, Performance, Patterns, Tests).
-Apply "Code Craftsmanship Standards > After Writing Code" checklist to ALL changed files.
+Apply craftsmanship self-check (`.claude/skills/sp-simplify/craftsmanship-standards.md`).
 If blockers → fix → re-run. Loop until zero blockers.
 
-### Step 7: Final Report
+### Step 8: Final Report
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

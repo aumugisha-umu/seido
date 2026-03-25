@@ -281,5 +281,7 @@ draft -> pending -> sent -> accepted (terminal positif)
 ---
 
 ## Files Recently Modified
-### 2026-03-25 12:18:04 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/seido-app/.claude/auto-memory/dirty-files`
+### 2026-03-25 14:33:09 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/seido-app/.claude/agents/references/seo-data.md`
+- `C:/Users/arthu/Desktop/Coding/seido-app/.claude/agents/seo-strategist.md`
+- `C:/Users/arthu/Desktop/Coding/seido-app/.claude/skills/sp-ralph/SKILL.md`

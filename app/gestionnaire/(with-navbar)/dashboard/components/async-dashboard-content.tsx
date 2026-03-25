@@ -21,7 +21,7 @@ import {
 // import { BankTransactionRepository } from "@/lib/services/repositories/bank-transaction.repository"
 // import { RentCallRepository } from "@/lib/services/repositories/rent-call.repository"
 import type { ContractStats } from "@/lib/types/contract.types"
-import type { ReminderStats } from "@/lib/types/reminder.types"
+import type { ReminderStats, ReminderWithRelations } from "@/lib/types/reminder.types"
 import type { InterventionWithRelations } from "@/lib/services"
 import { logger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
@@ -257,13 +257,15 @@ export async function AsyncDashboardContent({
   // Fetch unread threads + reminder stats in parallel (separate try/catch to not break dashboard)
   let unreadThreads: Awaited<ReturnType<ConversationRepository['getUnreadThreadsForDashboard']>>['data'] = { threads: [], totalCount: 0 }
   let reminderStats: ReminderStats = { total: 0, en_attente: 0, en_cours: 0, termine: 0, annule: 0, overdue: 0, due_today: 0 }
+  let reminders: ReminderWithRelations[] = []
 
-  const [unreadResult, reminderStatsResult] = await Promise.allSettled([
+  const [unreadResult, reminderStatsResult, remindersResult] = await Promise.allSettled([
     (async () => {
       const conversationRepo = new ConversationRepository(supabase)
       return conversationRepo.getUnreadThreadsForDashboard(profile.id)
     })(),
     reminderService.getStats(team.id),
+    reminderService.getByTeam(team.id),
   ])
 
   if (unreadResult.status === 'fulfilled' && unreadResult.value.success && unreadResult.value.data) {
@@ -276,6 +278,12 @@ export async function AsyncDashboardContent({
     reminderStats = reminderStatsResult.value
   } else {
     logger.warn('[ASYNC-DASHBOARD] Reminder stats fetch failed, skipping', { error: reminderStatsResult.reason })
+  }
+
+  if (remindersResult.status === 'fulfilled') {
+    reminders = remindersResult.value
+  } else {
+    logger.warn('[ASYNC-DASHBOARD] Reminders fetch failed, skipping', { error: remindersResult.reason })
   }
 
   // Bank module hidden until Tink app is approved in production
@@ -291,6 +299,7 @@ export async function AsyncDashboardContent({
       unreadThreads={unreadThreads?.threads}
       unreadThreadsTotalCount={unreadThreads?.totalCount}
       reminderStats={reminderStats}
+      reminders={reminders}
       // bankData={bankData}  // Bank module hidden until Tink approved
     />
   )

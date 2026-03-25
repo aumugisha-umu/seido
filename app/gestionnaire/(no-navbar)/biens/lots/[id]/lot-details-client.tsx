@@ -17,6 +17,9 @@ import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+import { RemindersNavigator } from "@/components/operations/reminders-navigator"
+import { useReminderActions } from '@/hooks/use-reminder-actions'
+import type { ReminderWithRelations } from '@/lib/types/reminder.types'
 import { logger } from '@/lib/logger'
 import { toast } from 'sonner'
 import { deleteLotAction } from './actions'
@@ -112,6 +115,7 @@ interface LotDetailsClientProps {
   interventionsWithDocs: Intervention[]
   contracts: ContractWithRelations[]
   supplierContracts: SupplierContractWithRelations[]
+  reminders: ReminderWithRelations[]
   isOccupied: boolean
   teamId: string
   lotAddress?: LotAddress | null
@@ -126,6 +130,7 @@ export default function LotDetailsClient({
   interventionsWithDocs,
   contracts,
   supplierContracts,
+  reminders,
   isOccupied: initialIsOccupied,
   teamId,
   lotAddress,
@@ -134,6 +139,7 @@ export default function LotDetailsClient({
   const isLocataire = role === 'locataire'
   const [activeTab, setActiveTab] = useState("general")
   const router = useRouter()
+  const { handleStartReminder, handleCompleteReminder, handleCancelReminder } = useReminderActions()
 
   // Local state
   const [contacts, setContacts] = useState(initialContacts)
@@ -410,6 +416,7 @@ export default function LotDetailsClient({
     { value: "contacts", label: "Contacts" },
     { value: "contracts", label: "Contrats", count: contracts.length + supplierContracts.length },
     { value: "interventions", label: "Interventions", count: interventionStats.total },
+    { value: "reminders", label: "Rappels", count: reminders.length },
     { value: "documents", label: "Documents" },
     { value: "emails", label: "Emails" },
     { value: "activity", label: "Activité" }
@@ -808,6 +815,20 @@ export default function LotDetailsClient({
             searchPlaceholder="Rechercher par titre, description, ou lot..."
             showFilters={true}
             isEmbeddedInCard={true}
+              />
+            </TabContentWrapper>
+
+            {/* Rappels Tab */}
+            <TabContentWrapper value="reminders">
+              <RemindersNavigator
+                reminders={reminders}
+                onStart={handleStartReminder}
+                onComplete={handleCompleteReminder}
+                onCancel={handleCancelReminder}
+                emptyStateConfig={{
+                  title: 'Aucun rappel pour ce lot',
+                  description: 'Les rappels lies a ce lot apparaitront ici',
+                }}
               />
             </TabContentWrapper>
 

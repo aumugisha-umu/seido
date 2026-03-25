@@ -111,6 +111,52 @@ export class ReminderRepository extends BaseRepository<Reminder, ReminderInsert,
   }
 
   /**
+   * Find reminders linked to a specific lot
+   */
+  async findByLot(lotId: string, teamId: string): Promise<ReminderWithRelations[]> {
+    const { data, error } = await this.supabase
+      .from('reminders')
+      .select(REMINDER_WITH_RELATIONS_SELECT)
+      .eq('team_id', teamId)
+      .eq('lot_id', lotId)
+      .is('deleted_at', null)
+      .order('due_date', { ascending: true, nullsFirst: false })
+
+    if (error) {
+      logger.error({ error, lotId, teamId }, 'Failed to find reminders by lot')
+      throw error
+    }
+
+    return (data || []) as unknown as ReminderWithRelations[]
+  }
+
+  /**
+   * Find reminders linked to a building or any of its lots
+   */
+  async findByBuilding(buildingId: string, lotIds: string[], teamId: string): Promise<ReminderWithRelations[]> {
+    let query = this.supabase
+      .from('reminders')
+      .select(REMINDER_WITH_RELATIONS_SELECT)
+      .eq('team_id', teamId)
+      .is('deleted_at', null)
+
+    if (lotIds.length > 0) {
+      query = query.or(`building_id.eq.${buildingId},lot_id.in.(${lotIds.join(',')})`)
+    } else {
+      query = query.eq('building_id', buildingId)
+    }
+
+    const { data, error } = await query.order('due_date', { ascending: true, nullsFirst: false })
+
+    if (error) {
+      logger.error({ error, buildingId, teamId }, 'Failed to find reminders by building')
+      throw error
+    }
+
+    return (data || []) as unknown as ReminderWithRelations[]
+  }
+
+  /**
    * Get reminder stats for a team (counts by status + overdue + due today)
    */
   async getStats(teamId: string): Promise<ReminderStats> {

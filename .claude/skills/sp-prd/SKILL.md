@@ -152,6 +152,15 @@ As a [gestionnaire/prestataire/locataire], I want [feature] so that [benefit]
 - "Build entire dashboard" → schema, queries, UI shell, filters, cards
 - "Add authentication" → schema, middleware, login UI, sessions
 
+**No L or XL stories allowed.** If a story exceeds M criteria:
+1. Split into sub-stories: US-003 → US-003a, US-003b, US-003c
+2. Each sub-story must be independently testable
+3. Update `dependsOn` chains accordingly
+
+**Single-layer rule:** A story should touch ONE layer (Schema OR Backend OR UI OR Dashboard). Cross-layer stories must be split.
+
+**Complex feature threshold:** If total stories > 15 OR estimated total lines > 2000, split into multiple PRDs (Phase 1 / Phase 2).
+
 ### Step 4: Dependency Ordering
 
 ```

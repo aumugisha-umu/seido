@@ -14,6 +14,9 @@ import { Plus, Home, MapPin, Archive, Edit as EditIcon } from "lucide-react"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+import { RemindersNavigator } from "@/components/operations/reminders-navigator"
+import { useReminderActions } from '@/hooks/use-reminder-actions'
+import type { ReminderWithRelations } from '@/lib/types/reminder.types'
 import { logger } from '@/lib/logger'
 import type { Building, Lot } from '@/lib/services'
 // Stats badges removed from overview
@@ -112,6 +115,7 @@ interface BuildingDetailsClientProps {
   buildingAddress?: BuildingAddress | null
   buildingSupplierContracts: SupplierContractWithRelations[]
   lotSupplierContractsByLotId: Record<string, SupplierContractWithRelations[]>
+  reminders: ReminderWithRelations[]
 }
 
 export default function BuildingDetailsClient({
@@ -125,11 +129,13 @@ export default function BuildingDetailsClient({
   lotContactIdsMap,
   buildingAddress,
   buildingSupplierContracts,
-  lotSupplierContractsByLotId
+  lotSupplierContractsByLotId,
+  reminders
 }: BuildingDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("general")
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { handleStartReminder, handleCompleteReminder, handleCancelReminder } = useReminderActions()
 
   // Read expandLot param from URL (for return navigation from contract edit)
   const expandLotId = searchParams.get('expandLot')
@@ -344,6 +350,7 @@ export default function BuildingDetailsClient({
     { value: "contacts", label: "Contacts" },
     { value: "contracts", label: "Contrats", count: totalContractsCount },
     { value: "interventions", label: "Interventions", count: stats.totalInterventions },
+    { value: "reminders", label: "Rappels", count: reminders.length },
     { value: "documents", label: "Documents" },
     { value: "emails", label: "Emails" },
     { value: "activity", label: "Activité" }
@@ -584,6 +591,20 @@ export default function BuildingDetailsClient({
                 searchPlaceholder="Rechercher par titre, description, ou lot..."
                 showFilters={true}
                 isEmbeddedInCard={true}
+              />
+            </TabContentWrapper>
+
+            {/* Rappels Tab */}
+            <TabContentWrapper value="reminders">
+              <RemindersNavigator
+                reminders={reminders}
+                onStart={handleStartReminder}
+                onComplete={handleCompleteReminder}
+                onCancel={handleCancelReminder}
+                emptyStateConfig={{
+                  title: 'Aucun rappel pour cet immeuble',
+                  description: 'Les rappels lies a cet immeuble apparaitront ici',
+                }}
               />
             </TabContentWrapper>
 

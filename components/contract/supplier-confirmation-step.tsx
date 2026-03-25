@@ -5,7 +5,7 @@
  * Uses reusable confirmation components for consistent layout.
  */
 
-import { Building2, Home, FileText, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Building2, Home, FileText, CheckCircle2, AlertTriangle, Wrench, Bell } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
   ConfirmationPageShell,
@@ -186,39 +186,56 @@ export function SupplierConfirmationStep({
       ))}
 
       {scheduledInterventions.length > 0 && (() => {
-        const enabledInterventions = scheduledInterventions.filter(i => i.enabled)
-        const disabledCount = scheduledInterventions.length - enabledInterventions.length
+        const enabledItems = scheduledInterventions.filter(i => i.enabled)
+        const disabledCount = scheduledInterventions.length - enabledItems.length
+        const interventionItems = enabledItems.filter(i => i.itemType !== 'reminder')
+        const reminderItems = enabledItems.filter(i => i.itemType === 'reminder')
+
+        const renderRow = (item: typeof enabledItems[0], icon: React.ReactNode) => (
+          <div key={item.key} className="flex items-start gap-2 text-sm">
+            {icon}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium">{item.title}</span>
+              <span className="text-muted-foreground">
+                - {item.scheduledDate ? format(item.scheduledDate, 'dd/MM/yyyy') : '\u2014'}
+              </span>
+              {item.assignedUsers.length > 0 && (
+                <span className="text-muted-foreground text-xs">
+                  ({item.assignedUsers.length} intervenant{item.assignedUsers.length > 1 ? 's' : ''})
+                </span>
+              )}
+            </div>
+          </div>
+        )
+
         return (
-          <ConfirmationSection title="Interventions planifiees">
-            {enabledInterventions.length > 0 ? (
-              <div className="space-y-2">
-                {enabledInterventions.map((intervention) => (
-                  <div key={intervention.key} className="flex items-start gap-2 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium">{intervention.title}</span>
-                      <span className="text-muted-foreground">
-                        - {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '\u2014'}
-                      </span>
-                      {intervention.assignedUsers.length > 0 && (
-                        <span className="text-muted-foreground text-xs">
-                          ({intervention.assignedUsers.length} intervenant{intervention.assignedUsers.length > 1 ? 's' : ''})
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {disabledCount > 0 && (
-                  <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span>{disabledCount} intervention(s) desactivee(s)</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Aucune intervention activee</p>
+          <>
+            {interventionItems.length > 0 && (
+              <ConfirmationSection title={`Interventions planifiees (${interventionItems.length})`}>
+                <div className="space-y-2">
+                  {interventionItems.map(item => renderRow(item, <Wrench className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />))}
+                </div>
+              </ConfirmationSection>
             )}
-          </ConfirmationSection>
+            {reminderItems.length > 0 && (
+              <ConfirmationSection title={`Rappels (${reminderItems.length})`}>
+                <div className="space-y-2">
+                  {reminderItems.map(item => renderRow(item, <Bell className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />))}
+                </div>
+              </ConfirmationSection>
+            )}
+            {enabledItems.length === 0 && (
+              <ConfirmationSection title="Interventions planifiees">
+                <p className="text-sm text-muted-foreground">Aucune intervention activee</p>
+              </ConfirmationSection>
+            )}
+            {disabledCount > 0 && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>{disabledCount} element(s) desactive(s)</span>
+              </div>
+            )}
+          </>
         )
       })()}
 

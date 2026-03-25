@@ -9,6 +9,7 @@ import {
   createServerSupabaseClient,
   createServerSupplierContractService,
   createServiceRoleSupabaseClient,
+  createServerReminderService,
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
@@ -127,13 +128,14 @@ export default async function BuildingDetailsPage({
 
   try {
     // Initialize all services in parallel (server-side)
-    const [buildingService, lotService, interventionService, contractService, supplierContractService, supabase] = await Promise.all([
+    const [buildingService, lotService, interventionService, contractService, supplierContractService, supabase, reminderService] = await Promise.all([
       createServerBuildingService(),
       createServerLotService(),
       createServerInterventionService(),
       createServerContractService(),
       createServerSupplierContractService(),
-      createServerSupabaseClient()
+      createServerSupabaseClient(),
+      createServerReminderService()
     ])
 
     // Load building data
@@ -179,7 +181,8 @@ export default async function BuildingDetailsPage({
       buildingContactsResponse,
       addressResponse,
       buildingSupplierContracts,
-      lotSupplierContracts
+      lotSupplierContracts,
+      reminders
     ] = await Promise.all([
       // Occupied lot IDs from active contracts
       contractService.getOccupiedLotIdsByTeam(team.id).catch(() => {
@@ -233,6 +236,12 @@ export default async function BuildingDetailsPage({
       supplierContractService.getByLotIds(lotIds).catch(() => {
         logger.warn('[BUILDING-PAGE-SERVER] Could not load lot supplier contracts')
         return [] as Awaited<ReturnType<typeof supplierContractService.getByLotIds>>
+      }),
+
+      // Reminders for this building and its lots
+      reminderService.getByBuilding(id, lotIds, team.id).catch((error) => {
+        logger.warn('[BUILDING-PAGE-SERVER] Could not load reminders', { error })
+        return [] as Awaited<ReturnType<typeof reminderService.getByBuilding>>
       })
     ])
 
@@ -393,6 +402,7 @@ export default async function BuildingDetailsPage({
         buildingAddress={buildingAddress}
         buildingSupplierContracts={buildingSupplierContracts}
         lotSupplierContractsByLotId={lotSupplierContractsByLotId}
+        reminders={reminders}
       />
     )
   } catch (error) {

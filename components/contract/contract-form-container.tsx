@@ -1419,6 +1419,8 @@ export default function ContractFormContainer({
         const frequencyLabel = formData.paymentFrequency ? PAYMENT_FREQUENCY_LABELS[formData.paymentFrequency] : ''
         const enabledInterventions = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
         const disabledInterventions = scheduledInterventions.filter(i => !i.enabled)
+        const interventionItems = enabledInterventions.filter(i => i.itemType !== 'reminder')
+        const reminderItems = enabledInterventions.filter(i => i.itemType === 'reminder')
 
         // Map document slots for ConfirmationDocumentList
         const documentSlotsSummary = slots.map(slot => {
@@ -1528,12 +1530,12 @@ export default function ContractFormContainer({
                   <ConfirmationDocumentList slots={documentSlotsSummary} />
                 </ConfirmationSection>
 
-                <ConfirmationSection title="Interventions & rappels">
-                  {(enabledInterventions.length > 0 || rentReminderConfig.enabled) ? (
+                {interventionItems.length > 0 && (
+                  <ConfirmationSection title={`Interventions planifiees (${interventionItems.length})`}>
                     <div className="space-y-2">
-                      {enabledInterventions.map((intervention, index) => (
+                      {interventionItems.map((intervention, index) => (
                         <div key={index} className="flex items-start gap-2 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                          <Wrench className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium">{intervention.title}</span>
                             <span className="text-muted-foreground">
@@ -1553,30 +1555,60 @@ export default function ContractFormContainer({
                           </div>
                         </div>
                       ))}
-                      {disabledInterventions.length > 0 && (
-                        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                          <AlertTriangle className="h-4 w-4 shrink-0" />
-                          <span>
-                            {disabledInterventions.length} intervention(s) desactivee(s)
-                          </span>
+                    </div>
+                  </ConfirmationSection>
+                )}
+
+                {(reminderItems.length > 0 || rentReminderConfig.enabled) && (
+                  <ConfirmationSection title={`Rappels (${reminderItems.length + (rentReminderConfig.enabled ? 1 : 0)})`}>
+                    <div className="space-y-2">
+                      {reminderItems.map((reminder, index) => (
+                        <div key={index} className="flex items-start gap-2 text-sm">
+                          <Bell className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">{reminder.title}</span>
+                            <span className="text-muted-foreground">
+                              - {reminder.scheduledDate ? format(reminder.scheduledDate, 'dd/MM/yyyy') : '\u2014'}
+                            </span>
+                            {reminder.assignedUsers.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {reminder.assignedUsers.map(user => (
+                                  <ParticipantChip
+                                    key={user.userId}
+                                    participant={{ id: user.userId, name: user.name }}
+                                    roleKey={user.role === 'gestionnaire' ? 'managers' : user.role === 'prestataire' ? 'providers' : 'tenants'}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
+                      ))}
                       {rentReminderConfig.enabled && (
-                        <div className="mt-4 flex items-center gap-2 text-sm">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                          {rentReminderConfig.itemType === 'intervention'
-                            ? <Wrench className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-                            : <Bell className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                          }
-                          <span className="font-medium">Appel de loyer</span>
-                          <span className="text-muted-foreground">&mdash; le {rentReminderConfig.dayOfMonth} de chaque mois</span>
+                        <div className="flex items-start gap-2 text-sm">
+                          <Bell className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium">Appel de loyer</span>
+                            <span className="text-muted-foreground">&mdash; le {rentReminderConfig.dayOfMonth} de chaque mois</span>
+                          </div>
                         </div>
                       )}
                     </div>
-                  ) : (
+                  </ConfirmationSection>
+                )}
+
+                {disabledInterventions.length > 0 && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>{disabledInterventions.length} element(s) desactive(s)</span>
+                  </div>
+                )}
+
+                {interventionItems.length === 0 && reminderItems.length === 0 && !rentReminderConfig.enabled && (
+                  <ConfirmationSection title="Interventions & rappels">
                     <p className="text-sm text-muted-foreground">Aucune intervention planifiee</p>
-                  )}
-                </ConfirmationSection>
+                  </ConfirmationSection>
+                )}
               </div>
             </div>
 

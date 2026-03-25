@@ -30,7 +30,7 @@ import {
   sendMessageAction,
   deleteMessageAction,
   markThreadAsReadAction
-} from '@/app/actions/conversation-actions'
+} from '@/app/actions/conversations'
 
 // ============================================================================
 // Types

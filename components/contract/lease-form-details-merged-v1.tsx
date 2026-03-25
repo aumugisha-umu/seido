@@ -49,7 +49,7 @@ import {
   CONTRACT_DURATION_OPTIONS,
   GUARANTEE_TYPE_LABELS,
 } from '@/lib/types/contract.types'
-import { checkContractOverlapWithDetails, type OverlappingContractInfo, type OverlapCheckDetailedResult } from '@/app/actions/contract-actions'
+import { checkContractOverlapWithDetails, type OverlappingContractInfo, type OverlapCheckDetailedResult } from '@/app/actions/contracts'
 
 interface Contact {
   id: string

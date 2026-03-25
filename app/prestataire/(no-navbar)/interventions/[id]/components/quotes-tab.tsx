@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import { logger } from '@/lib/logger'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -106,7 +107,7 @@ export function QuotesTab({
       setRejectionReason('')
       onRefresh()
     } catch (error) {
-      console.error('Error rejecting quote request:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error rejecting quote request')
       toast.error('Erreur lors du rejet de la demande')
     } finally {
       setIsRejecting(false)
@@ -141,7 +142,7 @@ export function QuotesTab({
       toast.success(successMessage)
       onRefresh()
     } catch (error) {
-      console.error('Error deleting quote:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error deleting quote')
       toast.error('Erreur lors de la suppression de l\'estimation')
     } finally {
       setDeleting(null)

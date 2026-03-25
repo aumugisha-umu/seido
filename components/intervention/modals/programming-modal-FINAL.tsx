@@ -33,7 +33,7 @@ import { Switch } from "@/components/ui/switch"
 import { ContactSection } from "@/components/ui/contact-section"
 import { ContactSelector, type ContactSelectorRef } from "@/components/contact-selector"
 import { cn } from "@/lib/utils"
-import type { BuildingTenantsResult } from "@/app/actions/contract-actions"
+import type { BuildingTenantsResult } from "@/app/actions/contracts"
 import { type InterventionAction } from "@/lib/intervention-actions-service"
 import {
   getInterventionLocationText,

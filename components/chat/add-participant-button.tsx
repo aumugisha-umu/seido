@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/popover'
 import { SeidoBadge } from '@/components/ui/seido-badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { addParticipantAction } from '@/app/actions/conversation-actions'
+import { addParticipantAction } from '@/app/actions/conversations'
 import type { Database } from '@/lib/database.types'
 
 type UserRole = Database['public']['Enums']['user_role']

@@ -9,9 +9,6 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-
 // Tab components
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 
@@ -24,7 +21,6 @@ import { DocumentUploadDialog } from '@/components/interventions/document-upload
 // Composants partagés pour le nouveau design
 import {
   // Types
-  Participant,
   Quote as SharedQuote,
   TimeSlot as SharedTimeSlot,
   Comment as SharedComment,
@@ -34,26 +30,19 @@ import {
   ContentWrapper,
   // Cards
   InterventionDetailsCard,
-  CommentsCard,
-  DocumentsCard,
   QuotesCard,
   PlanningCard,
-  ReportsCard,
   InterventionReport,
 } from '@/components/interventions/shared'
 
 // Unified tabs component (replaces InterventionTabs)
 import {
   EntityTabs,
-  TabContentWrapper,
   getInterventionTabsConfig
 } from '@/components/shared/entity-preview'
 
 // Contacts navigator (grid/list views)
 import { InterventionContactsNavigator } from '@/components/interventions/intervention-contacts-navigator'
-
-// Helpers de formatage
-import { formatDate, formatTime, formatTimeRange } from '@/components/interventions/shared/utils/helpers'
 
 // Modal pour choisir un créneau
 import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
@@ -64,23 +53,7 @@ import { useDocumentActions } from '@/components/interventions/shared'
 
 // Intervention components
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Building2, MapPin, User, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare, MessageSquareText, Calendar, FileText, Loader2 } from 'lucide-react'
-
-// Dialog for comments modal
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { AlertCircle, FileText } from 'lucide-react'
 
 // Quote status utilities
 import { getQuoteBadgeStatus, getQuoteBadgeLabel, getQuoteBadgeColor } from '@/lib/utils/quote-status'
@@ -93,7 +66,6 @@ import { QuoteRejectionModal } from '@/components/quotes/quote-rejection-modal'
 import {
   getRoleBasedActions,
   getDotMenuActions,
-  toButtonVariant,
   type RoleBasedAction
 } from '@/lib/intervention-action-utils'
 
@@ -127,7 +99,6 @@ import {
 } from '@/components/intervention/confirmation-required-banner'
 import {
   getParticipantPermissions,
-  needsConfirmation,
   hasConfirmed,
   hasRejected
 } from '@/lib/utils/intervention-permissions'
@@ -151,77 +122,25 @@ const CancelConfirmationModal = dynamic(() => import("@/components/intervention/
 import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
 
 // Google Maps
-import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
+import { GoogleMapsProvider } from '@/components/google-maps'
 // AssignmentModeBadge: see InterventionDetailsCard participants row
 
-import type { Database } from '@/lib/database.types'
-
-// Type pour address_record retourné par Supabase via la relation address_id(*)
-type AddressRecord = Database['public']['Tables']['addresses']['Row'] | null
-
-type Intervention = Database['public']['Tables']['interventions']['Row'] & {
-  building?: Database['public']['Tables']['buildings']['Row'] & {
-    address_record?: AddressRecord
-  }
-  lot?: Database['public']['Tables']['lots']['Row'] & {
-    address_record?: AddressRecord
-    building?: Database['public']['Tables']['buildings']['Row'] & {
-      address_record?: AddressRecord
-    }
-  }
-  tenant?: Database['public']['Tables']['users']['Row']
-  creator?: {
-    id: string
-    name: string
-    email: string | null
-    role: string
-  }
-}
-
-type Assignment = Database['public']['Tables']['intervention_assignments']['Row'] & {
-  user?: Database['public']['Tables']['users']['Row']
-}
-
-type Document = Database['public']['Tables']['intervention_documents']['Row']
-
-type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
-  provider?: Database['public']['Tables']['users']['Row']
-}
-
-type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
-  proposed_by_user?: Database['public']['Tables']['users']['Row']
-}
-
-type Thread = Database['public']['Tables']['conversation_threads']['Row']
-
-interface Comment {
-  id: string
-  content: string
-  created_at: string
-  is_internal?: boolean
-  user?: Pick<User, 'id' | 'name' | 'email' | 'avatar_url' | 'role'>
-}
-
-// Multi-provider types
-type AssignmentMode = Database['public']['Enums']['assignment_mode']
-
-interface InterventionLink {
-  id: string
-  parent_intervention_id: string
-  child_intervention_id: string
-  provider_id: string
-  link_type: string
-  created_at: string
-  parent?: { id: string; reference: string; title: string; status: string }
-  child?: { id: string; reference: string; title: string; status: string }
-  provider?: { id: string; first_name: string; last_name: string; avatar_url?: string }
-}
-
-interface InterventionAddress {
-  latitude: number
-  longitude: number
-  formatted_address: string | null
-}
+import type {
+  Intervention,
+  Assignment,
+  Document,
+  Quote,
+  TimeSlot,
+  Thread,
+  Comment,
+  AssignmentMode,
+  InterventionLink,
+  InterventionAddress,
+} from './intervention-detail-types'
+import { TYPE_TO_CATEGORY, CATEGORY_BADGE_STYLES } from './intervention-detail-types'
+import { InterventionHeaderActions } from './intervention-header-actions'
+import { InterventionDocumentsTab } from './intervention-documents-tab'
+import { InterventionCommentsModal } from './intervention-comments-modal'
 
 interface InterventionDetailClientProps {
   intervention: Intervention
@@ -245,32 +164,6 @@ interface InterventionDetailClientProps {
   providerCount?: number
   // Address for map display
   interventionAddress?: InterventionAddress | null
-}
-
-// ============================================================================
-// Type Badge Constants (same as interventions-list-view-v1.tsx)
-// ============================================================================
-
-const TYPE_TO_CATEGORY: Record<string, 'bien' | 'bail' | 'locataire'> = {
-  // Bien (Property)
-  'plomberie': 'bien', 'electricite': 'bien', 'chauffage': 'bien', 'serrurerie': 'bien',
-  'menuiserie': 'bien', 'peinture': 'bien', 'espaces_verts': 'bien', 'nettoyage': 'bien',
-  'renovation': 'bien', 'travaux_structurels': 'bien', 'toiture_facade': 'bien',
-  'ascenseur': 'bien', 'securite_incendie': 'bien', 'autre_technique': 'bien',
-  // Bail (Lease)
-  'etat_des_lieux_entree': 'bail', 'etat_des_lieux_sortie': 'bail', 'regularisation_charges': 'bail',
-  'revision_loyer': 'bail', 'renouvellement_bail': 'bail', 'resiliation_bail': 'bail',
-  'quittancement': 'bail', 'contentieux_loyer': 'bail', 'autre_administratif': 'bail',
-  // Locataire (Tenant)
-  'nuisances': 'locataire', 'sinistre': 'locataire', 'demande_autorisation': 'locataire',
-  'reclamation': 'locataire', 'probleme_voisinage': 'locataire', 'assurance': 'locataire',
-  'autre_locataire': 'locataire',
-}
-
-const CATEGORY_BADGE_STYLES: Record<string, string> = {
-  bien: 'bg-blue-100 text-blue-700 border-blue-200',
-  bail: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  locataire: 'bg-orange-100 text-orange-700 border-orange-200',
 }
 
 export function InterventionDetailClient({
@@ -1625,23 +1518,6 @@ export function InterventionDetailClient({
   // Planning date removed from header — already shown in Général + Planning tabs
   const headerMetadata: DetailPageHeaderMetadata[] = [];
 
-  // Helper function to check if action badge should be shown
-  const shouldShowActionBadge = (
-    status: string,
-    quotes: Quote[]
-  ): boolean => {
-    switch (status) {
-      case 'demande':
-      case 'approuvee':
-      case 'cloturee_par_prestataire':
-      case 'cloturee_par_locataire':
-        return true;
-
-      default:
-        return false;
-    }
-  };
-
   return (
     <GoogleMapsProvider>
       <div className="h-screen flex flex-col overflow-hidden">
@@ -1653,259 +1529,16 @@ export function InterventionDetailClient({
         badges={headerBadges}
         metadata={headerMetadata}
         actionButtons={
-          <>
-            {/* Desktop Layout (≥1024px) : Badge inline + Boutons dynamiques + Dot menu */}
-            <div className="hidden lg:flex lg:items-center lg:gap-2 transition-all duration-200">
-              {shouldShowActionBadge(intervention.status, quotes) && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-200">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
-                  <span className="text-xs font-medium text-amber-900 whitespace-nowrap">
-                    Action en attente
-                  </span>
-                </div>
-              )}
-
-              {/* Comments button - only visible when there are comments */}
-              {transformedComments.length > 0 && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsCommentsModalOpen(true)}
-                        className="gap-2 min-h-[36px] relative"
-                      >
-                        <MessageSquareText className="w-4 h-4" />
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
-                          {transformedComments.length}
-                        </span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{transformedComments.length} commentaire{transformedComments.length > 1 ? 's' : ''} interne{transformedComments.length > 1 ? 's' : ''}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              {/* Dynamic action buttons from getRoleBasedActions */}
-              {headerActions.map((action, idx) => {
-                return (
-                  <TooltipProvider key={idx}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant={toButtonVariant(action.variant)}
-                          size="sm"
-                          onClick={() => handleHeaderActionClick(action)}
-                          disabled={actionLoading === action.actionType}
-                          className={`gap-2 min-h-[36px] ${
-                            action.variant === 'primary' ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''
-                          }`}
-                        >
-                          {actionLoading === action.actionType ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <action.icon className="w-4 h-4" />
-                          )}
-                          <span>{action.label}</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{action.label}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )
-              })}
-
-              {/* Dot menu for secondary actions (Modifier/Annuler) */}
-              {dotMenuActions.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-9 w-9"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                      <span className="sr-only">Plus d'actions</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {dotMenuActions.map((action, idx) => (
-                      <DropdownMenuItem
-                        key={idx}
-                        onClick={() => handleHeaderActionClick(action)}
-                        className={action.variant === 'destructive' ? 'text-red-600 focus:text-red-600 focus:bg-red-50' : ''}
-                      >
-                        <action.icon className="w-4 h-4 mr-2" />
-                        {action.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-
-            {/* Tablet Layout (768-1023px) : Badge compact + Dynamic buttons + Dot menu */}
-            <div className="hidden md:flex lg:hidden items-center gap-2 transition-all duration-200">
-              {shouldShowActionBadge(intervention.status, quotes) && (
-                <div className="flex items-center justify-center w-8 h-8 rounded-md bg-amber-50 border border-amber-200">
-                  <AlertCircle className="w-4 h-4 text-amber-700" />
-                  <span className="sr-only">Action en attente</span>
-                </div>
-              )}
-
-              {/* Comments button - tablet */}
-              {transformedComments.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsCommentsModalOpen(true)}
-                  className="h-9 w-9 relative"
-                >
-                  <MessageSquareText className="w-4 h-4" />
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
-                    {transformedComments.length}
-                  </span>
-                  <span className="sr-only">{transformedComments.length} commentaires</span>
-                </Button>
-              )}
-
-              {/* Dynamic action buttons from getRoleBasedActions */}
-              {headerActions.map((action, idx) => {
-                return (
-                  <Button
-                    key={idx}
-                    variant={toButtonVariant(action.variant)}
-                    size="sm"
-                    onClick={() => handleHeaderActionClick(action)}
-                    disabled={actionLoading === action.actionType}
-                    className={`gap-1.5 min-h-[36px] ${
-                      action.variant === 'primary' ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''
-                    }`}
-                  >
-                    {actionLoading === action.actionType ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <action.icon className="w-4 h-4" />
-                    )}
-                    <span>{action.label}</span>
-                  </Button>
-                )
-              })}
-
-              {/* Dot menu for secondary actions (Modifier/Annuler) */}
-              {dotMenuActions.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-9 w-9"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                      <span className="sr-only">Plus d'actions</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {dotMenuActions.map((action, idx) => (
-                      <DropdownMenuItem
-                        key={idx}
-                        onClick={() => handleHeaderActionClick(action)}
-                        className={action.variant === 'destructive' ? 'text-red-600 focus:text-red-600 focus:bg-red-50' : ''}
-                      >
-                        <action.icon className="w-4 h-4 mr-2" />
-                        {action.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-
-            {/* Mobile Layout (<768px) : All actions in dropdown menu */}
-            <div className="md:hidden">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="relative gap-2 min-h-[44px]"
-                  >
-                    {/* Point indicateur rouge animé si action requise */}
-                    {shouldShowActionBadge(intervention.status, quotes) && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" />
-                    )}
-                    <MoreVertical className="w-4 h-4" />
-                    <span>Actions</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {/* Badge informatif en haut du menu */}
-                  {shouldShowActionBadge(intervention.status, quotes) && (
-                    <>
-                      <div className="px-2 py-1.5 text-xs font-medium text-amber-900 bg-amber-50 rounded-sm mx-1 mb-1">
-                        <AlertCircle className="w-3 h-3 inline mr-1" />
-                        Action en attente
-                      </div>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-
-                  {/* Comments option - mobile */}
-                  {transformedComments.length > 0 && (
-                    <>
-                      <DropdownMenuItem onClick={() => setIsCommentsModalOpen(true)}>
-                        <MessageSquareText className="w-4 h-4 mr-2" />
-                        Commentaires ({transformedComments.length})
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-
-                  {/* Primary actions from getRoleBasedActions */}
-                  {headerActions.map((action, idx) => {
-                    return (
-                      <DropdownMenuItem
-                        key={idx}
-                        onClick={() => handleHeaderActionClick(action)}
-                        disabled={actionLoading === action.actionType}
-                        className={
-                          action.variant === 'primary' ? 'text-green-700 focus:text-green-800 focus:bg-green-50' :
-                          action.variant === 'destructive' ? 'text-red-700 focus:text-red-800 focus:bg-red-50' : ''
-                        }
-                      >
-                        {actionLoading === action.actionType ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <action.icon className="w-4 h-4 mr-2" />
-                        )}
-                        {action.label}
-                      </DropdownMenuItem>
-                    )
-                  })}
-
-                  {/* Separator before secondary actions */}
-                  {dotMenuActions.length > 0 && headerActions.length > 0 && <DropdownMenuSeparator />}
-
-                  {/* Secondary actions (Modifier/Annuler) */}
-                  {dotMenuActions.map((action, idx) => (
-                    <DropdownMenuItem
-                      key={`dot-${idx}`}
-                      onClick={() => handleHeaderActionClick(action)}
-                      className={action.variant === 'destructive' ? 'text-red-600 focus:text-red-600' : ''}
-                    >
-                      <action.icon className="w-4 h-4 mr-2" />
-                      {action.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </>
+          <InterventionHeaderActions
+            interventionStatus={intervention.status}
+            quotes={quotes}
+            headerActions={headerActions}
+            dotMenuActions={dotMenuActions}
+            transformedComments={transformedComments}
+            actionLoading={actionLoading}
+            onHeaderActionClick={handleHeaderActionClick}
+            onOpenCommentsModal={() => setIsCommentsModalOpen(true)}
+          />
         }
       />
 
@@ -2190,20 +1823,13 @@ export function InterventionDetailClient({
               </TabsContent>
 
               {/* TAB: DOCUMENTS */}
-              <TabsContent value="documents" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-6">
-                  {reports.length > 0 && (
-                    <ReportsCard reports={reports} />
-                  )}
-                  <DocumentsCard
-                    documents={transformedDocuments}
-                    userRole="manager"
-                    onUpload={() => setIsDocumentUploadOpen(true)}
-                    onView={handleViewDocument}
-                    onDownload={handleDownloadDocument}
-                  />
-                </div>
-              </TabsContent>
+              <InterventionDocumentsTab
+                reports={reports}
+                transformedDocuments={transformedDocuments}
+                onUpload={() => setIsDocumentUploadOpen(true)}
+                onView={handleViewDocument}
+                onDownload={handleDownloadDocument}
+              />
 
               {/* TAB: CONTACTS */}
               <TabsContent value="contacts" className="mt-0 flex-1 flex flex-col overflow-hidden">
@@ -2377,27 +2003,12 @@ export function InterventionDetailClient({
         )}
 
         {/* Modale des commentaires */}
-        <Dialog open={isCommentsModalOpen} onOpenChange={setIsCommentsModalOpen}>
-          <DialogContent className="sm:max-w-md max-h-[85vh] h-[500px] flex flex-col p-0 gap-0 overflow-hidden">
-            <DialogHeader className="px-4 py-3 border-b flex-shrink-0">
-              <DialogTitle className="flex items-center gap-2 text-base font-medium">
-                <MessageSquareText className="h-4 w-4 text-muted-foreground" />
-                Commentaires
-                {transformedComments.length > 0 && (
-                  <span className="text-xs text-muted-foreground font-normal">
-                    ({transformedComments.length})
-                  </span>
-                )}
-              </DialogTitle>
-            </DialogHeader>
-            <CommentsCard
-              comments={transformedComments}
-              onAddComment={handleAddComment}
-              className="flex-1 min-h-0"
-              showHeader={false}
-            />
-          </DialogContent>
-        </Dialog>
+        <InterventionCommentsModal
+          isOpen={isCommentsModalOpen}
+          onOpenChange={setIsCommentsModalOpen}
+          comments={transformedComments}
+          onAddComment={handleAddComment}
+        />
       </div>
     </div>
     </GoogleMapsProvider>

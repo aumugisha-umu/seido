@@ -5,7 +5,7 @@ import { createBuildingRepository } from '@/lib/services/repositories/building.r
 import type { CreateBuildingDTO } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createBuildingSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-import { createBuildingNotification } from '@/app/actions/notification-actions'
+import { createBuildingNotification } from '@/app/actions/notifications'
 import { createActivityLogger } from '@/lib/activity-logger'
 
 /**

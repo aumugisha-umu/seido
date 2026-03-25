@@ -46,7 +46,7 @@ import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
 import { logger, logError } from '@/lib/logger'
 import { getTeamContactsAction } from '@/app/actions/contacts'
-import { getActiveTenantsByLotAction, getActiveTenantsByBuildingAction, type BuildingTenantsResult } from '@/app/actions/contract-actions'
+import { getActiveTenantsByLotAction, getActiveTenantsByBuildingAction, type BuildingTenantsResult } from '@/app/actions/contracts'
 import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"
 import { useInterventionUpload, DOCUMENT_TYPES } from "@/hooks/use-intervention-upload"
 import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"

@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, XCircle, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { setExpiryDecision } from '@/app/actions/contract-actions'
-import { terminateContract } from '@/app/actions/contract-actions'
+import { setExpiryDecision } from '@/app/actions/contracts'
+import { terminateContract } from '@/app/actions/contracts'
 import {
   AlertDialog,
   AlertDialogAction,

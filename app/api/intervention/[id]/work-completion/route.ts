@@ -4,7 +4,7 @@ import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { workCompletionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
+import { notifyInterventionStatusChange } from '@/app/actions/notifications'
 import { createServerActionNotificationRepository } from '@/lib/services'
 
 

@@ -44,7 +44,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { ParticipantConfirmationSelector } from "./participant-confirmation-selector"
-import type { BuildingTenantsResult } from "@/app/actions/contract-actions"
+import type { BuildingTenantsResult } from "@/app/actions/contracts"
 
 interface Contact {
   id: string

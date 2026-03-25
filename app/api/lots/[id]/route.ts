@@ -4,7 +4,7 @@ import { createLotService } from '@/lib/services/domain/lot.service'
 import type { LotUpdate } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { updateLotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-import { notifyLotUpdated, notifyLotDeleted } from '@/app/actions/notification-actions'
+import { notifyLotUpdated, notifyLotDeleted } from '@/app/actions/notifications'
 import { createActivityLogger } from '@/lib/activity-logger'
 
 /**

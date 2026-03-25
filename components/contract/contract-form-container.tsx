@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 import { StepProgressHeader } from '@/components/ui/step-progress-header'
 import { contractSteps, supplierContractSteps } from '@/lib/step-configurations'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import type { ContactSelectorRef } from '@/components/contact-selector'
 // PropertySelector, LeaseFormDetailsMerged, DocumentChecklist delegated to extracted sub-components
 import { LeaseInterventionsStep, type RentReminderConfig } from '@/components/contract/lease-interventions-step'
@@ -20,7 +19,6 @@ import {
   INSURANCE_EXPIRY_NEXT_DAY_VALUE,
   type SchedulingOption
 } from '@/lib/constants/lease-interventions'
-import { LEASE_DOCUMENT_SLOTS } from '@/lib/constants/lease-document-slots'
 import { format } from 'date-fns'
 import {
   createContract,
@@ -29,8 +27,8 @@ import {
   updateContract,
   updateContractContact,
   removeContractContact
-} from '@/app/actions/contract-actions'
-import { createContractNotification } from '@/app/actions/notification-actions'
+} from '@/app/actions/contracts'
+import { createContractNotification } from '@/app/actions/notifications'
 import {
   ArrowLeft,
   ArrowRight,
@@ -520,9 +518,6 @@ export default function ContractFormContainer({
       .map(c => initialContacts.find(ic => ic.id === c.userId))
       .filter(Boolean) as typeof initialContacts
   }, [formData.contacts, initialContacts])
-
-  // Calculate totals
-  const monthlyTotal = (formData.rentAmount || 0) + (formData.chargesAmount || 0)
 
   // Handle lot selection
   const handleLotSelect = useCallback(async (lotId: string | null) => {
@@ -1151,14 +1146,6 @@ export default function ContractFormContainer({
     : mode === 'create' ? 'Créer le bail' : 'Enregistrer les modifications'
   const submitIcon = mode === 'create' ? Check : Save
   const SubmitIcon = submitIcon
-
-  // Calculate end date for interventions step (dernier jour du bail)
-  const endDateCalc = useMemo(() => {
-    if (!formData.startDate || !formData.durationMonths) {
-      return new Date()
-    }
-    return calculateContractEndDate(formData.startDate, formData.durationMonths || 12)
-  }, [formData.startDate, formData.durationMonths])
 
   // Render step content
   const renderStepContent = () => {

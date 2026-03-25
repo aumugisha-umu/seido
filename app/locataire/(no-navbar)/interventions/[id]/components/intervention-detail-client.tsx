@@ -7,6 +7,7 @@
  */
 
 import { useState, useMemo } from 'react'
+import { logger } from '@/lib/logger'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
@@ -498,7 +499,7 @@ export function LocataireInterventionDetailClient({
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la sélection du créneau'))
       }
     } catch (error) {
-      console.error('Error selecting slot:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error selecting slot')
       toast.error('Erreur lors de la sélection du créneau')
     }
   }
@@ -577,7 +578,7 @@ export function LocataireInterventionDetailClient({
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la validation des travaux'))
       }
     } catch (error) {
-      console.error('Error validating work:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error validating work')
       toast.error('Erreur lors de la validation des travaux')
     }
   }

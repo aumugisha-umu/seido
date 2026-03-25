@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { markThreadAsReadAction, markAllThreadsAsReadAction } from '@/app/actions/conversation-actions'
+import { markThreadAsReadAction, markAllThreadsAsReadAction } from '@/app/actions/conversations'
 import type { UnreadThread } from '@/lib/services/repositories/conversation-repository'
 
 // Thread type display config (matching ConversationSelector colors)

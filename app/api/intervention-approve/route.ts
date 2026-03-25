@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
+import { notifyInterventionStatusChange } from '@/app/actions/notifications'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createServerInterventionService, createServerActionInterventionCommentRepository } from '@/lib/services'

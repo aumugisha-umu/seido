@@ -15,7 +15,7 @@
 | **P1** | P1-2: Auth `contacts.ts` actions | **DONE** | Auth + team.id verification |
 | **P1** | P1-3: Team-scoped queries contact detail | **DONE** | `.eq('team_id', team.id)` added |
 | **P1** | P1-4: Hardcoded `support@seido.be` | **DONE** | → `support@seido-app.com` |
-| **P1** | P1-5: `console.error/warn` → logger | **DONE** | 6/8 locations fixed (2 remain in prestataire/locataire detail) |
+| **P1** | P1-5: `console.error/warn` → logger | **DONE** | All 18/18 locations fixed (prestataire + locataire detail completed) |
 | **P2** | 2A: Intervention actions split | **PARTIAL** | 5 files + index.ts created. Missing: quote-actions. Originals still exist. |
 | **P2** | 2A: Intervention service split | **TODO** | `intervention-service.ts` (2959L) not split |
 | **P2** | 2A: Intervention repo split | **TODO** | `intervention.repository.ts` (942L) not split |
@@ -25,16 +25,16 @@
 | **P2** | 2B: Conversation actions split | **DONE** | 3 files + index.ts created |
 | **P2** | 2B: Lot repo search extract | **DONE** | `lot-search.repository.ts` created |
 | **P2** | 2B: Building repo search extract | **DONE** | `building-search.repository.ts` created |
-| **P2** | 2C: Gestionnaire detail extraction | **PARTIAL** | 7 sub-components created but orchestrator NOT refactored (2404L) |
+| **P2** | 2C: Gestionnaire detail extraction | **PARTIAL** | 7 sub-components wired (2404→2015L). Needs hook extraction for <500L |
 | **P2** | 2C: Nouvelle-intervention wizard | **TODO** | Not started (2343L) |
 | **P2** | 2C: Prestataire detail extraction | **DONE** | 3 sub-components created + wired (1034L, needs hook extraction for <500) |
 | **P2** | 2C: Locataire detail extraction | **DONE** | 2 sub-components created + wired (844L, needs hook extraction for <500) |
-| **P2** | 2D: Contract form extraction | **PARTIAL** | 5 sub-components created but orchestrator NOT refactored (1392L) |
+| **P2** | 2D: Contract form extraction | **PARTIAL** | 5 sub-components wired (JSX ~81L). 1392L total — needs 4 custom hooks for <500L |
 | **P2** | 2D: Building details extraction | **DONE** | 3 sub-components created + wired (523L ≈ target) |
 | **P2** | 2D: Availability extraction | **DONE** | 2 sub-components created + wired (630L, close to target) |
 | **P2** | 2D: Lot creation form | **TODO** | Not started (~1000L) |
 | **P2** | 2D: Nouvelle-demande (locataire) | **TODO** | Not started (648L) |
-| **P2** | Import migration | **TODO** | Update imports from monolith → split folders |
+| **P2** | Import migration | **PARTIAL** | notifications/contracts/conversations migrated (31 edits, 27 files). intervention-actions pending (needs quote-actions split) |
 | **P2** | Delete original monoliths | **TODO** | After import migration verified |
 | **P3** | 3A: Eliminate ~150 `any` types | **TODO** | |
 | **P3** | 3B: Repository pattern violations | **TODO** | |

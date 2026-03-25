@@ -22,7 +22,7 @@ import {
   activateContract,
   terminateContract,
   deleteContract
-} from '@/app/actions/contract-actions'
+} from '@/app/actions/contracts'
 import {
   Edit,
   Trash2,

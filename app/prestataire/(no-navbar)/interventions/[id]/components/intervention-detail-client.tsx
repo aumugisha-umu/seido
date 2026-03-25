@@ -7,6 +7,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react'
+import { logger } from '@/lib/logger'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
@@ -682,7 +683,7 @@ export function PrestataireInterventionDetailClient({
       setRejectionReason('')
       handleRefresh()
     } catch (error) {
-      console.error('Error rejecting quote request:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error rejecting quote request')
       toast.error('Erreur lors du rejet de la demande')
     } finally {
       setIsRejecting(false)
@@ -716,7 +717,7 @@ export function PrestataireInterventionDetailClient({
       toast.success(successMessage)
       handleRefresh()
     } catch (error) {
-      console.error('Error deleting quote:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error deleting quote')
       toast.error('Erreur lors de la suppression de l\'estimation')
     }
   }

@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { getServiceRoleClient, isServiceRoleAvailable } from '@/lib/api-service-role-helper'
 import { createContactSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-import { createContactNotification } from '@/app/actions/notification-actions'
+import { createContactNotification } from '@/app/actions/notifications'
 
 export async function POST(request: Request) {
   try {

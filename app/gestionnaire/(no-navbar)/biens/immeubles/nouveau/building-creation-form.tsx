@@ -837,12 +837,16 @@ export default function NewImmeubleePage({
         }
       }
 
-      // Building-level interventions — all in parallel
-      const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
-      if (toCreate.length > 0 || Object.keys(lotInterventions).length > 0) {
+      // Building-level interventions + reminders — split by itemType
+      const allEnabled = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+      const toCreateInterventions = allEnabled.filter(i => i.itemType !== 'reminder')
+      const toCreateReminders = allEnabled.filter(i => i.itemType === 'reminder')
+
+      if (toCreateInterventions.length > 0 || toCreateReminders.length > 0 || Object.keys(lotInterventions).length > 0) {
         const { createInterventionAction } = await import('@/app/actions/intervention-actions')
 
-        for (const intervention of toCreate) {
+        // Interventions → createInterventionAction
+        for (const intervention of toCreateInterventions) {
           allPostCreationPromises.push(
             createInterventionAction({
               title: intervention.title,
@@ -861,7 +865,27 @@ export default function NewImmeubleePage({
           )
         }
 
-        // Per-lot interventions — flattened into the same batch (match by reference, not array index)
+        // Reminders → createWizardRemindersAction
+        if (toCreateReminders.length > 0) {
+          const { createWizardRemindersAction } = await import('@/app/actions/reminder-actions')
+          allPostCreationPromises.push(
+            createWizardRemindersAction(
+              toCreateReminders.map(r => ({
+                title: r.title,
+                description: r.description,
+                due_date: r.scheduledDate ? r.scheduledDate.toISOString() : undefined,
+                building_id: result.data.building.id,
+                rrule: r.recurrenceRule,
+                assignments: r.assignedUsers
+                  .filter(a => a.role === 'gestionnaire')
+                  .map(a => ({ userId: a.userId, role: a.role }))
+              })),
+              { team_id: userTeam!.id }
+            )
+          )
+        }
+
+        // Per-lot interventions + reminders — split by itemType
         for (let i = 0; i < lots.length; i++) {
           const tempLotId = lots[i].id
           const realLot = result.data.lots.find((rl: { reference?: string }) => rl.reference === lots[i].reference)
@@ -874,8 +898,11 @@ export default function NewImmeubleePage({
             continue
           }
 
-          const lotIntervs = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
-          for (const intervention of lotIntervs) {
+          const lotEnabled = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
+          const lotInterventionItems = lotEnabled.filter(iv => iv.itemType !== 'reminder')
+          const lotReminderItems = lotEnabled.filter(iv => iv.itemType === 'reminder')
+
+          for (const intervention of lotInterventionItems) {
             allPostCreationPromises.push(
               createInterventionAction({
                 title: intervention.title,
@@ -891,6 +918,25 @@ export default function NewImmeubleePage({
                   ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
                   : undefined
               })
+            )
+          }
+
+          if (lotReminderItems.length > 0) {
+            const { createWizardRemindersAction } = await import('@/app/actions/reminder-actions')
+            allPostCreationPromises.push(
+              createWizardRemindersAction(
+                lotReminderItems.map(r => ({
+                  title: r.title,
+                  description: r.description,
+                  due_date: r.scheduledDate ? r.scheduledDate.toISOString() : undefined,
+                  lot_id: realLotId,
+                  rrule: r.recurrenceRule,
+                  assignments: r.assignedUsers
+                    .filter(a => a.role === 'gestionnaire')
+                    .map(a => ({ userId: a.userId, role: a.role }))
+                })),
+                { team_id: userTeam!.id }
+              )
             )
           }
         }

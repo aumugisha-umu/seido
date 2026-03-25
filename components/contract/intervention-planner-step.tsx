@@ -236,6 +236,28 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
     )
   }, [activeAssignment, onInterventionsChange, externalAssignedUsers, onExternalContactRemoved])
 
+  // ─── Item type & recurrence handlers ─────────────────────────
+
+  const handleItemTypeChange = useCallback((key: string, newType: 'intervention' | 'reminder') => {
+    onInterventionsChange(prev =>
+      prev.map(i => {
+        if (i.key !== key) return i
+        const updated = { ...i, itemType: newType }
+        // When switching to reminder, remove non-gestionnaire assignees
+        if (newType === 'reminder') {
+          updated.assignedUsers = i.assignedUsers.filter(u => u.role === 'gestionnaire')
+        }
+        return updated
+      })
+    )
+  }, [onInterventionsChange])
+
+  const handleRecurrenceChange = useCallback((key: string, rrule: string | null) => {
+    onInterventionsChange(prev =>
+      prev.map(i => i.key === key ? { ...i, recurrenceRule: rrule ?? undefined } : i)
+    )
+  }, [onInterventionsChange])
+
   // ─── Derived state ─────────────────────────────────────────
 
   const hasEmptyCustomTitle = scheduledInterventions.some(
@@ -259,11 +281,63 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
       <div className="max-w-4xl mx-auto">
         <ScrollArea className="max-h-[600px]">
           <div className="space-y-6 py-2 pr-4">
+            {/* Unified add button: intervention or reminder — at top for visibility */}
+            {hasUnifiedAdd ? (
+              <div className="flex justify-center pb-2">
+                <Popover open={addTypePopoverOpen} onOpenChange={setAddTypePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      <Plus className="h-3.5 w-3.5" />
+                      Ajouter un suivi
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3" align="start">
+                    <p className="text-sm font-medium mb-2">Ce suivi implique-t-il quelqu&apos;un d&apos;autre ?</p>
+                    <div className="space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { onAddCustomIntervention?.(); setAddTypePopoverOpen(false) }}
+                        className="w-full flex items-start gap-3 p-2.5 rounded-lg hover:bg-indigo-50 transition-colors text-left"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
+                          <Wrench className="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Oui — Intervention</p>
+                          <p className="text-xs text-muted-foreground">Implique un prestataire ou locataire</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { onAddCustomReminder?.(); setAddTypePopoverOpen(false) }}
+                        className="w-full flex items-start gap-3 p-2.5 rounded-lg hover:bg-amber-50 transition-colors text-left"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                          <Bell className="h-4 w-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Non — Rappel</p>
+                          <p className="text-xs text-muted-foreground">Tâche interne de gestion</p>
+                        </div>
+                      </button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ) : onAddCustomIntervention && (
+              <div className="flex justify-center pb-2">
+                <Button variant="outline" size="sm" onClick={onAddCustomIntervention} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  Ajouter
+                </Button>
+              </div>
+            )}
+
             {sections.map((section, idx) => {
+
               const isCollapsed = collapsedSections.has(section.id)
-              const isReminderSection = section.sectionType === 'reminder'
-              const SectionIcon = isReminderSection ? Bell : (section.sectionType === 'intervention' ? Wrench : section.icon)
-              const sectionIconColor = isReminderSection ? 'text-amber-600' : (section.sectionType === 'intervention' ? 'text-indigo-600' : section.iconColorClass)
+              const SectionIcon = section.icon
+              const sectionIconColor = section.iconColorClass
               const activeRowCount = section.rows.filter(r => r.enabled).length
 
               return (
@@ -277,17 +351,13 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
                     /* Standard section with InterventionScheduleRow entries */
                     <div className={cn(
                       "space-y-3",
-                      section.allowCustomAdd && "rounded-lg border-2 border-dashed p-4",
-                      section.allowCustomAdd && isReminderSection && "border-amber-200 bg-amber-50/30",
-                      section.allowCustomAdd && !isReminderSection && "border-indigo-200 bg-indigo-50/30"
+                      section.allowCustomAdd && "rounded-lg border-2 border-dashed p-4 border-muted-foreground/20 bg-muted/30"
                     )}>
                       <div className="flex items-center justify-between">
                         <h3
                           className={cn(
                             "text-sm font-medium flex items-center gap-2",
                             section.allowCustomAdd ? "font-semibold" : "text-muted-foreground",
-                            section.allowCustomAdd && isReminderSection && "text-amber-700",
-                            section.allowCustomAdd && !isReminderSection && "text-indigo-700",
                             section.collapsible && "cursor-pointer select-none"
                           )}
                           onClick={section.collapsible ? () => toggleSection(section.id) : undefined}
@@ -341,6 +411,8 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
                                     onDateChange={(date) => handleDateChange(intervention.key, date)}
                                     onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
                                     onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
+                                    onItemTypeChange={(type) => handleItemTypeChange(intervention.key, type)}
+                                    onRecurrenceChange={(rrule) => handleRecurrenceChange(intervention.key, rrule)}
                                     onTitleChange={isCustom ? (t) => handleCustomTitleChange(intervention.key, t) : undefined}
                                     onDescriptionChange={isCustom ? (d) => handleCustomDescriptionChange(intervention.key, d) : undefined}
                                     onDelete={isCustom && onDeleteCustomIntervention ? () => onDeleteCustomIntervention(intervention.key) : undefined}
@@ -371,60 +443,9 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
                 </React.Fragment>
               )
             })}
+
           </div>
         </ScrollArea>
-
-        {/* Unified add button: intervention or reminder */}
-        {hasUnifiedAdd ? (
-          <div className="flex justify-center pt-2">
-            <Popover open={addTypePopoverOpen} onOpenChange={setAddTypePopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Plus className="h-3.5 w-3.5" />
-                  Ajouter un suivi
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-3" align="start">
-                <p className="text-sm font-medium mb-2">Ce suivi implique-t-il quelqu&apos;un d&apos;autre ?</p>
-                <div className="space-y-1.5">
-                  <button
-                    type="button"
-                    onClick={() => { onAddCustomIntervention?.(); setAddTypePopoverOpen(false) }}
-                    className="w-full flex items-start gap-3 p-2.5 rounded-lg hover:bg-indigo-50 transition-colors text-left"
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
-                      <Wrench className="h-4 w-4 text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Oui — Intervention</p>
-                      <p className="text-xs text-muted-foreground">Implique un prestataire ou locataire</p>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { onAddCustomReminder?.(); setAddTypePopoverOpen(false) }}
-                    className="w-full flex items-start gap-3 p-2.5 rounded-lg hover:bg-amber-50 transition-colors text-left"
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
-                      <Bell className="h-4 w-4 text-amber-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Non — Rappel</p>
-                      <p className="text-xs text-muted-foreground">Tâche interne de gestion</p>
-                    </div>
-                  </button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        ) : onAddCustomIntervention && (
-          <div className="flex justify-center pt-2">
-            <Button variant="outline" size="sm" onClick={onAddCustomIntervention} className="gap-1.5">
-              <Plus className="h-3.5 w-3.5" />
-              Ajouter
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* ContactSelector — hidden UI, opens via ref */}

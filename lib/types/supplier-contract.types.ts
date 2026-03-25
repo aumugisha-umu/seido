@@ -88,6 +88,7 @@ export interface SupplierContractFormData {
 export interface SupplierContractReminderConfig {
   enabled: boolean
   assignedUsers: { userId: string; role: string; name?: string }[]
+  rrule?: string
 }
 
 // ============================================================================

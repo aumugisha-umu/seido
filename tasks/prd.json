@@ -1,120 +1,135 @@
 {
   "project": "SEIDO",
-  "featureName": "E2E Migration: Puppeteer → Playwright + Shared POMs",
+  "featureName": "Reminder Recurrence UX & Property Reclassification",
   "branchName": "preview",
-  "description": "Migrate all E2E tests from Puppeteer to Playwright, create shared POM layer between E2E and QA Bot, remove Puppeteer dependency. QA Bot autonomous explorer is kept (unique AI-powered exploration). Guided specs are merged with E2E.",
-  "createdAt": "2026-03-23",
-  "prdSource": "docs/plans/2026-03-23-puppeteer-to-playwright-migration.md",
+  "description": "Add editable recurrence UI (clickable badge with popover), inline intervention/reminder toggle on each row, reclassify property templates as reminders with recurrence, propagate itemType/recurrenceRule across all wizards, split server-side dispatch by itemType.",
+  "createdAt": "2026-03-25",
+  "prdSource": "docs/plans/2026-03-25-reminder-recurrence-ux-design.md",
   "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Create shared POM layer + helpers",
-      "description": "As a developer, I want a single set of Playwright Page Object Models shared between E2E tests and QA Bot so that I maintain one POM per entity instead of two.",
+      "title": "RRULE helper utility",
+      "description": "As a developer, I want a shared RRULE build/parse utility so that all components use consistent recurrence logic without duplicating code.",
       "acceptanceCriteria": [
-        "tests/shared/pages/ contains all 13 POMs (dashboard, building-wizard, lot-wizard, contract-wizard, intervention-wizard, intervention-detail, intervention-request, billing, mail-hub, notifications, reminder-wizard, reminder-detail, login)",
-        "tests/shared/helpers/selectors.ts merges both existing selector files",
-        "tests/shared/fixtures/ contains test-accounts.ts (moved from tests/e2e/fixtures/)",
-        "QA Bot guided specs updated to import from ../../shared/pages/",
-        "npx playwright test --config tests/qa-bot/playwright.config.ts still passes",
+        "lib/utils/rrule.ts exports buildRRule, parseRRule, RECURRENCE_PRESETS, getRecurrenceLabel",
+        "buildRRule('MONTHLY', 3) returns 'FREQ=MONTHLY;INTERVAL=3'",
+        "parseRRule('FREQ=YEARLY;INTERVAL=10') returns { frequency: 'YEARLY', interval: 10 }",
+        "RECURRENCE_PRESETS has 4 entries: Mensuel, Trimestriel, Semestriel, Annuel",
+        "getRecurrenceLabel replaces inline logic in intervention-schedule-row.tsx",
         "npm run lint passes"
       ],
       "priority": 1,
       "dependsOn": [],
-      "sizing": "M",
+      "sizing": "XS",
       "passes": true,
-      "notes": "13 POMs in tests/shared/pages/ (12 entities + index.ts barrel). Helpers: selectors.ts, constants.ts, types.ts. QA Bot POMs converted to thin re-export wrappers. All 8 guided specs updated. intervention-request.page.ts rewritten from Puppeteer to Playwright."
+      "notes": "Created lib/utils/rrule.ts with buildRRule, parseRRule, RECURRENCE_PRESETS, getRecurrenceLabel. Updated intervention-schedule-row.tsx to use getRecurrenceLabel."
     },
     {
       "id": "US-002",
-      "title": "E2E Playwright config + auth setup",
-      "description": "As a developer, I want a Playwright test config for E2E tests with storageState-based auth so that E2E tests run with the Playwright runner instead of Vitest+Puppeteer.",
+      "title": "Templates reclassification (all 3 constant files)",
+      "description": "As a developer, I want all templates to have explicit itemType and recurrenceRule so that the UI can render and edit them correctly.",
       "acceptanceCriteria": [
-        "tests/e2e/playwright.config.ts with 4 projects (setup, gestionnaire, locataire, prestataire)",
-        "tests/e2e/setup/auth.setup.ts adapted from qa-bot auth setup",
-        "storageState files saved to playwright/.auth/{role}.json",
-        "package.json: test:e2e uses npx playwright test --config tests/e2e/playwright.config.ts",
-        "npm run test:e2e runs Playwright (even with 0 specs initially)",
+        "lease-interventions.ts: all 6 templates have explicit itemType, 4 reminders have recurrenceRule",
+        "property-interventions.ts: 9 templates have itemType:'reminder', recurrenceRule on 5 periodic ones (chaudiere, ascenseur, incendie, PEB, nettoyage/espaces verts), PropertyInterventionTemplate interface has recurrenceRule field",
+        "supplier-interventions.ts: createSupplierReminderIntervention returns recurrenceRule:'FREQ=YEARLY;INTERVAL=1'",
+        "Missing doc templates return itemType:'reminder' (already done, verify)",
         "npm run lint passes"
       ],
       "priority": 1,
-      "dependsOn": ["US-001"],
+      "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "Playwright config with 4 projects + auth setup using Supabase GoTrue REST API. package.json: test:e2e, test:e2e:preview, test:e2e:headed, test:e2e:debug. Legacy Puppeteer kept as test:e2e:legacy temporarily."
+      "notes": "All 9 property templates reclassified as reminder with recurrenceRule. Supplier factory gets YEARLY recurrence. Lease already correct. PropertyInterventionTemplate interface extended with recurrenceRule."
     },
     {
       "id": "US-003",
-      "title": "Rewrite unique Puppeteer tests as Playwright specs",
-      "description": "As a developer, I want the 4 Puppeteer-only E2E tests rewritten in Playwright so that all regression coverage is preserved without Puppeteer.",
+      "title": "InterventionScheduleRow — toggle type + recurrence popover",
+      "description": "As a gestionnaire, I want to toggle between intervention and reminder on each row, and edit the recurrence via a clickable badge, so I can customize each scheduled item.",
       "acceptanceCriteria": [
-        "tests/e2e/specs/intervention-locataire.spec.ts created (from intervention-locataire.e2e.ts)",
-        "tests/e2e/specs/intervention-workflow.spec.ts created (from intervention-workflow.e2e.ts)",
-        "tests/e2e/specs/stripe-checkout.spec.ts created (from stripe/checkout-flow.e2e.ts)",
-        "tests/e2e/specs/stripe-readonly.spec.ts created (from stripe/read-only-enforcement.e2e.ts)",
-        "All specs use Playwright auto-wait, locators, and web-first assertions (no waitForSelector, evaluate)",
-        "All specs import POMs from tests/shared/pages/",
-        "npm run test:e2e passes (non-gated tests)",
+        "Segmented control (Wrench/Bell icons) visible when row is enabled, between icon and title",
+        "Clicking toggle changes itemType, border color (indigo/amber), and assignment roles",
+        "Switching intervention→reminder removes non-gestionnaire assignees",
+        "Recurrence badge is a PopoverTrigger with 4 presets + custom (number + mois/ans)",
+        "Option 'Pas de recurrence' removes recurrenceRule, badge disappears",
+        "When no recurrence, '+ Recurrence' ghost button shown instead",
+        "New props: onItemTypeChange, onRecurrenceChange",
+        "Uses getRecurrenceLabel from lib/utils/rrule.ts instead of inline logic",
         "npm run lint passes"
       ],
-      "priority": 2,
-      "dependsOn": ["US-002"],
+      "priority": 3,
+      "dependsOn": ["US-001"],
       "sizing": "M",
       "passes": true,
-      "notes": "4 specs created: intervention-locataire.locataire.spec.ts, intervention-workflow.spec.ts, stripe-checkout.spec.ts, stripe-readonly.spec.ts. All use Playwright locators (getByRole, getByText), web-first assertions, test.skip() for env-gated tests. DB polling preserved for async server actions."
+      "notes": "Full rewrite of InterventionScheduleRow: added segmented toggle (Wrench/Bell), recurrence popover with presets+custom, extracted RecurrencePopoverContent component. New props: onItemTypeChange, onRecurrenceChange."
     },
     {
       "id": "US-004",
-      "title": "Merge overlapping Puppeteer tests into QA Bot specs",
-      "description": "As a developer, I want unique assertions from overlapping Puppeteer tests merged into QA Bot guided specs so that no test coverage is lost.",
+      "title": "InterventionPlannerStep — pass new handlers, remove sectionType",
+      "description": "As a developer, I want the shared planner to propagate onItemTypeChange and onRecurrenceChange to each row so that toggle and recurrence edits work in contract wizards.",
       "acceptanceCriteria": [
-        "intervention-gestionnaire.e2e.ts unique scenarios merged into intervention-lifecycle.spec.ts",
-        "stripe/billing-ui.e2e.ts unique scenarios merged into billing-settings.spec.ts",
-        "No duplicate test coverage between E2E and QA Bot",
-        "npx playwright test --config tests/qa-bot/playwright.config.ts still passes",
+        "InterventionPlannerStep passes onItemTypeChange and onRecurrenceChange to each InterventionScheduleRow",
+        "Handler updates scheduledInterventions state via onInterventionsChange",
+        "sectionType styling removed from section headers (color comes from individual row itemType)",
+        "Lease and supplier wizards render correctly with mixed intervention/reminder rows",
         "npm run lint passes"
       ],
-      "priority": 2,
-      "dependsOn": ["US-001"],
+      "priority": 3,
+      "dependsOn": ["US-003"],
       "sizing": "S",
       "passes": true,
-      "notes": "intervention-gestionnaire fully covered by intervention-lifecycle.spec.ts (wizard creation + full lifecycle). Added pricing cards test to billing-settings.spec.ts. Trial banner and onboarding checklist are soft assertions (state-dependent) — not worth porting."
+      "notes": "Added handleItemTypeChange (strips non-gestionnaire on reminder switch) and handleRecurrenceChange. Passed to each row. Removed sectionType header styling — neutral colors for custom-add sections."
     },
     {
       "id": "US-005",
-      "title": "Cleanup Puppeteer infrastructure",
-      "description": "As a developer, I want all Puppeteer-specific code and dependencies removed so that the codebase has a single browser automation framework.",
+      "title": "Lease & supplier section grouping cleanup",
+      "description": "As a developer, I want lease and supplier sections to not split strictly by itemType so that rows with toggles display in a unified list.",
       "acceptanceCriteria": [
-        "Deleted: tests/e2e/helpers/browser.ts, auth.ts, cookies.ts",
-        "Deleted: tests/e2e/setup/global-setup.ts, global-teardown.ts",
-        "Deleted: tests/e2e/vitest.e2e.config.ts",
-        "Deleted: all 11 .e2e.ts test files",
-        "Deleted: tests/e2e/pages/ directory (8 Puppeteer POMs)",
-        "npm uninstall puppeteer completed",
-        "npm ls puppeteer shows empty",
-        "npm run test:e2e runs Playwright successfully",
+        "lease-interventions-step.tsx: single main section with all intervention+reminder rows (no separate 'Admin reminders' section), rent reminders section kept, missing docs section kept",
+        "contract-form-container.tsx: supplier sections unified (single list, not split by itemType)",
+        "Collapsible behavior removed from sections (toggle on each row replaces section-level distinction)",
         "npm run lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-003", "US-004"],
+      "dependsOn": ["US-004"],
       "sizing": "S",
       "passes": true,
-      "notes": "Deleted 20+ Puppeteer files. Uninstalled puppeteer dependency. Removed legacy test:e2e:legacy script. E2E dir now: playwright.config.ts + setup/ + specs/ only."
+      "notes": "Lease: merged interventions+reminders into single 'Suivis du bail' section with allowCustomAdd. Supplier: unified into single 'Suivis du contrat' section. Removed sectionType from both. Cleaned unused Calendar/Bell imports."
     },
     {
       "id": "US-006",
-      "title": "Update documentation",
-      "description": "As a developer, I want CLAUDE.md and memory updated to reflect the new test architecture so that future sessions use the correct commands and patterns.",
+      "title": "PropertyInterventionsStep — full propagation + dispatch split",
+      "description": "As a developer, I want the property wizard to propagate itemType/recurrenceRule from templates, handle toggle/recurrence changes, and split dispatch by itemType at submit time.",
       "acceptanceCriteria": [
-        "CLAUDE.md Development Commands section updated (test:e2e → Playwright)",
-        "Memory E2E testing patterns updated",
+        "useEffect maps recurrenceRule from template to ScheduledInterventionData",
+        "onItemTypeChange and onRecurrenceChange handlers update state",
+        "Add popover for custom suivi: Intervention / Rappel choice",
+        "Submit splits by itemType: reminders → createWizardRemindersAction, interventions → createInterventionAction",
+        "Non-gestionnaire assignees filtered from reminder items at submit",
         "npm run lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-005"],
-      "sizing": "XS",
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "S",
       "passes": true,
-      "notes": "CLAUDE.md: test:e2e now Playwright, added test:e2e:debug. Memory: removed Puppeteer-specific patterns, updated framework info and project state."
+      "notes": "PropertyInterventionsStep: useEffect propagates itemType+recurrenceRule from templates, handleItemTypeChange/handleRecurrenceChange handlers, custom add popover (Intervention/Rappel). Building form: dual dispatch (building-level+per-lot). Lot form: createInterventionsForLot split + composite path buildCompositeInterventions filters intervention-only + fireAndForgetReminders for reminder items."
+    },
+    {
+      "id": "US-007",
+      "title": "Contract submit — propagate edited recurrenceRule",
+      "description": "As a developer, I want the lease and supplier submit to use the user-modified recurrenceRule (not just template default) so that custom recurrence is persisted.",
+      "acceptanceCriteria": [
+        "Lease submit maps r.recurrenceRule (potentially edited) in createWizardRemindersAction call",
+        "If user toggled a template reminder→intervention, it goes to createInterventionAction",
+        "If user toggled a template intervention→reminder, it goes to createWizardRemindersAction",
+        "Non-gestionnaire assignees cleaned from reminder items before submit",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-004"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Lease: already passes r.recurrenceRule, added gestionnaire-only filter on reminder assignees. Supplier: added rrule to SupplierContractReminderConfig + Zod schema, updated createReminderInterventions to use createWizardRemindersAction for RRULE support, filter reminders map to exclude toggled-to-intervention items, handle toggled items alongside custom interventions. Property composite: buildCompositeInterventions filters intervention-only, fireAndForgetReminders handles reminder items."
     }
   ]
 }

@@ -48,6 +48,7 @@ const createSupplierContractsSchema = z.object({
       userId: z.string(),
       role: z.string(),
     })),
+    rrule: z.string().optional(),
   })).optional(),
 })
 
@@ -192,7 +193,7 @@ export async function createSupplierContractsAction(
 async function createReminderInterventions(
   createdContracts: Array<{ id: string; notice_date: string | null; reference: string }>,
   formContracts: Array<{ reference: string }>,
-  reminders: Record<string, { enabled: boolean; assignedUsers: Array<{ userId: string; role: string }> }>,
+  reminders: Record<string, { enabled: boolean; assignedUsers: Array<{ userId: string; role: string }>; rrule?: string }>,
   teamId: string,
   buildingId: string | null,
   lotId: string | null,
@@ -202,7 +203,7 @@ async function createReminderInterventions(
     const reminderEntries = Object.entries(reminders).filter(([, config]) => config.enabled)
     if (reminderEntries.length === 0) return
 
-    const refToReminder = new Map<string, { enabled: boolean; assignedUsers: Array<{ userId: string; role: string }> }>()
+    const refToReminder = new Map<string, { enabled: boolean; assignedUsers: Array<{ userId: string; role: string }>; rrule?: string }>()
     const allTempIds = Object.keys(reminders)
     for (let i = 0; i < formContracts.length; i++) {
       const tempId = allTempIds[i]
@@ -215,6 +216,8 @@ async function createReminderInterventions(
       title: string; description: string; due_date: string
       contract_id: string; assigned_to: string | null
       lot_id: string | null; building_id: string | null
+      rrule?: string
+      assignments?: Array<{ userId: string; role: string }>
     }> = []
 
     for (const contract of createdContracts) {
@@ -230,35 +233,34 @@ async function createReminderInterventions(
         assigned_to: reminderConfig.assignedUsers?.[0]?.userId ?? null,
         lot_id: lotId,
         building_id: buildingId,
+        rrule: reminderConfig.rrule,
+        assignments: reminderConfig.assignedUsers.filter(a => a.role === 'gestionnaire'),
       })
     }
 
     if (reminderInputs.length === 0) return
 
-    const { createServerActionReminderService } = await import('@/lib/services')
-    const reminderService = await createServerActionReminderService()
-
-    const results = await Promise.allSettled(
-      reminderInputs.map(input =>
-        reminderService.create({
-          title: input.title,
-          description: input.description,
-          due_date: input.due_date,
-          priority: 'normale',
-          assigned_to: input.assigned_to,
-          building_id: input.building_id ?? null,
-          lot_id: input.lot_id ?? null,
-          contact_id: null,
-          contract_id: input.contract_id,
-          team_id: teamId,
-          created_by: userId,
-        })
-      )
+    // Use createWizardRemindersAction for RRULE support (recurrence rules + occurrences)
+    const { createWizardRemindersAction } = await import('@/app/actions/reminder-actions')
+    const result = await createWizardRemindersAction(
+      reminderInputs.map(input => ({
+        title: input.title,
+        description: input.description,
+        due_date: input.due_date,
+        contract_id: input.contract_id,
+        lot_id: input.lot_id ?? undefined,
+        building_id: input.building_id ?? undefined,
+        rrule: input.rrule,
+        assignments: input.assignments,
+      })),
+      { team_id: teamId }
     )
 
-    const created = results.filter(r => r.status === 'fulfilled').length
-    const failed = results.length - created
-    logger.info({ created, failed }, 'Supplier contract reminders created')
+    if (result.success && result.data) {
+      logger.info({ ...result.data }, 'Supplier contract reminders created')
+    } else {
+      logger.warn({ error: result.error }, 'Supplier contract reminders creation failed')
+    }
   } catch (error) {
     logger.error({ error }, 'Failed to create supplier contract reminders (non-blocking)')
   }

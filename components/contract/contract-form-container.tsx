@@ -38,12 +38,12 @@ import {
   ArrowRight,
   Check,
   Euro,
-  Calendar,
   FileText,
   Save,
   CalendarCheck,
   AlertTriangle,
   CheckCircle2,
+  Wrench,
   Bell
 } from 'lucide-react'
 import { InterventionPlannerStep } from '@/components/contract/intervention-planner-step'
@@ -379,7 +379,8 @@ export default function ContractFormContainer({
     dayOfMonth: 1,
     assignedUsers: currentUser
       ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
-      : []
+      : [],
+    itemType: 'reminder'
   })
 
   // État de l'overlap check (remonté depuis LeaseFormDetailsMerged pour validation step)
@@ -509,7 +510,9 @@ export default function ContractFormContainer({
         isAutoCalculated: true,
         availableOptions: template.schedulingOptions,
         selectedSchedulingOption: template.defaultSchedulingOption,
-        assignedUsers: defaultAssignedUsers
+        assignedUsers: defaultAssignedUsers,
+        ...(template.itemType ? { itemType: template.itemType } : {}),
+        ...(template.recurrenceRule ? { recurrenceRule: template.recurrenceRule } : {}),
       }
     })
 
@@ -858,13 +861,16 @@ export default function ContractFormContainer({
           noticePeriodUnit: c.noticePeriodUnit,
           description: c.description,
         })),
-        // Custom reminders (custom_*) are excluded — server action only handles contract-linked reminders for now
+        // Only reminder-type template items go to server action (toggled-to-intervention items handled below)
         reminders: supplierScheduledInterventions
-          .filter(i => !i.key.startsWith('custom_'))
+          .filter(i => !i.key.startsWith('custom_') && i.itemType !== 'intervention')
           .reduce((acc, i) => {
             acc[i.key] = {
               enabled: i.enabled,
-              assignedUsers: i.assignedUsers.map(u => ({ userId: u.userId, role: u.role, name: u.name })),
+              assignedUsers: i.assignedUsers
+                .filter(a => a.role === 'gestionnaire')
+                .map(u => ({ userId: u.userId, role: u.role, name: u.name })),
+              rrule: i.recurrenceRule,
             }
             return acc
           }, {} as Record<string, SupplierContractReminderConfig>),
@@ -907,11 +913,16 @@ export default function ContractFormContainer({
         toast.success(`${result.data!.count} contrat(s) fournisseur(s) créé(s)`)
       }
 
-      // Create custom interventions and custom reminders
-      const customItems = supplierScheduledInterventions.filter(i => i.key.startsWith('custom_') && i.enabled && i.scheduledDate)
-      if (customItems.length > 0) {
-        const customInterventionItems = customItems.filter(i => i.itemType === 'intervention')
-        const customReminderItems = customItems.filter(i => i.itemType === 'reminder')
+      // Create interventions (custom + template-toggled-to-intervention) and custom reminders
+      const extraItems = supplierScheduledInterventions.filter(i =>
+        i.enabled && i.scheduledDate && (
+          i.key.startsWith('custom_') ||
+          (!i.key.startsWith('custom_') && i.itemType === 'intervention')
+        )
+      )
+      if (extraItems.length > 0) {
+        const customInterventionItems = extraItems.filter(i => i.itemType === 'intervention')
+        const customReminderItems = extraItems.filter(i => i.itemType === 'reminder')
 
         await Promise.all([
           customInterventionItems.length > 0 ? (async () => {
@@ -943,9 +954,10 @@ export default function ContractFormContainer({
                 due_date: r.scheduledDate ? new Date(r.scheduledDate).toISOString() : undefined,
                 lot_id: formData.lotId || undefined,
                 building_id: selectedBuildingId || undefined,
-                assignments: r.assignedUsers.length > 0
-                  ? r.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
-                  : undefined
+                rrule: r.recurrenceRule,
+                assignments: r.assignedUsers
+                  .filter(a => a.role === 'gestionnaire')
+                  .map(a => ({ userId: a.userId, role: a.role }))
               })),
               { team_id: teamId }
             )
@@ -1075,7 +1087,7 @@ export default function ContractFormContainer({
                   : undefined
               }))
             )
-            const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length
+            const successCount = results.filter(r => r.status === 'fulfilled' && r.value?.success).length
             const failedCount = results.length - successCount
             if (successCount > 0) {
               logger.info({ successCount, failedCount, contractId }, 'Lease interventions created')
@@ -1090,7 +1102,7 @@ export default function ContractFormContainer({
               const monthLabel = date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
               const capitalizedMonth = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
               return {
-                title: `Rappel loyer — ${capitalizedMonth}`,
+                title: `Appel de loyer — ${capitalizedMonth}`,
                 scheduledDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
               }
             })
@@ -1119,9 +1131,9 @@ export default function ContractFormContainer({
                 description: r.description,
                 due_date: r.scheduledDate ? new Date(r.scheduledDate).toISOString() : undefined,
                 rrule: r.recurrenceRule,
-                assignments: r.assignedUsers.length > 0
-                  ? r.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
-                  : undefined
+                assignments: r.assignedUsers
+                  .filter(a => a.role === 'gestionnaire')
+                  .map(a => ({ userId: a.userId, role: a.role }))
               })),
               { team_id: teamId, lot_id: formData.lotId!, contract_id: contractId }
             )
@@ -1245,49 +1257,14 @@ export default function ContractFormContainer({
             />
           )
         case 2: { // Interventions & reminders via shared planner
-          const interventionRows = supplierScheduledInterventions.filter(i => i.itemType === 'intervention')
-          const contractReminders = supplierScheduledInterventions.filter(i =>
-            i.itemType === 'reminder' && !i.key.startsWith('custom_reminder_')
-          )
-          const customReminders = supplierScheduledInterventions.filter(i =>
-            i.itemType === 'reminder' && i.key.startsWith('custom_reminder_')
-          )
-
-          const supplierSections: InterventionPlannerSection[] = []
-
-          if (interventionRows.length > 0) {
-            supplierSections.push({
-              id: 'custom_interventions',
-              title: 'Interventions personnalisées',
-              icon: Calendar,
-              iconColorClass: 'text-indigo-500',
-              rows: interventionRows,
-              sectionType: 'intervention',
-            })
-          }
-
-          if (contractReminders.length > 0) {
-            supplierSections.push({
-              id: 'contract_reminders',
-              title: 'Rappels de fin de contrat',
-              icon: Bell,
-              iconColorClass: 'text-amber-500',
-              rows: contractReminders,
-              sectionType: 'reminder',
-            })
-          }
-
-          if (customReminders.length > 0) {
-            supplierSections.push({
-              id: 'custom_reminders',
-              title: 'Rappels personnalisés',
-              icon: Bell,
-              iconColorClass: 'text-amber-500',
-              rows: customReminders,
-              sectionType: 'reminder',
-              collapsible: true,
-            })
-          }
+          const supplierSections: InterventionPlannerSection[] = [{
+            id: 'supplier_main',
+            title: 'Suivis du contrat',
+            icon: CalendarCheck,
+            iconColorClass: 'text-primary',
+            rows: supplierScheduledInterventions,
+            allowCustomAdd: true,
+          }]
 
           return (
             <InterventionPlannerStep
@@ -1587,7 +1564,11 @@ export default function ContractFormContainer({
                       {rentReminderConfig.enabled && (
                         <div className="mt-4 flex items-center gap-2 text-sm">
                           <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                          <span className="font-medium">Rappels de paiement du loyer</span>
+                          {rentReminderConfig.itemType === 'intervention'
+                            ? <Wrench className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                            : <Bell className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                          }
+                          <span className="font-medium">Appel de loyer</span>
                           <span className="text-muted-foreground">&mdash; le {rentReminderConfig.dayOfMonth} de chaque mois</span>
                         </div>
                       )}

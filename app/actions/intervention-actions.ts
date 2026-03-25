@@ -439,7 +439,7 @@ export async function createBatchRentRemindersAction(
     // Bulk INSERT all interventions at once
     const interventionRows = reminders.map(r => ({
       title: r.title,
-      description: 'Rappel mensuel de paiement du loyer',
+      description: 'Appel de loyer mensuel',
       type: 'rappel_loyer' as InterventionType,
       urgency: 'basse' as InterventionUrgency,
       status: 'planifiee' as InterventionStatus,

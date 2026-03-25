@@ -62,6 +62,8 @@ export interface PropertyInterventionTemplate {
   }>
   /** Distinguishes interventions (external parties) from reminders (internal tasks) */
   itemType?: 'intervention' | 'reminder'
+  /** RFC 5545 recurrence rule (e.g. 'FREQ=YEARLY;INTERVAL=1') */
+  recurrenceRule?: string
 }
 
 // ─── BUILDING intervention templates ─────────────────────────────
@@ -84,7 +86,9 @@ export const BUILDING_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
     expirySchedulingOptions: [
       { value: 'expiry_minus_1m', labelTemplate: '1 mois avant expiration ({date})', offsetMonths: -1 },
       { value: 'expiry_minus_2m', labelTemplate: '2 mois avant expiration ({date})', offsetMonths: -2 }
-    ]
+    ],
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1'
   },
   {
     key: 'elevator_inspection',
@@ -103,7 +107,9 @@ export const BUILDING_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
     expirySchedulingOptions: [
       { value: 'expiry_minus_1m', labelTemplate: '1 mois avant expiration ({date})', offsetMonths: -1 },
       { value: 'expiry_minus_2m', labelTemplate: '2 mois avant expiration ({date})', offsetMonths: -2 }
-    ]
+    ],
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1'
   },
   {
     key: 'fire_safety_inspection',
@@ -117,7 +123,9 @@ export const BUILDING_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
       { value: 'creation_plus_12m', label: 'Dans 12 mois', calculateDate: (c) => addMonths(c, 12) },
       { value: 'creation_plus_6m', label: 'Dans 6 mois', calculateDate: (c) => addMonths(c, 6) }
     ],
-    defaultSchedulingOption: 'creation_plus_12m'
+    defaultSchedulingOption: 'creation_plus_12m',
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1'
   },
   {
     key: 'peb_renewal',
@@ -136,7 +144,9 @@ export const BUILDING_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
     expirySchedulingOptions: [
       { value: 'expiry_minus_3m', labelTemplate: '3 mois avant expiration ({date})', offsetMonths: -3 },
       { value: 'expiry_minus_6m', labelTemplate: '6 mois avant expiration ({date})', offsetMonths: -6 }
-    ]
+    ],
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=10'
   },
   {
     key: 'common_areas_cleaning',
@@ -150,7 +160,9 @@ export const BUILDING_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
       { value: 'creation_plus_1m', label: 'Dans 1 mois', calculateDate: (c) => addMonths(c, 1) },
       { value: 'creation_plus_7d', label: 'Dans 1 semaine', calculateDate: (c) => addDays(c, 7) }
     ],
-    defaultSchedulingOption: 'creation_plus_1m'
+    defaultSchedulingOption: 'creation_plus_1m',
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=MONTHLY;INTERVAL=1'
   },
   {
     key: 'green_spaces_maintenance',
@@ -164,7 +176,9 @@ export const BUILDING_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
       { value: 'creation_plus_3m', label: 'Dans 3 mois', calculateDate: (c) => addMonths(c, 3) },
       { value: 'creation_plus_1m', label: 'Dans 1 mois', calculateDate: (c) => addMonths(c, 1) }
     ],
-    defaultSchedulingOption: 'creation_plus_3m'
+    defaultSchedulingOption: 'creation_plus_3m',
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=MONTHLY;INTERVAL=1'
   }
 ]
 
@@ -188,7 +202,9 @@ export const LOT_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
     expirySchedulingOptions: [
       { value: 'expiry_minus_1m', labelTemplate: '1 mois avant expiration ({date})', offsetMonths: -1 },
       { value: 'expiry_minus_2m', labelTemplate: '2 mois avant expiration ({date})', offsetMonths: -2 }
-    ]
+    ],
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1'
   },
   {
     key: 'peb_renewal',
@@ -207,7 +223,9 @@ export const LOT_INTERVENTION_TEMPLATES: PropertyInterventionTemplate[] = [
     expirySchedulingOptions: [
       { value: 'expiry_minus_3m', labelTemplate: '3 mois avant expiration ({date})', offsetMonths: -3 },
       { value: 'expiry_minus_6m', labelTemplate: '6 mois avant expiration ({date})', offsetMonths: -6 }
-    ]
+    ],
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=10'
   }
 ]
 
@@ -231,7 +249,9 @@ export const LOT_IN_BUILDING_INTERVENTION_TEMPLATES: PropertyInterventionTemplat
     expirySchedulingOptions: [
       { value: 'expiry_minus_3m', labelTemplate: '3 mois avant expiration ({date})', offsetMonths: -3 },
       { value: 'expiry_minus_6m', labelTemplate: '6 mois avant expiration ({date})', offsetMonths: -6 }
-    ]
+    ],
+    itemType: 'reminder',
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=10'
   }
 ]
 

@@ -99,6 +99,7 @@ export const createSupplierReminderIntervention = (
       ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
       : [],
     itemType: 'reminder' as const,
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1',
   }
 }
 

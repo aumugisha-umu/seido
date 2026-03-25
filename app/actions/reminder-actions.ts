@@ -303,16 +303,23 @@ export async function createWizardRemindersAction(
 
     const results = await Promise.allSettled(
       reminders.map(async (input) => {
+        // Enforce reminders_single_entity CHECK: num_nonnulls(building_id, lot_id, contact_id, contract_id) <= 1
+        // Priority: contract_id > lot_id > building_id > contact_id
+        const entityContractId = input.contract_id ?? options.contract_id ?? null
+        const entityLotId = entityContractId ? null : (input.lot_id ?? options.lot_id ?? null)
+        const entityBuildingId = entityContractId || entityLotId ? null : (input.building_id ?? null)
+        const entityContactId = entityContractId || entityLotId || entityBuildingId ? null : (input.contact_id ?? null)
+
         const result = await reminderService.create({
           title: input.title,
           description: input.description ?? null,
           due_date: input.due_date ?? null,
           priority: 'normale',
           assigned_to: input.assignments?.[0]?.userId ?? input.assigned_to ?? null,
-          building_id: input.building_id ?? null,
-          lot_id: input.lot_id ?? options.lot_id ?? null,
-          contact_id: input.contact_id ?? null,
-          contract_id: input.contract_id ?? options.contract_id ?? null,
+          building_id: entityBuildingId,
+          lot_id: entityLotId,
+          contact_id: entityContactId,
+          contract_id: entityContractId,
           team_id: team.id,
           created_by: profile.id,
         })
@@ -335,8 +342,10 @@ export async function createWizardRemindersAction(
                 description: input.description || null,
                 priority: 'normale',
                 assigned_to: input.assignments?.[0]?.userId || null,
-                lot_id: input.lot_id || options.lot_id || null,
-                contract_id: input.contract_id || options.contract_id || null,
+                building_id: entityBuildingId,
+                lot_id: entityLotId,
+                contact_id: entityContactId,
+                contract_id: entityContractId,
               },
               auto_create: true,
               notify_days_before: 1,

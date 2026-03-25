@@ -1182,35 +1182,65 @@ export default function LotCreationForm({
     }
   }
 
-  // Helper: Create scheduled interventions for a lot
+  // Helper: Create scheduled interventions + reminders for a lot (split by itemType)
   const createInterventionsForLot = async (lotId: string, teamId: string) => {
-    const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
-    if (toCreate.length === 0) return
+    const allEnabled = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+    if (allEnabled.length === 0) return
+
+    const interventionItems = allEnabled.filter(i => i.itemType !== 'reminder')
+    const reminderItems = allEnabled.filter(i => i.itemType === 'reminder')
 
     try {
-      const { createInterventionAction } = await import('@/app/actions/intervention-actions')
-      const results = await Promise.allSettled(
-        toCreate.map(async (intervention) => {
-          return createInterventionAction({
-            title: intervention.title,
-            description: intervention.description,
-            type: intervention.interventionTypeCode,
-            urgency: 'basse',
-            lot_id: lotId,
-            team_id: teamId,
-            requested_date: intervention.scheduledDate || undefined
-          }, {
-            useServiceRole: true,
-            assignments: intervention.assignedUsers.length > 0
-              ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
-              : undefined
-          })
-        })
-      )
-      const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean })?.success).length
-      logger.info({ successCount, total: results.length, lotId }, 'Lot interventions created')
+      const promises: Promise<unknown>[] = []
+
+      // Interventions → createInterventionAction
+      if (interventionItems.length > 0) {
+        const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+        for (const intervention of interventionItems) {
+          promises.push(
+            createInterventionAction({
+              title: intervention.title,
+              description: intervention.description,
+              type: intervention.interventionTypeCode,
+              urgency: 'basse',
+              lot_id: lotId,
+              team_id: teamId,
+              requested_date: intervention.scheduledDate || undefined
+            }, {
+              useServiceRole: true,
+              assignments: intervention.assignedUsers.length > 0
+                ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                : undefined
+            })
+          )
+        }
+      }
+
+      // Reminders → createWizardRemindersAction
+      if (reminderItems.length > 0) {
+        const { createWizardRemindersAction } = await import('@/app/actions/reminder-actions')
+        promises.push(
+          createWizardRemindersAction(
+            reminderItems.map(r => ({
+              title: r.title,
+              description: r.description,
+              due_date: r.scheduledDate ? r.scheduledDate.toISOString() : undefined,
+              lot_id: lotId,
+              rrule: r.recurrenceRule,
+              assignments: r.assignedUsers
+                .filter(a => a.role === 'gestionnaire')
+                .map(a => ({ userId: a.userId, role: a.role }))
+            })),
+            { team_id: teamId }
+          )
+        )
+      }
+
+      const results = await Promise.allSettled(promises)
+      const successCount = results.filter(r => r.status === 'fulfilled').length
+      logger.info({ successCount, total: results.length, lotId }, 'Lot interventions + reminders created')
     } catch (err) {
-      logger.error('⚠️ Intervention creation failed (lot created successfully):', err)
+      logger.error('Intervention/reminder creation failed (lot created successfully):', err)
     }
   }
 
@@ -1261,7 +1291,8 @@ export default function LotCreationForm({
   }
 
   const buildCompositeInterventions = (lotsCount: number): CompositeIntervention[] => {
-    const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+    // Only intervention-type items go through composite action — reminders handled separately
+    const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate && i.itemType !== 'reminder')
     if (toCreate.length === 0) return []
     const interventions: CompositeIntervention[] = []
     for (let lotIndex = 0; lotIndex < lotsCount; lotIndex++) {
@@ -1277,6 +1308,36 @@ export default function LotCreationForm({
       }
     }
     return interventions
+  }
+
+  /** Fire-and-forget reminder creation for composite lot paths */
+  const fireAndForgetReminders = (createdLots: Array<{ id: string; lotIndex: number }>, teamId: string) => {
+    const reminderItems = scheduledInterventions.filter(i => i.enabled && i.scheduledDate && i.itemType === 'reminder')
+    if (reminderItems.length === 0) return
+
+    import('@/app/actions/reminder-actions').then(({ createWizardRemindersAction }) => {
+      const promises = createdLots.map(lot =>
+        createWizardRemindersAction(
+          reminderItems.map(r => ({
+            title: r.title,
+            description: r.description,
+            due_date: r.scheduledDate ? r.scheduledDate.toISOString() : undefined,
+            lot_id: lot.id,
+            rrule: r.recurrenceRule,
+            assignments: r.assignedUsers
+              .filter(a => a.role === 'gestionnaire')
+              .map(a => ({ userId: a.userId, role: a.role }))
+          })),
+          { team_id: teamId }
+        )
+      )
+      Promise.allSettled(promises).then(results => {
+        const successCount = results.filter(r => r.status === 'fulfilled').length
+        logger.info({ successCount, total: results.length }, 'Composite lot reminders created')
+      })
+    }).catch(err => {
+      logger.error({ error: err }, 'Failed to create composite lot reminders')
+    })
   }
 
   const fireAndForgetDocUploads = (
@@ -1347,6 +1408,7 @@ export default function LotCreationForm({
         }
 
         fireAndForgetDocUploads(lots, result.createdLots, userTeam.id)
+        fireAndForgetReminders(result.createdLots, userTeam.id)
 
         toast.success(`${result.createdLots.length} lot${result.createdLots.length > 1 ? 's créés' : ' créé'} avec succès`, { description: `Les lots ont été créés et assignés à l'immeuble.` })
         realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
@@ -1410,6 +1472,7 @@ export default function LotCreationForm({
         }
 
         fireAndForgetDocUploads(independentLots, result.createdLots, userTeam.id)
+        fireAndForgetReminders(result.createdLots, userTeam.id)
 
         toast.success(`${result.createdLots.length} lot${result.createdLots.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
         realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])

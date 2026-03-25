@@ -8,6 +8,7 @@
 'use server'
 
 import { createServerActionSupabaseClient } from '@/lib/services/core/supabase-client'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { logger } from '@/lib/logger'
 import { buildInvitationStatusMap } from '@/lib/utils/invitation-status'
 
@@ -25,11 +26,16 @@ import { buildInvitationStatusMap } from '@/lib/utils/invitation-status'
  */
 export async function getTeamContactsAction(teamId: string) {
   try {
+    // ── Auth context validation ────────────────────────────────────────
+    const authContext = await getServerActionAuthContextOrNull('gestionnaire')
+    if (!authContext || authContext.team.id !== teamId) {
+      return { success: false as const, error: 'Authentication required', data: [] }
+    }
+
     logger.info('[SERVER-ACTION] getTeamContactsAction called for team:', teamId)
     const startTime = Date.now()
 
-    // Create server-side Supabase client (faster RLS evaluation)
-    const supabase = await createServerActionSupabaseClient()
+    const { supabase } = authContext
 
     // Parallel fetch: contacts + invitations
     const [contactsResult, invitationsResult] = await Promise.all([
@@ -118,9 +124,15 @@ export async function getTeamContactsAction(teamId: string) {
  */
 export async function getTeamContactsByRoleAction(teamId: string, role?: string) {
   try {
+    // ── Auth context validation ────────────────────────────────────────
+    const authContext = await getServerActionAuthContextOrNull('gestionnaire')
+    if (!authContext || authContext.team.id !== teamId) {
+      return { success: false as const, error: 'Authentication required', data: [] }
+    }
+
     logger.info(`[SERVER-ACTION] getTeamContactsByRoleAction called for team: ${teamId}, role: ${role || 'all'}`)
 
-    const supabase = await createServerActionSupabaseClient()
+    const { supabase } = authContext
 
     // Build query with optional role filter
     let query = supabase

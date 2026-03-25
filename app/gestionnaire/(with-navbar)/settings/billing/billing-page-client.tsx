@@ -332,7 +332,7 @@ export function BillingPageClient({ initialSubscriptionInfo }: BillingPageClient
               />
               {lotCount >= 1000 && (
                 <p className="text-sm text-primary font-medium mt-3">
-                  1000+ biens ? Contactez-nous &agrave; support@seido.be pour une offre personnalis&eacute;e.
+                  1000+ biens ? Contactez-nous &agrave; support@seido-app.com pour une offre personnalis&eacute;e.
                 </p>
               )}
             </div>
@@ -410,7 +410,7 @@ export function BillingPageClient({ initialSubscriptionInfo }: BillingPageClient
       <p className="text-xs text-center text-muted-foreground pb-4">
         Tous les prix sont indiqu&eacute;s HT. TVA 21% applicable pour la Belgique.
         <br />
-        Questions ? Contactez-nous &agrave; support@seido.be
+        Questions ? Contactez-nous &agrave; support@seido-app.com
       </p>
     </div>
   )

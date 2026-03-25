@@ -10,8 +10,7 @@ import {
   EntityActivityLog
 } from '@/components/shared/entity-preview'
 import type { TabConfig } from '@/components/shared/entity-preview'
-import { Plus, Home, MapPin, Archive, Edit as EditIcon } from "lucide-react"
-import { DocumentsSection } from "@/components/intervention/documents-section"
+import { Plus, Home, Archive, Edit as EditIcon } from "lucide-react"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { RemindersNavigator } from "@/components/operations/reminders-navigator"
@@ -20,12 +19,10 @@ import type { ReminderWithRelations } from '@/lib/types/reminder.types'
 import { logger } from '@/lib/logger'
 import type { Building, Lot } from '@/lib/services'
 // Stats badges removed from overview
-import { ContactsGridPreview } from '@/components/ui/contacts-grid-preview'
-import { BuildingLotsGrid } from '@/components/patrimoine/lot-card-unified'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
-import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
-import { PropertyDocumentsPanel } from '@/components/documents'
-import { BUILDING_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
+import { BuildingInfoSection } from './building-info-section'
+import { BuildingLotsTab } from './building-lots-tab'
+import { BuildingDocumentsTab } from './building-documents-tab'
 import { useSubscription } from '@/hooks/use-subscription'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
 import { getAccessibleLots } from '@/app/actions/subscription-actions'
@@ -220,57 +217,6 @@ export default function BuildingDetailsClient({
     }
   }
 
-  // Transform interventions data for documents component
-  const transformInterventionsForDocuments = (interventionsData: unknown[]) => {
-    return interventionsData.map((intervention: {
-      id: string
-      reference?: string
-      title: string
-      type: string
-      status: string
-      completed_at?: string
-      assigned_contact?: { name: string }
-      documents?: Array<{
-        id: string
-        original_filename?: string
-        filename: string
-        file_size: number
-        mime_type: string
-        uploaded_at: string
-      }>
-    }) => ({
-      id: intervention.id,
-      reference: intervention.reference || `INT-${intervention.id.slice(-6)}`,
-      title: intervention.title,
-      type: intervention.type,
-      status: intervention.status,
-      completedAt: intervention.completed_at,
-      assignedContact: intervention.assigned_contact ? {
-        name: intervention.assigned_contact.name,
-        role: 'prestataire'
-      } : undefined,
-      documents: intervention.documents?.map((doc) => ({
-        id: doc.id,
-        name: doc.original_filename || doc.filename,
-        size: doc.file_size,
-        type: doc.mime_type,
-        uploadedAt: doc.uploaded_at,
-        uploadedBy: {
-          name: 'Utilisateur',
-          role: 'user'
-        }
-      })) || []
-    })).filter((intervention: { documents: unknown[] }) => intervention.documents.length > 0)
-  }
-
-  const handleDocumentView = (document: unknown) => {
-    logger.info('Viewing document:', document)
-  }
-
-  const handleDocumentDownload = (document: unknown) => {
-    logger.info('Downloading document:', document)
-  }
-
   const stats = getStats()
 
   // Transform building contacts by role + Create buildingContactIds map
@@ -448,121 +394,43 @@ export default function BuildingDetailsClient({
             onTabChange={setActiveTab}
             tabs={buildingTabs}
           >
-            {/* Général Tab — Localisation + Lots */}
+            {/* General Tab -- Localisation + Lots */}
             <TabContentWrapper value="general">
-              <div className="space-y-4">
-                {/* Localisation Card */}
-                {(buildingAddress || (building as { description?: string }).description) && (
-                  <div className="bg-card rounded-lg border p-4 sm:p-5">
-                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      Localisation
-                    </h3>
-                    {addressText && (
-                      <p className="text-sm text-muted-foreground mt-1">{addressText}</p>
-                    )}
-                    {(building as { description?: string }).description && (
-                      <p className="text-sm text-muted-foreground mt-1 line-clamp-3 whitespace-pre-wrap">
-                        {(building as { description: string }).description}
-                      </p>
-                    )}
-                    {buildingAddress && (
-                      <div className="mt-3">
-                        <GoogleMapsProvider>
-                          <GoogleMapPreview
-                            latitude={buildingAddress.latitude}
-                            longitude={buildingAddress.longitude}
-                            address={buildingAddress.formatted_address || addressText || undefined}
-                            height={180}
-                            showOpenButton={true}
-                          />
-                        </GoogleMapsProvider>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Lots Card */}
-                {lotsWithContacts.length > 0 && (
-                  <div className="bg-card rounded-lg border p-4 sm:p-5">
-                    <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-sm font-semibold text-foreground">
-                        Lots ({lotsWithContacts.length})
-                      </h3>
-                      <span className="text-xs text-muted-foreground">
-                        {stats.occupiedLots}/{stats.totalLots} occupés ({stats.occupancyRate}%)
-                      </span>
-                    </div>
-                    <BuildingLotsGrid
-                      buildingId={building.id}
-                      lots={lotsWithContacts as any}
-                      lotContactIdsMap={lotContactIdsMap}
-                      teamId={teamId}
-                      buildingManagers={buildingManagers}
-                      buildingTenants={buildingTenants}
-                      buildingProviders={providers}
-                      buildingOthers={others}
-                      lockedLotIds={lockedLotIds}
-                      initialExpandAll={false}
-                      readOnly={true}
-                      className="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-                    />
-                  </div>
-                )}
-              </div>
+              <BuildingInfoSection
+                building={building}
+                buildingAddress={buildingAddress}
+                addressText={addressText}
+                lotsWithContacts={lotsWithContacts}
+                lotContactIdsMap={lotContactIdsMap}
+                teamId={teamId}
+                buildingManagers={buildingManagers}
+                buildingTenants={buildingTenants}
+                providers={providers}
+                others={others}
+                lockedLotIds={lockedLotIds}
+                stats={stats}
+              />
             </TabContentWrapper>
 
-            {/* Contacts Tab — Building contacts + Lots with contacts (interactive) */}
+            {/* Contacts Tab -- Building contacts + Lots with contacts (interactive) */}
             <TabContentWrapper value="contacts">
-              {/* Building-level contacts (interactive) */}
-              <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3 px-1">Contacts de l&apos;immeuble</h3>
-                <ContactsGridPreview
-                  buildingId={building.id}
-                  buildingName={building.name}
-                  buildingManagers={buildingManagers}
-                  providers={providers as any}
-                  teamId={teamId}
-                  others={others as any}
-                  buildingContactIds={buildingContactIds}
-                />
-              </div>
-
-              {/* Lots and their contacts (interactive, all expanded) */}
-              <div>
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <h3 className="text-sm font-semibold text-foreground">Lots et leurs contacts</h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (!subscriptionLoading && !canAddProperty) {
-                        setUpgradeModalOpen(true)
-                        return
-                      }
-                      router.push(`/gestionnaire/biens/lots/nouveau?buildingId=${building.id}`)
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Ajouter un lot
-                  </Button>
-                </div>
-                <BuildingLotsGrid
-                  buildingId={building.id}
-                  lots={lotsWithContacts as any}
-                  lotContactIdsMap={lotContactIdsMap}
-                  teamId={teamId}
-                  buildingManagers={buildingManagers}
-                  buildingTenants={buildingTenants}
-                  buildingProviders={providers}
-                  buildingOthers={others}
-                  initialExpandedLotId={expandLotId}
-                  lockedLotIds={lockedLotIds}
-                  initialExpandAll={false}
-                  readOnly={false}
-                />
-              </div>
+              <BuildingLotsTab
+                buildingId={building.id}
+                buildingName={building.name}
+                lotsWithContacts={lotsWithContacts}
+                lotContactIdsMap={lotContactIdsMap}
+                teamId={teamId}
+                buildingManagers={buildingManagers}
+                buildingTenants={buildingTenants}
+                providers={providers}
+                others={others}
+                buildingContactIds={buildingContactIds}
+                expandLotId={expandLotId}
+                lockedLotIds={lockedLotIds}
+                canAddProperty={canAddProperty}
+                subscriptionLoading={subscriptionLoading}
+                onUpgradeRequired={() => setUpgradeModalOpen(true)}
+              />
             </TabContentWrapper>
 
             {/* Contracts Tab */}
@@ -610,36 +478,11 @@ export default function BuildingDetailsClient({
 
             {/* Documents Tab */}
             <TabContentWrapper value="documents">
-              <div className="space-y-6">
-                {/* Property documents (PEB, ascenseur, amiante, etc.) */}
-                <PropertyDocumentsPanel
-                  entityType="building"
-                  entityId={building.id}
-                  teamId={teamId}
-                  slotConfigs={BUILDING_DOCUMENT_SLOTS}
-                />
-
-                {/* Intervention documents */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h2 className="text-lg font-medium text-foreground">Documents d&apos;intervention</h2>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Documents liés aux interventions réalisées dans cet immeuble
-                      </p>
-                    </div>
-                  </div>
-
-                  <DocumentsSection
-                    interventions={transformInterventionsForDocuments(interventionsWithDocs)}
-                    loading={false}
-                    emptyMessage="Aucun document trouvé"
-                    emptyDescription="Aucune intervention avec documents n'a été réalisée dans cet immeuble."
-                    onDocumentView={handleDocumentView}
-                    onDocumentDownload={handleDocumentDownload}
-                  />
-                </div>
-              </div>
+              <BuildingDocumentsTab
+                buildingId={building.id}
+                teamId={teamId}
+                interventionsWithDocs={interventionsWithDocs}
+              />
             </TabContentWrapper>
 
             {/* Emails Tab */}

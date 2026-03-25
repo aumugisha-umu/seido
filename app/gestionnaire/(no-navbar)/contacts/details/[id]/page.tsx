@@ -82,7 +82,7 @@ export default async function ContactDetailsPage({ params }: PageProps) {
     .single()
 
   if (contactError || !contact) {
-    console.error('❌ Error fetching contact:', contactError)
+    logger.error({ error: contactError?.message }, '❌ Error fetching contact')
     notFound()
   }
 
@@ -112,9 +112,9 @@ export default async function ContactDetailsPage({ params }: PageProps) {
       }
       return contact.auth_user_id ? 'accepted' : null
     })(),
-    supabase.from('interventions').select('*, lot(*, building(*))'),
-    supabase.from('buildings').select('*'),
-    supabase.from('lots').select('*, building(*), lot_contacts(*, user(*))'),
+    supabase.from('interventions').select('*, lot(*, building(*))').eq('team_id', team.id),
+    supabase.from('buildings').select('*').eq('team_id', team.id),
+    supabase.from('lots').select('*, building(*), lot_contacts(*, user(*))').eq('team_id', team.id),
     // Fetch contracts where this contact is tenant/guarantor
     supabase.from('contract_contacts').select(`
       id,

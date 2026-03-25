@@ -35,7 +35,7 @@ export default async function CompanyDetailsPage({ params }: PageProps) {
   ])
 
   if (companyResult.error || !companyResult.data) {
-    console.error('❌ Error fetching company:', companyResult.error)
+    // Error already handled by notFound() — no console needed
     notFound()
   }
 

@@ -67,6 +67,10 @@ import { useActivityLogs } from '@/hooks/use-activity-logs'
 // Progression card (moved from Activity tab to General tab)
 import { InterventionProgressCard } from '@/components/interventions/intervention-progress-card'
 
+// Extracted sub-components
+import { TenantGeneralTab } from './tenant-general-tab'
+import { TenantPlanningTab } from './tenant-planning-tab'
+
 // Confirmation banners
 import {
   ConfirmationRequiredBanner,
@@ -741,78 +745,30 @@ export function LocataireInterventionDetailClient({
             tabs={interventionTabs}
           >
               {/* TAB: GENERAL */}
-              <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <ContentWrapper>
-                  {/* Bannières de confirmation si nécessaire */}
-                  {showConfirmationBanner && (
-                    <ConfirmationRequiredBanner
-                      interventionId={intervention.id}
-                      scheduledDate={intervention.scheduled_date}
-                      scheduledTime={null}
-                      onConfirm={handleConfirmationResponse}
-                      onReject={handleConfirmationResponse}
-                    />
-                  )}
-                  {showConfirmedBanner && <ConfirmationSuccessBanner />}
-                  {showRejectedBanner && <ConfirmationRejectedBanner />}
-
-                  {/* Détails de l'intervention */}
-                  <div className="flex-shrink-0">
-                    <InterventionDetailsCard
-                      title={intervention.title}
-                      description={intervention.description || undefined}
-                      instructions={intervention.instructions || undefined}
-                      interventionStatus={intervention.status}
-                      participants={participants}
-                      currentUserId={currentUser.id}
-                      currentUserRole="locataire"
-                      onOpenChat={handleOpenChatFromParticipant}
-                      planning={{
-                        scheduledDate,
-                        schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
-                        status: scheduledDate ? 'scheduled' : 'pending',
-                        quotesCount: 0,
-                        quotesStatus: 'none'
-                      }}
-                      hideEstimation
-                    />
-                  </div>
-
-                  {/* Rapports de clôture */}
-                  {reports.length > 0 && (
-                    <div className="mt-6">
-                      <ReportsCard reports={reports} />
-                    </div>
-                  )}
-
-                  {/* Documents — full width, right after reports/details */}
-                  <div className="mt-6">
-                    <DocumentsCard
-                      documents={transformedDocuments}
-                      userRole="tenant"
-                      onView={handleViewDocument}
-                      onDownload={handleDownloadDocument}
-                    />
-                  </div>
-
-                  {/* Progression — full width at bottom, horizontal stepper */}
-                  <div className="mt-6">
-                    <InterventionProgressCard
-                      intervention={intervention}
-                      activityLogs={activityLogs.map(log => ({
-                        ...log,
-                        user: (log as any).user_name ? {
-                          id: (log as any).user_id,
-                          name: (log as any).user_name,
-                          email: (log as any).user_email || '',
-                          avatar_url: (log as any).user_avatar_url || null
-                        } : undefined
-                      }))}
-                      variant="horizontal"
-                    />
-                  </div>
-                </ContentWrapper>
-              </TabsContent>
+              <TenantGeneralTab
+                intervention={intervention}
+                participants={participants}
+                currentUserId={currentUser.id}
+                showConfirmationBanner={showConfirmationBanner}
+                showConfirmedBanner={showConfirmedBanner}
+                showRejectedBanner={showRejectedBanner}
+                onConfirmationResponse={handleConfirmationResponse}
+                scheduledDate={scheduledDate}
+                transformedDocuments={transformedDocuments}
+                reports={reports}
+                onViewDocument={handleViewDocument}
+                onDownloadDocument={handleDownloadDocument}
+                activityLogs={activityLogs.map(log => ({
+                  ...log,
+                  user: (log as any).user_name ? {
+                    id: (log as any).user_id,
+                    name: (log as any).user_name,
+                    email: (log as any).user_email || '',
+                    avatar_url: (log as any).user_avatar_url || null
+                  } : undefined
+                }))}
+                onOpenChatFromParticipant={handleOpenChatFromParticipant}
+              />
 
               {/* TAB: LOCALISATION */}
               <TabsContent value="localisation" className="mt-0 flex-1 flex flex-col overflow-hidden">
@@ -861,30 +817,23 @@ export function LocataireInterventionDetailClient({
 
 
               {/* TAB: PLANNING */}
-              <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
-                  {/* Planning - Le locataire peut voir et sélectionner les créneaux */}
-                  <PlanningCard
-                    timeSlots={transformedTimeSlots}
-                    scheduledDate={scheduledDate || undefined}
-                    scheduledStartTime={scheduledStartTime || undefined}
-                    schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
-                    userRole="tenant"
-                    currentUserId={currentUser.id}
-                    onSelectSlot={handleSelectSlot}
-                    onApproveSlot={(slotId) => {
-                      const slot = timeSlots.find(s => s.id === slotId)
-                      if (slot) handleAcceptSlot(slot)
-                    }}
-                    onRejectSlot={(slotId) => {
-                      const slot = timeSlots.find(s => s.id === slotId)
-                      if (slot) handleRejectSlot(slot)
-                    }}
-                    onOpenResponseModal={handleOpenResponseModal}
-                    className="flex-1 min-h-0"
-                  />
-                </div>
-              </TabsContent>
+              <TenantPlanningTab
+                schedulingType={intervention.scheduling_type}
+                scheduledDate={scheduledDate}
+                scheduledStartTime={scheduledStartTime}
+                currentUserId={currentUser.id}
+                transformedTimeSlots={transformedTimeSlots}
+                onSelectSlot={handleSelectSlot}
+                onAcceptSlot={(slotId) => {
+                  const slot = timeSlots.find(s => s.id === slotId)
+                  if (slot) handleAcceptSlot(slot)
+                }}
+                onRejectSlot={(slotId) => {
+                  const slot = timeSlots.find(s => s.id === slotId)
+                  if (slot) handleRejectSlot(slot)
+                }}
+                onOpenResponseModal={handleOpenResponseModal}
+              />
             </EntityTabs>
         </div>
       </div>

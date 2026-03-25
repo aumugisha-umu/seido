@@ -27,12 +27,12 @@ export const EMAIL_CONFIG = {
    * ⚠️ IMPORTANT: Doit être un domaine vérifié dans Resend
    * En développement, utiliser onboarding@resend.dev
    */
-  from: process.env.RESEND_FROM_EMAIL || 'SEIDO <onboarding@resend.dev>',
+  from: process.env.RESEND_FROM_EMAIL || 'SEIDO <notifications@seido-app.com>',
 
   /**
    * Email de support pour les utilisateurs
    */
-  supportEmail: process.env.SUPPORT_EMAIL || 'support@seido.app',
+  supportEmail: process.env.SUPPORT_EMAIL || 'support@seido-app.com',
 
   /**
    * URL de base de l'application

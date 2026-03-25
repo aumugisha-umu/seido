@@ -409,8 +409,8 @@ GOOD (product-led):
     {
       "@type": "Organization",
       "name": "SEIDO",
-      "url": "https://seido.app",
-      "logo": "https://seido.app/logo.png",
+      "url": "https://seido-app.com",
+      "logo": "https://seido-app.com/logo.png",
       "description": "Plateforme de gestion immobiliere tout-en-un",
       "sameAs": ["https://linkedin.com/company/seido", "https://twitter.com/seido_app"],
       "areaServed": ["BE", "FR"],
@@ -419,10 +419,10 @@ GOOD (product-led):
     {
       "@type": "WebSite",
       "name": "SEIDO",
-      "url": "https://seido.app",
+      "url": "https://seido-app.com",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://seido.app/search?q={search_term_string}",
+        "target": "https://seido-app.com/search?q={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     },
@@ -549,7 +549,7 @@ GOOD (product-led):
 // Dans chaque page Next.js
 export const generateMetadata = async (): Promise<Metadata> => ({
   alternates: {
-    canonical: 'https://seido.app/fr/fonctionnalites/interventions',
+    canonical: 'https://seido-app.com/fr/fonctionnalites/interventions',
     languages: {
       'fr-BE': '/fr/fonctionnalites/interventions',
       'fr-FR': '/fr/fonctionnalites/interventions',  // meme URL, Google comprend
@@ -619,7 +619,7 @@ export const generateMetadata = async ({ params }: Props): Promise<Metadata> => 
       images: [{ url: post.ogImage, width: 1200, height: 630 }],
     },
     alternates: {
-      canonical: `https://seido.app/blog/${params.slug}`,
+      canonical: `https://seido-app.com/blog/${params.slug}`,
       languages: {
         'fr': `/fr/blog/${params.slug}`,
         'en': `/en/blog/${params.slug}`,
@@ -640,10 +640,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const comparisons = ['/seido-vs-smovin', '/seido-vs-rentila', '/seido-vs-yourent']
 
   return [
-    { url: 'https://seido.app', lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },
-    ...features.map(f => ({ url: `https://seido.app/fonctionnalites${f}`, priority: 0.8 })),
-    ...comparisons.map(c => ({ url: `https://seido.app/comparatif${c}`, priority: 0.9 })),
-    ...posts.map(p => ({ url: `https://seido.app/blog/${p.slug}`, lastModified: p.updatedAt })),
+    { url: 'https://seido-app.com', lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },
+    ...features.map(f => ({ url: `https://seido-app.com/fonctionnalites${f}`, priority: 0.8 })),
+    ...comparisons.map(c => ({ url: `https://seido-app.com/comparatif${c}`, priority: 0.9 })),
+    ...posts.map(p => ({ url: `https://seido-app.com/blog/${p.slug}`, lastModified: p.updatedAt })),
   ]
 }
 ```
@@ -655,7 +655,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: { userAgent: '*', allow: '/', disallow: ['/api/', '/auth/', '/dashboard/'] },
-    sitemap: 'https://seido.app/sitemap.xml',
+    sitemap: 'https://seido-app.com/sitemap.xml',
   }
 }
 ```

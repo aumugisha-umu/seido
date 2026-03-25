@@ -241,6 +241,27 @@ export async function getUserByIdAction(id: string): Promise<ActionResult<User>>
 }
 
 /**
+ * Get all teams (admin only) — for team assignment dropdown
+ */
+export async function getAllTeamsAction(): Promise<ActionResult<{ id: string; name: string }[]>> {
+  try {
+    const { supabase } = await getAdminContext()
+    const { data, error } = await supabase
+      .from('teams')
+      .select('id, name')
+      .is('deleted_at', null)
+      .order('name', { ascending: true })
+    if (error) return { success: false, error: error.message }
+    return { success: true, data: data || [] }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+    }
+  }
+}
+
+/**
  * Create a new user (admin only)
  */
 export async function createUserAction(userData: UserInsert): Promise<ActionResult<User>> {
@@ -277,6 +298,20 @@ export async function createUserAction(userData: UserInsert): Promise<ActionResu
     if (error) {
       logger.error('[ADMIN-USERS] Error creating user:', error)
       return { success: false, error: error.message }
+    }
+
+    // If team_id provided, also create team_members entry
+    if (userData.team_id) {
+      const { error: tmError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: userData.team_id,
+          user_id: data.id,
+          role: userData.role,
+        })
+      if (tmError) {
+        logger.warn('[ADMIN-USERS] Failed to create team_members entry:', tmError)
+      }
     }
 
     logger.info('[ADMIN-USERS] User created:', data.id)
@@ -582,58 +617,45 @@ export async function inviteGestionnaireAction(input: {
       return { success: false, error: 'Un utilisateur avec cet email existe deja' }
     }
 
-    // 2. Create auth user — trigger handles profile + team + subscription
+    // 2. Generate invite link — creates auth user + triggers profile/team/subscription
     const fullName = `${firstName} ${lastName}`
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: normalizedEmail,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-        first_name: firstName,
-        last_name: lastName,
-        display_name: fullName,
-        organization,
-        role: 'gestionnaire',
-        password_set: false,
-      },
-    })
-
-    if (authError || !authData.user) {
-      logger.error({ error: authError }, '[ADMIN-INVITE] Failed to create auth user')
-      return { success: false, error: authError?.message || 'Echec de la creation du compte' }
-    }
-
-    const authUserId = authData.user.id
-    logger.info({ authUserId }, '[ADMIN-INVITE] Auth user created, trigger should have fired')
-
-    // 3. Generate magic link for password setting
-    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
+    const { data: inviteLink, error: inviteError } = await supabase.auth.admin.generateLink({
+      type: 'invite',
       email: normalizedEmail,
       options: {
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        data: {
+          full_name: fullName,
+          first_name: firstName,
+          last_name: lastName,
+          display_name: fullName,
+          organization,
+          role: 'gestionnaire',
+          password_set: false,
+        },
       },
     })
 
-    if (linkError || !linkData?.properties?.hashed_token) {
-      logger.error({ error: linkError }, '[ADMIN-INVITE] Failed to generate magic link')
-      // Cleanup: delete the auth user we just created
-      await supabase.auth.admin.deleteUser(authUserId)
-      return { success: false, error: 'Echec de la generation du lien d\'invitation' }
+    if (inviteError || !inviteLink?.user) {
+      logger.error({ error: inviteError }, '[ADMIN-INVITE] Failed to generate invite link')
+      return { success: false, error: inviteError?.message || 'Echec de la creation du compte' }
     }
 
-    const hashedToken = linkData.properties.hashed_token
-    const invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=magiclink`
+    const authUserId = inviteLink.user.id
+    const hashedToken = inviteLink.properties.hashed_token
+    const invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
 
-    // 4. Get the profile created by the trigger
+    logger.info({ authUserId }, '[ADMIN-INVITE] Invite link generated, trigger should have fired')
+
+    // 3. Get the profile + team created by the trigger
     const { data: userProfile } = await supabase
       .from('users')
-      .select('id')
+      .select('id, team_id')
       .eq('auth_user_id', authUserId)
       .limit(1)
       .maybeSingle()
 
-    // 5. Insert invitation record
+    // 4. Insert invitation record (with real team_id from trigger)
     const { data: invitation, error: invError } = await supabase
       .from('user_invitations')
       .insert({
@@ -641,7 +663,7 @@ export async function inviteGestionnaireAction(input: {
         first_name: firstName,
         last_name: lastName,
         role: 'gestionnaire' as const,
-        team_id: null,
+        team_id: userProfile?.team_id || null,
         invited_by: userProfile?.id || null,
         invitation_token: hashedToken,
         user_id: userProfile?.id || null,
@@ -655,7 +677,7 @@ export async function inviteGestionnaireAction(input: {
       logger.warn({ error: invError }, '[ADMIN-INVITE] Failed to create invitation record (non-blocking)')
     }
 
-    // 6. Send email (deferred — non-blocking)
+    // 5. Send email (deferred — non-blocking)
     after(async () => {
       try {
         const result = await emailService.sendAdminInvitationEmail(normalizedEmail, {

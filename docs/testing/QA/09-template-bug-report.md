@@ -135,12 +135,12 @@
 
 | Champ | Valeur |
 |-------|--------|
-| **URL** | https://preview.seido.app/gestionnaire/interventions/nouvelle-intervention |
+| **URL** | https://preview.seido-app.com/gestionnaire/interventions/nouvelle-intervention |
 | **Navigateur** | Safari 17 |
 | **OS** | iOS 17.2 |
 | **Viewport** | 375x812 (iPhone 14) |
 | **Rôle testé** | Gestionnaire |
-| **Compte test** | gestionnaire@test.seido.app |
+| **Compte test** | gestionnaire@test.seido-app.com |
 
 ## Description
 

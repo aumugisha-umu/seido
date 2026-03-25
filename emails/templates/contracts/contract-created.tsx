@@ -98,7 +98,7 @@ ContractCreatedEmail.PreviewProps = {
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
   startDate: '01/03/2026',
   endDate: '28/02/2029',
-  contractUrl: 'https://seido.app/locataire/contrats/abc-123',
+  contractUrl: 'https://seido-app.com/locataire/contrats/abc-123',
 } as ContractCreatedEmailProps
 
 export default ContractCreatedEmail

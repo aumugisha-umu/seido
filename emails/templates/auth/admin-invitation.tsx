@@ -28,7 +28,7 @@ export const AdminInvitationEmail = ({
     {
       number: '2',
       title: 'Invitez vos contacts',
-      description: 'Ajoutez locataires, prestataires et proprietaires a votre equipe.',
+      description: 'Ajoutez vos collaborateurs, locataires, prestataires et proprietaires.',
     },
     {
       number: '3',
@@ -68,33 +68,37 @@ export const AdminInvitationEmail = ({
           </Text>
 
           {quickStartSteps.map((step) => (
-            <div key={step.number} className="mb-3" style={{ display: 'flex', gap: '12px' }}>
-              <div
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '50%',
-                  backgroundColor: '#5b8def',
-                  color: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {step.number}
-              </div>
-              <div>
-                <Text className="text-gray-900 font-semibold text-sm m-0">
-                  {step.title}
-                </Text>
-                <Text className="text-gray-600 text-sm m-0 leading-relaxed">
-                  {step.description}
-                </Text>
-              </div>
-            </div>
+            <table key={step.number} cellPadding="0" cellSpacing="0" style={{ marginBottom: '12px', width: '100%' }}>
+              <tbody>
+                <tr>
+                  <td style={{ width: '28px', verticalAlign: 'top' }}>
+                    <div
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        backgroundColor: '#5b8def',
+                        color: '#ffffff',
+                        fontSize: '14px',
+                        fontWeight: '700',
+                        textAlign: 'center',
+                        lineHeight: '28px',
+                      }}
+                    >
+                      {step.number}
+                    </div>
+                  </td>
+                  <td style={{ paddingLeft: '12px', verticalAlign: 'top' }}>
+                    <Text className="text-gray-900 font-semibold text-sm m-0">
+                      {step.title}
+                    </Text>
+                    <Text className="text-gray-600 text-sm m-0 leading-relaxed">
+                      {step.description}
+                    </Text>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           ))}
         </div>
 
@@ -132,7 +136,7 @@ export const AdminInvitationEmail = ({
 AdminInvitationEmail.PreviewProps = {
   firstName: 'Thomas',
   organization: 'SCI Les Jardins',
-  invitationUrl: 'https://seido-app.com/auth/confirm?token_hash=abc123&type=magiclink',
+  invitationUrl: 'https://seido-app.com/auth/confirm?token_hash=abc123&type=invite',
   expiresIn: 7,
 } as AdminInvitationEmailProps
 

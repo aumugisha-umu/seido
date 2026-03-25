@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(
         new URL(
           '/auth/login?error=invite_only&message=' +
-            encodeURIComponent('L\'accès à SEIDO se fait actuellement sur invitation. Demandez votre accès sur la page d\'inscription.'),
+          encodeURIComponent('L\'accès à SEIDO se fait actuellement sur invitation. Demandez votre accès sur la page d\'inscription.'),
           origin
         )
       )
@@ -186,7 +186,7 @@ function validateNextParameter(next: string | null, origin: string): boolean {
     }
 
     // Autoriser aussi les domaines de production
-    const productionDomains = ['app.seido.immo', 'seido.app', 'localhost']
+    const productionDomains = ['app.seido.immo', 'seido-app.com', 'localhost']
     if (productionDomains.includes(nextUrl.hostname)) {
       return true
     }

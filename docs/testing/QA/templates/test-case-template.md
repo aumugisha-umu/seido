@@ -190,7 +190,7 @@ Format : `TC-[MODULE]-[NNN]`
 
 #### Préconditions
 
-- [ ] **Environnement** : Preview (https://preview.seido.app)
+- [ ] **Environnement** : Preview (https://preview.seido-app.com)
 - [ ] **Utilisateur** : Compte gestionnaire existant
 - [ ] **Données requises** :
   - [ ] Email : `gestionnaire@test-seido.fr`

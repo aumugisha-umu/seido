@@ -133,10 +133,10 @@ Run the QA Bot manually to verify:
 npm run qa:guided
 
 # Against preview
-TARGET_URL=https://preview.seido.app npm run qa:guided
+TARGET_URL=https://preview.seido-app.com npm run qa:guided
 
 # Or trigger via GitHub Actions
-gh workflow run qa-bot.yml -f target_url=https://preview.seido.app -f mode=guided
+gh workflow run qa-bot.yml -f target_url=https://preview.seido-app.com -f mode=guided
 ```
 
 ## Maintenance

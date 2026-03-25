@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
 
     if (!isValidSignature) {
       logger.error(
-        { 
+        {
           svixId,
           hasSvixHeaders: { id: !!svixId, timestamp: !!svixTimestamp, signature: !!svixSignature },
           hasSecret: !!process.env.RESEND_INBOUND_WEBHOOK_SECRET
@@ -1056,7 +1056,7 @@ async function notifyManagers(
       const emailService = new EmailService()
       if (emailService.isConfigured()) {
         const { EmailReplyReceivedEmail } = await import('@/emails/templates/notifications/email-reply-received')
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
 
         for (const assignment of assignments) {
           const user = assignment.users as any

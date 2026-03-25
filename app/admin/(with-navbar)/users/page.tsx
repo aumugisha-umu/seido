@@ -1,5 +1,5 @@
 import { getServerAuthContext } from '@/lib/server-context'
-import { getAllUsersWithStatusAction } from '@/app/actions/user-admin-actions'
+import { getAllUsersWithStatusAction, getAllTeamsAction } from '@/app/actions/user-admin-actions'
 import { UsersManagementClient } from './users-management-client'
 import { Badge } from '@/components/ui/badge'
 import { Shield, Users } from 'lucide-react'
@@ -14,9 +14,13 @@ export default async function AdminUsersPage() {
   // Auth verification (admin only)
   const { profile } = await getServerAuthContext('admin')
 
-  // Load all users with computed status
-  const usersResult = await getAllUsersWithStatusAction()
+  // Load all users with computed status + teams in parallel
+  const [usersResult, teamsResult] = await Promise.all([
+    getAllUsersWithStatusAction(),
+    getAllTeamsAction(),
+  ])
   const users = usersResult.success ? usersResult.data || [] : []
+  const teams = teamsResult.success ? teamsResult.data || [] : []
 
   // Calculate stats based on computed_status for accurate counts
   const stats = {
@@ -100,6 +104,7 @@ export default async function AdminUsersPage() {
       <UsersManagementClient
         initialUsers={users}
         currentUserId={profile.id}
+        teams={teams}
       />
     </>
   )

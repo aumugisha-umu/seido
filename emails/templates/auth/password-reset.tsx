@@ -82,8 +82,8 @@ export const PasswordResetEmail = ({
           <Text className="text-gray-700 text-sm leading-relaxed m-0">
             Si vous n'êtes pas à l'origine de cette demande, ignorez cet email et
             contactez immédiatement notre support à{' '}
-            <Link href="mailto:support@seido.app" className="text-danger no-underline">
-              support@seido.app
+            <Link href="mailto:support@seido-app.com" className="text-danger no-underline">
+              support@seido-app.com
             </Link>
             . Votre mot de passe actuel reste inchangé.
           </Text>
@@ -104,7 +104,7 @@ export const PasswordResetEmail = ({
 // Props par défaut pour prévisualisation
 PasswordResetEmail.PreviewProps = {
   firstName: 'Pierre',
-  resetUrl: 'https://seido.app/auth/update-password?token=xyz789',
+  resetUrl: 'https://seido-app.com/auth/update-password?token=xyz789',
   expiresIn: 60,
 } as PasswordResetEmailProps
 

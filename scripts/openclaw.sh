@@ -60,7 +60,7 @@ else
   echo ""
   echo "Examples:"
   echo "  $0 --qa                                    # Run QA pipeline"
-  echo "  $0 --qa https://preview.seido.app          # QA with custom URL"
+  echo "  $0 --qa https://preview.seido-app.com          # QA with custom URL"
   echo "  $0 \"recherche les stats PropTech 2026\"     # Market research"
   echo "  $0 \"redige un article blog sur X\"          # Content creation"
   echo "  $0 \"analyse les concurrents belges\"        # Competitor analysis"

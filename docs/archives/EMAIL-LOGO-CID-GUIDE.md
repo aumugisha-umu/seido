@@ -110,7 +110,7 @@ attachments: [{
    ```bash
    # .env.local doit contenir:
    RESEND_API_KEY=re_...
-   RESEND_FROM_EMAIL="SEIDO <noreply@seido-app.com>"
+   RESEND_FROM_EMAIL="SEIDO <notifications@seido-app.com>"
    ```
 
 2. Vérifier les logs dans la console:

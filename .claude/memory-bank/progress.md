@@ -84,6 +84,40 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-25 - Reminder Recurrence UX + Intervention Planner + CHECK Constraint Fix
+
+**Session: Intervention/reminder reclassification, shared planner component, critical bug fix**
+
+**Ce qui a ete fait:**
+- Intervention/reminder itemType reclassification across property-interventions and supplier-interventions templates
+- Shared InterventionPlannerStep component with sections, visual differentiation (Wrench/Bell icons)
+- InterventionScheduleRow enhanced with recurrence config and item type toggle
+- Dual dispatch in lease wizard: interventions to `createInterventionAction`, reminders to `createWizardRemindersAction`
+- Supplier wizard: template reminders via server action, custom/toggled items via separate dispatch
+- **Critical fix**: `reminders_single_entity` CHECK constraint violation — XOR priority cascade (contract > lot > building > contact)
+- **Secondary fix**: Document interventions missing `itemType`/`recurrenceRule` spread from templates
+- Property creation wizards (building + lot) updated with intervention planner integration
+- New `lib/utils/rrule.ts` utility for recurrence rule parsing
+- Landing header improvements
+
+**Fichiers cles modifies:**
+- `app/actions/reminder-actions.ts` — XOR enforcement
+- `components/contract/contract-form-container.tsx` — dual dispatch + document intervention fix
+- `components/contract/intervention-planner-step.tsx` — shared component
+- `components/contract/intervention-schedule-row.tsx` — enhanced row with visual differentiation
+- `components/contract/lease-interventions-step.tsx` — lease-specific planner integration
+- `components/property-interventions-step.tsx` — property creation planner
+- `lib/constants/property-interventions.ts` + `supplier-interventions.ts` — template updates
+
+**Decisions techniques:**
+- Enforce DB CHECK constraints at action layer (not caller) — callers can safely pass multiple entity links
+- Priority cascade pattern: contract > lot > building > contact for single-entity XOR
+- Shared InterventionPlannerStep accepts sections array — flexible for both lease and supplier modes
+
+**Learnings:** AGENTS.md #184-186
+
+---
+
 ### 2026-03-22 - Bank Module Phase 1 + Full-Stack Audit + Gestionnaire Verification
 
 **Session: 3 major work streams — 28 stories total, 10 new AGENTS.md learnings**

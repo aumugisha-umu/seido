@@ -82,8 +82,8 @@ export const PasswordChangedEmail = ({
           <Text className="text-gray-700 text-sm leading-relaxed m-0">
             Si vous n'êtes pas à l'origine de ce changement, votre compte pourrait
             être compromis. Contactez <strong>immédiatement</strong> notre support à{' '}
-            <Link href="mailto:support@seido.app" className="text-danger no-underline font-semibold">
-              support@seido.app
+            <Link href="mailto:support@seido-app.com" className="text-danger no-underline font-semibold">
+              support@seido-app.com
             </Link>
             {' '}et réinitialisez votre mot de passe.
           </Text>

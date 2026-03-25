@@ -118,7 +118,7 @@ InvitationEmail.PreviewProps = {
   inviterName: 'Marie Dupont',
   teamName: 'Résidence Les Jardins',
   role: 'prestataire',
-  invitationUrl: 'https://seido.app/auth/signup?invitation=abc123',
+  invitationUrl: 'https://seido-app.com/auth/signup?invitation=abc123',
   expiresIn: 7,
 } as InvitationEmailProps
 

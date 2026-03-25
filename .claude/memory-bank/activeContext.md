@@ -1,10 +1,32 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Bank Module Phase 1 MVP complete + Security audit fixes + Gestionnaire verification fixes
-**Branch:** `feature/bank-module`
-**Sprint:** Banking + Security + Quality (Mar 2026)
-**Derniere analyse:** Full-stack audit (128 checks) + gestionnaire verification (93 files) + bank module (17 stories) — 2026-03-22
+**Objectif:** Reminder Recurrence UX + Intervention/Reminder Reclassification + Intervention Planner shared component
+**Branch:** `preview`
+**Sprint:** Operations Polish + Wizard Improvements (Mar 2026)
+**Derniere analyse:** Email domain fix (seido.app → seido-app.com) + CHECK constraint fix — 2026-03-25
+
+---
+
+## IN PROGRESS: Reminder Recurrence UX & Intervention Planner (2026-03-25)
+
+Intervention/reminder reclassification with shared InterventionPlannerStep component. Dual dispatch (interventions vs reminders) in both lease and supplier contract wizards.
+
+### Key Changes
+- **InterventionPlannerStep**: Shared component used by both lease and supplier wizards, supports sections with itemType toggle (intervention/reminder)
+- **InterventionScheduleRow**: Enhanced with visual differentiation (Wrench for interventions, Bell for reminders), recurrence config, and item type toggle
+- **Dual dispatch**: Lease wizard filters `scheduledInterventions` by `itemType` and routes to `createInterventionAction` or `createWizardRemindersAction`
+- **Supplier wizard**: Template reminders dispatched via `createWizardSupplierContractRemindersAction`, custom/toggled items via separate path
+- **CHECK constraint fix**: `createWizardRemindersAction` now enforces `reminders_single_entity` XOR with priority cascade (contract > lot > building > contact)
+- **Document interventions**: Fixed missing `itemType`/`recurrenceRule` spread from templates
+- **Property creation wizards**: Building + Lot wizards updated with intervention planner integration
+- **rrule utility**: New `lib/utils/rrule.ts` for recurrence rule parsing/generation
+
+### PRD
+- `tasks/prd.json` — 7 stories for reminder recurrence UX
+- Design doc: `docs/plans/2026-03-25-reminder-recurrence-ux-design.md`
+
+**Learnings:** AGENTS.md #184-186
 
 ---
 
@@ -194,7 +216,7 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-03-22)
+## Metriques Systeme (Mise a jour 2026-03-25)
 
 | Composant | Valeur |
 |-----------|--------|
@@ -211,10 +233,10 @@ draft -> pending -> sent -> accepted (terminal positif)
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **183** |
+| **AGENTS.md Learnings** | **186** |
 | **Unit tests** | **652** (45 files) |
 | **Blog articles** | **23** |
-| **Retrospectives** | **50** |
+| **Retrospectives** | **51** |
 | **.claude/ Skills** | **23** |
 | **.claude/ Agents** | **15** |
 | **.claude/ Rules** | **5** |
@@ -226,18 +248,41 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
-| `3ccd8d2` | feat: QA bot E2E suite (114 tests, Playwright) + admin invite + cancel bug fix |
-| `3696e9f` | fix: align reminder confirmation with intervention pattern + fix RecurrenceConfig setState-in-render |
-| `fbbca14` | docs: add AI intervention agent design document |
-| `bc23040` | feat: operations section — reminders, recurrence, redesigned cards + safety limits |
-| `5e53dc4` | update: sync last sync timestamp and enhance contact role definitions |
+| `bc16be4` | fix: enforce single-entity CHECK constraint in wizard reminders + spread itemType on document interventions |
+| `5531d29` | Merge worktree: wire intervention/reminder sections and dual dispatch |
+| `c186bdd` | feat: wire intervention/reminder sections and dual dispatch in lease + supplier wizards |
+| `f9826c4` | feat: visual differentiation for intervention vs reminder rows and sections |
+| `d509ec5` | feat: add itemType discriminant and split templates for intervention/reminder reclassification |
 
 ---
 
-*Derniere mise a jour: 2026-03-22 (Bank Module Phase 1 + Security audit + Gestionnaire verification)
-*Focus: Bank Module deployment + Tink sandbox testing
+*Derniere mise a jour: 2026-03-25 (Reminder Recurrence UX + CHECK constraint fix)
+*Focus: Complete remaining PRD stories for reminder recurrence UX
+
+## Prochaines Etapes (updated 2026-03-25)
+
+### Immediat
+- [ ] Complete remaining PRD stories for reminder recurrence UX (7 stories in tasks/prd.json)
+- [ ] Test intervention planner in supplier contract wizard end-to-end
+- [ ] Bank Module: Apply migration to linked DB + regenerate types
+
+### Court terme
+- [ ] Dead revalidation cleanup (68 dead revalidatePath/revalidateTag calls)
+- [ ] AI Intervention Agent Phase 1 (8 stories)
+- [ ] Bank Module Phase 2 (bulk reconciliation, auto-linking rules UI)
+
+## COMPLETE: Email Domain Fix seido.app → seido-app.com (2026-03-25)
+
+Fixed email domain across entire codebase (28 files). All `@seido.app` references updated to `@seido-app.com`.
+- **EMAIL_CONFIG**: Updated `fromDomain`, `fromEmail`, `replyToBase` in `lib/email/resend-client.ts`
+- **Templates**: All 28 email templates updated (from addresses, footer links, support emails)
+- **Routes**: Auth callback, webhook inbound, cron routes updated
+- **No logic changes**: Pure string replacement, lint-verified
+
+---
 
 ## Files Recently Modified
-### 2026-03-25 03:55:42 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/seido-app/app/actions/reminder-actions.ts`
-- `C:/Users/arthu/Desktop/Coding/seido-app/components/contract/contract-form-container.tsx`
+### 2026-03-25 (Auto-updated)
+- `lib/email/resend-client.ts` — EMAIL_CONFIG domain update
+- `emails/templates/**/*.tsx` — 28 templates domain fix
+- `emails/components/*.tsx` — footer/header domain fix

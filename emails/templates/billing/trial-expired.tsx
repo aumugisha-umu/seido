@@ -85,7 +85,7 @@ TrialExpiredEmail.PreviewProps = {
   teamName: 'Immo Bruxelles',
   lotCount: 5,
   isReadOnly: true,
-  billingUrl: 'https://seido.app/gestionnaire/settings/billing',
+  billingUrl: 'https://seido-app.com/gestionnaire/settings/billing',
 } as TrialExpiredEmailProps
 
 export default TrialExpiredEmail

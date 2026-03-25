@@ -66,7 +66,7 @@ export const PaymentFailedEmail = ({
         </EmailButton>
 
         <Text className="text-gray-500 text-sm leading-relaxed text-center mt-4 mb-0">
-          Si vous pensez qu&apos;il s&apos;agit d&apos;une erreur, contactez-nous a support@seido.app
+          Si vous pensez qu&apos;il s&apos;agit d&apos;une erreur, contactez-nous a support@seido-app.com
         </Text>
       </Section>
 
@@ -80,7 +80,7 @@ PaymentFailedEmail.PreviewProps = {
   teamName: 'Immo Bruxelles',
   invoiceAmount: 250.00,
   attemptCount: 1,
-  billingUrl: 'https://seido.app/gestionnaire/settings/billing',
+  billingUrl: 'https://seido-app.com/gestionnaire/settings/billing',
   portalUrl: 'https://billing.stripe.com/p/session/test_xxx',
 } as PaymentFailedEmailProps
 

@@ -102,7 +102,7 @@ on:
     inputs:
       target_url:
         description: 'URL to test'
-        default: 'https://preview.seido.app'
+        default: 'https://preview.seido-app.com'
         type: string
       mode:
         description: 'Test mode'
@@ -545,7 +545,7 @@ EDGE CASES:
 ## Run Info
 - **Commit:** a1b2c3d (branch: main)
 - **Environment:** production
-- **Target URL:** https://seido.app
+- **Target URL:** https://seido-app.com
 - **Duration:** 4m32s
 - **Phase 1:** 42/42 tests pass
 - **Phase 2:** 47 pages explored, 3 anomalies found
@@ -553,7 +553,7 @@ EDGE CASES:
 ## Anomalies Found
 
 ### [CRITICAL] Error boundary on /gestionnaire/contrats/[id]
-- **URL:** https://seido.app/gestionnaire/contrats/abc123
+- **URL:** https://seido-app.com/gestionnaire/contrats/abc123
 - **Screenshot:** screenshots/anomaly-001.png
 - **Console error:** `TypeError: Cannot read property 'name' of undefined`
 - **Steps to reproduce:**
@@ -564,7 +564,7 @@ EDGE CASES:
 - **Probable cause:** Missing null check on supplier.name
 
 ### [HIGH] 500 on POST /api/emails/send
-- **URL:** https://seido.app/gestionnaire/mail
+- **URL:** https://seido-app.com/gestionnaire/mail
 - **Action:** Clicked "Envoyer" in compose modal
 - **Response:** 500 Internal Server Error
 - **Body:** {"error": "SMTP connection refused"}
@@ -696,7 +696,7 @@ RESEND_API_KEY: "re_..."
 | API cost explosion | Anthropic hard cap: $5/day |
 | Bot creates 1000 entities | Post-run cleanup: delete entities created during run |
 | Sensitive data in screenshots | Artifacts auto-deleted after 7 days |
-| Bot navigates outside app | URL whitelist: only `*.seido.app` |
+| Bot navigates outside app | URL whitelist: only `*.seido-app.com` |
 | Stale test data pollution | Cleanup script runs after every test suite |
 
 ### Post-run cleanup
@@ -807,7 +807,7 @@ on:
     inputs:
       target_url:
         description: 'URL to test'
-        default: 'https://preview.seido.app'
+        default: 'https://preview.seido-app.com'
         type: string
       mode:
         description: 'Test mode'
@@ -816,7 +816,7 @@ on:
         default: 'full'
 
 env:
-  TARGET_URL: ${{ github.event.client_payload.url || inputs.target_url || 'https://preview.seido.app' }}
+  TARGET_URL: ${{ github.event.client_payload.url || inputs.target_url || 'https://preview.seido-app.com' }}
   IS_PRODUCTION: ${{ github.event.client_payload.environment == 'production' || false }}
 
 jobs:

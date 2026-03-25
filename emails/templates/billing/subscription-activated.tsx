@@ -103,8 +103,8 @@ SubscriptionActivatedEmail.PreviewProps = {
   lotCount: 5,
   amountHT: 250.00,
   nextRenewalDate: '21 fevrier 2027',
-  billingUrl: 'https://seido.app/gestionnaire/settings/billing',
-  dashboardUrl: 'https://seido.app/gestionnaire/dashboard',
+  billingUrl: 'https://seido-app.com/gestionnaire/settings/billing',
+  dashboardUrl: 'https://seido-app.com/gestionnaire/dashboard',
 } as SubscriptionActivatedEmailProps
 
 export default SubscriptionActivatedEmail

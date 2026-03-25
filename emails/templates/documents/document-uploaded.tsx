@@ -56,7 +56,7 @@ DocumentUploadedEmail.PreviewProps = {
   firstName: 'Marie',
   documentName: 'État des lieux - Entrée',
   uploadedByName: 'Jean Martin',
-  entityUrl: 'https://seido.app/gestionnaire/documents/abc-123',
+  entityUrl: 'https://seido-app.com/gestionnaire/documents/abc-123',
 } as DocumentUploadedEmailProps
 
 export default DocumentUploadedEmail

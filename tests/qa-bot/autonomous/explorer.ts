@@ -9,7 +9,7 @@
  * Usage: npx tsx tests/qa-bot/autonomous/explorer.ts
  *
  * Required env vars:
- *   TARGET_URL          — Base URL of the app (e.g., https://preview.seido.app)
+ *   TARGET_URL          — Base URL of the app (e.g., https://preview.seido-app.com)
  *   ANTHROPIC_API_KEY   — Claude API key
  *   QA_TEST_CREDENTIALS — JSON with auth credentials for 3 roles
  */
@@ -261,7 +261,7 @@ async function explorePage(
     }
 
     // Wait for page to settle (network idle or 2s max)
-    await page.waitForLoadState('networkidle', { timeout: 2000 }).catch(() => {})
+    await page.waitForLoadState('networkidle', { timeout: 2000 }).catch(() => { })
 
     // Check page content for static anomalies
     const contentAnomalies = await checkPageContent(page)
@@ -486,8 +486,8 @@ export async function main(): Promise<void> {
     }
     process.exit(1)
   } finally {
-    if (context) await context.close().catch(() => {})
-    if (browser) await browser.close().catch(() => {})
+    if (context) await context.close().catch(() => { })
+    if (browser) await browser.close().catch(() => { })
   }
 }
 

@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-22
-**Total Learnings:** 183
+**Last Updated:** 2026-03-25
+**Total Learnings:** 193
 
 ---
 
@@ -135,6 +135,20 @@
 **When to Use:** Any time you optimize a repository query by removing nested JOINs — verify the UI still has all the data it needs, and add batch fetch if needed
 **Added:** 2026-02-20 | **Source:** Independent lots address display fix (3 files, 3 layers)
 
+#### Learning #192: Zod/DB/UI enum drift — 3-layer validation must stay aligned
+**Problem:** `provider_category` had 10 values in the UI (`PROVIDER_CATEGORIES` in `contact-details/constants.ts`), 7 in the DB enum, and only 2 in the Zod schemas (`['prestataire', 'autre']`). Creating contacts with categories like `artisan`, `services`, `energie` silently failed Zod validation at the API layer. No error was visible to the user because the form submission caught the 400 and showed a generic message.
+**Solution:** When adding new enum values to a UI selector, grep all 3 layers: (1) DB enum (`ALTER TYPE ... ADD VALUE`), (2) Zod schema (`z.enum([...])` in `schemas.ts`), (3) UI constants. Use `IF NOT EXISTS` in migrations for safety. The Zod enum must be the superset of all valid values. Also check table configs (`contacts.config.tsx`) for filter dropdowns.
+**Example:** `lib/validation/schemas.ts:167` + `:321` — expanded to 10 values; `supabase/migrations/20260324100000_expand_provider_category_enum.sql`
+**When to Use:** Any time you add values to a UI selector backed by a DB enum — always check all 3 layers
+**Added:** 2026-03-25 | **Source:** Provider category contact creation failing silently
+
+#### Learning #193: Error object serializes as `{}` in pino logger — log message string instead
+**Problem:** `logger.error({ error, file: name }, 'msg')` where `error` is an Error object serialized as `{}` in pino's JSON output. The user saw `"Error: {} Contract file upload error"` with no useful info. This is because pino doesn't serialize Error objects by default in its first argument (the object fields).
+**Solution:** Extract `error.message` first, then log the string: `logger.error({ error: errorMessage, fileName, fileType, fileSize }, 'msg')`. For full stack traces, use `error instanceof Error ? error.stack : 'No stack'` in a separate field. Never pass raw Error objects as structured log fields.
+**Example:** `hooks/use-contract-upload.ts:252` — logs errorMessage + file metadata
+**When to Use:** Any `logger.error()` call that includes a caught error — always extract `.message` first
+**Added:** 2026-03-25 | **Source:** Contract upload error appearing as empty `{}`
+
 ### UI & Components
 
 #### Learning #083: Batch entity-linking with Promise.allSettled + 409 tolerance
@@ -252,6 +266,48 @@
 **Example:** `components/contract/lease-interventions-step.tsx` — RENT_REMINDER_KEY sentinel, branched handlers
 **When to Use:** When a shared component (selector, modal, popover) needs to serve N different data targets on the same page. Route via sentinel keys rather than duplicating the component.
 **Added:** 2026-03-01 | **Source:** Contact assignment on rent reminders
+
+#### Learning #184: Application-layer XOR enforcement for CHECK constraints — priority cascade
+**Problem:** The `reminders` table has `reminders_single_entity CHECK (num_nonnulls(building_id, lot_id, contact_id, contract_id) <= 1)`. The lease wizard caller passes both `lot_id` and `contract_id` in the options object to `createWizardRemindersAction`. The action merged both into the insert payload → PostgREST 23514 error. Silent failure (`{ success: false }`) inside `Promise.all` meant no reminders were created, but the wizard appeared to succeed.
+**Solution:** Enforce the XOR in the action layer with a priority cascade: `contract_id > lot_id > building_id > contact_id`. Each level nulls out all lower-priority entity IDs. Callers can safely pass multiple entity links — the action is the gatekeeper. Also apply the same cascade to `source_template` in recurrence rules, or auto-generated reminders will hit the same constraint.
+**Example:** `app/actions/reminder-actions.ts:306-312` — priority cascade variables
+**When to Use:** Any insert into a table with `num_nonnulls(...) <= 1` CHECK constraint — enforce at the action layer, not just rely on the DB.
+**Added:** 2026-03-25 | **Source:** Lease wizard reminder creation 400 error
+
+#### Learning #185: Template-to-data mapping must spread ALL optional fields
+**Problem:** Standard lease interventions correctly spread `itemType` and `recurrenceRule` from templates via `...(template.itemType ? { itemType: template.itemType } : {})`. But document interventions (from `createMissingDocumentIntervention`) were mapped without this spread — `itemType` was lost. Since templates have `itemType: 'reminder'`, the missing spread caused document items to be routed to `createInterventionAction` instead of `createWizardRemindersAction`.
+**Solution:** When mapping template objects to runtime data objects, ALWAYS spread all optional fields consistently across all mapping sites. When adding a new optional field to a template type, grep all `.map()` calls that consume templates to ensure the field is propagated.
+**Example:** `components/contract/contract-form-container.tsx:513-514` — added itemType/recurrenceRule spread to document interventions
+**When to Use:** Any time you create a new template-to-data mapping, or add a new field to an existing template type.
+**Added:** 2026-03-25 | **Source:** Document interventions misrouted in lease wizard
+
+#### Learning #186: Silent action failures inside Promise.all hide root cause
+**Problem:** `createWizardRemindersAction` catches errors internally and returns `{ success: false }`. Inside the outer `Promise.all`, the logger showed "Lease reminders creation failed" but the wizard still showed "Bail créé avec succès" — the user never saw the error. Since almost ALL lease templates have `itemType: 'reminder'`, the failing reminder path meant zero items were created.
+**Solution:** For critical post-creation operations inside `Promise.all`, consider whether silent failure is acceptable. Options: (1) aggregate failures and show a partial-success toast, (2) use `Promise.allSettled` at the outer level and report per-operation results, (3) at minimum, log with enough detail to debug (include the PostgREST error code).
+**Example:** `components/contract/contract-form-container.tsx:1138-1142` — silent failure logging
+**When to Use:** Any multi-operation submission where individual operation failure should be visible to the user.
+**Added:** 2026-03-25 | **Source:** Lease wizard silent reminder failure
+
+#### Learning #187: Nullish coalescing prop override trap — derived boolean must win over passed prop
+**Problem:** `assignableRoles ?? (isReminder ? GESTIONNAIRE_ONLY : ALL)` never triggers gestionnaire-only because parent always passes a non-null `assignableRoles` prop. The `??` only activates for `null`/`undefined`, not for "I want to override the prop".
+**Solution:** Flip priority: `isReminder ? GESTIONNAIRE_ONLY_ROLES : (assignableRoles ?? ALL_ASSIGNABLE_ROLES)`. The derived boolean (`isReminder`) must take precedence over the parent-passed prop when the derived state is the authoritative source.
+**Example:** `components/contract/intervention-schedule-row.tsx` — assignableRoles resolution
+**When to Use:** Whenever a component receives a configurable prop that should be overridden by an internal state (toggles, mode switches)
+**Added:** 2026-03-25 | **Source:** Reminder Recurrence UX — reminder rows showing all 3 assignable roles
+
+#### Learning #188: `after()` auth context risk — fire-and-forget from client for auth-dependent operations
+**Problem:** Composite server action uses `after()` to defer work post-response. But `createWizardRemindersAction` calls `getServerActionAuthContextOrNull()` which needs request cookies. Inside `after()`, cookies may be stale or unavailable.
+**Solution:** Keep `after()` for operations that use `useServiceRole: true` (bypasses auth). For operations needing user auth context, handle them as fire-and-forget from the client after the composite action returns (auth cookies still fresh).
+**Example:** `lot-creation-form.tsx:fireAndForgetReminders()` — called after `createLotsCompositeAction` returns
+**When to Use:** Any composite server action that mixes service-role and user-auth operations in deferred work
+**Added:** 2026-03-25 | **Source:** Reminder Recurrence UX — composite lot creation path
+
+#### Learning #189: Audit ALL submit paths before adding dispatch split — parallel code paths hide silently
+**Problem:** Lot creation had 3 submit paths: composite existing_building, composite independent, and single-lot. Only updating 1-2 paths leaves the others silently sending all items as interventions, losing reminder-specific behavior (recurrence, gestionnaire-only assignees).
+**Solution:** Before implementing an itemType dispatch split, grep for ALL submit entry points (server action calls, composite payloads, fire-and-forget helpers). Map them in a table. Update each independently.
+**Example:** `lot-creation-form.tsx` — `buildCompositeInterventions` + `fireAndForgetReminders` + `createInterventionsForLot`
+**When to Use:** Any feature that touches submit/dispatch logic in wizards with multiple creation modes
+**Added:** 2026-03-25 | **Source:** Reminder Recurrence UX — missed composite path during initial implementation
 
 #### Learning #010: RLS Access ≠ Explicit Participation
 **Problem:** Managers could view conversations via RLS (`team_id` match) but weren't in `conversation_participants`, breaking read tracking and participant lists.
@@ -494,6 +550,20 @@
 **Added:** 2026-03-02 | **Source:** Performance optimization US-026 — dashboard service deduplication
 
 ### Security
+
+#### Learning #190: Supabase Storage rejects non-ASCII filename keys — sanitize with NFD
+**Problem:** Uploading a file named `"Données de l'entité enregistrée _ BCE Public Search.pdf"` (French accented chars) caused `StorageApiError: "Invalid key"`. Supabase Storage keys must be ASCII-safe. The `generateUniqueFilename()` function preserved the original name as-is.
+**Solution:** Apply NFD normalization to strip accents (`é`→`e`, `è`→`e`), then regex-replace remaining non-ASCII with `-`, collapse consecutive dashes, cap at 100 chars. Apply to ALL upload routes consistently.
+**Example:** `app/api/upload-contract-document/route.ts:12-20` — sanitized `generateUniqueFilename()`
+**When to Use:** Any Supabase Storage upload route that accepts user-provided filenames — especially in French/multilingual apps
+**Added:** 2026-03-25 | **Source:** Contract document upload "Invalid key" error
+
+#### Learning #191: Rate limiter tier mismatch — concurrent uploads hit sensitive tier limit
+**Problem:** Upload routes were classified as `sensitive` (3 req/60s). When a user uploaded 4 contract documents simultaneously, the 4th request was rate-limited. The error surfaced as `Error: {}` because the Error object serialized empty.
+**Solution:** Move `/upload-` routes to the `api` tier (30 req/10s). Uploads are already auth-gated and file-size-limited — the rate limiter is a DoS protection layer, not the primary security boundary. Keep `/send-`, `/create-`, and auth routes in the stricter tiers.
+**Example:** `lib/rate-limit.ts:153` — removed `pathname.includes('/upload-')` from sensitive check
+**When to Use:** When adding new API routes to rate limiting, consider the realistic concurrent usage pattern (multi-file uploads, batch operations)
+**Added:** 2026-03-25 | **Source:** Multi-file contract upload rate limit failure
 
 #### Learning #033: SECURITY DEFINER function rewrite regression — diff all role branches
 **Problem:** `get_accessible_intervention_ids()` was rewritten in migration `20260211170000` (multi-profile + contract support) but silently lost the `intervention_assignments` branch for locataire (originally added in `20260106160000`). Building-level interventions (`lot_id IS NULL`) became invisible to assigned locataires. The gestionnaire branch also regressed (fixed separately in `20260213120000`).

@@ -111,14 +111,14 @@ function getInstructions(platform: Platform): InstructionStep[] {
         { text: 'Ouvrez', highlight: 'Préférences Safari', icon: Settings },
         { text: 'Allez dans l\'onglet', highlight: 'Sites web' },
         { text: 'Sélectionnez', highlight: 'Notifications' },
-        { text: 'Trouvez seido.app et sélectionnez', highlight: 'Autoriser', icon: Bell }
+        { text: 'Trouvez seido-app.com et sélectionnez', highlight: 'Autoriser', icon: Bell }
       ]
 
     default:
       return [
         { text: 'Accédez aux', highlight: 'paramètres de votre navigateur', icon: Settings },
         { text: 'Recherchez les', highlight: 'paramètres de notifications' },
-        { text: 'Trouvez', highlight: 'seido.app' },
+        { text: 'Trouvez', highlight: 'seido-app.com' },
         { text: 'Changez la permission en', highlight: 'Autoriser', icon: Bell }
       ]
   }

@@ -78,7 +78,7 @@ WinBackEmail.PreviewProps = {
   interventionCount: 12,
   promoCode: 'SEIDOBETA26',
   promoDiscount: 25,
-  billingUrl: 'https://seido.app/gestionnaire/settings/billing',
+  billingUrl: 'https://seido-app.com/gestionnaire/settings/billing',
 } as WinBackEmailProps
 
 export default WinBackEmail

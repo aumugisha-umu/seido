@@ -112,8 +112,8 @@ export const WelcomeEmail = ({
           <Text className="text-gray-600 text-sm leading-relaxed m-0">
             Notre équipe support est disponible pour vous accompagner dans vos premiers pas.
             Contactez-nous à{' '}
-            <Link href="mailto:support@seido.app" className="text-primary no-underline">
-              support@seido.app
+            <Link href="mailto:support@seido-app.com" className="text-primary no-underline">
+              support@seido-app.com
             </Link>
           </Text>
         </div>
@@ -133,7 +133,7 @@ export const WelcomeEmail = ({
 // Props par défaut pour prévisualisation
 WelcomeEmail.PreviewProps = {
   firstName: 'Marie',
-  dashboardUrl: 'https://seido.app/gestionnaire/dashboard',
+  dashboardUrl: 'https://seido-app.com/gestionnaire/dashboard',
   role: 'gestionnaire',
 } as WelcomeEmailProps
 

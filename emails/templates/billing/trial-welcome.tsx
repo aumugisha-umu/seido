@@ -63,8 +63,8 @@ TrialWelcomeEmail.PreviewProps = {
   firstName: 'Marie',
   teamName: 'Immo Bruxelles',
   daysLeft: 30,
-  billingUrl: 'https://seido.app/gestionnaire/settings/billing',
-  dashboardUrl: 'https://seido.app/gestionnaire/dashboard',
+  billingUrl: 'https://seido-app.com/gestionnaire/settings/billing',
+  dashboardUrl: 'https://seido-app.com/gestionnaire/dashboard',
 } as TrialWelcomeEmailProps
 
 export default TrialWelcomeEmail

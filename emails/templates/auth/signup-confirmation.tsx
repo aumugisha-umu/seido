@@ -69,8 +69,8 @@ export const SignupConfirmationEmail = ({
           <Text className="text-gray-600 text-sm leading-relaxed m-0">
             Notre équipe support est disponible pour vous accompagner.
             Contactez-nous à{' '}
-            <Link href="mailto:support@seido.app" className="text-primary no-underline">
-              support@seido.app
+            <Link href="mailto:support@seido-app.com" className="text-primary no-underline">
+              support@seido-app.com
             </Link>
           </Text>
         </div>
@@ -91,7 +91,7 @@ export const SignupConfirmationEmail = ({
 // Props par défaut pour prévisualisation
 SignupConfirmationEmail.PreviewProps = {
   firstName: 'Marie',
-  confirmationUrl: 'https://seido.app/auth/confirm?token_hash=abc123&type=email',
+  confirmationUrl: 'https://seido-app.com/auth/confirm?token_hash=abc123&type=email',
   expiresIn: 60,
 } as SignupConfirmationEmailProps
 

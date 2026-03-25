@@ -41,7 +41,9 @@
         "npm run lint passes"
       ],
       "priority": 1,
-      "dependsOn": ["US-001"],
+      "dependsOn": [
+        "US-001"
+      ],
       "sizing": "S",
       "passes": true,
       "notes": "Auth setup with dual credential sources (QA_TEST_CREDENTIALS JSON or E2E_* env vars). Routes: 47 entries with shard mapping. Selectors: Playwright-native helpers. Constants: timeouts, budgets, anomaly patterns."
@@ -66,7 +68,9 @@
         "npm run lint passes"
       ],
       "priority": 1,
-      "dependsOn": ["US-002"],
+      "dependsOn": [
+        "US-002"
+      ],
       "sizing": "M",
       "passes": true,
       "notes": "11 POMs created via 2 parallel agents. All use Playwright-native locators, French labels, async methods."
@@ -83,7 +87,9 @@
         "npm run lint passes"
       ],
       "priority": 2,
-      "dependsOn": ["US-003"],
+      "dependsOn": [
+        "US-003"
+      ],
       "sizing": "M",
       "passes": true,
       "notes": "auth-smoke.spec.ts (146 lines): 3-role login, dashboard KPIs, sidebar nav, profile, push modal. patrimoine.spec.ts (313 lines): building+lot CRUD, contacts, system notifications."
@@ -103,7 +109,9 @@
         "npm run lint passes"
       ],
       "priority": 2,
-      "dependsOn": ["US-003"],
+      "dependsOn": [
+        "US-003"
+      ],
       "sizing": "M",
       "passes": true,
       "notes": "contrats-rappels.spec.ts (557 lines, 16 tests): bail+fournisseur contracts, full reminder lifecycle, recurrence config, overdue badges, navigator tabs."
@@ -127,7 +135,9 @@
         "npm run lint passes"
       ],
       "priority": 2,
-      "dependsOn": ["US-003"],
+      "dependsOn": [
+        "US-003"
+      ],
       "sizing": "L",
       "passes": true,
       "notes": "intervention-lifecycle.spec.ts (550 lines, 15 tests): full multi-role lifecycle create→approve→plan→slots→quote→close, rejection flow, cancellation flow."
@@ -142,7 +152,9 @@
         "npm run lint passes"
       ],
       "priority": 2,
-      "dependsOn": ["US-003"],
+      "dependsOn": [
+        "US-003"
+      ],
       "sizing": "M",
       "passes": true,
       "notes": "conversations-docs.spec.ts (326 lines): message threads, throttle, documents upload/download, tenant request. email-system.spec.ts (755 lines): mail hub, folders, compose, linking, blacklist, internal chat."
@@ -157,7 +169,9 @@
         "npm run lint passes"
       ],
       "priority": 2,
-      "dependsOn": ["US-003"],
+      "dependsOn": [
+        "US-003"
+      ],
       "sizing": "M",
       "passes": true,
       "notes": "notifications.spec.ts (248 lines): 3-role notifications, read/unread/archive, bell popover, push modal, routing. billing-settings.spec.ts (217 lines): billing, settings, static pages."
@@ -178,7 +192,9 @@
         "npm run lint passes (yaml syntax valid)"
       ],
       "priority": 2,
-      "dependsOn": ["US-001"],
+      "dependsOn": [
+        "US-001"
+      ],
       "sizing": "S",
       "passes": true,
       "notes": "qa-bot.yml (243 lines): 5-job pipeline with Vercel dispatch, 8-shard matrix, merge-reports, autonomous, reporting, cleanup."
@@ -195,7 +211,9 @@
         "npm run lint passes"
       ],
       "priority": 2,
-      "dependsOn": ["US-001"],
+      "dependsOn": [
+        "US-001"
+      ],
       "sizing": "M",
       "passes": true,
       "notes": "4 reporting modules: report-generator.ts (375 lines), github-issue.ts (295 lines), email-notifier.ts (316 lines), regression-tracker.ts (314 lines)."
@@ -210,11 +228,13 @@
         "tests/qa-bot/autonomous/anomaly-detector.ts: monitors console errors, network failures (4xx/5xx), error boundaries, placeholder text, layout overflow, slow page loads",
         "tests/qa-bot/autonomous/budget-limiter.ts: enforces 15 min / 50 pages / 100 API calls limits, tracks spend",
         "Off-script testing: invalid inputs, double submit, back/forward, refresh mid-wizard, direct URL without auth",
-        "URL whitelist: only *.seido.app",
+        "URL whitelist: only *.seido-app.com",
         "npm run lint passes"
       ],
       "priority": 2,
-      "dependsOn": ["US-001"],
+      "dependsOn": [
+        "US-001"
+      ],
       "sizing": "M",
       "passes": true,
       "notes": "4 autonomous exploration modules: explorer.ts (492 lines), page-analyzer.ts (265 lines), anomaly-detector.ts (237 lines), budget-limiter.ts (159 lines). Claude API + accessibility tree approach."

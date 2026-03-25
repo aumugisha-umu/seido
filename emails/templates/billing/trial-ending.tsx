@@ -143,7 +143,7 @@ TrialEndingEmail.PreviewProps = {
   annualPriceHT: 250,
   monthlyPriceHT: 25,
   annualSavings: 50,
-  billingUrl: 'https://seido.app/gestionnaire/settings/billing',
+  billingUrl: 'https://seido-app.com/gestionnaire/settings/billing',
 } as TrialEndingEmailProps
 
 export default TrialEndingEmail

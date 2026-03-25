@@ -173,7 +173,7 @@ InterventionCreatedEmail.PreviewProps = {
     'Fuite d\'eau importante sous l\'évier de la cuisine. L\'eau coule en continu depuis ce matin. J\'ai coupé l\'arrivée d\'eau en attendant.',
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
   lotReference: 'Apt 3B',
-  interventionUrl: 'https://seido.app/gestionnaire/operations/interventions/INT-2024-042',
+  interventionUrl: 'https://seido-app.com/gestionnaire/operations/interventions/INT-2024-042',
   tenantName: 'Marie Dupont',
   urgency: 'haute',
   createdAt: new Date(),
@@ -182,14 +182,14 @@ InterventionCreatedEmail.PreviewProps = {
       filename: 'photo_fuite_evier.jpg',
       mimeType: 'image/jpeg',
       fileSize: 1536000,
-      downloadUrl: 'https://seido.app/api/download-intervention-document/abc123',
+      downloadUrl: 'https://seido-app.com/api/download-intervention-document/abc123',
       documentType: 'Photo'
     },
     {
       filename: 'plan_installation.pdf',
       mimeType: 'application/pdf',
       fileSize: 245760,
-      downloadUrl: 'https://seido.app/api/download-intervention-document/def456',
+      downloadUrl: 'https://seido-app.com/api/download-intervention-document/def456',
       documentType: 'Document'
     }
   ]

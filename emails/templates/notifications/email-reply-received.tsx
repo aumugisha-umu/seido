@@ -184,7 +184,7 @@ EmailReplyReceivedEmail.PreviewProps = {
   },
   subject: 'Re: [INT-2024-042] Intervention planifiée',
   snippet: 'Bonjour, merci pour la planification. Je serai bien présente jeudi matin. Est-il possible de prévoir un créneau plutôt vers 9h ? Cordialement, Marie',
-  viewUrl: 'https://seido.app/gestionnaire/operations/interventions/abc-123?tab=emails',
+  viewUrl: 'https://seido-app.com/gestionnaire/operations/interventions/abc-123?tab=emails',
   receivedAt: new Date(),
 } as EmailReplyReceivedEmailProps
 

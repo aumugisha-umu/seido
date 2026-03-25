@@ -2373,7 +2373,7 @@ test.describe('Phase 4: Production Readiness', () => {
 import { test, expect } from '@playwright/test'
 
 test.describe('Staging Environment Validation', () => {
-  test.use({ baseURL: process.env.STAGING_URL || 'https://staging.seido.app' })
+  test.use({ baseURL: process.env.STAGING_URL || 'https://staging.seido-app.com' })
 
   test('Staging environment smoke tests', async ({ page }) => {
     // Test environnement staging complet

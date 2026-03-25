@@ -70,7 +70,7 @@ ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxxxxxxx
    - Nom legal de l'entreprise
    - Adresse complete (rue, code postal, ville, pays : Belgique)
    - Numero de telephone de l'entreprise
-   - Site web : `https://seido.app`
+   - Site web : `https://seido-app.com`
    - Email professionnel
    - **Sauvegarder**
 
@@ -180,7 +180,7 @@ npx ngrok http 3000
    (dans le menu gauche, PAS "Configuration de l'API" — ce sont 2 pages differentes)
 2. Section **"Webhook"** :
    - **URL de rappel (Callback URL)** : `https://xxxx.ngrok-free.app/api/webhooks/whatsapp`
-     (ou `https://seido.app/api/webhooks/whatsapp` en production)
+     (ou `https://seido-app.com/api/webhooks/whatsapp` en production)
    - **Jeton de verification (Verify Token)** : un string custom que tu choisis
      (ex: `seido-whatsapp-verify-2026`)
 3. Cliquer **"Verifier et enregistrer"**
@@ -298,7 +298,7 @@ npx ngrok http 3000
 
 // Acheter le numero + configurer webhook SMS
 // POST https://api.twilio.com/2010-04-01/Accounts/{SID}/IncomingPhoneNumbers.json
-// Body: PhoneNumber=+32XXX&FriendlyName=seido-team-{teamId}&SmsUrl=https://seido.app/api/webhooks/twilio-verification
+// Body: PhoneNumber=+32XXX&FriendlyName=seido-team-{teamId}&SmsUrl=https://seido-app.com/api/webhooks/twilio-verification
 // Auth: Basic (AccountSid:AuthToken)
 
 // Liberer le numero

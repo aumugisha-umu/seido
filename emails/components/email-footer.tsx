@@ -23,21 +23,21 @@ export const EmailFooter = () => {
       {/* Liens utiles */}
       <Text className="text-gray-500 text-xs leading-tight m-0">
         <Link
-          href="https://seido.app/unsubscribe"
+          href="https://seido-app.com/unsubscribe"
           className="text-gray-600 no-underline"
         >
           Se désabonner
         </Link>
         {' | '}
         <Link
-          href="https://seido.app/privacy"
+          href="https://seido-app.com/privacy"
           className="text-gray-600 no-underline ml-2"
         >
           Politique de confidentialité
         </Link>
         {' | '}
         <Link
-          href="mailto:contact@seido.app"
+          href="mailto:contact@seido-app.com"
           className="text-gray-600 no-underline ml-2"
         >
           Contact

@@ -2412,17 +2412,17 @@ ORDER BY failures DESC;
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Email sender (doit être vérifié dans Resend dashboard)
-RESEND_FROM_EMAIL="SEIDO <noreply@seido.app>"
+RESEND_FROM_EMAIL="SEIDO <notifications@seido-app.com>"
 
 # Support email (pour footer emails)
-SUPPORT_EMAIL=support@seido.app
+SUPPORT_EMAIL=support@seido-app.com
 
 # ============================================================================
 # WEB PUSH NOTIFICATIONS
 # ============================================================================
 
 # VAPID Subject (format mailto:)
-VAPID_SUBJECT=mailto:support@seido.app
+VAPID_SUBJECT=mailto:support@seido-app.com
 
 # VAPID Public Key (généré avec: npx web-push generate-vapid-keys)
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=Bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -2435,7 +2435,7 @@ VAPID_PRIVATE_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # ============================================================================
 
 # Production URL
-NEXT_PUBLIC_APP_URL=https://seido.app
+NEXT_PUBLIC_APP_URL=https://seido-app.com
 
 # Development URL (pour local)
 # NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -2466,7 +2466,7 @@ npx web-push generate-vapid-keys
 
 1. **Vérifier domaine** :
    - Aller sur https://resend.com/domains
-   - Ajouter votre domaine (ex: seido.app)
+   - Ajouter votre domaine (ex: seido-app.com)
    - Configurer DNS records (SPF, DKIM, DMARC)
    - Attendre vérification (~24h)
 
@@ -2478,7 +2478,7 @@ npx web-push generate-vapid-keys
 
 3. **Configurer Webhooks** (Phase 6) :
    - Aller sur https://resend.com/webhooks
-   - Ajouter endpoint : `https://seido.app/api/webhooks/resend`
+   - Ajouter endpoint : `https://seido-app.com/api/webhooks/resend`
    - Events : `email.sent`, `email.delivered`, `email.bounced`, `email.complained`
    - Secret : Sauvegarder pour vérification signature
 

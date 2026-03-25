@@ -232,7 +232,7 @@ function validateNextParameter(next: string, requestUrl: string): boolean {
     }
 
     // Autoriser aussi le domaine de production
-    const productionDomains = ['app.seido.immo', 'seido.app', 'localhost']
+    const productionDomains = ['app.seido.immo', 'seido-app.com', 'localhost']
     if (productionDomains.includes(nextUrl.hostname)) {
       return true
     }

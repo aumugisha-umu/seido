@@ -242,7 +242,7 @@ NewMessageEmail.PreviewProps = {
     propertyAddress: '15 Rue de la Paix, 75002 Paris',
   },
   threadType: 'group',
-  conversationUrl: 'https://seido.app/gestionnaire/operations/interventions/abc-123-def?tab=conversations',
+  conversationUrl: 'https://seido-app.com/gestionnaire/operations/interventions/abc-123-def?tab=conversations',
   sentAt: new Date(),
 } as NewMessageEmailProps
 

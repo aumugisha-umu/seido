@@ -79,6 +79,7 @@ import { startImpersonationAction } from '@/app/actions/impersonation-actions'
 interface UsersManagementClientProps {
   initialUsers: UserWithStatus[]
   currentUserId: string
+  teams: { id: string; name: string }[]
 }
 
 type UserRole = User['role']
@@ -102,6 +103,7 @@ const STATUS_CONFIG: Record<UserComputedStatus, { label: string; color: string }
 export function UsersManagementClient({
   initialUsers,
   currentUserId,
+  teams,
 }: UsersManagementClientProps) {
   const router = useRouter()
 
@@ -510,7 +512,7 @@ export function UsersManagementClient({
           </Button>
           <Button variant="outline" onClick={() => setIsInviteDialogOpen(true)}>
             <Send className="h-4 w-4 mr-2" />
-            Inviter gestionnaire
+            Ajouter agence
           </Button>
           <Button onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -708,13 +710,23 @@ export function UsersManagementClient({
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="company">Entreprise</Label>
-              <Input
-                id="company"
-                value={formData.company || ''}
-                onChange={e => setFormData(prev => ({ ...prev, company: e.target.value }))}
-                placeholder="ACME Corp"
-              />
+              <Label htmlFor="team">Equipe</Label>
+              <Select
+                value={formData.team_id || 'none'}
+                onValueChange={value => setFormData(prev => ({ ...prev, team_id: value === 'none' ? undefined : value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Aucune equipe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune equipe</SelectItem>
+                  {teams.map(team => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -848,7 +860,7 @@ export function UsersManagementClient({
       <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Inviter un gestionnaire</DialogTitle>
+            <DialogTitle>Ajouter une agence</DialogTitle>
             <DialogDescription>
               Le gestionnaire recevra un email pour definir son mot de passe et commencer a utiliser SEIDO.
             </DialogDescription>

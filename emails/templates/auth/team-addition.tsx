@@ -102,7 +102,7 @@ export const TeamAdditionEmail = ({
         {/* Note sécurité */}
         <Text className="text-gray-500 text-xs leading-relaxed m-0">
           Si vous n'attendiez pas cet ajout ou si vous ne connaissez pas {inviterName},
-          veuillez nous contacter à support@seido.app.
+          veuillez nous contacter à support@seido-app.com.
         </Text>
       </Section>
 
@@ -118,7 +118,7 @@ TeamAdditionEmail.PreviewProps = {
   inviterName: 'Marie Dupont',
   teamName: 'Résidence Les Jardins',
   role: 'gestionnaire',
-  magicLinkUrl: 'https://seido.app/auth/confirm?token_hash=xxx&type=invite&team_id=yyy',
+  magicLinkUrl: 'https://seido-app.com/auth/confirm?token_hash=xxx&type=invite&team_id=yyy',
 } as TeamAdditionEmailProps
 
 export default TeamAdditionEmail

@@ -154,7 +154,7 @@ InterventionRejectedEmail.PreviewProps = {
   description: 'L\'ampoule du salon est grillée et ne fonctionne plus.',
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
   lotReference: 'Apt 3B',
-  interventionUrl: 'https://seido.app/locataire/interventions/INT-2024-042',
+  interventionUrl: 'https://seido-app.com/locataire/interventions/INT-2024-042',
   managerName: 'Jean Martin',
   rejectionReason:
     'Le remplacement des ampoules est à la charge du locataire selon l\'article 7 de votre contrat de location. Vous pouvez acheter une ampoule LED compatible dans n\'importe quel magasin de bricolage.',

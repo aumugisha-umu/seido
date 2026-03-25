@@ -215,8 +215,8 @@ interface GoogleMapPreviewProps {
 ### Clé API - Restrictions
 
 **HTTP referrers** :
-- `https://seido.app/*`
-- `https://*.seido.app/*`
+- `https://seido-app.com/*`
+- `https://*.seido-app.com/*`
 - `http://localhost:3000/*`
 - `https://*.vercel.app/*`
 

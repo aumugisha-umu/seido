@@ -154,7 +154,7 @@ QuoteRejectedEmail.PreviewProps = {
   interventionType: 'Plomberie',
   description: 'Fuite d\'eau importante sous l\'évier de la cuisine.',
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
-  quoteUrl: 'https://seido.app/prestataire/devis/DEV-2024-015',
+  quoteUrl: 'https://seido-app.com/prestataire/devis/DEV-2024-015',
   managerName: 'Jean Martin',
   rejectionReason:
     'Le montant proposé (300€) dépasse notre budget pour ce type d\'intervention. Nous recherchons une solution plus économique, idéalement autour de 200€.',

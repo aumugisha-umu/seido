@@ -118,7 +118,7 @@
 # Ouvrir DevTools > Lighthouse > Generate report
 
 # Via CLI
-npx lighthouse https://preview.seido.app/gestionnaire/dashboard \
+npx lighthouse https://preview.seido-app.com/gestionnaire/dashboard \
   --preset=desktop \
   --output=json \
   --output-path=./lighthouse-report.json

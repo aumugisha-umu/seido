@@ -98,10 +98,10 @@
 
 4. **(Optionnel) Vérifier votre domaine** pour production :
    - Aller dans https://resend.com/domains
-   - Ajouter `seido.app`
+   - Ajouter `seido-app.com`
    - Configurer DNS (SPF, DKIM, DMARC)
    - Attendre validation (~24h)
-   - Mettre à jour : `RESEND_FROM_EMAIL="SEIDO <noreply@seido.app>"`
+   - Mettre à jour : `RESEND_FROM_EMAIL="SEIDO <notifications@seido-app.com>"`
 
 ### Étape 2 : Vérifier la configuration (5 min)
 

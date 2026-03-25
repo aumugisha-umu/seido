@@ -9,7 +9,7 @@ on:
     inputs:
       target_url:
         description: 'URL to test'
-        default: 'https://preview.seido.app'
+        default: 'https://preview.seido-app.com'
         type: string
       mode:
         description: 'Test mode'
@@ -20,7 +20,7 @@ on:
         default: 'full'
 
 env:
-  TARGET_URL: ${{ github.event.client_payload.url || inputs.target_url || 'https://preview.seido.app' }}
+  TARGET_URL: ${{ github.event.client_payload.url || inputs.target_url || 'https://preview.seido-app.com' }}
   IS_PRODUCTION: ${{ github.event.client_payload.environment == 'production' || false }}
 
 jobs:

@@ -4,7 +4,7 @@
 **Objectif:** Reminder Recurrence UX + Intervention/Reminder Reclassification + Intervention Planner shared component
 **Branch:** `preview`
 **Sprint:** Operations Polish + Wizard Improvements (Mar 2026)
-**Derniere analyse:** Email domain fix (seido.app → seido-app.com) + CHECK constraint fix — 2026-03-25
+**Derniere analyse:** Centralize email config (EMAIL_CONFIG single source of truth) — 2026-03-25
 
 ---
 
@@ -233,10 +233,10 @@ draft -> pending -> sent -> accepted (terminal positif)
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **186** |
+| **AGENTS.md Learnings** | **194** |
 | **Unit tests** | **652** (45 files) |
 | **Blog articles** | **23** |
-| **Retrospectives** | **51** |
+| **Retrospectives** | **55** |
 | **.claude/ Skills** | **23** |
 | **.claude/ Agents** | **15** |
 | **.claude/ Rules** | **5** |
@@ -248,15 +248,15 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
+| `a29871c` | refactor: centralize email config — eliminate hardcoded domains across templates |
+| `bc0fa84` | fix: update email domain seido.app → seido-app.com across all templates and routes |
 | `bc16be4` | fix: enforce single-entity CHECK constraint in wizard reminders + spread itemType on document interventions |
 | `5531d29` | Merge worktree: wire intervention/reminder sections and dual dispatch |
 | `c186bdd` | feat: wire intervention/reminder sections and dual dispatch in lease + supplier wizards |
-| `f9826c4` | feat: visual differentiation for intervention vs reminder rows and sections |
-| `d509ec5` | feat: add itemType discriminant and split templates for intervention/reminder reclassification |
 
 ---
 
-*Derniere mise a jour: 2026-03-25 (Reminder Recurrence UX + CHECK constraint fix)
+*Derniere mise a jour: 2026-03-25 (Email config centralization + compound)
 *Focus: Complete remaining PRD stories for reminder recurrence UX
 
 ## Prochaines Etapes (updated 2026-03-25)
@@ -271,25 +271,15 @@ draft -> pending -> sent -> accepted (terminal positif)
 - [ ] AI Intervention Agent Phase 1 (8 stories)
 - [ ] Bank Module Phase 2 (bulk reconciliation, auto-linking rules UI)
 
-## COMPLETE: Email Domain Fix seido.app → seido-app.com (2026-03-25)
+## COMPLETE: Email Domain Fix + Config Centralization (2026-03-25)
 
-Fixed email domain across entire codebase (28 files). All `@seido.app` references updated to `@seido-app.com`.
-- **EMAIL_CONFIG**: Updated `fromDomain`, `fromEmail`, `replyToBase` in `lib/email/resend-client.ts`
-- **Templates**: All 28 email templates updated (from addresses, footer links, support emails)
-- **Routes**: Auth callback, webhook inbound, cron routes updated
-- **No logic changes**: Pure string replacement, lint-verified
+**Domain fix:** All `@seido.app` references updated to `@seido-app.com` across 28 files.
+**Config centralization:** Eliminated hardcoded `support@`/`contact@` emails and URLs across 9 files. Added `contactEmail` to `EMAIL_CONFIG`. Replaced `noreply` fallbacks with `notifications` in reply service. All email templates now import from `EMAIL_CONFIG` instead of hardcoding strings.
+- **Single source of truth**: `lib/email/resend-client.ts` → `EMAIL_CONFIG` (from, supportEmail, contactEmail, appUrl, appName)
+- **Learnings:** AGENTS.md #169
 
 ---
 
 ## Files Recently Modified
-### 2026-03-25 12:01:53 (Auto-updated)
-- `C:/Users/arthu/.claude/plans/woolly-petting-canyon.md`
-- `C:/Users/arthu/Desktop/Coding/seido-app/lib/email/resend-client.ts`
-- `C:/Users/arthu/Desktop/Coding/seido-app/lib/services/domain/email-reply.service.ts`
-- `C:/Users/arthu/Desktop/Coding/seido-app/emails/components/email-footer.tsx`
-- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/welcome.tsx`
-- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/signup-confirmation.tsx`
-- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/password-reset.tsx`
-- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/password-changed.tsx`
-- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/auth/team-addition.tsx`
-- `C:/Users/arthu/Desktop/Coding/seido-app/emails/templates/billing/payment-failed.tsx`
+### 2026-03-25 12:18:04 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/seido-app/.claude/auto-memory/dirty-files`

@@ -84,6 +84,25 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-25 - Centralize Email Config + Compound
+
+**Session: Eliminate hardcoded domains across email templates**
+
+**Ce qui a ete fait:**
+- Added `contactEmail` to `EMAIL_CONFIG` in `lib/email/resend-client.ts`
+- Replaced `noreply` → `notifications` in 2 fallback addresses (email-reply.service.ts)
+- Replaced hardcoded `support@seido-app.com` with `EMAIL_CONFIG.supportEmail` in 6 templates
+- Replaced hardcoded URLs + contact in email footer with `EMAIL_CONFIG.appUrl`/`EMAIL_CONFIG.contactEmail`
+- Compound: Learning #169 added, retrospective created
+
+**Fichiers cles modifies:**
+- `lib/email/resend-client.ts` — contactEmail added
+- `lib/services/domain/email-reply.service.ts` — noreply → notifications
+- `emails/components/email-footer.tsx` — dynamic URLs from EMAIL_CONFIG
+- 6 email templates — supportEmail from EMAIL_CONFIG
+
+---
+
 ### 2026-03-25 - Reminder Recurrence UX + Intervention Planner + CHECK Constraint Fix
 
 **Session: Intervention/reminder reclassification, shared planner component, critical bug fix**

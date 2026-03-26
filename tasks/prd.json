@@ -1,135 +1,97 @@
 {
   "project": "SEIDO",
-  "featureName": "Reminder Recurrence UX & Property Reclassification",
+  "featureName": "Admin Dashboard Redesign + Trial Extension",
   "branchName": "preview",
-  "description": "Add editable recurrence UI (clickable badge with popover), inline intervention/reminder toggle on each row, reclassify property templates as reminders with recurrence, propagate itemType/recurrenceRule across all wizards, split server-side dispatch by itemType.",
-  "createdAt": "2026-03-25",
-  "prdSource": "docs/plans/2026-03-25-reminder-recurrence-ux-design.md",
-  "status": "complete",
+  "description": "Redesign admin dashboard with real KPIs, trial teams panel, recent activity. Add /admin/teams page with trial extension dialog (+7/+14/+30j + date picker), email notification, activity_logs audit trail.",
+  "createdAt": "2026-03-26",
+  "prdSource": "docs/plans/2026-03-26-admin-dashboard-redesign-trial-extension.md",
+  "status": "in_progress",
   "userStories": [
     {
       "id": "US-001",
-      "title": "RRULE helper utility",
-      "description": "As a developer, I want a shared RRULE build/parse utility so that all components use consistent recurrence logic without duplicating code.",
+      "title": "Server actions: getAdminTeamsWithSubscriptions + extendTeamTrialAction",
+      "description": "As an admin, I want backend actions to fetch all teams with their subscription data and to extend a team's trial period, so that the UI can display and modify trial dates.",
       "acceptanceCriteria": [
-        "lib/utils/rrule.ts exports buildRRule, parseRRule, RECURRENCE_PRESETS, getRecurrenceLabel",
-        "buildRRule('MONTHLY', 3) returns 'FREQ=MONTHLY;INTERVAL=3'",
-        "parseRRule('FREQ=YEARLY;INTERVAL=10') returns { frequency: 'YEARLY', interval: 10 }",
-        "RECURRENCE_PRESETS has 4 entries: Mensuel, Trimestriel, Semestriel, Annuel",
-        "getRecurrenceLabel replaces inline logic in intervention-schedule-row.tsx",
+        "app/actions/admin-team-actions.ts exports getAdminTeamsWithSubscriptions() returning teams with admin_name, admin_email, member_count, lot_count, subscription_status, trial_end",
+        "extendTeamTrialAction(teamId, newTrialEnd, reason?) updates subscriptions.trial_end via service role client",
+        "extendTeamTrialAction verifies subscription status is 'trialing' before allowing extension",
+        "extendTeamTrialAction inserts activity_logs entry with action_type='update', entity_type='team', metadata containing old_end, new_end, days_added, reason",
+        "Both actions use getAdminContext() pattern (getServerAuthContext('admin') + service role client)",
         "npm run lint passes"
       ],
       "priority": 1,
       "dependsOn": [],
-      "sizing": "XS",
+      "sizing": "M",
       "passes": true,
-      "notes": "Created lib/utils/rrule.ts with buildRRule, parseRRule, RECURRENCE_PRESETS, getRecurrenceLabel. Updated intervention-schedule-row.tsx to use getRecurrenceLabel."
+      "notes": ""
     },
     {
       "id": "US-002",
-      "title": "Templates reclassification (all 3 constant files)",
-      "description": "As a developer, I want all templates to have explicit itemType and recurrenceRule so that the UI can render and edit them correctly.",
+      "title": "Trial extended email template + emailService method",
+      "description": "As an admin, I want an automatic email sent to the team's gestionnaire when their trial is extended, so they are informed of the new deadline.",
       "acceptanceCriteria": [
-        "lease-interventions.ts: all 6 templates have explicit itemType, 4 reminders have recurrenceRule",
-        "property-interventions.ts: 9 templates have itemType:'reminder', recurrenceRule on 5 periodic ones (chaudiere, ascenseur, incendie, PEB, nettoyage/espaces verts), PropertyInterventionTemplate interface has recurrenceRule field",
-        "supplier-interventions.ts: createSupplierReminderIntervention returns recurrenceRule:'FREQ=YEARLY;INTERVAL=1'",
-        "Missing doc templates return itemType:'reminder' (already done, verify)",
+        "emails/templates/admin/trial-extended.tsx uses EmailLayout > EmailHeader > Section > EmailFooter pattern",
+        "Template displays firstName, teamName, newTrialEnd date formatted in French, daysAdded count, and dashboard CTA button",
+        "TrialExtendedEmailProps interface added to emails/utils/types.ts",
+        "emailService.sendTrialExtendedEmail() added to lib/email/email-service.ts with category='admin', type='trial-extended' tags",
         "npm run lint passes"
       ],
-      "priority": 1,
+      "priority": 2,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "All 9 property templates reclassified as reminder with recurrenceRule. Supplier factory gets YEARLY recurrence. Lease already correct. PropertyInterventionTemplate interface extended with recurrenceRule."
+      "notes": ""
     },
     {
       "id": "US-003",
-      "title": "InterventionScheduleRow — toggle type + recurrence popover",
-      "description": "As a gestionnaire, I want to toggle between intervention and reminder on each row, and edit the recurrence via a clickable badge, so I can customize each scheduled item.",
+      "title": "Admin navigation: add 'Equipes' link",
+      "description": "As an admin, I want an 'Equipes' nav item between Dashboard and Utilisateurs, so I can access the teams management page.",
       "acceptanceCriteria": [
-        "Segmented control (Wrench/Bell icons) visible when row is enabled, between icon and title",
-        "Clicking toggle changes itemType, border color (indigo/amber), and assignment roles",
-        "Switching intervention→reminder removes non-gestionnaire assignees",
-        "Recurrence badge is a PopoverTrigger with 4 presets + custom (number + mois/ans)",
-        "Option 'Pas de recurrence' removes recurrenceRule, badge disappears",
-        "When no recurrence, '+ Recurrence' ghost button shown instead",
-        "New props: onItemTypeChange, onRecurrenceChange",
-        "Uses getRecurrenceLabel from lib/utils/rrule.ts instead of inline logic",
+        "components/dashboard-header.tsx admin navigation includes { href: '/admin/teams', label: 'Equipes', icon: Building2 } between Dashboard and Utilisateurs",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Admin dashboard redesign: real KPIs + trial panel + quick links",
+      "description": "As an admin, I want the dashboard to show real KPIs (active users, teams, active subscriptions, recent interventions), a panel of teams currently in trial, and functional quick action links.",
+      "acceptanceCriteria": [
+        "4 KPI cards show real counts from DB (no simulated growth percentages)",
+        "Trial teams panel shows teams with status='trialing': team name, admin name, lots count, days remaining, 'Etendre' button",
+        "Trial panel 'Etendre' button opens extend dialog (from US-005 client component)",
+        "Quick action cards are Links to real routes (/admin/teams, /admin/users, /admin/parametres)",
+        "AdminDashboardClient: fix /admin/settings → /admin/parametres, remove logger.info from render",
         "npm run lint passes"
       ],
       "priority": 3,
       "dependsOn": ["US-001"],
       "sizing": "M",
       "passes": true,
-      "notes": "Full rewrite of InterventionScheduleRow: added segmented toggle (Wrench/Bell), recurrence popover with presets+custom, extracted RecurrencePopoverContent component. New props: onItemTypeChange, onRecurrenceChange."
-    },
-    {
-      "id": "US-004",
-      "title": "InterventionPlannerStep — pass new handlers, remove sectionType",
-      "description": "As a developer, I want the shared planner to propagate onItemTypeChange and onRecurrenceChange to each row so that toggle and recurrence edits work in contract wizards.",
-      "acceptanceCriteria": [
-        "InterventionPlannerStep passes onItemTypeChange and onRecurrenceChange to each InterventionScheduleRow",
-        "Handler updates scheduledInterventions state via onInterventionsChange",
-        "sectionType styling removed from section headers (color comes from individual row itemType)",
-        "Lease and supplier wizards render correctly with mixed intervention/reminder rows",
-        "npm run lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-003"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Added handleItemTypeChange (strips non-gestionnaire on reminder switch) and handleRecurrenceChange. Passed to each row. Removed sectionType header styling — neutral colors for custom-add sections."
+      "notes": ""
     },
     {
       "id": "US-005",
-      "title": "Lease & supplier section grouping cleanup",
-      "description": "As a developer, I want lease and supplier sections to not split strictly by itemType so that rows with toggles display in a unified list.",
+      "title": "Teams management page with trial extension dialog",
+      "description": "As an admin, I want a dedicated /admin/teams page with a full teams table and a trial extension dialog with preset buttons (+7/+14/+30 days) and custom date picker.",
       "acceptanceCriteria": [
-        "lease-interventions-step.tsx: single main section with all intervention+reminder rows (no separate 'Admin reminders' section), rent reminders section kept, missing docs section kept",
-        "contract-form-container.tsx: supplier sections unified (single list, not split by itemType)",
-        "Collapsible behavior removed from sections (toggle on each row replaces section-level distinction)",
+        "app/admin/(with-navbar)/teams/page.tsx server component uses getServerAuthContext('admin') + getAdminTeamsWithSubscriptions()",
+        "teams-management-client.tsx displays teams table with columns: Nom, Admin, Membres, Lots, Plan (badge), Trial end, Actions",
+        "Table has filter by subscription status (all, trialing, active, canceled)",
+        "Trial extension dialog shows current trial_end, preset buttons (+7j/+14j/+30j adding to current trial_end), date picker for custom date, optional reason textarea",
+        "Dialog calls extendTeamTrialAction on confirm, shows toast on success/error",
+        "loading.tsx provides PageSkeleton",
         "npm run lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-004"],
-      "sizing": "S",
+      "dependsOn": ["US-001", "US-002"],
+      "sizing": "L",
       "passes": true,
-      "notes": "Lease: merged interventions+reminders into single 'Suivis du bail' section with allowCustomAdd. Supplier: unified into single 'Suivis du contrat' section. Removed sectionType from both. Cleaned unused Calendar/Bell imports."
-    },
-    {
-      "id": "US-006",
-      "title": "PropertyInterventionsStep — full propagation + dispatch split",
-      "description": "As a developer, I want the property wizard to propagate itemType/recurrenceRule from templates, handle toggle/recurrence changes, and split dispatch by itemType at submit time.",
-      "acceptanceCriteria": [
-        "useEffect maps recurrenceRule from template to ScheduledInterventionData",
-        "onItemTypeChange and onRecurrenceChange handlers update state",
-        "Add popover for custom suivi: Intervention / Rappel choice",
-        "Submit splits by itemType: reminders → createWizardRemindersAction, interventions → createInterventionAction",
-        "Non-gestionnaire assignees filtered from reminder items at submit",
-        "npm run lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-002", "US-003"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "PropertyInterventionsStep: useEffect propagates itemType+recurrenceRule from templates, handleItemTypeChange/handleRecurrenceChange handlers, custom add popover (Intervention/Rappel). Building form: dual dispatch (building-level+per-lot). Lot form: createInterventionsForLot split + composite path buildCompositeInterventions filters intervention-only + fireAndForgetReminders for reminder items."
-    },
-    {
-      "id": "US-007",
-      "title": "Contract submit — propagate edited recurrenceRule",
-      "description": "As a developer, I want the lease and supplier submit to use the user-modified recurrenceRule (not just template default) so that custom recurrence is persisted.",
-      "acceptanceCriteria": [
-        "Lease submit maps r.recurrenceRule (potentially edited) in createWizardRemindersAction call",
-        "If user toggled a template reminder→intervention, it goes to createInterventionAction",
-        "If user toggled a template intervention→reminder, it goes to createWizardRemindersAction",
-        "Non-gestionnaire assignees cleaned from reminder items before submit",
-        "npm run lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-004"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Lease: already passes r.recurrenceRule, added gestionnaire-only filter on reminder assignees. Supplier: added rrule to SupplierContractReminderConfig + Zod schema, updated createReminderInterventions to use createWizardRemindersAction for RRULE support, filter reminders map to exclude toggled-to-intervention items, handle toggled items alongside custom interventions. Property composite: buildCompositeInterventions filters intervention-only, fireAndForgetReminders handles reminder items."
+      "notes": "Server component + client component + loading skeleton. Table with filters, extension dialog with presets + date picker."
     }
   ]
 }

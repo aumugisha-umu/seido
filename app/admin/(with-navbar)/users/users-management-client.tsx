@@ -60,7 +60,6 @@ import {
   Loader2,
   RefreshCw,
   LogIn,
-  Send,
   RotateCw,
 } from 'lucide-react'
 import type { User, UserInsert, UserUpdate, UserWithStatus, UserComputedStatus } from '@/lib/services/core/service-types'
@@ -71,7 +70,6 @@ import {
   deleteUserAction,
   changeUserRoleAction,
   toggleUserStatusAction,
-  inviteGestionnaireAction,
   resendGestionnaireInvitationAction,
 } from '@/app/actions/user-admin-actions'
 import { startImpersonationAction } from '@/app/actions/impersonation-actions'
@@ -117,7 +115,6 @@ export function UsersManagementClient({
 
   // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false)
@@ -133,12 +130,6 @@ export function UsersManagementClient({
     company: '',
   })
   const [newRole, setNewRole] = useState<UserRole>('gestionnaire')
-  const [inviteData, setInviteData] = useState({
-    email: '',
-    firstName: '',
-    lastName: '',
-    organization: '',
-  })
 
   // Filter users
   const filteredUsers = useMemo(() => {
@@ -304,30 +295,6 @@ export function UsersManagementClient({
   }
 
   // Invite gestionnaire
-  const handleInviteGestionnaire = async () => {
-    if (!inviteData.email || !inviteData.firstName || !inviteData.lastName || !inviteData.organization) {
-      toast.error('Erreur', { description: 'Tous les champs sont requis' })
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      const result = await inviteGestionnaireAction(inviteData)
-      if (result.success) {
-        await refreshUsers()
-        setIsInviteDialogOpen(false)
-        setInviteData({ email: '', firstName: '', lastName: '', organization: '' })
-        toast('Invitation envoyee', { description: `${inviteData.firstName} ${inviteData.lastName} recevra un email d'invitation` })
-      } else {
-        toast.error('Erreur', { description: result.error || 'Impossible d\'envoyer l\'invitation' })
-      }
-    } catch {
-      toast.error('Erreur', { description: 'Une erreur est survenue' })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
   // Resend invitation
   const handleResendInvitation = async (user: UserWithStatus) => {
     if (!user.email) return
@@ -510,11 +477,7 @@ export function UsersManagementClient({
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button variant="outline" onClick={() => setIsInviteDialogOpen(true)}>
-            <Send className="h-4 w-4 mr-2" />
-            Ajouter agence
-          </Button>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+<Button onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nouvel utilisateur
           </Button>
@@ -856,70 +819,6 @@ export function UsersManagementClient({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Invite Gestionnaire Dialog */}
-      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Ajouter une agence</DialogTitle>
-            <DialogDescription>
-              Le gestionnaire recevra un email pour definir son mot de passe et commencer a utiliser SEIDO.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="invite-email">Email *</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                value={inviteData.email}
-                onChange={e => setInviteData(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="gestionnaire@example.com"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="invite-firstName">Prenom *</Label>
-                <Input
-                  id="invite-firstName"
-                  value={inviteData.firstName}
-                  onChange={e => setInviteData(prev => ({ ...prev, firstName: e.target.value }))}
-                  placeholder="Jean"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="invite-lastName">Nom *</Label>
-                <Input
-                  id="invite-lastName"
-                  value={inviteData.lastName}
-                  onChange={e => setInviteData(prev => ({ ...prev, lastName: e.target.value }))}
-                  placeholder="Dupont"
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="invite-organization">Organisation / Entreprise *</Label>
-              <Input
-                id="invite-organization"
-                value={inviteData.organization}
-                onChange={e => setInviteData(prev => ({ ...prev, organization: e.target.value }))}
-                placeholder="SCI Les Jardins"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button
-              onClick={handleInviteGestionnaire}
-              disabled={isSubmitting || !inviteData.email || !inviteData.firstName || !inviteData.lastName || !inviteData.organization}
-            >
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Envoyer l'invitation
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

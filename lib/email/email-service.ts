@@ -18,6 +18,7 @@ import type {
   TeamAdditionEmailProps,
   DemoRequestEmailProps,
   BetaAccessRequestEmailProps,
+  TrialExtendedEmailProps,
   EmailSendResult,
   SendEmailOptions,
 } from '@/emails/utils/types'
@@ -371,6 +372,28 @@ export const emailService = {
       tags: [
         { name: 'category', value: 'admin' },
         { name: 'type', value: 'access-request' },
+      ],
+    })
+  },
+
+  /**
+   * Envoyer email de notification de prolongation de trial (au gestionnaire)
+   */
+  async sendTrialExtendedEmail(
+    to: string,
+    props: TrialExtendedEmailProps
+  ): Promise<EmailSendResult> {
+    const { default: TrialExtendedEmail } = await import('@/emails/templates/admin/trial-extended')
+    const { html, text } = await renderEmail(TrialExtendedEmail(props))
+
+    return sendEmailWithRetry({
+      to,
+      subject: `Votre essai SEIDO a été prolongé de ${props.daysAdded} jours`,
+      html,
+      text,
+      tags: [
+        { name: 'category', value: 'admin' },
+        { name: 'type', value: 'trial-extended' },
       ],
     })
   },

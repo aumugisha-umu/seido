@@ -1,0 +1,135 @@
+{
+  "project": "SEIDO",
+  "featureName": "Reminder Recurrence UX & Property Reclassification",
+  "branchName": "preview",
+  "description": "Add editable recurrence UI (clickable badge with popover), inline intervention/reminder toggle on each row, reclassify property templates as reminders with recurrence, propagate itemType/recurrenceRule across all wizards, split server-side dispatch by itemType.",
+  "createdAt": "2026-03-25",
+  "prdSource": "docs/plans/2026-03-25-reminder-recurrence-ux-design.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "RRULE helper utility",
+      "description": "As a developer, I want a shared RRULE build/parse utility so that all components use consistent recurrence logic without duplicating code.",
+      "acceptanceCriteria": [
+        "lib/utils/rrule.ts exports buildRRule, parseRRule, RECURRENCE_PRESETS, getRecurrenceLabel",
+        "buildRRule('MONTHLY', 3) returns 'FREQ=MONTHLY;INTERVAL=3'",
+        "parseRRule('FREQ=YEARLY;INTERVAL=10') returns { frequency: 'YEARLY', interval: 10 }",
+        "RECURRENCE_PRESETS has 4 entries: Mensuel, Trimestriel, Semestriel, Annuel",
+        "getRecurrenceLabel replaces inline logic in intervention-schedule-row.tsx",
+        "npm run lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Created lib/utils/rrule.ts with buildRRule, parseRRule, RECURRENCE_PRESETS, getRecurrenceLabel. Updated intervention-schedule-row.tsx to use getRecurrenceLabel."
+    },
+    {
+      "id": "US-002",
+      "title": "Templates reclassification (all 3 constant files)",
+      "description": "As a developer, I want all templates to have explicit itemType and recurrenceRule so that the UI can render and edit them correctly.",
+      "acceptanceCriteria": [
+        "lease-interventions.ts: all 6 templates have explicit itemType, 4 reminders have recurrenceRule",
+        "property-interventions.ts: 9 templates have itemType:'reminder', recurrenceRule on 5 periodic ones (chaudiere, ascenseur, incendie, PEB, nettoyage/espaces verts), PropertyInterventionTemplate interface has recurrenceRule field",
+        "supplier-interventions.ts: createSupplierReminderIntervention returns recurrenceRule:'FREQ=YEARLY;INTERVAL=1'",
+        "Missing doc templates return itemType:'reminder' (already done, verify)",
+        "npm run lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "All 9 property templates reclassified as reminder with recurrenceRule. Supplier factory gets YEARLY recurrence. Lease already correct. PropertyInterventionTemplate interface extended with recurrenceRule."
+    },
+    {
+      "id": "US-003",
+      "title": "InterventionScheduleRow — toggle type + recurrence popover",
+      "description": "As a gestionnaire, I want to toggle between intervention and reminder on each row, and edit the recurrence via a clickable badge, so I can customize each scheduled item.",
+      "acceptanceCriteria": [
+        "Segmented control (Wrench/Bell icons) visible when row is enabled, between icon and title",
+        "Clicking toggle changes itemType, border color (indigo/amber), and assignment roles",
+        "Switching intervention→reminder removes non-gestionnaire assignees",
+        "Recurrence badge is a PopoverTrigger with 4 presets + custom (number + mois/ans)",
+        "Option 'Pas de recurrence' removes recurrenceRule, badge disappears",
+        "When no recurrence, '+ Recurrence' ghost button shown instead",
+        "New props: onItemTypeChange, onRecurrenceChange",
+        "Uses getRecurrenceLabel from lib/utils/rrule.ts instead of inline logic",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Full rewrite of InterventionScheduleRow: added segmented toggle (Wrench/Bell), recurrence popover with presets+custom, extracted RecurrencePopoverContent component. New props: onItemTypeChange, onRecurrenceChange."
+    },
+    {
+      "id": "US-004",
+      "title": "InterventionPlannerStep — pass new handlers, remove sectionType",
+      "description": "As a developer, I want the shared planner to propagate onItemTypeChange and onRecurrenceChange to each row so that toggle and recurrence edits work in contract wizards.",
+      "acceptanceCriteria": [
+        "InterventionPlannerStep passes onItemTypeChange and onRecurrenceChange to each InterventionScheduleRow",
+        "Handler updates scheduledInterventions state via onInterventionsChange",
+        "sectionType styling removed from section headers (color comes from individual row itemType)",
+        "Lease and supplier wizards render correctly with mixed intervention/reminder rows",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added handleItemTypeChange (strips non-gestionnaire on reminder switch) and handleRecurrenceChange. Passed to each row. Removed sectionType header styling — neutral colors for custom-add sections."
+    },
+    {
+      "id": "US-005",
+      "title": "Lease & supplier section grouping cleanup",
+      "description": "As a developer, I want lease and supplier sections to not split strictly by itemType so that rows with toggles display in a unified list.",
+      "acceptanceCriteria": [
+        "lease-interventions-step.tsx: single main section with all intervention+reminder rows (no separate 'Admin reminders' section), rent reminders section kept, missing docs section kept",
+        "contract-form-container.tsx: supplier sections unified (single list, not split by itemType)",
+        "Collapsible behavior removed from sections (toggle on each row replaces section-level distinction)",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-004"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Lease: merged interventions+reminders into single 'Suivis du bail' section with allowCustomAdd. Supplier: unified into single 'Suivis du contrat' section. Removed sectionType from both. Cleaned unused Calendar/Bell imports."
+    },
+    {
+      "id": "US-006",
+      "title": "PropertyInterventionsStep — full propagation + dispatch split",
+      "description": "As a developer, I want the property wizard to propagate itemType/recurrenceRule from templates, handle toggle/recurrence changes, and split dispatch by itemType at submit time.",
+      "acceptanceCriteria": [
+        "useEffect maps recurrenceRule from template to ScheduledInterventionData",
+        "onItemTypeChange and onRecurrenceChange handlers update state",
+        "Add popover for custom suivi: Intervention / Rappel choice",
+        "Submit splits by itemType: reminders → createWizardRemindersAction, interventions → createInterventionAction",
+        "Non-gestionnaire assignees filtered from reminder items at submit",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "PropertyInterventionsStep: useEffect propagates itemType+recurrenceRule from templates, handleItemTypeChange/handleRecurrenceChange handlers, custom add popover (Intervention/Rappel). Building form: dual dispatch (building-level+per-lot). Lot form: createInterventionsForLot split + composite path buildCompositeInterventions filters intervention-only + fireAndForgetReminders for reminder items."
+    },
+    {
+      "id": "US-007",
+      "title": "Contract submit — propagate edited recurrenceRule",
+      "description": "As a developer, I want the lease and supplier submit to use the user-modified recurrenceRule (not just template default) so that custom recurrence is persisted.",
+      "acceptanceCriteria": [
+        "Lease submit maps r.recurrenceRule (potentially edited) in createWizardRemindersAction call",
+        "If user toggled a template reminder→intervention, it goes to createInterventionAction",
+        "If user toggled a template intervention→reminder, it goes to createWizardRemindersAction",
+        "Non-gestionnaire assignees cleaned from reminder items before submit",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-004"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Lease: already passes r.recurrenceRule, added gestionnaire-only filter on reminder assignees. Supplier: added rrule to SupplierContractReminderConfig + Zod schema, updated createReminderInterventions to use createWizardRemindersAction for RRULE support, filter reminders map to exclude toggled-to-intervention items, handle toggled items alongside custom interventions. Property composite: buildCompositeInterventions filters intervention-only, fireAndForgetReminders handles reminder items."
+    }
+  ]
+}

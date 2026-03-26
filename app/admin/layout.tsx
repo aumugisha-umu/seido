@@ -27,7 +27,7 @@ export default async function AdminLayout({
     <PWABannerWrapper>
       <div className="min-h-screen bg-gray-50">
         {/* Contenu principal - DashboardHeader délégué aux Route Group layouts */}
-        <main className="layout-container">
+        <main>
           {children}
         </main>
 

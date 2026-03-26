@@ -36,7 +36,7 @@ export default async function AdminUsersPage() {
   }
 
   return (
-    <>
+    <div className="px-4 sm:px-6 lg:px-8 py-6">
       {/* Page Header */}
       <div className="mb-6 lg:mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -106,6 +106,6 @@ export default async function AdminUsersPage() {
         currentUserId={profile.id}
         teams={teams}
       />
-    </>
+    </div>
   )
 }

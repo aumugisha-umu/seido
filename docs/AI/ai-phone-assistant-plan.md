@@ -1,9 +1,24 @@
 # SEIDO AI Phone Assistant — Plan Complet
 
-**Version** : 3.6 — Mars 2026 (Telnyx SIP trunk + Self-Service + Audit securite + WhatsApp + Pricing 3-tier + Landing Page + Dashboard Admin & KPIs + Audit technique mars 2026)
+**Version** : 3.6 — Mars 2026 (Telnyx SIP trunk + Self-Service + Audit securite + Pricing 3-tier + Landing Page + Dashboard Admin & KPIs + Audit technique mars 2026)
 **Statut** : Plan valide, pret pour implementation
 **Branche** : `feature/ai-phone-assistant`
 **Design self-service** : [`ai-phone-self-service-design.md`](./ai-phone-self-service-design.md)
+
+> **IMPORTANT (2026-03-26):** Ce plan couvre le canal **telephonique uniquement** (ElevenLabs + Telnyx).
+> Les references WhatsApp dans ce document (Section 14, Etape 4, architecture dual-canal) sont **OBSOLETES**.
+> Le canal WhatsApp utilise un **setup custom separe** : voir **`ai-whatsapp-agent-plan.md`** (v2.1).
+>
+> **Architecture unifiee des numeros :** 1 equipe = 1 numero = 2 canaux (telephone + WhatsApp).
+> La table `ai_phone_numbers` sera renommee `ai_team_numbers` et etendue avec les colonnes WhatsApp.
+> Le numero (Twilio ou BYON) est connecte simultanement a ElevenLabs (voix) et Meta WABA (WhatsApp custom).
+> Les deux canaux sont toujours actifs ensemble.
+>
+> **Decision ouverte — Provisioning unifie :** Ce plan utilise Telnyx (SIP trunk vers ElevenLabs)
+> pour le canal telephonique. Le plan WhatsApp utilise Twilio. Pour le numero unifie, il faut
+> trancher : (A) numero Telnyx + enregistrement WABA separe, ou (B) numero Twilio + SIP forwarding
+> vers ElevenLabs. Cette decision sera prise lors de l'implementation. Le body du plan reste Telnyx
+> car c'est le provider valide pour le SIP trunk ElevenLabs.
 
 ---
 
@@ -23,7 +38,7 @@
 11. [Estimation des couts](#11--estimation-des-couts)
 12. [Roadmap post-MVP](#12--roadmap-post-mvp)
 13. [Self-Service Multi-Tenant](#13--self-service-multi-tenant)
-14. [Canal WhatsApp](#14--canal-whatsapp)
+14. ~~[Canal WhatsApp](#14--canal-whatsapp)~~ *(OBSOLETE — voir `ai-whatsapp-agent-plan.md`)*
 15. [Landing Page AI Enhancement](#15--landing-page-ai-enhancement)
 16. [Dashboard Admin & KPIs](#16--dashboard-admin--kpis)
 
@@ -75,7 +90,7 @@ ELEVENLABS_API_KEY=sk_xxxxxxxxxxxxxxxxxxxxxxxx
 - Temperature : **0.3**
 - TTS Voice : choisir une voix native par langue (FR/NL/EN — voix anglaises = accent bleed sur NL)
 - TTS Model : **Flash v2.5** (basse latence)
-- Max duration : **480 secondes** (8 min pour vocal, 1800 sec pour WhatsApp texte)
+- Max duration : **480 secondes** (8 min)
 - Languages : French, Dutch, English (auto-detect active)
 - Coller le system prompt (voir Section 5.1 et 5.2)
 - **Noter l'Agent ID** — il sera stocke en DB
@@ -419,41 +434,10 @@ Suivre cette checklist dans l'ordre :
 
 ---
 
-### Etape 4 : Compte Meta Business + WhatsApp Business API
+### ~~Etape 4 : Compte Meta Business + WhatsApp Business API~~
 
-> **Ref :** [WhatsApp Business API — Meta](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started)
-> **Ref :** [WhatsApp — ElevenLabs](https://elevenlabs.io/docs/eleven-agents/whatsapp)
-
-1. Creer un **Meta Business Manager** sur [business.facebook.com](https://business.facebook.com)
-2. Verifier l'entreprise (documents requis : registre commerce + preuve d'adresse < 3 mois) — **1-2 jours ouvrables**
-3. Creer une **WhatsApp Business App** dans le Meta Developer Portal
-4. Obtenir un **System User Access Token** (permanent, pas de refresh)
-5. Creer un **WhatsApp Business Account (WABA)** — 1 seul suffit pour toutes les equipes
-6. Ajouter le premier numero (+32 4 260 08 08) au WABA
-7. Connecter le WABA a ElevenLabs (Settings → Integrations → WhatsApp)
-
-```bash
-# Ajouter dans Vercel + .env.local
-META_WHATSAPP_ACCESS_TOKEN=EAAxxxxxxxxxxxxxxx    # System User permanent token
-META_WHATSAPP_BUSINESS_ID=123456789012345        # WABA ID
-META_WHATSAPP_PHONE_NUMBER_ID=987654321098765    # Phone Number ID (premier numero)
-```
-
-**Architecture multi-tenant WhatsApp :**
-- **1 Meta Business Manager** (SEIDO)
-- **1 WABA** (WhatsApp Business Account)
-- **N numeros** sous ce WABA (1 par equipe)
-- Chaque numero a son propre `display_name` et son agent ElevenLabs assigne
-
-**Pricing Meta (Belgique = "Rest of Western Europe") :**
-
-| Type de message | Cout | Scenario |
-|-----------------|------|----------|
-| **Service** (customer-initiated, reponse < 24h) | **GRATUIT** | Locataire ecrit en premier → GRATUIT |
-| **Utility** (business-initiated, template) | ~$0.017/msg | Confirmation envoyee par SEIDO |
-| **Marketing** (business-initiated) | ~$0.059/msg | Non utilise |
-
-> **Pour le MVP, 100% des conversations sont service messages (customer-initiated) = GRATUIT.**
+> **OBSOLETE (2026-03-26):** Cette etape est geree dans `ai-whatsapp-agent-plan.md` (v2.0 — custom setup).
+> Le canal WhatsApp n'utilise PAS ElevenLabs. Voir le plan WhatsApp separe pour les pre-requis Meta.
 
 ---
 
@@ -558,11 +542,8 @@ Avant de commencer US-001, verifier que :
 - [ ] `npm install ai @ai-sdk/anthropic @react-pdf/renderer elevenlabs telnyx` execute
 - [ ] `npm run lint` passe apres installation
 
-**--- WhatsApp (Phase 2 — pas bloquant pour le MVP telephonique) ---**
-- [ ] Meta Business Manager cree + entreprise verifiee
-- [ ] WABA cree + numero ajoute
-- [ ] WABA connecte a ElevenLabs (Settings → Integrations → WhatsApp)
-- [ ] **Test WhatsApp reussi** (envoyer un message → l'agent repond)
+**--- WhatsApp ---**
+> OBSOLETE: Voir `ai-whatsapp-agent-plan.md` (v2.0 — custom setup, pas ElevenLabs)
 
 **Temps restant estime :** Verifications mineures Telnyx (~5 min) + API keys (~10 min) + npm install (~5 min) + 1-2 jours pour verification Meta Business
 
@@ -580,8 +561,8 @@ Les locataires appellent le gestionnaire pour signaler des problemes. Ces appels
 
 ### La solution
 
-Un **assistant IA multi-canal** par equipe qui :
-1. Repond 24/7 aux appels **et messages WhatsApp** des locataires
+Un **assistant IA telephonique** par equipe qui :
+1. Repond 24/7 aux appels des locataires
 2. Mene une conversation guidee pour collecter les informations necessaires
 3. Cree automatiquement une demande d'intervention dans SEIDO
 4. Genere un rapport PDF complet (transcript + resume)
@@ -592,13 +573,12 @@ Un **assistant IA multi-canal** par equipe qui :
 | Canal | Mode | Fonctionnement |
 |-------|------|----------------|
 | **Telephone** | Appel vocal | Locataire appelle → Telnyx SIP → ElevenLabs → conversation vocale |
-| **WhatsApp** | Texte, notes vocales, appels | Locataire ecrit/parle sur WhatsApp → Meta Cloud API → ElevenLabs → conversation |
 
-> **Meme numero, meme agent** : le numero belge (+32) sert a la fois pour les appels telephoniques (via Telnyx SIP) et pour WhatsApp (via Meta Cloud API). Le meme agent ElevenLabs gere les deux canaux.
+> **Canal unique** : ce plan couvre le telephone uniquement. Le canal WhatsApp est un systeme separe — voir `ai-whatsapp-agent-plan.md`.
 
 ### Benefice cle
 
-> Le locataire appelle ou envoie un WhatsApp, l'IA collecte, SEIDO cree le ticket. Le gestionnaire arrive le matin avec tout sur son tableau de bord — sans avoir decroche une seule fois.
+> Le locataire appelle, l'IA collecte, SEIDO cree le ticket. Le gestionnaire arrive le matin avec tout sur son tableau de bord — sans avoir decroche une seule fois.
 
 ---
 
@@ -2407,16 +2387,23 @@ POST /api/elevenlabs-webhook (workspace-level, 1 pour tous les agents)
 
 ## 14 — Canal WhatsApp
 
-### 14.1 Vue d'ensemble
+> **SUPERSEDED (2026-03-26):** Cette section est obsolete. Le canal WhatsApp utilise un **setup custom**
+> (Claude API directe + Meta Cloud API + Twilio), PAS ElevenLabs.
+> Voir le plan a jour : **`ai-whatsapp-agent-plan.md`** (v2.0).
+>
+> ElevenLabs est utilise UNIQUEMENT pour le canal telephonique (voix via Telnyx SIP).
+> Le canal WhatsApp est un systeme separe avec son propre plan d'implementation.
 
-ElevenLabs supporte nativement WhatsApp depuis decembre 2025. Le meme agent gere
-les appels telephoniques (via Telnyx SIP) ET les conversations WhatsApp (via Meta Cloud API).
+~~### 14.1 Vue d'ensemble~~
 
-Le meme numero belge (+32) sert pour les deux canaux :
-- **Appels telephoniques** : le numero est route via Telnyx SIP trunk vers ElevenLabs
-- **Messages WhatsApp** : le numero est enregistre dans le WABA Meta et connecte a ElevenLabs
+~~ElevenLabs supporte nativement WhatsApp depuis decembre 2025. Le meme agent gere
+les appels telephoniques (via Telnyx SIP) ET les conversations WhatsApp (via Meta Cloud API).~~
 
-> Ces deux chemins sont **totalement independants** — pas de bridging, pas de conflit.
+~~Le meme numero belge (+32) sert pour les deux canaux :~~
+~~- **Appels telephoniques** : le numero est route via Telnyx SIP trunk vers ElevenLabs~~
+~~- **Messages WhatsApp** : le numero est enregistre dans le WABA Meta et connecte a ElevenLabs~~
+
+~~> Ces deux chemins sont **totalement independants** — pas de bridging, pas de conflit.~~
 
 ### 14.2 Modes de conversation WhatsApp
 

@@ -1,9 +1,11 @@
 # SEIDO AI WhatsApp Agent — Plan Complet
 
-**Version** : 2.0 — Mars 2026
+**Version** : 2.1 — Mars 2026 (corrections review technique integrees)
 **Statut** : Plan valide, pret pour implementation
-**Predecesseur** : `ai-phone-assistant-plan.md` (v3.6 — phone + WhatsApp via ElevenLabs)
+**Predecesseur** : Section 14 de `ai-phone-assistant-plan.md` v3.6 (WhatsApp via ElevenLabs — ABANDONNE)
+**Architecture** : Setup custom — Claude API directe + Meta Cloud API + Twilio (sans ElevenLabs)
 **Pivot v1→v2** : Telnyx remplace par Twilio (provisioning simplifie) + mode BYON (Bring Your Own Number)
+**Review** : Audit technique independant integre (6 corrections, 3 clarifications, 4 risques documentes)
 
 ---
 
@@ -718,7 +720,7 @@ ici SEIDO doit maintenir le contexte entre les messages WhatsApp :
 interface WhatsAppSession {
   id: string                           // UUID
   team_id: string                      // Equipe proprietaire du numero
-  phone_number_id: string              // FK → ai_whatsapp_numbers
+  phone_number_id: string              // FK → ai_team_numbers
   contact_phone: string                // Numero WhatsApp du locataire (E.164)
   status: 'active' | 'completed' | 'expired' | 'failed'
   messages: ConversationMessage[]      // Historique complet (role + content)
@@ -843,6 +845,9 @@ async function callClaude(session: WhatsAppSession) {
     maxTokens: 300
   })
 
+  // AI SDK 6: result.output est type selon le schema Zod.
+  // Verifier la doc generateText + Output.object pour l'acces exact
+  // (peut etre imbrique selon la version — tester avec un console.log en dev).
   return result.output
 }
 ```
@@ -851,7 +856,7 @@ async function callClaude(session: WhatsAppSession) {
 
 ```typescript
 function buildSystemPrompt(session: WhatsAppSession): string {
-  const teamName = session.team_name // charge depuis ai_whatsapp_numbers JOIN teams
+  const teamName = session.team_name // charge depuis ai_team_numbers JOIN teams
 
   return `Tu es un assistant WhatsApp de prise de demandes d'intervention pour ${teamName}.
 
@@ -905,36 +910,50 @@ ${session.custom_instructions ? `## Instructions specifiques de l'agence\n${sess
 
 ## 6 — Modele de donnees
 
+### Architecture unifiee des numeros
+
+> **Decision (2026-03-26):** 1 equipe = 1 numero = 2 canaux (telephone + WhatsApp).
+> Le numero (Twilio ou BYON) est connecte simultanement a ElevenLabs (voix) et Meta WABA (WhatsApp custom).
+> Les deux canaux sont toujours actifs ensemble — pas de toggle.
+
+La table existante `ai_phone_numbers` (migration `20260309100000`) est **etendue et renommee**
+en `ai_team_numbers` pour refleter l'architecture dual-canal.
+
 ### Tables
 
 ```sql
 -- ============================================
--- Table 1 : Numeros WhatsApp par equipe
+-- Migration : Renommer + etendre ai_phone_numbers → ai_team_numbers
 -- ============================================
-CREATE TABLE ai_whatsapp_numbers (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-  phone_number TEXT NOT NULL,                    -- Format E.164 (+32XXXXXXXXX)
-  whatsapp_phone_number_id TEXT,                 -- ID numero Meta WhatsApp (NULL pendant verification)
-  display_name TEXT NOT NULL,                    -- Nom affiche dans WhatsApp
-  provisioning_mode TEXT NOT NULL DEFAULT 'managed'  -- 'managed' (Twilio) | 'byon'
+ALTER TABLE ai_phone_numbers RENAME TO ai_team_numbers;
+
+-- Colonnes WhatsApp (nouveau)
+ALTER TABLE ai_team_numbers
+  ADD COLUMN whatsapp_phone_number_id TEXT,       -- ID numero Meta WhatsApp
+  ADD COLUMN display_name TEXT,                   -- Nom affiche dans WhatsApp (ex: "Immo Dupont")
+  ADD COLUMN provisioning_mode TEXT NOT NULL DEFAULT 'managed'  -- 'managed' (Twilio) | 'byon'
     CHECK (provisioning_mode IN ('managed', 'byon')),
-  twilio_number_sid TEXT,                        -- SID Twilio (NULL si mode byon)
-  status TEXT NOT NULL DEFAULT 'pending'          -- 'pending' | 'verifying' | 'active' | 'suspended'
-    CHECK (status IN ('pending', 'verifying', 'active', 'suspended')),
-  ai_tier TEXT DEFAULT 'starter'                 -- 'starter' | 'pro' | 'business' | 'enterprise'
-    CHECK (ai_tier IN ('starter', 'pro', 'business', 'enterprise')),
-  custom_instructions TEXT,                      -- Max 500 chars
-  auto_topup BOOLEAN DEFAULT false,
-  -- Stripe billing
-  stripe_ai_subscription_id TEXT,                -- Stripe subscription ID
-  stripe_ai_price_id TEXT,                       -- Stripe price ID
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(team_id),                               -- 1 numero par equipe
-  UNIQUE(phone_number)                           -- 1 equipe par numero
-);
+  ADD COLUMN twilio_number_sid TEXT;              -- SID Twilio (NULL si mode byon)
+
+-- Remplacer Telnyx par Twilio (provisioning unifie)
+-- Note: les colonnes telnyx_* deviennent obsoletes apres migration des numeros existants
+-- ALTER TABLE ai_team_numbers DROP COLUMN telnyx_connection_id, DROP COLUMN telnyx_phone_number_id;
+
+-- Index pour lookup WhatsApp (webhook routing)
+CREATE INDEX idx_team_numbers_whatsapp_phone_id
+  ON ai_team_numbers(whatsapp_phone_number_id)
+  WHERE whatsapp_phone_number_id IS NOT NULL;
+
+COMMENT ON TABLE ai_team_numbers IS 'AI assistant config per team — 1 number, dual-channel: ElevenLabs (voice) + Meta WABA (WhatsApp custom)';
+
+-- Schema resultant complet de ai_team_numbers :
+-- id, team_id (UNIQUE), phone_number, display_name,
+-- provisioning_mode, twilio_number_sid,
+-- elevenlabs_agent_id, elevenlabs_phone_number_id,    -- canal telephone
+-- whatsapp_phone_number_id,                           -- canal WhatsApp
+-- ai_tier, auto_topup, custom_instructions,
+-- stripe_ai_subscription_id, stripe_ai_price_id,
+-- is_active, created_at, updated_at
 
 -- ============================================
 -- Table 2 : Sessions de conversation
@@ -942,11 +961,12 @@ CREATE TABLE ai_whatsapp_numbers (
 CREATE TABLE ai_whatsapp_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES teams(id),
-  phone_number_id UUID NOT NULL REFERENCES ai_whatsapp_numbers(id),
+  phone_number_id UUID NOT NULL REFERENCES ai_team_numbers(id),  -- FK vers table unifiee
   contact_phone TEXT NOT NULL,                   -- Numero WhatsApp du locataire (E.164)
   status TEXT NOT NULL DEFAULT 'active'
     CHECK (status IN ('active', 'completed', 'expired', 'failed')),
   messages JSONB NOT NULL DEFAULT '[]'::jsonb,   -- Historique [{role, content, timestamp}]
+  processed_wamids TEXT[] NOT NULL DEFAULT '{}', -- IDs Meta traites (deduplication/idempotence)
   extracted_data JSONB NOT NULL DEFAULT '{}'::jsonb,  -- Donnees extraites progressivement
   identified_user_id UUID REFERENCES users(id),  -- Locataire identifie (nullable)
   intervention_id UUID REFERENCES interventions(id),  -- Intervention creee (nullable)
@@ -969,9 +989,7 @@ CREATE INDEX idx_whatsapp_sessions_active
   ON ai_whatsapp_sessions(contact_phone, team_id)
   WHERE status = 'active';
 
--- Index pour lookup numero → equipe (webhook routing)
-CREATE INDEX idx_whatsapp_numbers_phone_number_id
-  ON ai_whatsapp_numbers(whatsapp_phone_number_id);
+-- Note: index pour lookup numero → equipe deja cree ci-dessus (idx_team_numbers_whatsapp_phone_id)
 
 -- ============================================
 -- Table 3 : Usage mensuel
@@ -1015,56 +1033,40 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================
 -- RLS
 -- ============================================
-ALTER TABLE ai_whatsapp_numbers ENABLE ROW LEVEL SECURITY;
+-- RLS: ai_team_numbers deja protege par la policy existante (migration 20260309100000)
+-- qui utilise auth.uid() + team_members join. A migrer vers get_my_profile_ids() lors du rename.
+
 ALTER TABLE ai_whatsapp_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_whatsapp_usage ENABLE ROW LEVEL SECURITY;
 
--- Gestionnaire voit ses propres donnees
-CREATE POLICY "team_read" ON ai_whatsapp_numbers FOR SELECT
-  USING (team_id IN (
-    SELECT team_id FROM team_members WHERE user_id = get_current_user_id()
-  ));
-
+-- Note: get_my_profile_ids() au lieu de get_current_user_id() pour supporter
+-- les utilisateurs multi-profils (plusieurs equipes). Ref: AGENTS.md #003, #086.
 CREATE POLICY "team_read" ON ai_whatsapp_sessions FOR SELECT
   USING (team_id IN (
-    SELECT team_id FROM team_members WHERE user_id = get_current_user_id()
+    SELECT team_id FROM team_members WHERE user_id IN (SELECT get_my_profile_ids())
   ));
 
 CREATE POLICY "team_read" ON ai_whatsapp_usage FOR SELECT
   USING (team_id IN (
-    SELECT team_id FROM team_members WHERE user_id = get_current_user_id()
+    SELECT team_id FROM team_members WHERE user_id IN (SELECT get_my_profile_ids())
   ));
 
 -- INSERT/UPDATE via service role (webhook handler)
 ```
 
-### Migration depuis les tables existantes
+### Cohabitation des tables
 
-Les tables `ai_phone_numbers`, `ai_phone_calls`, `ai_phone_usage` de Phase 1 (telephone)
-restent en place pour l'historique. Les nouvelles tables `ai_whatsapp_*` sont independantes.
+| Table | Canal | Role |
+|-------|-------|------|
+| `ai_team_numbers` | Les deux | Config numero unifiee (1 par equipe) — rename de `ai_phone_numbers` |
+| `ai_phone_calls` | Telephone | Logs des appels vocaux ElevenLabs (transcript, duree, etc.) |
+| `ai_phone_usage` | Telephone | Usage mensuel en minutes (facturation voix) |
+| `ai_whatsapp_sessions` | WhatsApp | Sessions de conversation async (messages, extracted_data) |
+| `ai_whatsapp_usage` | WhatsApp | Usage mensuel en conversations (facturation texte) |
 
-**Migration v1→v2 (Telnyx→Twilio) :** Si des numeros Telnyx existaient en v1, migrer :
-
-```sql
--- Migration : Telnyx → Twilio (si applicable)
--- 1. Ajouter les nouvelles colonnes
-ALTER TABLE ai_whatsapp_numbers ADD COLUMN provisioning_mode TEXT NOT NULL DEFAULT 'managed'
-  CHECK (provisioning_mode IN ('managed', 'byon'));
-ALTER TABLE ai_whatsapp_numbers ADD COLUMN twilio_number_sid TEXT;
-ALTER TABLE ai_whatsapp_numbers ADD COLUMN status TEXT NOT NULL DEFAULT 'active'
-  CHECK (status IN ('pending', 'verifying', 'active', 'suspended'));
-
--- 2. Migrer les numeros existants (marquer comme managed + active)
-UPDATE ai_whatsapp_numbers SET provisioning_mode = 'managed', status = 'active';
-
--- 3. Supprimer l'ancienne colonne Telnyx
-ALTER TABLE ai_whatsapp_numbers DROP COLUMN IF EXISTS telnyx_phone_number_id;
-
--- 4. Supprimer les tables phone (optionnel, si aucune donnee de production)
-DROP TABLE IF EXISTS ai_phone_calls;
-DROP TABLE IF EXISTS ai_phone_usage;
-DROP TABLE IF EXISTS ai_phone_numbers;
-```
+**La colonne `channel`** dans `ai_phone_calls` reste avec les valeurs `phone` uniquement
+apres cette refonte. Les anciens channels WhatsApp (`whatsapp_text`, `whatsapp_voice`, `whatsapp_call`)
+sont geres par `ai_whatsapp_sessions` desormais.
 
 ---
 
@@ -1192,12 +1194,16 @@ async function processWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
 
       const phoneNumberId = metadata.phone_number_id
 
+      // Deduplication (idempotence) — verifier via processed_wamids (TEXT[])
+      // Note: l'ancien pattern .contains('messages', [{ wamid }]) ne fonctionnait pas
+      // car messages stocke [{role, content, timestamp}] sans champ wamid.
+      // Correction: colonne dediee processed_wamids + operateur @> sur array.
       for (const message of messages) {
-        // Deduplication (idempotence) — ignorer les messages deja traites
         const { data: existing } = await supabase
           .from('ai_whatsapp_sessions')
           .select('id')
-          .contains('messages', [{ wamid: message.id }])
+          .contains('processed_wamids', [message.id])
+          .eq('contact_phone', message.from)
           .limit(1)
 
         if (existing?.length) continue // Message deja traite
@@ -1205,7 +1211,7 @@ async function processWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
 
       // 1. Identifier l'equipe via le numero
       const phoneRecord = await supabase
-        .from('ai_whatsapp_numbers')
+        .from('ai_team_numbers')
         .select('id, team_id, custom_instructions')
         .eq('whatsapp_phone_number_id', phoneNumberId)
         .eq('is_active', true)
@@ -1243,7 +1249,7 @@ async function processWhatsAppWebhook(payload: WhatsAppWebhookPayload) {
 
 > **IMPORTANT — Repository Pattern :** Les exemples ci-dessus utilisent des appels Supabase directs
 > pour la clarte. L'implementation DOIT utiliser le Repository Pattern :
-> - `WhatsAppNumberRepository` pour `ai_whatsapp_numbers`
+> - `TeamNumberRepository` pour `ai_team_numbers` (ou extension de l'existant)
 > - `WhatsAppSessionRepository` pour `ai_whatsapp_sessions`
 > - `InterventionRepository` (existant) pour la creation d'interventions
 > - `UserRepository` / `TeamMemberRepository` (existants) pour l'identification locataire
@@ -1256,6 +1262,9 @@ async function sendWhatsAppMessage(
   to: string,
   text: string
 ) {
+  // Normaliser le numero : Meta attend sans '+' (ex: '32498123456')
+  const normalizedTo = to.replace(/\D/g, '')
+
   const response = await fetch(
     `https://graph.facebook.com/v23.0/${phoneNumberId}/messages`,
     {
@@ -1267,7 +1276,7 @@ async function sendWhatsAppMessage(
       body: JSON.stringify({
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
-        to,
+        to: normalizedTo,
         type: 'text',
         text: { body: text }
       }),
@@ -1280,6 +1289,8 @@ async function sendWhatsAppMessage(
   }
 }
 
+// Note: messageId doit etre le wamid complet (ex: 'wamid.XXXXXXXXXXXX')
+// tel que recu dans le payload webhook — ne pas le tronquer/modifier.
 async function markAsRead(phoneNumberId: string, messageId: string) {
   await fetch(
     `https://graph.facebook.com/v23.0/${phoneNumberId}/messages`,
@@ -1318,20 +1329,21 @@ async function completeSession(session: WhatsAppSession) {
     session.team_id
   )
 
-  // 2. Creer l'intervention
-  const { data: intervention } = await supabase
-    .from('interventions')
-    .insert({
-      team_id: session.team_id,
-      title: `[WhatsApp AI] ${session.extracted_data.problem_description?.substring(0, 80)}`,
-      description: buildInterventionDescription(session),
-      status: 'demande',
-      source: 'whatsapp_ai',    // Nouveau source type
-      reported_by: identifiedUser?.id || null,
-      // lot_id: auto-detect si possible via adresse
-    })
-    .select('id')
-    .single()
+  // 2. Creer l'intervention via InterventionRepository (pas d'insert direct)
+  // Aligne sur le pattern ElevenLabs : reference auto-generee, type obligatoire,
+  // service role client, skipInitialSelect pour performance.
+  const interventionRepo = new InterventionRepository(supabase)
+  const intervention = await interventionRepo.create({
+    team_id: session.team_id,
+    reference: generateInterventionReference(), // Format: INT-YYMMDDHHmmss-XXX
+    title: `[WhatsApp AI] ${session.extracted_data.problem_description?.substring(0, 80)}`,
+    description: buildInterventionDescription(session),
+    status: 'demande',
+    type: session.extracted_data.type || 'autre', // Derive de extracted_data ou fallback
+    source: 'whatsapp_ai',    // Enum: 'web' | 'phone_ai' | 'whatsapp_ai'
+    reported_by: identifiedUser?.id || null,
+    // lot_id: auto-detect si possible via adresse
+  }, { skipInitialSelect: true })
 
   // 3. Generer le PDF rapport
   const pdfPath = await generateCallReportPdf(session, intervention.id)
@@ -1573,7 +1585,7 @@ Gestionnaire souscrit add-on WhatsApp IA (Stripe checkout)
   |     POST .../register                        |
   |                                              |
   |  5. Sauver en DB                             |
-  |     INSERT INTO ai_whatsapp_numbers          |
+  |     INSERT INTO ai_team_numbers               |
   |     (provisioning_mode = 'managed')          |
   +---------------------------------------------+
 ```
@@ -1774,7 +1786,7 @@ Reutiliser l'architecture Stripe existante (Billing Meters) :
 
 | # | Story | Description | Effort |
 |---|-------|-------------|--------|
-| US-001 | Schema DB | Tables `ai_whatsapp_numbers`, `ai_whatsapp_sessions`, `ai_whatsapp_usage` + RLS + index | S |
+| US-001 | Schema DB | Extension `ai_team_numbers` + tables `ai_whatsapp_sessions`, `ai_whatsapp_usage` + RLS + index | S |
 | US-002 | Webhook verification | GET handler pour Meta webhook verification | XS |
 | US-003 | Webhook handler | POST handler avec HMAC, parsing payload, routing equipe | M |
 | US-004 | Conversation engine | Session management, appel Claude, historique, extraction donnees | L |
@@ -1888,6 +1900,29 @@ Le copy passe de "telephone + WhatsApp" a "WhatsApp" :
 
 ---
 
+## Risques et recommandations
+
+> Issues integrees depuis la revue technique independante (mars 2026).
+
+### Reglementation Twilio Belgique (Mode A)
+Les guidelines Twilio exigent des justificatifs (extrait BCE, preuve d'adresse, etc.) pour les numeros belges. Valider en amont : eligibilite du compte et documentation requise avant de commander un numero.
+
+### Verification d'entreprise Meta
+Sans verification Meta, le sandbox limite a 5 destinataires. L'ordre recommande (Business Manager → verification → numeros) est correct. Prevoir 1-2 jours ouvrables.
+
+### Gestion des erreurs Claude
+Ajouter un try/catch autour de l'appel Claude + message de repli du type "Desole, une erreur s'est produite. Reessayez dans quelques instants." Couvrir les cas : rate limit (429), timeout, crash.
+
+### Timeout de session (2h)
+La fermeture de session apres 2h sans reponse necessite un job CRON ou worker qui parcourt les sessions `active` avec `last_message_at < now() - interval '2 hours'` et les ferme. Prevoir un cron Supabase ou Vercel.
+
+### Clarifications techniques
+- **`phone_number_id` vs `whatsapp_phone_number_id`** : `whatsapp_phone_number_id` = ID Meta, `phone_number_id` = cle interne (UUID FK). Coherent.
+- **`createInterventionNotification`** : Verifier le nom exact (action vs fonction) dans `notification-actions.ts` avant implementation.
+- **PDF rapport** : Reutiliser ou adapter le service `call-report-pdf.service.tsx` existant (ElevenLabs phone). Logique commune a extraire si necessaire.
+
+---
+
 ## Fichiers principaux (implementation)
 
 | Fichier | Role |
@@ -1900,16 +1935,16 @@ Le copy passe de "telephone + WhatsApp" a "WhatsApp" :
 | `lib/services/domain/ai-whatsapp/meta-whatsapp-number.service.ts` | Meta WABA number registration |
 | `app/api/webhooks/twilio-verification/route.ts` | Webhook for Twilio SMS verification (Mode A) |
 | `lib/services/domain/ai-whatsapp/session.repository.ts` | CRUD sessions (Supabase) |
-| `lib/services/domain/ai-whatsapp/whatsapp-number.repository.ts` | CRUD numeros WhatsApp |
+| `lib/services/domain/ai-phone/team-number.repository.ts` | CRUD numeros unifies (extend existant) |
 | `lib/services/domain/ai-whatsapp/call-report-pdf.service.tsx` | Generation PDF rapport |
 | `app/gestionnaire/(with-navbar)/parametres/assistant-ia/page.tsx` | Page settings gestionnaire |
 | `components/settings/whatsapp-ai-settings.tsx` | Composant settings UI |
 
 ---
 
-**Predecesseur :** `docs/AI/ai-phone-assistant-plan.md` (v3.6 — phone + WhatsApp via ElevenLabs)
-**Self-service design :** Adapter `docs/AI/ai-phone-self-service-design.md` pour WhatsApp-only
+**Predecesseur :** Section 14 de `ai-phone-assistant-plan.md` v3.6 (WhatsApp via ElevenLabs — ABANDONNE)
+**Telephone :** Le canal telephonique reste gere par `ai-phone-assistant-plan.md` (ElevenLabs + Telnyx)
+**Review technique :** Integree dans ce document (v2.1) — l'ancien fichier `ai-whatsapp-agent-plan-review.md` a ete fusionne ici
 
-> Ce plan remplace le plan telephone pour toute nouvelle implementation.
-> L'implementation existante (tables `ai_phone_*`, webhook ElevenLabs) reste en place
-> comme reference mais ne sera pas etendue.
+> Ce plan couvre le canal WhatsApp uniquement (setup custom, sans ElevenLabs).
+> L'implementation telephone existante (tables `ai_phone_*`, webhook ElevenLabs) est independante.

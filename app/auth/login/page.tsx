@@ -36,7 +36,7 @@ interface LoginPageProps {
 }
 
 // Erreurs OAuth possibles
-const OAUTH_ERRORS = ['oauth_error', 'missing_code', 'exchange_failed', 'no_session', 'exception'] as const
+const OAUTH_ERRORS = ['oauth_error', 'missing_code', 'exchange_failed', 'no_session', 'exception', 'invite_only'] as const
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   // ✅ SERVER COMPONENT: Traitement des paramètres URL côté serveur (Next.js 15+)
@@ -137,9 +137,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       )}
 
       {showOAuthError && (
-        <Alert variant="destructive" className="mb-4 bg-red-500/10 border-red-500/30 text-red-200">
+        <Alert variant="destructive" className={`mb-4 ${params.error === 'invite_only' ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' : 'bg-red-500/10 border-red-500/30 text-red-200'}`}>
           <AlertDescription>
-            <strong>Erreur d'authentification Google</strong><br />
+            <strong>{params.error === 'invite_only' ? 'Acces sur invitation' : 'Erreur d\'authentification Google'}</strong><br />
             {oauthErrorMessage || (
               <>
                 {params.error === 'oauth_error' && 'Une erreur est survenue lors de l\'authentification.'}
@@ -147,6 +147,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 {params.error === 'exchange_failed' && 'Échec de l\'échange du code d\'authentification.'}
                 {params.error === 'no_session' && 'Session non établie.'}
                 {params.error === 'exception' && 'Erreur interne. Veuillez réessayer.'}
+                {params.error === 'invite_only' && 'L\'acces a SEIDO se fait sur invitation. Demandez votre acces sur la page d\'inscription.'}
               </>
             )}
           </AlertDescription>

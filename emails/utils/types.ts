@@ -151,6 +151,23 @@ export interface BetaAccessRequestEmailProps {
 }
 
 /**
+ * Props pour le template "Trial prolonge"
+ * Envoye au gestionnaire admin quand l'admin prolonge le trial
+ */
+export interface TrialExtendedEmailProps {
+  /** Prenom du gestionnaire */
+  firstName: string
+  /** Nom de l'equipe */
+  teamName: string
+  /** Nouvelle date de fin de trial */
+  newTrialEnd: Date
+  /** Nombre de jours ajoutes */
+  daysAdded: number
+  /** URL du dashboard gestionnaire */
+  dashboardUrl: string
+}
+
+/**
  * Résultat de l'envoi d'un email
  */
 export interface EmailSendResult {

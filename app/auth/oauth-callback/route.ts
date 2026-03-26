@@ -68,6 +68,22 @@ export async function GET(request: NextRequest) {
         status: exchangeError.status
       })
 
+      // Detect invite-only hook rejection (403 from before-user-created hook)
+      const isInviteOnlyBlock = exchangeError.status === 403 ||
+        exchangeError.message?.includes('invitation')
+      if (isInviteOnlyBlock) {
+        logger.warn('[OAUTH-CALLBACK] Blocked by invite-only hook', {
+          email: searchParams.get('email')
+        })
+        return NextResponse.redirect(
+          new URL(
+            '/auth/login?error=invite_only&message=' +
+            encodeURIComponent("L'acces a SEIDO se fait sur invitation. Demandez votre acces sur la page d'inscription."),
+            origin
+          )
+        )
+      }
+
       return NextResponse.redirect(
         new URL(`/auth/login?error=exchange_failed&message=${encodeURIComponent(exchangeError.message)}`, origin)
       )

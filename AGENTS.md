@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-25
-**Total Learnings:** 194
+**Last Updated:** 2026-03-26
+**Total Learnings:** 200
 
 ---
 
@@ -1431,6 +1431,48 @@
 **Example:** `emails/components/email-footer.tsx` — `${EMAIL_CONFIG.appUrl}/privacy` instead of `https://seido-app.com/privacy`
 **When to Use:** Any time you see hardcoded email addresses or app URLs in email templates — always use `EMAIL_CONFIG`
 **Added:** 2026-03-25 | **Source:** Post-domain-migration centralization cleanup
+
+#### Learning #195: PostgREST nested relation returns array — always handle with Array.isArray
+**Problem:** When joining `teams` with `subscriptions` via PostgREST (`select('*, subscriptions(*)')`), the nested result is an array even for 1:1 relationships. Accessing `team.subscriptions.status` silently returns `undefined` instead of the expected value.
+**Solution:** Always unwrap with `Array.isArray(team.subscriptions) ? team.subscriptions[0] : team.subscriptions`. This handles both array (PostgREST) and object (typed) cases. Combine with `as unknown as` cast when PostgREST types don't match your interface.
+**Example:** `app/actions/admin-team-actions.ts:148-150` — `getAdminTeamsWithSubscriptions()`
+**When to Use:** Any PostgREST query with nested `select()` joins, especially 1:1 foreign key relationships
+**Added:** 2026-03-26 | **Source:** Admin Dashboard Redesign + Trial Extension
+
+#### Learning #196: activity_logs action_type is a DB enum — use existing values only
+**Problem:** Tried to use `'trial_extended'` as action_type for activity_logs, but the `activity_action_type` enum only has: `create`, `update`, `delete`, `status_change`, `assign`, `unassign`, `comment`, `upload`, `download`, `invite`, `login`, `settings_change`. Custom values cause a DB constraint violation.
+**Solution:** Use the closest existing enum value (`'update'`) and differentiate via `entity_type` + `metadata` JSON. The metadata field can hold structured context (`{old_end, new_end, days_added, reason}`).
+**Example:** `app/actions/admin-team-actions.ts:227-241` — `extendTeamTrialAction` activity log
+**When to Use:** Any new activity type that doesn't match an existing enum value — check the enum BEFORE coding
+**Added:** 2026-03-26 | **Source:** Admin Dashboard Redesign + Trial Extension
+
+#### Learning #197: Admin getAdminContext() pattern — auth guard + service role in one call
+**Problem:** Admin server actions need both authentication (verify admin role) AND service role client (bypass RLS for cross-team queries). Two separate calls with different error handling.
+**Solution:** Extract `getAdminContext()` helper that returns `{ profile, supabase }` where `profile` comes from `getServerAuthContext('admin')` and `supabase` from `getSupabaseAdmin()`. Fails fast with `isAdminConfigured()` check. Reuse across all admin actions.
+**Example:** `app/actions/admin-team-actions.ts:42-53` — `getAdminContext()`
+**When to Use:** Any admin-only server action that needs cross-team database access
+**Added:** 2026-03-26 | **Source:** Admin Dashboard Redesign + Trial Extension
+
+#### Learning #198: Zod validation on server actions — client validation is insufficient
+**Problem:** Server actions are directly callable (not just via UI forms). Client-side `maxLength` and input validation can be bypassed. `extendTeamTrialAction` accepted raw strings for teamId and date without format validation.
+**Solution:** Add Zod schema validation at the top of server actions. Validate UUID format (`z.string().uuid()`), date format (`z.string().regex(/^\d{4}-\d{2}-\d{2}$/)`), and string length (`z.string().max(200)`). Return early with error message on validation failure.
+**Example:** `app/actions/admin-team-actions.ts` — `ExtendTrialSchema`
+**When to Use:** Any server action accepting user input — especially IDs, dates, and free-text fields
+**Added:** 2026-03-26 | **Source:** Feature evaluator flagged missing input validation
+
+#### Learning #199: count-only queries for dashboard KPIs — zero row transfer
+**Problem:** Dashboard stats only need counts (total teams, active users, etc.), but `select('*')` transfers full row data unnecessarily.
+**Solution:** Use `select('*', { count: 'exact', head: true })` — returns count in HTTP headers with zero row data transferred. Combine with `Promise.all` for parallel KPI fetching. The `count` value is on the response object, not in `.data`.
+**Example:** `app/actions/admin-team-actions.ts` — `getAdminDashboardStats()` with 4 parallel count queries
+**When to Use:** Any dashboard or summary view that only needs aggregate counts, not row data
+**Added:** 2026-03-26 | **Source:** Admin Dashboard Redesign — KPI cards
+
+#### Learning #200: after() with service role client — safe for deferred admin emails
+**Problem:** `after()` closures run post-response when cookies may be stale (Learning #188). But admin trial extension needs to send an email after the response.
+**Solution:** Since admin actions already use `getSupabaseAdmin()` (service role client), the `after()` closure can safely make DB queries without auth cookies. Capture the service role client reference BEFORE the `after()` call. This pattern is safe specifically because service role bypasses auth entirely.
+**Example:** `app/actions/admin-team-actions.ts:246-286` — deferred email in `extendTeamTrialAction`
+**When to Use:** When deferring work with `after()` AND you already have a service role client — no auth cookie concern
+**Added:** 2026-03-26 | **Source:** Admin Dashboard Redesign + Trial Extension
 
 ---
 

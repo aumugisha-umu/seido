@@ -1,201 +1,211 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Building2, Users, Settings, BarChart3, Shield, Database } from "lucide-react"
-import { getServerAuthContext } from '@/lib/server-context'
 import {
-  createServerUserService,
-  createServerInterventionService,
-  createServerBuildingService,
-  createServerStatsService
-} from '@/lib/services'
-import type { Intervention } from '@/lib/services/core/service-types'
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Building2, Users, Wrench, CreditCard, Shield, ArrowRight, Clock } from "lucide-react"
+import Link from "next/link"
+import { getServerAuthContext } from '@/lib/server-context'
+import { getAdminDashboardStats, getAdminTeamsWithSubscriptions } from '@/app/actions/admin-team-actions'
 import { AdminDashboardClient } from "./admin-dashboard-client"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+
 /**
- * 🔐 DASHBOARD ADMIN - SERVER COMPONENT (Migration Server Components)
+ * Admin Dashboard — Server Component
  *
- * Multi-layer security implementation:
- * 1. Route level: getServerAuthContext() centralized auth
- * 2. Data layer: DAL avec authentification
- * 3. UI level: Masquage conditionnel
- * 4. Server actions: Validation dans actions
+ * Real KPIs from DB, trial teams panel, functional quick links.
  */
-
 export default async function AdminDashboard() {
-  // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { user, profile } = await getServerAuthContext('admin')
+  const { profile } = await getServerAuthContext('admin')
 
-  // Initialize services (all stateless factories — parallelize)
-  const [userService, interventionService, buildingService, statsService] = await Promise.all([
-    createServerUserService(),
-    createServerInterventionService(),
-    createServerBuildingService(),
-    createServerStatsService(),
+  // Parallel data fetch
+  const [statsResult, teamsResult] = await Promise.all([
+    getAdminDashboardStats(),
+    getAdminTeamsWithSubscriptions(),
   ])
 
-  // ✅ LAYER 2: Data Layer Security - Récupération données système
-  let systemStats = {
-    totalUsers: 0,
-    totalBuildings: 0,
-    totalInterventions: 0,
-    totalRevenue: 0,
-    usersGrowth: 0,
-    buildingsGrowth: 0,
-    interventionsGrowth: 0,
-    revenueGrowth: 0
-  }
+  const stats = statsResult.success ? statsResult.data : null
+  const allTeams = teamsResult.success ? teamsResult.data || [] : []
+  const trialTeams = allTeams.filter(t => t.subscription_status === 'trialing')
 
-  try {
-    // Récupérer l'utilisateur complet depuis la base de données
-    const userResult = await userService.getByAuthUserId(user.id)
-    const fullUser = userResult.success && userResult.data ? userResult.data : undefined
-
-    // Utiliser StatsService pour les statistiques système
-    logger.info('🔍 [ADMIN-DASHBOARD] Loading system statistics...')
-
-    const systemStatsResult = await statsService.getSystemStats(fullUser as any)
-
-    if (systemStatsResult.success && systemStatsResult.data) {
-      systemStats = {
-        totalUsers: systemStatsResult.data.totalUsers || 0,
-        totalBuildings: systemStatsResult.data.totalBuildings || 0,
-        totalInterventions: systemStatsResult.data.totalInterventions || 0,
-        totalRevenue: systemStatsResult.data.totalRevenue || 0,
-        usersGrowth: systemStatsResult.data.usersGrowth || 0,
-        buildingsGrowth: systemStatsResult.data.buildingsGrowth || 0,
-        interventionsGrowth: systemStatsResult.data.interventionsGrowth || 0,
-        revenueGrowth: systemStatsResult.data.revenueGrowth || 0
-      }
-    } else {
-      // Fallback: récupérer les données directement si StatsService échoue
-      logger.info('📊 [ADMIN-DASHBOARD] Using fallback stats calculation...')
-
-      const [usersResult, buildingsResult, interventionsResult] = await Promise.all([
-        userService.getAll(),
-        buildingService.getAll(),
-        interventionService.getAll()
-      ])
-
-      const totalUsers = usersResult.success ? (usersResult.data?.length || 0) : 0
-      const totalBuildings = buildingsResult.success ? (buildingsResult.data?.length || 0) : 0
-      const allInterventions = interventionsResult.success ? interventionsResult.data : []
-      const totalInterventions = allInterventions?.length || 0
-
-      // Calcul du chiffre d'affaires simulé (basé sur les interventions)
-      const completedInterventions = allInterventions?.filter((i) => i.status === 'cloturee_par_gestionnaire') || []
-      const totalRevenue = completedInterventions.length * 450 // Simulation: 450€ par intervention
-
-      systemStats = {
-        totalUsers,
-        totalBuildings,
-        totalInterventions,
-        totalRevenue,
-        usersGrowth: 12, // Simulation de croissance
-        buildingsGrowth: 8,
-        interventionsGrowth: 15,
-        revenueGrowth: 20
-      }
-    }
-
-    logger.info({ systemStats }, '✅ [ADMIN-DASHBOARD] System stats loaded')
-  } catch (error) {
-    logger.error({ error }, '❌ [ADMIN-DASHBOARD] Error loading system stats')
-    // Les stats par défaut restent (valeurs 0)
+  if (!statsResult.success) {
+    logger.error({ error: statsResult.error }, '[ADMIN-DASHBOARD] Failed to load stats')
   }
 
   return (
-    <>
-      {/* Page Header - Responsive */}
-      <div className="mb-6 lg:mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl lg:text-4xl mb-2">Dashboard Administrateur</h1>
-              <p className="text-slate-600">Gestion globale de la plateforme SEIDO</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="bg-red-100 text-red-800">
-                <Shield className="w-3 h-3 mr-1" />
-                {profile.display_name || profile.name}
-              </Badge>
-              {/* Actions rapides - Composant client sécurisé */}
-              <AdminDashboardClient userId={profile.id} />
-            </div>
-          </div>
+    <div className="px-4 sm:px-6 lg:px-8 py-6">
+      {/* Page Header */}
+
+      <div className="space-y-8">
+        {/* KPI Cards — real data */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Utilisateurs actifs</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{(stats?.activeUsers ?? 0).toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Connectes ces 30 derniers jours</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Equipes</CardTitle>
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{(stats?.totalTeams ?? 0).toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                {trialTeams.length > 0 ? `dont ${trialTeams.length} en essai` : 'Total actives'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Abonnements actifs</CardTitle>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{(stats?.activeSubscriptions ?? 0).toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Subscriptions payantes</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Interventions</CardTitle>
+              <Wrench className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{(stats?.recentInterventions ?? 0).toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Creees ces 30 derniers jours</p>
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="space-y-8">
+        {/* Trial Teams Panel */}
+        {trialTeams.length > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-amber-500" />
+                  Equipes en essai
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {trialTeams.length} equipe{trialTeams.length > 1 ? 's' : ''} en periode d'essai
+                </p>
+              </div>
+              <Link
+                href="/admin/teams?filter=trialing"
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+              >
+                Voir tout
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Equipe</TableHead>
+                    <TableHead>Gestionnaire</TableHead>
+                    <TableHead className="text-right">Lots</TableHead>
+                    <TableHead className="text-right">Jours restants</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {trialTeams.slice(0, 5).map(team => {
+                    const daysLeft = team.trial_end
+                      ? Math.max(0, Math.ceil((new Date(team.trial_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+                      : null
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Utilisateurs Total</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemStats.totalUsers.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+{systemStats.usersGrowth}% ce mois</p>
-          </CardContent>
-        </Card>
+                    return (
+                      <TableRow key={team.id}>
+                        <TableCell className="font-medium">{team.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{team.admin_name || '—'}</TableCell>
+                        <TableCell className="text-right">{team.lot_count}</TableCell>
+                        <TableCell className="text-right">
+                          {daysLeft !== null ? (
+                            <Badge
+                              variant={daysLeft <= 7 ? 'destructive' : daysLeft <= 14 ? 'outline' : 'secondary'}
+                              className={daysLeft <= 7 ? '' : daysLeft <= 14 ? 'border-amber-300 text-amber-700' : ''}
+                            >
+                              {daysLeft}j
+                            </Badge>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Link
+                            href={`/admin/teams?extend=${team.id}`}
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            Etendre
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Bâtiments</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemStats.totalBuildings.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+{systemStats.buildingsGrowth}% ce mois</p>
-          </CardContent>
-        </Card>
+        {/* Quick Links */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link href="/admin/teams" className="block">
+            <Card className="h-full hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className="h-12 w-12 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <Building2 className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-900">Gestion des equipes</p>
+                  <p className="text-sm text-muted-foreground">Equipes, abonnements, trials</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Interventions</CardTitle>
-            <Settings className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{systemStats.totalInterventions.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+{systemStats.interventionsGrowth}% ce mois</p>
-          </CardContent>
-        </Card>
+          <Link href="/admin/users" className="block">
+            <Card className="h-full hover:border-green-300 hover:shadow-md transition-all cursor-pointer">
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className="h-12 w-12 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-900">Gestion utilisateurs</p>
+                  <p className="text-sm text-muted-foreground">Comptes, roles, invitations</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenus</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">€{systemStats.totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+{systemStats.revenueGrowth}% ce mois</p>
-          </CardContent>
-        </Card>
+          <Link href="/admin/parametres" className="block">
+            <Card className="h-full hover:border-purple-300 hover:shadow-md transition-all cursor-pointer">
+              <CardContent className="flex items-center gap-4 p-6">
+                <div className="h-12 w-12 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
+                  <Wrench className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-900">Configuration systeme</p>
+                  <p className="text-sm text-muted-foreground">Parametres, types intervention</p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
       </div>
-
-      {/* Actions rapides */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Actions d'administration</CardTitle>
-          <CardDescription>Gestion globale de la plateforme</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="h-20 flex-col gap-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-center text-blue-800 cursor-pointer hover:bg-blue-100 transition-colors">
-              <Database className="w-6 h-6" />
-              <span className="text-sm font-medium">Gestion des données</span>
-            </div>
-            <div className="h-20 flex-col gap-2 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center text-green-800 cursor-pointer hover:bg-green-100 transition-colors">
-              <Users className="w-6 h-6" />
-              <span className="text-sm font-medium">Gestion utilisateurs</span>
-            </div>
-            <div className="h-20 flex-col gap-2 bg-purple-50 border border-purple-200 rounded-lg flex items-center justify-center text-purple-800 cursor-pointer hover:bg-purple-100 transition-colors">
-              <Settings className="w-6 h-6" />
-              <span className="text-sm font-medium">Configuration système</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      </div>
-    </>
+    </div>
   )
 }

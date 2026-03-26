@@ -94,7 +94,7 @@ export default async function NotificationsPage() {
   const unreadCount = mockNotifications.filter((n) => !n.read).length
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">

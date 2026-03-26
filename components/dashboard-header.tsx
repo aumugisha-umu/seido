@@ -53,6 +53,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
     subtitle: "Administration",
     navigation: [
       { href: "/admin/dashboard", label: "Dashboard", icon: Home },
+      { href: "/admin/teams", label: "Equipes", icon: Building2 },
       { href: "/admin/users", label: "Utilisateurs", icon: Users },
       { href: "/admin/intervention-types", label: "Types intervention", icon: ListTree },
       { href: "/admin/parametres", label: "Paramètres", icon: Settings },

@@ -281,7 +281,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 ---
 
 ## Files Recently Modified
-### 2026-03-25 14:33:09 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/seido-app/.claude/agents/references/seo-data.md`
-- `C:/Users/arthu/Desktop/Coding/seido-app/.claude/agents/seo-strategist.md`
-- `C:/Users/arthu/Desktop/Coding/seido-app/.claude/skills/sp-ralph/SKILL.md`
+### 2026-03-25 19:15:52 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/seido-app/components/contract/contract-form-container.tsx`

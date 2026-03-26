@@ -69,8 +69,11 @@ export async function GET(request: NextRequest) {
       })
 
       // Detect invite-only hook rejection (403 from before-user-created hook)
+      const errorMsg = exchangeError.message || ''
       const isInviteOnlyBlock = exchangeError.status === 403 ||
-        exchangeError.message?.includes('invitation')
+        errorMsg.includes('hook_block_uninvited') ||
+        errorMsg.includes('invitation') ||
+        errorMsg.includes('sur invitation')
       if (isInviteOnlyBlock) {
         logger.warn('[OAUTH-CALLBACK] Blocked by invite-only hook', {
           email: searchParams.get('email')
@@ -84,8 +87,12 @@ export async function GET(request: NextRequest) {
         )
       }
 
+      // Sanitize error message — never expose internal hook URIs or DB details
+      const userMessage = errorMsg.includes('pg-functions://') || errorMsg.includes('hook')
+        ? 'Une erreur est survenue lors de la connexion. Veuillez reessayer.'
+        : exchangeError.message
       return NextResponse.redirect(
-        new URL(`/auth/login?error=exchange_failed&message=${encodeURIComponent(exchangeError.message)}`, origin)
+        new URL(`/auth/login?error=exchange_failed&message=${encodeURIComponent(userMessage)}`, origin)
       )
     }
 

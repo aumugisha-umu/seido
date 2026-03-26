@@ -105,6 +105,52 @@ export interface TeamAdditionEmailProps extends BaseEmailProps {
 }
 
 /**
+ * ═══════════════════════════════════════════════════════════
+ * 🔔 TEMPLATES ADMIN NOTIFICATIONS
+ * ═══════════════════════════════════════════════════════════
+ */
+
+/**
+ * Props pour le template "Demande de démo"
+ * Envoyé aux admins quand un prospect soumet le formulaire de démo
+ */
+export interface DemoRequestEmailProps {
+  /** Nom du prospect */
+  name: string
+  /** Email du prospect */
+  email: string
+  /** Téléphone (optionnel) */
+  phone?: string
+  /** Société (optionnel) */
+  company?: string
+  /** Nombre de lots gérés */
+  lotsCount: string
+  /** Message du prospect */
+  message: string
+}
+
+/**
+ * Props pour le template "Demande d'accès bêta"
+ * Envoyé aux admins quand un professionnel demande l'accès
+ */
+export interface BetaAccessRequestEmailProps {
+  /** Prénom */
+  firstName: string
+  /** Nom */
+  lastName: string
+  /** Email */
+  email: string
+  /** Téléphone */
+  phone: string
+  /** Description de l'activité */
+  message: string
+  /** Adresse IP de la demande */
+  ip: string
+  /** Date/heure de la demande */
+  requestedAt: Date
+}
+
+/**
  * Résultat de l'envoi d'un email
  */
 export interface EmailSendResult {

@@ -147,6 +147,7 @@ export function DemoRequestForm({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    const form = e.currentTarget
     setIsSubmitting(true)
 
     try {
@@ -182,9 +183,20 @@ export function DemoRequestForm({
       if (onSubmit) {
         await onSubmit(data)
       } else {
-        toast.success('Merci ! Notre equipe vous contactera sous 24h.')
+        const res = await fetch('/api/demo-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        })
+
+        if (!res.ok) {
+          throw new Error('API error')
+        }
       }
 
+      toast.success('Merci ! Notre equipe vous contactera sous 24h.')
+      form.reset()
+      setFieldErrors({})
       onSuccess?.()
     } catch (_error) {
       toast.error('Une erreur est survenue. Veuillez réessayer.')
@@ -241,15 +253,15 @@ export function DemoRequestForm({
             <SelectTrigger className={styles.input} aria-labelledby="label-lotsCount">
               <SelectValue placeholder="Selectionner" />
             </SelectTrigger>
-            <SelectContent className="bg-landing-card border-white/20">
-              <SelectItem value="1-10" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">1 - 10 lots</SelectItem>
-              <SelectItem value="11-50" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">11 - 50 lots</SelectItem>
-              <SelectItem value="51-200" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">51 - 200 lots</SelectItem>
-              <SelectItem value="201-500" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">201 - 500 lots</SelectItem>
-              <SelectItem value="501-1000" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">501 - 1 000 lots</SelectItem>
-              <SelectItem value="1001-5000" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">1 001 - 5 000 lots</SelectItem>
-              <SelectItem value="5001-10000" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">5 001 - 10 000 lots</SelectItem>
-              <SelectItem value="10000+" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">10 000+ lots</SelectItem>
+            <SelectContent className="bg-[#1e293b] border-white/20 text-white">
+              <SelectItem value="1-10" className="text-white focus:bg-white/10 focus:text-white">1 - 10 lots</SelectItem>
+              <SelectItem value="11-50" className="text-white focus:bg-white/10 focus:text-white">11 - 50 lots</SelectItem>
+              <SelectItem value="51-200" className="text-white focus:bg-white/10 focus:text-white">51 - 200 lots</SelectItem>
+              <SelectItem value="201-500" className="text-white focus:bg-white/10 focus:text-white">201 - 500 lots</SelectItem>
+              <SelectItem value="501-1000" className="text-white focus:bg-white/10 focus:text-white">501 - 1 000 lots</SelectItem>
+              <SelectItem value="1001-5000" className="text-white focus:bg-white/10 focus:text-white">1 001 - 5 000 lots</SelectItem>
+              <SelectItem value="5001-10000" className="text-white focus:bg-white/10 focus:text-white">5 001 - 10 000 lots</SelectItem>
+              <SelectItem value="10000+" className="text-white focus:bg-white/10 focus:text-white">10 000+ lots</SelectItem>
             </SelectContent>
           </Select>
         </div>

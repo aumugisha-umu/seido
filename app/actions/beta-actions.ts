@@ -12,7 +12,8 @@ import { headers } from 'next/headers'
 import { z } from 'zod'
 import { setBetaAccessCookie } from '@/lib/beta-access'
 import { rateLimiters } from '@/lib/rate-limit'
-import { resend, EMAIL_CONFIG, isResendConfigured } from '@/lib/email/resend-client'
+import { isResendConfigured } from '@/lib/email/resend-client'
+import { emailService } from '@/lib/email/email-service'
 import { logger } from '@/lib/logger'
 
 // ---------------------------------------------------------------------------
@@ -27,26 +28,13 @@ const AccessRequestSchema = z.object({
   firstName: z.string().min(2, 'Prénom requis (minimum 2 caractères)'),
   lastName: z.string().min(2, 'Nom requis (minimum 2 caractères)'),
   email: z.string().email('Email invalide').min(1, 'Email requis'),
-  phone: z.string().optional(),
-  message: z.string().max(500, 'Message trop long (maximum 500 caractères)').optional(),
+  phone: z.string().min(1, 'Téléphone requis'),
+  message: z.string().min(1, 'Description de votre activité requise').max(500, 'Message trop long (maximum 500 caractères)'),
 })
 
 type ActionResult = {
   success: boolean
   error?: string
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
 }
 
 // ---------------------------------------------------------------------------
@@ -132,8 +120,8 @@ export async function submitBetaInterest(
       firstName: formData.get('firstName') as string,
       lastName: formData.get('lastName') as string,
       email: formData.get('email') as string,
-      phone: formData.get('phone') as string || undefined,
-      message: formData.get('message') as string || undefined,
+      phone: formData.get('phone') as string,
+      message: formData.get('message') as string,
     })
 
     const fullName = `${data.firstName} ${data.lastName}`
@@ -146,93 +134,21 @@ export async function submitBetaInterest(
 
     const recipients = getAdminRecipients()
 
-    // Escape all user-provided fields to prevent HTML injection in emails
-    const safe = {
-      firstName: escapeHtml(data.firstName),
-      lastName: escapeHtml(data.lastName),
-      email: escapeHtml(data.email),
-      phone: data.phone ? escapeHtml(data.phone) : null,
-      message: data.message ? escapeHtml(data.message) : null,
-    }
+    const result = await emailService.sendBetaAccessRequestEmail(
+      recipients,
+      {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        message: data.message,
+        ip,
+        requestedAt: new Date(),
+      }
+    )
 
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); color: white; padding: 28px; border-radius: 12px 12px 0 0; }
-            .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
-            .header p { margin: 8px 0 0 0; opacity: 0.85; font-size: 14px; }
-            .content { background: #f9fafb; padding: 28px; border-radius: 0 0 12px 12px; }
-            .field { margin: 12px 0; padding: 14px 16px; background: white; border-radius: 8px; border-left: 3px solid #2563eb; }
-            .field-label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-            .field-value { font-size: 15px; color: #111827; }
-            .field-value a { color: #2563eb; text-decoration: none; }
-            .meta { margin-top: 16px; padding: 12px 16px; background: white; border-radius: 8px; border-left: 3px solid #d1d5db; }
-            .meta .field-value { font-size: 12px; color: #6b7280; }
-            .footer { text-align: center; margin-top: 24px; font-size: 12px; color: #9ca3af; }
-            .cta { display: inline-block; margin-top: 8px; padding: 8px 20px; background: #2563eb; color: white; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 500; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Nouvelle demande d'accès</h1>
-              <p>Un professionnel souhaite rejoindre SEIDO</p>
-            </div>
-            <div class="content">
-              <div class="field">
-                <div class="field-label">Nom</div>
-                <div class="field-value">${safe.firstName} ${safe.lastName}</div>
-              </div>
-              <div class="field">
-                <div class="field-label">Email</div>
-                <div class="field-value"><a href="mailto:${safe.email}">${safe.email}</a></div>
-              </div>
-              ${safe.phone ? `
-              <div class="field">
-                <div class="field-label">Téléphone</div>
-                <div class="field-value"><a href="tel:${safe.phone}">${safe.phone}</a></div>
-              </div>
-              ` : ''}
-              ${safe.message ? `
-              <div class="field">
-                <div class="field-label">Message</div>
-                <div class="field-value">${safe.message}</div>
-              </div>
-              ` : ''}
-              <div class="meta">
-                <div class="field-label">Informations techniques</div>
-                <div class="field-value">
-                  ${new Date().toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })} — IP: ${ip}
-                </div>
-              </div>
-            </div>
-            <div class="footer">
-              <p><strong>Recontacter sous 48h</strong></p>
-              <a class="cta" href="mailto:${safe.email}?subject=Votre demande d'accès à SEIDO">Répondre à ${safe.firstName}</a>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
-
-    const { error } = await resend.emails.send({
-      from: EMAIL_CONFIG.from,
-      to: recipients,
-      subject: `[SEIDO] Demande d'accès — ${data.firstName} ${data.lastName} (${data.email})`,
-      html: emailHtml,
-      tags: [
-        { name: 'type', value: 'access-request' },
-        { name: 'email', value: data.email },
-      ]
-    })
-
-    if (error) {
-      logger.error({ error }, '[ACCESS-GATE] Failed to send notification')
+    if (!result.success) {
+      logger.error({ error: result.error }, '[ACCESS-GATE] Failed to send notification')
       return { success: false, error: 'Erreur lors de l\'envoi. Veuillez réessayer.' }
     }
 

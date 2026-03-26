@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { SignupConfirmationEmailProps } from '@/emails/utils/types'
 
 export const SignupConfirmationEmail = ({
@@ -69,8 +70,8 @@ export const SignupConfirmationEmail = ({
           <Text className="text-gray-600 text-sm leading-relaxed m-0">
             Notre équipe support est disponible pour vous accompagner.
             Contactez-nous à{' '}
-            <Link href="mailto:support@seido.app" className="text-primary no-underline">
-              support@seido.app
+            <Link href={`mailto:${EMAIL_CONFIG.supportEmail}`} className="text-primary no-underline">
+              {EMAIL_CONFIG.supportEmail}
             </Link>
           </Text>
         </div>
@@ -91,7 +92,7 @@ export const SignupConfirmationEmail = ({
 // Props par défaut pour prévisualisation
 SignupConfirmationEmail.PreviewProps = {
   firstName: 'Marie',
-  confirmationUrl: 'https://seido.app/auth/confirm?token_hash=abc123&type=email',
+  confirmationUrl: 'https://seido-app.com/auth/confirm?token_hash=abc123&type=email',
   expiresIn: 60,
 } as SignupConfirmationEmailProps
 

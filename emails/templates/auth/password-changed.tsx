@@ -10,6 +10,7 @@ import { Section, Text, Heading, Link } from '@react-email/components'
 import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { PasswordChangedEmailProps } from '@/emails/utils/types'
 
 export const PasswordChangedEmail = ({
@@ -82,8 +83,8 @@ export const PasswordChangedEmail = ({
           <Text className="text-gray-700 text-sm leading-relaxed m-0">
             Si vous n'êtes pas à l'origine de ce changement, votre compte pourrait
             être compromis. Contactez <strong>immédiatement</strong> notre support à{' '}
-            <Link href="mailto:support@seido.app" className="text-danger no-underline font-semibold">
-              support@seido.app
+            <Link href={`mailto:${EMAIL_CONFIG.supportEmail}`} className="text-danger no-underline font-semibold">
+              {EMAIL_CONFIG.supportEmail}
             </Link>
             {' '}et réinitialisez votre mot de passe.
           </Text>

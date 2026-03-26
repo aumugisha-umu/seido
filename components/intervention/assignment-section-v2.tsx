@@ -43,10 +43,8 @@ import {
 import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { AssignmentModeSelector, type AssignmentMode } from "./assignment-mode-selector"
-import { ProviderInstructionsInput } from "./provider-instructions-input"
 import { ParticipantConfirmationSelector } from "./participant-confirmation-selector"
-import type { BuildingTenantsResult } from "@/app/actions/contract-actions"
+import type { BuildingTenantsResult } from "@/app/actions/contracts"
 
 interface Contact {
   id: string
@@ -91,11 +89,6 @@ interface AssignmentSectionV2Props {
   isLoading?: boolean
   // Nouvelle prop pour ouvrir le modal de sélection
   contactSelectorRef?: RefObject<ContactSelectorRef>
-  // Multi-provider mode props
-  assignmentMode?: AssignmentMode
-  onAssignmentModeChange?: (mode: AssignmentMode) => void
-  providerInstructions?: Record<string, string>
-  onProviderInstructionsChange?: (providerId: string, instructions: string) => void
   // Tenant toggle props (for occupied lots OR buildings)
   showTenantsSection?: boolean
   includeTenants?: boolean
@@ -133,20 +126,22 @@ function TimeSlotPopoverContent({
   onOpenChange?: (open: boolean) => void
 }) {
   const [date, setDate] = useState<Date | undefined>()
-  const [startTime, setStartTime] = useState("09:00")
-  const [endTime, setEndTime] = useState("17:00")
+  const [startTime, setStartTime] = useState("")
+  const [endTime, setEndTime] = useState("")
+  const [showTime, setShowTime] = useState(false)
 
   const handleAdd = () => {
     if (date) {
       onAdd({
         date: format(date, 'yyyy-MM-dd'),
-        startTime,
-        endTime
+        startTime: showTime ? startTime : '',
+        endTime: showTime ? endTime : ''
       })
       // Reset form
       setDate(undefined)
-      setStartTime("09:00")
-      setEndTime("17:00")
+      setStartTime("")
+      setEndTime("")
+      setShowTime(false)
       // Close popover
       onOpenChange?.(false)
     }
@@ -161,7 +156,7 @@ function TimeSlotPopoverContent({
         </div>
         <div>
           <h4 className="font-semibold text-slate-900 text-sm">Ajouter un créneau</h4>
-          <p className="text-xs text-slate-500">Sélectionnez une date et un horaire</p>
+          <p className="text-xs text-slate-500">Sélectionnez une date (horaire optionnel)</p>
         </div>
       </div>
 
@@ -177,19 +172,39 @@ function TimeSlotPopoverContent({
         />
       </div>
 
-      {/* Section Horaires - Design compact avec flèche */}
+      {/* Section Horaires - optionnel avec toggle */}
       <div className="mt-4">
-        <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-3">
-          <div className="flex-1">
-            <span className="text-[10px] uppercase tracking-wide text-slate-400 block mb-1">Début</span>
-            <TimePicker24h value={startTime} onChange={setStartTime} />
+        <label className="flex items-center gap-2 mb-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showTime}
+            onChange={(e) => {
+              setShowTime(e.target.checked)
+              if (!e.target.checked) {
+                setStartTime("")
+                setEndTime("")
+              } else {
+                setStartTime("09:00")
+                setEndTime("17:00")
+              }
+            }}
+            className="w-4 h-4 rounded border-slate-300 text-blue-600"
+          />
+          <span className="text-xs text-slate-600">Préciser un horaire</span>
+        </label>
+        {showTime && (
+          <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-3">
+            <div className="flex-1">
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 block mb-1">Début</span>
+              <TimePicker24h value={startTime} onChange={setStartTime} />
+            </div>
+            <ArrowRight className="h-4 w-4 text-slate-300 flex-shrink-0" />
+            <div className="flex-1">
+              <span className="text-[10px] uppercase tracking-wide text-slate-400 block mb-1">Fin</span>
+              <TimePicker24h value={endTime} onChange={setEndTime} />
+            </div>
           </div>
-          <ArrowRight className="h-4 w-4 text-slate-300 flex-shrink-0" />
-          <div className="flex-1">
-            <span className="text-[10px] uppercase tracking-wide text-slate-400 block mb-1">Fin</span>
-            <TimePicker24h value={endTime} onChange={setEndTime} />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Preview du créneau si date sélectionnée */}
@@ -201,7 +216,7 @@ function TimeSlotPopoverContent({
               {format(date, 'EEEE d MMMM', { locale: fr })}
             </span>
             <span className="text-blue-600">
-              {startTime} - {endTime}
+              {showTime && startTime && endTime ? `${startTime} - ${endTime}` : 'Journée entière'}
             </span>
           </div>
         </div>
@@ -260,7 +275,7 @@ function TimeSlotSection({
                 {formatSlotDate(slot.date)}
               </span>
               <span className="text-blue-600">
-                {slot.startTime || '09:00'} - {slot.endTime || '17:00'}
+                {slot.startTime && slot.endTime ? `${slot.startTime} - ${slot.endTime}` : 'Journée entière'}
               </span>
               <button
                 type="button"
@@ -324,11 +339,6 @@ export function AssignmentSectionV2({
   teamId,
   isLoading = false,
   contactSelectorRef,
-  // Multi-provider mode
-  assignmentMode = 'single',
-  onAssignmentModeChange,
-  providerInstructions = {},
-  onProviderInstructionsChange,
   // Tenant toggle
   showTenantsSection = false,
   includeTenants = true,
@@ -876,7 +886,7 @@ export function AssignmentSectionV2({
               <h3 className="text-base font-semibold text-slate-900">
                 Instructions et messages
               </h3>
-              {(globalMessage || (assignmentMode === 'separate' && Object.values(providerInstructions).some(v => v?.trim()))) && (
+              {globalMessage && (
                 <CheckCircle className="h-4 w-4 text-green-500" />
               )}
             </div>
@@ -889,16 +899,7 @@ export function AssignmentSectionV2({
 
           <CollapsibleContent className="flex-1">
             <div className="px-6 pb-6 space-y-5 border-t pt-4">
-              {/* Assignment Mode Selector - Only show when 2+ providers */}
-              {selectedProviderIds.length > 1 && onAssignmentModeChange && (
-                <AssignmentModeSelector
-                  mode={assignmentMode}
-                  onModeChange={onAssignmentModeChange}
-                  providerCount={selectedProviderIds.length}
-                />
-              )}
-
-              {/* Global Message - Always visible, BEFORE provider-specific */}
+              {/* Global Message */}
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
                   <Send className="h-4 w-4" />
@@ -916,24 +917,10 @@ export function AssignmentSectionV2({
                 </p>
               </div>
 
-              {/* Provider-specific instructions in separate mode */}
-              {assignmentMode === 'separate' && selectedProviderIds.length > 1 && onProviderInstructionsChange && (
-                <ProviderInstructionsInput
-                  providers={selectedProviders.map(p => ({
-                    id: p.id,
-                    name: p.name,
-                    avatar_url: undefined,
-                    speciality: p.speciality
-                  }))}
-                  instructions={providerInstructions}
-                  onInstructionsChange={onProviderInstructionsChange}
-                />
-              )}
-
               <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <Info className="h-4 w-4 text-blue-600 mt-0.5" />
                 <p className="text-xs text-blue-700">
-                  Les instructions ne seront pas visibles par le locataire. Seuls les assignés pourront les consulter.
+                  Les instructions ne seront pas visibles par le locataire. Seuls les contacts invités (ayant un compte) et assignés à l'intervention pourront les consulter.
                 </p>
               </div>
             </div>
@@ -1003,7 +990,7 @@ export function AssignmentSectionV2({
                   />
                   <div className="flex-1">
                     <span className="font-medium text-sm">Date fixe</span>
-                    <p className="text-xs text-slate-600">Définir un créneau précis</p>
+                    <p className="text-xs text-slate-600">Définir une date (heure optionnelle)</p>
                   </div>
                 </label>
 
@@ -1037,7 +1024,7 @@ export function AssignmentSectionV2({
               {/* Conditional content based on selection */}
               {schedulingType === "fixed" && (
                 <div className="space-y-4">
-                  {/* Date & Heure */}
+                  {/* Date & Heure (optionnelle) */}
                   <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
                     <div className="flex flex-col gap-2">
                       <Label className="text-sm font-medium">Date</Label>
@@ -1049,7 +1036,7 @@ export function AssignmentSectionV2({
                       />
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Label className="text-sm font-medium">Heure</Label>
+                      <Label className="text-sm font-medium">Heure <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
                       <TimePicker24h
                         value={fixedDateTime.time}
                         onChange={(time) => onFixedDateTimeChange({ ...fixedDateTime, time })}
@@ -1057,12 +1044,12 @@ export function AssignmentSectionV2({
                     </div>
                   </div>
 
-                  {/* ✅ FIX 2026-01-25: Warning visuel si date/heure manquante */}
-                  {(!fixedDateTime.date || !fixedDateTime.time) && (
+                  {/* Warning si date manquante (heure n'est plus obligatoire) */}
+                  {!fixedDateTime.date && (
                     <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200">
                       <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
                       <p className="text-xs text-amber-700">
-                        Veuillez sélectionner une date et une heure pour continuer
+                        Veuillez sélectionner une date pour continuer
                       </p>
                     </div>
                   )}

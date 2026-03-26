@@ -1,22 +1,23 @@
 "use client"
 
 /**
- * PropertyInterventionsStep - Étape de planification des interventions
- * dans les flux de création d'immeuble et de lot
+ * PropertyInterventionsStep - Planning step for building and lot creation wizards
  *
- * Réutilise InterventionScheduleRow et ContactSelector existants.
- * Affiche :
- * - Interventions techniques recommandées (filtré par entity type)
- * - Interventions pour documents manquants (récupération)
- * - Toggle enable/disable + scheduling dropdown par intervention
- * - Assignation de personnes via ContactSelector
+ * Reuses InterventionScheduleRow and ContactSelector.
+ * Displays:
+ * - Recommended technical reminders/interventions (filtered by entity type)
+ * - Missing document reminders
+ * - Toggle type (intervention/reminder) + recurrence editing per row
+ * - Assignment via ContactSelector
+ * - Custom add popover (intervention or reminder)
  */
 
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
-import { CalendarCheck, FileSearch, PenLine, Plus } from 'lucide-react'
+import { CalendarCheck, FileSearch, Plus, Wrench, Bell } from 'lucide-react'
 
 import { InterventionScheduleRow, type ScheduledInterventionData } from './contract/intervention-schedule-row'
 import ContactSelector, { type ContactSelectorRef } from '@/components/contact-selector'
@@ -24,10 +25,11 @@ import {
   type PropertyEntityType,
   generatePropertyInterventions,
   createEmptyCustomIntervention,
+  createEmptyCustomReminder,
   CUSTOM_DATE_VALUE
 } from '@/lib/constants/property-interventions'
 
-/** Contact minimal passé par le parent */
+/** Contact minimal passed by parent */
 interface AvailableContact {
   id: string
   name: string
@@ -35,27 +37,17 @@ interface AvailableContact {
 }
 
 interface PropertyInterventionsStepProps {
-  /** Type d'entité (building, lot, lot_in_building) */
   entityType: PropertyEntityType
-  /** Interventions planifiées (state remonté au parent) */
   scheduledInterventions: ScheduledInterventionData[]
-  /** Setter pour les interventions (state remonté au parent) */
   onInterventionsChange: React.Dispatch<React.SetStateAction<ScheduledInterventionData[]>>
-  /** Types de documents recommandés manquants */
   missingDocuments: string[]
-  /** Dates d'expiration des documents par type (ISO strings) */
   documentExpiryDates: Record<string, string>
-  /** ID de l'équipe pour le ContactSelector */
   teamId: string
-  /** Tous les contacts de l'équipe */
   availableContacts: AvailableContact[]
-  /** Utilisateur courant (pré-assigné comme gestionnaire) */
   currentUser?: { id: string; name: string }
-  /** Hide the header (title + description) — used when parent renders its own section header */
   hideHeader?: boolean
 }
 
-// Mapping rôle FR → type ContactSelector EN
 const ROLE_TO_CONTACT_TYPE: Record<string, string> = {
   gestionnaire: 'manager',
   locataire: 'tenant',
@@ -75,9 +67,9 @@ const ENTITY_TITLES: Record<PropertyEntityType, string> = {
 }
 
 const ENTITY_DESCRIPTIONS: Record<PropertyEntityType, string> = {
-  building: 'Programmez les interventions techniques liées à cet immeuble.',
-  lot: 'Programmez les interventions techniques liées à ce lot.',
-  lot_in_building: 'Programmez les interventions liées à ce lot.'
+  building: 'Programmez les suivis techniques et rappels lies a cet immeuble.',
+  lot: 'Programmez les suivis techniques et rappels lies a ce lot.',
+  lot_in_building: 'Programmez les suivis lies a ce lot.'
 }
 
 export function PropertyInterventionsStep({
@@ -92,24 +84,22 @@ export function PropertyInterventionsStep({
   hideHeader = false
 }: PropertyInterventionsStepProps) {
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
+  const [addPopoverOpen, setAddPopoverOpen] = useState(false)
 
-  // Track quel intervention + type est en cours d'assignation
   const [activeAssignment, setActiveAssignment] = useState<{
     interventionKey: string
     contactType: string
   } | null>(null)
 
-  // Serialize object/array dependencies to stable strings so the effect only
-  // fires when the actual *values* change, not when the parent creates new refs.
+  // Stable serializations for effect dependencies
   const expiryDatesKey = JSON.stringify(documentExpiryDates)
   const missingDocsKey = JSON.stringify(missingDocuments)
   const currentUserKey = currentUser?.id ?? ''
 
-  // Initialize interventions when inputs change — preserve custom ones
+  // Initialize interventions — propagate itemType + recurrenceRule from templates
   useEffect(() => {
     const results = generatePropertyInterventions(entityType, documentExpiryDates, missingDocuments)
 
-    // Pré-assigner le gestionnaire actuel à chaque intervention
     const defaultAssignedUsers = currentUser
       ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
       : []
@@ -126,7 +116,9 @@ export function PropertyInterventionsStep({
       isAutoCalculated: true,
       availableOptions: options,
       selectedSchedulingOption: defaultOption,
-      assignedUsers: defaultAssignedUsers
+      assignedUsers: defaultAssignedUsers,
+      itemType: template.itemType ?? 'reminder',
+      recurrenceRule: template.recurrenceRule,
     }))
 
     onInterventionsChange(prev => {
@@ -136,35 +128,33 @@ export function PropertyInterventionsStep({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityType, expiryDatesKey, missingDocsKey, currentUserKey])
 
-  // Séparer les interventions custom, standard et documents manquants
-  const { customInterventions, standardInterventions, documentInterventions } = useMemo(() => {
-    const custom = scheduledInterventions.filter(i => i.key.startsWith('custom_'))
-    const standard = scheduledInterventions.filter(i => !i.key.startsWith('retrieve_document_') && !i.key.startsWith('custom_'))
+  // Split into main rows and document rows
+  const { mainRows, documentRows } = useMemo(() => {
+    const main = scheduledInterventions.filter(i => !i.key.startsWith('retrieve_document_'))
     const documents = scheduledInterventions.filter(i => i.key.startsWith('retrieve_document_'))
-    return { customInterventions: custom, standardInterventions: standard, documentInterventions: documents }
+    return { mainRows: main, documentRows: documents }
   }, [scheduledInterventions])
 
-  const hasEmptyCustomTitle = customInterventions.some(i => i.enabled && !i.title.trim())
+  const hasEmptyCustomTitle = mainRows.some(i => i.key.startsWith('custom_') && i.enabled && !i.title.trim())
 
-  // Toggle une intervention
-  const handleToggle = (key: string, enabled: boolean) => {
+  // ─── Handlers ──────────────────────────────────────────────
+
+  const handleToggle = useCallback((key: string, enabled: boolean) => {
     onInterventionsChange(prev =>
       prev.map(i => i.key === key ? { ...i, enabled } : i)
     )
-  }
+  }, [onInterventionsChange])
 
-  // Changer la date d'une intervention (mode Date personnalisée)
-  const handleDateChange = (key: string, date: Date | null) => {
+  const handleDateChange = useCallback((key: string, date: Date | null) => {
     onInterventionsChange(prev =>
       prev.map(i => i.key === key
         ? { ...i, scheduledDate: date, isAutoCalculated: false, selectedSchedulingOption: CUSTOM_DATE_VALUE }
         : i
       )
     )
-  }
+  }, [onInterventionsChange])
 
-  // Changer l'option de planification relative
-  const handleSchedulingOptionChange = (key: string, optionValue: string) => {
+  const handleSchedulingOptionChange = useCallback((key: string, optionValue: string) => {
     onInterventionsChange(prev =>
       prev.map(i => {
         if (i.key !== key) return i
@@ -182,22 +172,42 @@ export function PropertyInterventionsStep({
         }
       })
     )
-  }
+  }, [onInterventionsChange])
 
-  // ─── Custom intervention handlers ──────────────────────────────
-  const handleCustomTitleChange = (key: string, title: string) => {
+  const handleItemTypeChange = useCallback((key: string, newType: 'intervention' | 'reminder') => {
+    onInterventionsChange(prev =>
+      prev.map(i => {
+        if (i.key !== key) return i
+        const updated = { ...i, itemType: newType }
+        if (newType === 'reminder') {
+          updated.assignedUsers = i.assignedUsers.filter(u => u.role === 'gestionnaire')
+        }
+        return updated
+      })
+    )
+  }, [onInterventionsChange])
+
+  const handleRecurrenceChange = useCallback((key: string, rrule: string | null) => {
+    onInterventionsChange(prev =>
+      prev.map(i => i.key === key ? { ...i, recurrenceRule: rrule ?? undefined } : i)
+    )
+  }, [onInterventionsChange])
+
+  // ─── Custom handlers ──────────────────────────────────────
+
+  const handleCustomTitleChange = useCallback((key: string, title: string) => {
     onInterventionsChange(prev =>
       prev.map(i => i.key === key ? { ...i, title, enabled: title.trim().length > 0 } : i)
     )
-  }
+  }, [onInterventionsChange])
 
-  const handleCustomDescriptionChange = (key: string, description: string) => {
+  const handleCustomDescriptionChange = useCallback((key: string, description: string) => {
     onInterventionsChange(prev =>
       prev.map(i => i.key === key ? { ...i, description } : i)
     )
-  }
+  }, [onInterventionsChange])
 
-  const handleAddCustomIntervention = () => {
+  const handleAddCustomIntervention = useCallback(() => {
     onInterventionsChange(prev => {
       const firstCustomIdx = prev.findIndex(i => i.key.startsWith('custom_'))
       const newCustom = createEmptyCustomIntervention(currentUser)
@@ -205,22 +215,27 @@ export function PropertyInterventionsStep({
       result.splice(firstCustomIdx >= 0 ? firstCustomIdx : 0, 0, newCustom)
       return result
     })
-  }
+    setAddPopoverOpen(false)
+  }, [onInterventionsChange, currentUser])
 
-  const handleDeleteCustomIntervention = (key: string) => {
+  const handleAddCustomReminder = useCallback(() => {
+    onInterventionsChange(prev => [...prev, createEmptyCustomReminder(currentUser)])
+    setAddPopoverOpen(false)
+  }, [onInterventionsChange, currentUser])
+
+  const handleDeleteCustom = useCallback((key: string) => {
     onInterventionsChange(prev => prev.filter(i => i.key !== key))
-  }
+  }, [onInterventionsChange])
 
-  // Clic sur un type dans le Popover → ouvrir ContactSelector
+  // ─── Assignment ────────────────────────────────────────────
+
   const handleAssignType = useCallback((interventionKey: string, contactType: string) => {
     setActiveAssignment({ interventionKey, contactType })
-
     requestAnimationFrame(() => {
       contactSelectorRef.current?.openContactModal(contactType, undefined)
     })
   }, [])
 
-  // Construire les selectedContacts pour le ContactSelector basé sur l'intervention active
   const selectedContactsForSelector = useMemo(() => {
     if (!activeAssignment) return {}
     const intervention = scheduledInterventions.find(i => i.key === activeAssignment.interventionKey)
@@ -231,169 +246,153 @@ export function PropertyInterventionsStep({
       const contactType = ROLE_TO_CONTACT_TYPE[user.role]
       if (!contactType) continue
       if (!result[contactType]) result[contactType] = []
-      result[contactType].push({
-        id: user.userId,
-        name: user.name,
-        email: '',
-        type: contactType
-      })
+      result[contactType].push({ id: user.userId, name: user.name, email: '', type: contactType })
     }
     return result
   }, [activeAssignment, scheduledInterventions])
 
-  // Callback quand un contact est sélectionné dans le ContactSelector
   const handleContactSelected = useCallback((contact: { id: string; name: string }, contactType: string) => {
     if (!activeAssignment) return
     const role = CONTACT_TYPE_TO_ROLE[contactType]
     if (!role) return
-
     onInterventionsChange(prev =>
       prev.map(i => {
         if (i.key !== activeAssignment.interventionKey) return i
         if (i.assignedUsers.some(u => u.userId === contact.id)) return i
-        return {
-          ...i,
-          assignedUsers: [...i.assignedUsers, { userId: contact.id, role, name: contact.name }]
-        }
+        return { ...i, assignedUsers: [...i.assignedUsers, { userId: contact.id, role, name: contact.name }] }
       })
     )
   }, [activeAssignment, onInterventionsChange])
 
-  // Callback quand un contact est retiré dans le ContactSelector
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleContactRemoved = useCallback((contactId: string, _contactType: string) => {
     if (!activeAssignment) return
-
     onInterventionsChange(prev =>
       prev.map(i => {
         if (i.key !== activeAssignment.interventionKey) return i
-        return {
-          ...i,
-          assignedUsers: i.assignedUsers.filter(u => u.userId !== contactId)
-        }
+        return { ...i, assignedUsers: i.assignedUsers.filter(u => u.userId !== contactId) }
       })
     )
   }, [activeAssignment, onInterventionsChange])
 
-  // lot_in_building with nothing returns null (parent handles layout)
-  if (standardInterventions.length === 0 && documentInterventions.length === 0 && entityType === 'lot_in_building') {
+  // ─── Render helpers ────────────────────────────────────────
+
+  const renderRow = (intervention: ScheduledInterventionData) => {
+    const isCustom = intervention.key.startsWith('custom_')
+    return (
+      <InterventionScheduleRow
+        key={intervention.key}
+        intervention={intervention}
+        isEditable={isCustom}
+        onToggle={(enabled) => handleToggle(intervention.key, enabled)}
+        onDateChange={(date) => handleDateChange(intervention.key, date)}
+        onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
+        onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
+        onItemTypeChange={(type) => handleItemTypeChange(intervention.key, type)}
+        onRecurrenceChange={(rrule) => handleRecurrenceChange(intervention.key, rrule)}
+        onTitleChange={isCustom ? (t) => handleCustomTitleChange(intervention.key, t) : undefined}
+        onDescriptionChange={isCustom ? (d) => handleCustomDescriptionChange(intervention.key, d) : undefined}
+        onDelete={isCustom ? () => handleDeleteCustom(intervention.key) : undefined}
+        showDelete={isCustom}
+      />
+    )
+  }
+
+  // lot_in_building with nothing returns null
+  if (mainRows.length === 0 && documentRows.length === 0 && entityType === 'lot_in_building') {
     return null
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Header — hidden when parent provides its own section header */}
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       {!hideHeader && (
         <div className="text-center max-w-2xl mx-auto">
           <div className="flex items-center justify-center gap-2 mb-2">
             <CalendarCheck className="h-6 w-6 text-primary" />
             <h2 className="text-2xl font-bold">{ENTITY_TITLES[entityType]}</h2>
           </div>
-          <p className="text-muted-foreground">
-            {ENTITY_DESCRIPTIONS[entityType]}
-          </p>
+          <p className="text-muted-foreground">{ENTITY_DESCRIPTIONS[entityType]}</p>
         </div>
       )}
 
-      {/* Liste des interventions */}
       <div className="max-w-4xl mx-auto">
         <div className="space-y-6 py-2">
-            {/* Custom interventions */}
-            <div className="rounded-lg border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-4 space-y-3">
+          {/* Main rows — unified list with toggle per row */}
+          {mainRows.length > 0 && (
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-indigo-700 flex items-center gap-2">
-                  <PenLine className="h-4 w-4" />
-                  Interventions personnalisées
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <CalendarCheck className="h-4 w-4 text-primary" />
+                  Suivis recommandes
                 </h3>
-                {customInterventions.length > 0 && (
-                  <Button variant="outline" size="sm" onClick={handleAddCustomIntervention} disabled={hasEmptyCustomTitle} className="h-7 text-xs gap-1 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700">
-                    <Plus className="h-3.5 w-3.5" />
-                    Ajouter
-                  </Button>
-                )}
               </div>
-              {customInterventions.length > 0 ? (
-                <div className="space-y-2">
-                  {customInterventions.map((intervention) => (
-                    <InterventionScheduleRow
-                      key={intervention.key}
-                      intervention={intervention}
-                      isEditable
-                      onTitleChange={(title) => handleCustomTitleChange(intervention.key, title)}
-                      onDescriptionChange={(desc) => handleCustomDescriptionChange(intervention.key, desc)}
-                      onToggle={(enabled) => handleToggle(intervention.key, enabled)}
-                      onDateChange={(date) => handleDateChange(intervention.key, date)}
-                      onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
-                      onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
-                      onDelete={() => handleDeleteCustomIntervention(intervention.key)}
-                      showDelete={true}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleAddCustomIntervention}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md hover:bg-indigo-50/50 transition-colors cursor-pointer text-sm text-indigo-600"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span className="font-medium">Planifier une intervention</span>
-                  <span className="text-muted-foreground text-xs">— entretien, réparation, visite...</span>
-                </button>
-              )}
+              <div className="space-y-2">
+                {mainRows.map(renderRow)}
+              </div>
             </div>
+          )}
 
-            {(standardInterventions.length > 0 || documentInterventions.length > 0) && <Separator />}
+          {/* Add custom suivi button */}
+          <div className="flex justify-center">
+            <Popover open={addPopoverOpen} onOpenChange={setAddPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" disabled={hasEmptyCustomTitle} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  Ajouter un suivi
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-3" align="center">
+                <p className="text-sm font-medium mb-2">Ce suivi implique-t-il quelqu&apos;un d&apos;autre ?</p>
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={handleAddCustomIntervention}
+                    className="w-full flex items-start gap-3 p-2.5 rounded-lg hover:bg-indigo-50 transition-colors text-left"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
+                      <Wrench className="h-4 w-4 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Oui — Intervention</p>
+                      <p className="text-xs text-muted-foreground">Implique un prestataire externe</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomReminder}
+                    className="w-full flex items-start gap-3 p-2.5 rounded-lg hover:bg-amber-50 transition-colors text-left"
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                      <Bell className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Non — Rappel</p>
+                      <p className="text-xs text-muted-foreground">Tache interne de gestion</p>
+                    </div>
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
 
-            {/* Interventions standard */}
-            {standardInterventions.length > 0 && (
+          {/* Missing documents */}
+          {documentRows.length > 0 && (
+            <>
+              <Separator />
               <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  Suivis techniques recommandés
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <FileSearch className="h-4 w-4 text-amber-500" />
+                  Documents a recuperer ({documentRows.length})
                 </h3>
                 <div className="space-y-2">
-                  {standardInterventions.map(intervention => (
-                    <InterventionScheduleRow
-                      key={intervention.key}
-                      intervention={intervention}
-                      onToggle={(enabled) => handleToggle(intervention.key, enabled)}
-                      onDateChange={(date) => handleDateChange(intervention.key, date)}
-                      onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
-                      onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
-                    />
-                  ))}
+                  {documentRows.map(renderRow)}
                 </div>
               </div>
-            )}
-
-            {/* Documents manquants */}
-            {documentInterventions.length > 0 && (
-              <>
-                {standardInterventions.length > 0 && <Separator />}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <FileSearch className="h-4 w-4 text-amber-500" />
-                    Documents à récupérer ({documentInterventions.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {documentInterventions.map(intervention => (
-                      <InterventionScheduleRow
-                        key={intervention.key}
-                        intervention={intervention}
-                        onToggle={(enabled) => handleToggle(intervention.key, enabled)}
-                        onDateChange={(date) => handleDateChange(intervention.key, date)}
-                        onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
-                        onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
+            </>
+          )}
         </div>
       </div>
 
-      {/* ContactSelector caché — le Dialog s'ouvre via ref */}
       <ContactSelector
         ref={contactSelectorRef}
         teamId={teamId}

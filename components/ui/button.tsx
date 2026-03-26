@@ -93,7 +93,9 @@ function Button({
         disabled={disabled || isLoading}
         aria-disabled={disabled || isLoading}
         {...props}
-      />
+      >
+        {children}
+      </Comp>
     )
   }
 

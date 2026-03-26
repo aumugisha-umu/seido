@@ -78,27 +78,23 @@ export async function deleteBuildingAction(
     })
 
     const service = await createServerActionBuildingService()
-    const result = await service.delete(buildingId)
+
+    // Capture team_id BEFORE soft delete for revalidation
+    const buildingData = await service.getById(buildingId)
+    const teamId = buildingData.success ? buildingData.data?.team_id : null
+
+    const result = await service.softDelete(buildingId)
 
     if (result.success) {
-      logger.info('✅ [DELETE-BUILDING-ACTION] Building deleted successfully', {
+      logger.info('✅ [DELETE-BUILDING-ACTION] Building soft-deleted successfully', {
         buildingId
       })
 
-      // ✅ Revalidate using both tags and paths
       revalidateTag('buildings')
       revalidateTag(`building-${buildingId}`)
-      // Get team_id from building before deletion if needed
-      const supabase = await createServerActionSupabaseClient()
-      const { data: buildingData } = await supabase
-        .from('buildings')
-        .select('team_id')
-        .eq('id', buildingId)
-        .single()
-      
-      if (buildingData?.team_id) {
-        revalidateTag(`buildings-team-${buildingData.team_id}`)
-        revalidateTag(`lots-team-${buildingData.team_id}`)
+      if (teamId) {
+        revalidateTag(`buildings-team-${teamId}`)
+        revalidateTag(`lots-team-${teamId}`)
       }
       revalidatePath('/gestionnaire/biens')
     } else {

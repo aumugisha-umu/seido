@@ -54,9 +54,8 @@ export interface PlanningData {
   requireQuote?: boolean
   selectedProviders?: string[]
   instructions?: string
-  // Assignment mode & per-provider instructions
+  // Assignment mode
   assignmentMode?: string
-  providerInstructions?: Record<string, string>
   // Confirmation participants
   confirmationRequired?: string[]
   requiresConfirmation?: boolean
@@ -348,8 +347,12 @@ export class InterventionActionsService {
     return result
   }
 
-  async cancelIntervention(intervention: InterventionAction, reason: string): Promise<APIResponse> {
-    if (!reason?.trim()) {
+  async cancelIntervention(intervention: InterventionAction, reasonOrData: string | CancellationData): Promise<APIResponse> {
+    // Accept both a plain string reason and a CancellationData object
+    const cancellationReason = typeof reasonOrData === 'string' ? reasonOrData : reasonOrData.cancellationReason
+    const internalComment = typeof reasonOrData === 'string' ? undefined : reasonOrData.internalComment
+
+    if (!cancellationReason?.trim()) {
       throw new Error("Le motif d'annulation est requis")
     }
 
@@ -362,7 +365,8 @@ export class InterventionActionsService {
       },
       body: JSON.stringify({
         interventionId: intervention.id,
-        cancellationReason: reason
+        cancellationReason: cancellationReason,
+        ...(internalComment && { internalComment }),
       }),
     })
 
@@ -398,95 +402,6 @@ export class InterventionActionsService {
     }
 
     logger.info(`✅ Slot confirmed successfully for intervention: ${result.intervention?.id}`)
-    return result
-  }
-
-  // Méthodes héritées (garder pour compatibilité)
-  async approveInterventionOld(intervention: InterventionAction, data: ApprovalData): Promise<APIResponse> {
-    logger.info(`✅ Approving intervention ${intervention.id}`)
-    logger.info(`📝 Internal comment: ${data.internalComment}`)
-
-    const response = await fetch('/api/intervention-approve', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        interventionId: intervention.id,
-        internalComment: data.internalComment
-      })
-    })
-
-    const result = await response.json()
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || `Erreur lors de l'approbation: ${response.status}`)
-    }
-
-    logger.info(`✅ Intervention approved successfully: ${result.intervention.id}`)
-    return result
-  }
-
-  async rejectInterventionOld(intervention: InterventionAction, data: ApprovalData): Promise<APIResponse> {
-    logger.info(`❌ Rejecting intervention ${intervention.id}`)
-    logger.info(`📝 Rejection reason: ${data.rejectionReason}`)
-    logger.info(`📝 Internal comment: ${data.internalComment}`)
-
-    if (!data.rejectionReason) {
-      throw new Error('Le motif de rejet est requis')
-    }
-
-    const response = await fetch('/api/intervention-reject', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        interventionId: intervention.id,
-        rejectionReason: data.rejectionReason,
-        internalComment: data.internalComment
-      })
-    })
-
-    const result = await response.json()
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || `Erreur lors du rejet: ${response.status}`)
-    }
-
-    logger.info(`❌ Intervention rejected successfully: ${result.intervention.id}`)
-    return result
-  }
-
-  /**
-   * Annulation d'intervention
-   */
-  async cancelInterventionOld(intervention: InterventionAction, data: CancellationData): Promise<APIResponse> {
-    if (!data.cancellationReason?.trim()) {
-      throw new Error("Le motif d'annulation est requis")
-    }
-
-    logger.info(`🚫 Cancelling intervention: ${intervention.id} - "${intervention.title}"`)
-
-    const response = await fetch('/api/intervention-cancel', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        interventionId: intervention.id,
-        cancellationReason: data.cancellationReason,
-        internalComment: data.internalComment,
-      }),
-    })
-
-    const result = await response.json()
-
-    if (!response.ok || !result.success) {
-      throw new Error(result.error || 'Erreur lors de l\'annulation de l\'intervention')
-    }
-
-    logger.info(`🚫 Intervention cancelled successfully: ${result.intervention.id}`)
     return result
   }
 
@@ -761,7 +676,7 @@ export class InterventionActionsService {
       createdAt: intervention.created_at || "",
     })
 
-    return `/gestionnaire/interventions/nouvelle-intervention?${queryParams.toString()}`
+    return `/gestionnaire/operations/nouvelle-intervention?${queryParams.toString()}`
   }
 
   /**

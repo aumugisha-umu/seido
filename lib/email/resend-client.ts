@@ -9,7 +9,7 @@ import { Resend } from 'resend'
 import { logger, logError } from '@/lib/logger'
 
 if (!process.env.RESEND_API_KEY) {
-  console.warn('⚠️ RESEND_API_KEY not configured - email sending will be disabled')
+  logger.warn('RESEND_API_KEY not configured - email sending will be disabled')
 }
 
 /**
@@ -27,12 +27,12 @@ export const EMAIL_CONFIG = {
    * ⚠️ IMPORTANT: Doit être un domaine vérifié dans Resend
    * En développement, utiliser onboarding@resend.dev
    */
-  from: process.env.RESEND_FROM_EMAIL || 'SEIDO <onboarding@resend.dev>',
+  from: process.env.RESEND_FROM_EMAIL || 'SEIDO <notifications@seido-app.com>',
 
   /**
    * Email de support pour les utilisateurs
    */
-  supportEmail: process.env.SUPPORT_EMAIL || 'support@seido.app',
+  supportEmail: process.env.SUPPORT_EMAIL || 'support@seido-app.com',
 
   /**
    * URL de base de l'application
@@ -41,10 +41,15 @@ export const EMAIL_CONFIG = {
   appUrl: (() => {
     const url = process.env.NEXT_PUBLIC_SITE_URL
     if (!url && process.env.NODE_ENV === 'production') {
-      console.error('⚠️ [EMAIL-CONFIG] NEXT_PUBLIC_SITE_URL not set in production!')
+      logger.error('[EMAIL-CONFIG] NEXT_PUBLIC_SITE_URL not set in production!')
     }
     return url || 'http://localhost:3000'
   })(),
+
+  /**
+   * Email de contact général
+   */
+  contactEmail: process.env.CONTACT_EMAIL || 'contact@seido-app.com',
 
   /**
    * Nom de l'application

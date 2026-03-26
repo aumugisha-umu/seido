@@ -264,7 +264,7 @@ function PropertySelectorView({
 
   // Card view for buildings (grid layout)
   const buildingsCardView = (
-    <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6 px-1 pt-1">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
         {loading ? (
           <>
@@ -461,7 +461,7 @@ function PropertySelectorView({
                       </div>
 
                       {(building.lots || []).length > 0 && !isExpanded && (
-                        <div className="grid grid-cols-1 gap-2 animate-in fade-in-0 slide-in-from-top-1 duration-300">
+                        <div className="grid grid-cols-1 gap-2 px-0.5 animate-in fade-in-0 slide-in-from-top-1 duration-300">
                           {(building.lots || []).slice(0, 2).map((lot: Lot) => {
                             const isLotSelected = selectedLotId === lot.id.toString()
                             return (
@@ -585,8 +585,8 @@ function PropertySelectorView({
 
                       {isExpanded && (building.lots || []).length > 0 && (
                         <div className="pt-2 border-t border-slate-100 animate-in fade-in-0 slide-in-from-top-2 duration-300">
-                          <div className="max-h-64 overflow-y-auto overflow-x-hidden rounded-md">
-                            <div className="space-y-2 pr-2">
+                          <div className="max-h-64 overflow-y-auto rounded-md">
+                            <div className="space-y-2 pr-2 px-0.5">
                               {(building.lots || []).map((lot: Lot) => {
                                 const isLotSelected = selectedLotId === lot.id.toString()
                                 return (
@@ -1104,7 +1104,7 @@ function PropertySelectorView({
   // #endregion
   // Card view for individual lots
   const individualLotsCardView = (
-    <div data-property-selector-card-view className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
+    <div data-property-selector-card-view className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6 px-1 pt-1">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
         {filteredIndividualLots.length === 0 ? (
           <div className="col-span-full text-center py-12 px-4">

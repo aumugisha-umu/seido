@@ -23,6 +23,71 @@ import {
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { EmailConnection } from './mailbox-sidebar'
 
+function MultiAddressField({
+  label,
+  placeholder,
+  addresses,
+  onAddressesChange,
+}: {
+  label: string
+  placeholder: string
+  addresses: string[]
+  onAddressesChange: (addresses: string[]) => void
+}) {
+  const [input, setInput] = useState('')
+
+  const handleAdd = useCallback((value: string) => {
+    const parsed = value.split(/[,;\s]+/).map(a => a.trim()).filter(a => a.includes('@'))
+    const newAddresses = parsed.filter(a => !addresses.includes(a))
+    if (newAddresses.length > 0) {
+      onAddressesChange([...addresses, ...newAddresses])
+    }
+    setInput('')
+  }, [addresses, onAddressesChange])
+
+  const handleRemove = useCallback((address: string) => {
+    onAddressesChange(addresses.filter(a => a !== address))
+  }, [addresses, onAddressesChange])
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      if (input.trim()) {
+        handleAdd(input)
+      }
+    }
+  }, [input, handleAdd])
+
+  return (
+    <div className="space-y-1.5">
+      <label className="text-sm font-medium text-foreground">{label}</label>
+      <div className="flex items-center gap-2 flex-wrap">
+        {addresses.map(addr => (
+          <Badge key={addr} variant="secondary" className="text-xs gap-1">
+            {addr}
+            <button
+              type="button"
+              onClick={() => handleRemove(addr)}
+              className="hover:text-destructive"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+        <Input
+          type="email"
+          placeholder={placeholder}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => { if (input.trim()) handleAdd(input) }}
+          className="h-8 text-sm flex-1 min-w-[150px] border-dashed"
+        />
+      </div>
+    </div>
+  )
+}
+
 interface ComposeEmailModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -39,7 +104,7 @@ export function ComposeEmailModal({
   const [connectionId, setConnectionId] = useState('')
   const [to, setTo] = useState('')
   const [ccAddresses, setCcAddresses] = useState<string[]>([])
-  const [ccInput, setCcInput] = useState('')
+  const [bccAddresses, setBccAddresses] = useState<string[]>([])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -55,7 +120,7 @@ export function ComposeEmailModal({
     setSubject('')
     setBody('')
     setCcAddresses([])
-    setCcInput('')
+    setBccAddresses([])
     setIsSending(false)
 
     if (activeConnections.length === 1) {
@@ -66,28 +131,6 @@ export function ComposeEmailModal({
 
     setTimeout(() => toInputRef.current?.focus(), 50)
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleAddCc = useCallback((value: string) => {
-    const addresses = value.split(/[,;\s]+/).map(a => a.trim()).filter(a => a.includes('@'))
-    const newAddresses = addresses.filter(a => !ccAddresses.includes(a))
-    if (newAddresses.length > 0) {
-      setCcAddresses(prev => [...prev, ...newAddresses])
-    }
-    setCcInput('')
-  }, [ccAddresses])
-
-  const handleRemoveCc = useCallback((address: string) => {
-    setCcAddresses(prev => prev.filter(a => a !== address))
-  }, [])
-
-  const handleCcKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      if (ccInput.trim()) {
-        handleAddCc(ccInput)
-      }
-    }
-  }, [ccInput, handleAddCc])
 
   const isValid = connectionId && to.trim() && subject.trim() && body.trim()
 
@@ -100,6 +143,7 @@ export function ComposeEmailModal({
         emailConnectionId: connectionId,
         to: to.trim(),
         cc: ccAddresses.length > 0 ? ccAddresses : undefined,
+        bcc: bccAddresses.length > 0 ? bccAddresses : undefined,
         subject: subject.trim(),
         body: body.trim(),
       })
@@ -116,7 +160,7 @@ export function ComposeEmailModal({
     } finally {
       setIsSending(false)
     }
-  }, [isValid, connectionId, to, ccAddresses, subject, body, onOpenChange, onEmailSent])
+  }, [isValid, connectionId, to, ccAddresses, bccAddresses, subject, body, onOpenChange, onEmailSent])
 
   const title = 'Nouvel email'
 
@@ -128,77 +172,68 @@ export function ComposeEmailModal({
       />
 
       <UnifiedModalBody className="space-y-4">
-        {/* Connection selector */}
-        {activeConnections.length > 1 ? (
-          <div className="space-y-1.5">
+        {/* De + À on the same line */}
+        <div className="flex gap-4 items-end">
+          {/* De (From) */}
+          <div className="w-2/5 space-y-1.5">
             <label className="text-sm font-medium text-foreground">De</label>
-            <Select value={connectionId} onValueChange={setConnectionId}>
-              <SelectTrigger className="w-full bg-white">
-                <SelectValue placeholder="Sélectionner une boîte mail..." />
-              </SelectTrigger>
-              <SelectContent className="z-[10000]">
-                {activeConnections.map(conn => (
-                  <SelectItem key={conn.id} value={conn.id}>
-                    <span className="flex items-center gap-2">
-                      {conn.email_address}
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {conn.provider}
-                      </Badge>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {activeConnections.length > 1 ? (
+              <Select value={connectionId} onValueChange={setConnectionId}>
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue placeholder="Boîte mail..." />
+                </SelectTrigger>
+                <SelectContent className="z-[10000]">
+                  {activeConnections.map(conn => (
+                    <SelectItem key={conn.id} value={conn.id}>
+                      <span className="flex items-center gap-2">
+                        {conn.email_address}
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {conn.provider}
+                        </Badge>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : activeConnections.length === 1 ? (
+              <div className="h-9 flex items-center text-sm text-muted-foreground truncate">
+                {activeConnections[0].email_address}
+              </div>
+            ) : (
+              <div className="text-sm text-destructive">
+                Aucune connexion active
+              </div>
+            )}
           </div>
-        ) : activeConnections.length === 1 ? (
-          <div className="text-sm text-muted-foreground">
-            <strong>De :</strong> {activeConnections[0].email_address}
-          </div>
-        ) : (
-          <div className="text-sm text-destructive">
-            Aucune connexion email active. Configurez une boîte mail dans les paramètres.
-          </div>
-        )}
 
-        {/* To field */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">À</label>
-          <Input
-            ref={toInputRef}
-            type="email"
-            placeholder="destinataire@example.com"
-            value={to}
-            onChange={e => setTo(e.target.value)}
-          />
-        </div>
-
-        {/* CC field */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">Cc</label>
-          <div className="flex items-center gap-2 flex-wrap">
-            {ccAddresses.map(addr => (
-              <Badge key={addr} variant="secondary" className="text-xs gap-1">
-                {addr}
-                <button
-                  type="button"
-                  onClick={() => handleRemoveCc(addr)}
-                  className="hover:text-destructive"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
+          {/* À (To) */}
+          <div className="flex-1 space-y-1.5">
+            <label className="text-sm font-medium text-foreground">À</label>
             <Input
+              ref={toInputRef}
               type="email"
-              placeholder="Ajouter un CC..."
-              value={ccInput}
-              onChange={e => setCcInput(e.target.value)}
-              onKeyDown={handleCcKeyDown}
-              onBlur={() => { if (ccInput.trim()) handleAddCc(ccInput) }}
-              className="h-8 text-sm flex-1 min-w-[150px] border-dashed"
+              placeholder="destinataire@example.com"
+              value={to}
+              onChange={e => setTo(e.target.value)}
             />
           </div>
         </div>
+
+        {/* CC field */}
+        <MultiAddressField
+          label="Cc"
+          placeholder="Ajouter un Cc..."
+          addresses={ccAddresses}
+          onAddressesChange={setCcAddresses}
+        />
+
+        {/* BCC field */}
+        <MultiAddressField
+          label="Cci"
+          placeholder="Ajouter un Cci..."
+          addresses={bccAddresses}
+          onAddressesChange={setBccAddresses}
+        />
 
         {/* Subject field */}
         <div className="space-y-1.5">

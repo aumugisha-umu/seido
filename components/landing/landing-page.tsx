@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -40,8 +41,14 @@ import type { ArticleMeta } from '@/lib/blog'
 function FadeIn({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) {
     const [isVisible, setIsVisible] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
+    const prefersReducedMotion = useReducedMotion()
 
     useEffect(() => {
+        if (prefersReducedMotion) {
+            setIsVisible(true)
+            return
+        }
+
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting) {
@@ -57,12 +64,16 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
         }
 
         return () => observer.disconnect()
-    }, [])
+    }, [prefersReducedMotion])
+
+    if (prefersReducedMotion) {
+        return <div className={className}>{children}</div>
+    }
 
     return (
         <div
             ref={ref}
-            className={`transition-all duration-700 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} ${className}`}
+            className={`transition-[opacity,transform] duration-300 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'} ${className}`}
             style={{ transitionDelay: `${delay}ms` }}
         >
             {children}
@@ -79,7 +90,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
     const [lotCount, setLotCount] = useState(3)
 
     return (
-        <div className="min-h-screen bg-[#0f172a] text-white selection:bg-purple-500 selection:text-white">
+        <div className="min-h-screen bg-slate-950 text-white selection:bg-purple-500 selection:text-white">
             {/* Background Gradients */}
             <div className="fixed inset-0 z-0 pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[120px]" />
@@ -92,11 +103,11 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
             <main>
             {/* Hero Section - Background Video with Overlay */}
-            <section className="relative z-10 min-h-[600px] md:min-h-[calc(100vh-73px)] flex items-center justify-start overflow-hidden">
+            <section className="relative z-10 min-h-[600px] md:min-h-[calc(100dvh-73px)] flex items-center justify-start overflow-hidden">
                 {/* Background Video - Desktop only, Image on mobile */}
-                <div className="absolute inset-0 z-0 bg-[#131426]">
+                <div className="absolute inset-0 z-0 bg-slate-950">
                     {/* Mobile: Static gradient background */}
-                    <div className="block md:hidden absolute inset-0 bg-gradient-to-br from-[#0f1629] via-[#1a1f3a] to-[#0f172a]" />
+                    <div className="block md:hidden absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
                     
                     {/* Desktop: Video background */}
                     <video
@@ -112,8 +123,8 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </video>
                     
                     {/* Gradient Overlay - Darker on left for text readability, transparent on right to show video */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#131426]/95 via-[#131426]/70 md:via-[#131426]/60 to-[#131426]/80 md:to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#131426]/40 via-transparent to-[#131426]/60" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/70 md:via-slate-950/60 to-slate-950/80 md:to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/60" />
                 </div>
 
                 <div className="container mx-auto px-4 py-12 md:py-0 relative z-10">
@@ -123,7 +134,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             <span className="block text-white">
                                 La gestion locative
                             </span>
-                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-300">
+                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-300 to-cyan-300 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">
                                 en toute sérénité
                             </span>
                         </h1>
@@ -183,7 +194,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <div className="grid md:grid-cols-3 gap-8 text-center mb-8">
                     <FadeIn delay={0}>
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors">
-                            <div className="landing-h1 text-red-400 mb-2">
+                            <div className="landing-h1 text-red-400 mb-2 tabular-nums">
                                 <CountUp end={40} suffix="%" />
                             </div>
                             <div className="landing-body text-white/80 font-medium">de votre temps <strong>englouti</strong> par les urgences</div>
@@ -191,7 +202,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </FadeIn>
                     <FadeIn delay={100}>
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors">
-                            <div className="landing-h1 text-red-400 mb-2">
+                            <div className="landing-h1 text-red-400 mb-2 tabular-nums">
                                 <CountUp end={36000} suffix="€" separator=" " />
                             </div>
                             <div className="landing-body text-white/80 font-medium"><strong>partis en fumée</strong> chaque année</div>
@@ -199,7 +210,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </FadeIn>
                     <FadeIn delay={200}>
                         <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm hover:bg-white/10 transition-colors">
-                            <div className="landing-h1 text-red-400 mb-2">
+                            <div className="landing-h1 text-red-400 mb-2 tabular-nums">
                                 <CountUp end={2} suffix="h" />
                             </div>
                             <div className="landing-body text-white/80 font-medium"><strong>récupérables par jour</strong> avec le bon outil</div>
@@ -208,7 +219,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 </div>
 
                 <FadeIn delay={300}>
-                    <p className="text-center landing-caption text-white/40 max-w-2xl mx-auto italic mb-16">
+                    <p className="text-center text-sm leading-relaxed text-white/40 max-w-2xl mx-auto italic mb-16">
                         Sur base d'un gestionnaire avec 100 biens en gestion et un taux horaire brut de 45€ (moyenne belge, source Federia/IPI)
                     </p>
                 </FadeIn>
@@ -228,12 +239,12 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 {/* Loop Flow Diagram */}
                 {(() => {
                     const loopSteps = [
-                        { icon: Phone, label: 'Déclencheur', sublabel: 'Appel / email / WhatsApp' },
-                        { icon: Search, label: 'Recherche', sublabel: "Où est l'info ?" },
-                        { icon: Send, label: 'Transmission', sublabel: 'Vous transmettez' },
-                        { icon: Clock, label: 'Attente', sublabel: 'Silence radio' },
-                        { icon: RefreshCw, label: 'Relance', sublabel: 'Vous relancez' },
-                        { icon: RotateCcw, label: 'Recommence', sublabel: 'Retour case départ' },
+                        { icon: Phone, label: 'Déclencheur', sublabel: 'Appel / email / WhatsApp', ariaLabel: 'Appel ou email reçu' },
+                        { icon: Search, label: 'Recherche', sublabel: "Où est l'info ?", ariaLabel: "Recherche d'information" },
+                        { icon: Send, label: 'Transmission', sublabel: 'Vous transmettez', ariaLabel: 'Transmission du message' },
+                        { icon: Clock, label: 'Attente', sublabel: 'Silence radio', ariaLabel: 'Attente de réponse' },
+                        { icon: RefreshCw, label: 'Relance', sublabel: 'Vous relancez', ariaLabel: 'Relance manuelle' },
+                        { icon: RotateCcw, label: 'Recommence', sublabel: 'Retour case départ', ariaLabel: 'Retour au début' },
                     ]
                     const isPain = (i: number) => i >= 3
                     return (
@@ -247,8 +258,8 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                             <div key={i} className="flex items-start flex-1">
                                                 {/* Step */}
                                                 <div className="flex flex-col items-center text-center flex-1">
-                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 transition-colors ${isPain(i) ? 'bg-red-500/15 border border-red-500/30' : 'bg-white/10 border border-white/10'}`}>
-                                                        <step.icon className={`w-6 h-6 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} />
+                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 transition-colors ${isPain(i) ? 'bg-red-500/15 border border-red-500/30' : 'bg-white/10 border border-white/10'}`} role="img" aria-label={step.ariaLabel}>
+                                                        <step.icon className={`w-6 h-6 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} aria-hidden="true" />
                                                     </div>
                                                     <span className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isPain(i) ? 'text-red-400' : 'text-white/80'}`}>
                                                         {step.label}
@@ -283,8 +294,8 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                         {loopSteps.map((step, i) => (
                                             <div key={i} className="relative flex items-start gap-4 mb-6">
                                                 {/* Node on rail */}
-                                                <div className={`absolute -left-6 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isPain(i) ? 'bg-red-500/15 border border-red-500/30' : 'bg-white/10 border border-white/10'}`}>
-                                                    <step.icon className={`w-5 h-5 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} />
+                                                <div className={`absolute -left-6 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isPain(i) ? 'bg-red-500/15 border border-red-500/30' : 'bg-white/10 border border-white/10'}`} role="img" aria-label={step.ariaLabel}>
+                                                    <step.icon className={`w-5 h-5 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} aria-hidden="true" />
                                                 </div>
                                                 {/* Text */}
                                                 <div className="pt-1">
@@ -326,18 +337,18 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 {/* Gestionnaire Hero Card */}
                 <div id="roles" className="mb-16">
                     <FadeIn delay={0}>
-                        <div className="relative group rounded-3xl overflow-hidden hover:-translate-y-2 transition-transform duration-500">
+                        <div className="relative group rounded-3xl overflow-hidden hover:-translate-y-2 hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300">
                             {/* Gradient glow effect */}
-                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 rounded-3xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity duration-500" />
-                            <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative p-8 md:p-10 bg-[#1e293b]/70 border border-blue-500/30 backdrop-blur-md">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 rounded-3xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity duration-300" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <div className="relative p-8 md:p-10 bg-slate-800/70 border border-blue-500/30 backdrop-blur-md">
                                 <div className="flex items-center gap-3 mb-6">
                                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center">
                                         <Building2 className="w-6 h-6 text-white" />
                                     </div>
                                     <div>
                                         <h3 className="landing-h3 text-white">Fini la recherche. Fini l&apos;attente.</h3>
-                                        <p className="landing-caption text-blue-300">L&apos;info est là avant même que vous la cherchiez.</p>
+                                        <p className="text-sm leading-relaxed text-blue-300">L&apos;info est là avant même que vous la cherchiez.</p>
                                     </div>
                                 </div>
                                 <ul className="grid md:grid-cols-3 gap-4">
@@ -354,7 +365,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                         <span><strong className="line-through text-red-400/60 mr-1">Relance</strong> <strong>→ Devis en 2 clics</strong> — demander, comparer, valider. Sans email.</span>
                                     </li>
                                 </ul>
-                                <p className="mt-6 landing-caption text-white/40">+ tableaux de bord, chat intégré, pilotage prestataires — chaque boucle se ferme en quelques clics.</p>
+                                <p className="mt-6 text-sm leading-relaxed text-white/40">+ tableaux de bord, chat intégré, pilotage prestataires — chaque boucle se ferme en quelques clics.</p>
                             </div>
                         </div>
                     </FadeIn>
@@ -375,14 +386,14 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <div className="grid md:grid-cols-2 gap-8 mb-16">
                     {/* Portail Prestataire - Benefice gestionnaire */}
                     <FadeIn delay={150} className="h-full">
-                        <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 transition-transform duration-500">
-                            <div className="absolute inset-0 bg-gradient-to-b from-green-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative p-8 bg-[#1e293b]/50 border border-white/10 backdrop-blur-md h-full">
+                        <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 hover:shadow-xl hover:shadow-white/5 transition-all duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-b from-green-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <div className="relative p-8 bg-slate-800/50 border border-white/10 backdrop-blur-md h-full">
                                 <div className="flex items-center gap-3 mb-4">
                                     <Wrench className="w-8 h-8 text-green-400" />
                                     <div>
                                         <h3 className="landing-h4 text-white">Le Portail Prestataire</h3>
-                                        <p className="landing-caption text-green-400/80">Coupe les étapes 3 à 5 : transmission, attente, relance.</p>
+                                        <p className="text-sm leading-relaxed text-green-400/80">Coupe les étapes 3 à 5 : transmission, attente, relance.</p>
                                     </div>
                                 </div>
                                 <p className="landing-body-sm text-white/60 mb-5">Le prestataire agit et met à jour — vous n&apos;êtes plus le relais.</p>
@@ -401,7 +412,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     </li>
                                 </ul>
                                 <div className="mt-5 pt-4 border-t border-white/10">
-                                    <p className="landing-caption text-white/40">→ Vous ne transmettez plus, vous ne relancez plus</p>
+                                    <p className="text-sm leading-relaxed text-white/40">→ Vous ne transmettez plus, vous ne relancez plus</p>
                                 </div>
                             </div>
                         </div>
@@ -409,14 +420,14 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
                     {/* Portail Locataire - Benefice gestionnaire */}
                     <FadeIn delay={250} className="h-full">
-                        <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 transition-transform duration-500">
-                            <div className="absolute inset-0 bg-gradient-to-b from-orange-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative p-8 bg-[#1e293b]/50 border border-white/10 backdrop-blur-md h-full">
+                        <div className="relative group rounded-3xl overflow-hidden h-full hover:-translate-y-2 hover:shadow-xl hover:shadow-white/5 transition-all duration-300">
+                            <div className="absolute inset-0 bg-gradient-to-b from-orange-600/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            <div className="relative p-8 bg-slate-800/50 border border-white/10 backdrop-blur-md h-full">
                                 <div className="flex items-center gap-3 mb-4">
                                     <Home className="w-8 h-8 text-orange-400" />
                                     <div>
                                         <h3 className="landing-h4 text-white">Le Portail Locataire</h3>
-                                        <p className="landing-caption text-orange-400/80">Coupe les étapes 1 et 6 : le déclencheur est structuré, plus de recommencement.</p>
+                                        <p className="text-sm leading-relaxed text-orange-400/80">Coupe les étapes 1 et 6 : le déclencheur est structuré, plus de recommencement.</p>
                                     </div>
                                 </div>
                                 <p className="landing-body-sm text-white/60 mb-5">Le locataire signale proprement et suit tout seul — il n&apos;a plus besoin de rappeler.</p>
@@ -435,7 +446,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     </li>
                                 </ul>
                                 <div className="mt-5 pt-4 border-t border-white/10">
-                                    <p className="landing-caption text-white/40">→ Plus de cycle : signaler → résolu, point final</p>
+                                    <p className="text-sm leading-relaxed text-white/40">→ Plus de cycle : signaler → résolu, point final</p>
                                 </div>
                             </div>
                         </div>
@@ -547,7 +558,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </section >
 
             {/* Upcoming Features - Roadmap */}
-            < section className="relative z-10 container mx-auto px-4 py-24 bg-[#1e293b]/30" aria-labelledby="heading-roadmap" >
+            < section className="relative z-10 container mx-auto px-4 py-24 bg-slate-800/30" aria-labelledby="heading-roadmap" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm font-medium mb-6">
@@ -589,7 +600,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     ].map((item, i) => (
                         <FadeIn key={i} delay={i * 100} className="h-full">
                             <div className="relative h-full p-8 rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-sm overflow-hidden group hover:border-blue-500/30 transition-colors duration-300 flex flex-col">
-                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
+                                <div className="absolute top-0 right-0 p-8 opacity-[0.15] group-hover:opacity-25 transition-opacity duration-300">
                                     <item.icon className="w-24 h-24 text-white rotate-12" />
                                 </div>
 
@@ -765,7 +776,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </section >
 
             {/* FAQ Section */}
-            < section id="faq" className="relative z-10 bg-[#1e293b]/30 py-24" aria-labelledby="heading-faq" >
+            < section id="faq" className="relative z-10 bg-slate-800/30 py-24" aria-labelledby="heading-faq" >
                 <div className="container mx-auto px-4">
                     <FadeIn>
                         <div className="text-center mb-12">
@@ -786,7 +797,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                         value={`item-${item.id}`}
                                         className="bg-white/5 border border-white/10 rounded-xl px-6 backdrop-blur-sm hover:bg-white/10 transition-colors"
                                     >
-                                        <AccordionTrigger className="text-left hover:no-underline py-5">
+                                        <AccordionTrigger className="text-left hover:no-underline py-5 [&>svg]:text-white/60">
                                             <span className="landing-body font-semibold text-white pr-4">
                                                 {item.question}
                                             </span>
@@ -888,7 +899,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             </main>
 
             {/* Footer */}
-            < footer className="relative z-10 border-t border-white/10 bg-[#020617] py-12" >
+            < footer className="relative z-10 border-t border-white/10 bg-slate-950 py-12" >
                 <div className="container mx-auto px-4">
                     <div className="grid md:grid-cols-4 gap-8 mb-8">
                         <div>
@@ -902,10 +913,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     className="h-9 w-auto"
                                 />
                             </div>
-                            <p className="landing-caption text-white/40 mb-4">
+                            <p className="text-sm leading-relaxed text-white/40 mb-4">
                                 Moins de boucles. Plus de temps.
                             </p>
-                            <p className="landing-caption text-white/40 text-xs">
+                            <p className="text-sm leading-relaxed text-white/40 text-xs">
                                 © {new Date().getFullYear()} SEIDO. Tous droits réservés.
                             </p>
                         </div>
@@ -953,7 +964,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
             {/* Demo Request Modal */}
             < Dialog open={showDemoModal} onOpenChange={setShowDemoModal} >
-                <DialogContent className="bg-[#1e293b] border-white/10 text-white sm:max-w-lg">
+                <DialogContent className="bg-slate-800 border-white/10 text-white sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold">Demander une démo</DialogTitle>
                         <DialogDescription className="text-white/60">

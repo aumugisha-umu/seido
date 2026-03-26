@@ -18,38 +18,29 @@ import { logger } from '@/lib/logger'
 /** Nom du cookie pour persister le choix d'équipe courante */
 export const CURRENT_TEAM_COOKIE = 'seido_current_team'
 /**
- * ✅ PATTERN 2025 OPTIMISÉ: getUser() avec cache React
+ * ✅ PATTERN 2025: getUser() avec cache React
  * Fonction centrale pour toute vérification auth server-side
  * Cache automatique pendant le cycle de rendu
  *
- * ⚠️ FIX (Jan 2026): ZERO NETWORK CALL OPTIMIZATION
- * Le middleware fait déjà `supabase.auth.getUser()` qui valide le token côté serveur.
- * Dans les pages/layouts, on peut utiliser `getSession()` qui lit le cookie JWT
- * SANS faire d'appel réseau (le token est déjà validé par le middleware).
- *
- * Cette optimisation réduit les appels auth de 2 à 1 par navigation.
+ * ⚠️ FIX (Mar 2026): SECURITY — uses supabase.auth.getUser() which validates
+ * the JWT server-side against Supabase Auth. getSession() only reads the local
+ * cookie without validation and is NOT safe for authorization decisions.
+ * cache() ensures only 1 network call per request despite multiple callers.
  */
 export const getUser = cache(async () => {
   const supabase = await createServerSupabaseClient()
 
   try {
-    // ✅ OPTIMISATION: Utiliser getSession() au lieu de getUser()
-    // getSession() lit le JWT depuis les cookies SANS appel réseau
-    // Le middleware a DÉJÀ validé le token avec getUser()
-    // Donc on peut faire confiance au JWT pour les pages
-    const { data, error } = await supabase.auth.getSession()
+    const { data: { user }, error } = await supabase.auth.getUser()
 
     if (error) {
       if (process.env.NODE_ENV === 'development') {
-        logger.warn('⚠️ [AUTH-DAL] getSession error:', error.message)
+        logger.warn('⚠️ [AUTH-DAL] getUser error:', error.message)
       }
       return null
     }
 
-    // ✅ Spread to bypass Supabase Proxy that warns on .user access
-    // The middleware already validated the token with getUser(), so this is safe
-    const session = data.session ? { ...data.session } : null
-    return session?.user ?? null
+    return user ?? null
   } catch (error) {
     logger.error('❌ [AUTH-DAL] Exception in getUser:', error)
     return null

@@ -212,18 +212,18 @@ export async function POST(request: NextRequest) {
       // Use 'document' or 'status_change' for quote-related notifications
       let url = '/'
       if (type === 'intervention' && related_entity_id) {
-        url = `/gestionnaire/interventions/${related_entity_id}`
+        url = `/gestionnaire/operations/interventions/${related_entity_id}`
       } else if (type === 'assignment' && related_entity_id) {
         url = `/prestataire/interventions/${related_entity_id}`
       } else if (type === 'document' && related_entity_id) {
         // Documents (devis, factures) - redirige vers l'intervention
-        url = `/gestionnaire/interventions/${related_entity_id}`
+        url = `/gestionnaire/operations/interventions/${related_entity_id}`
       } else if (type === 'status_change' && related_entity_id) {
         // Changements de statut - redirige vers l'intervention
-        url = `/gestionnaire/interventions/${related_entity_id}`
+        url = `/gestionnaire/operations/interventions/${related_entity_id}`
       } else if (type === 'chat' && related_entity_id) {
         // Messages chat - redirige vers l'intervention
-        url = `/gestionnaire/interventions/${related_entity_id}`
+        url = `/gestionnaire/operations/interventions/${related_entity_id}`
       } else {
         // Default to notifications page
         url = '/notifications'

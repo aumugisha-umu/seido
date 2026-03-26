@@ -9,13 +9,17 @@ import { SubscriptionRepository } from '@/lib/services/repositories/subscription
 // Chainable Supabase mock builder
 const createChainMock = (resolvedValue: unknown = { data: null, error: null }) => {
   const terminal = vi.fn().mockResolvedValue(resolvedValue)
-  const chain: Record<string, ReturnType<typeof vi.fn>> = {}
+  // Chain is also thenable — PostgREST returns a promise after the last filter
+  const chain: Record<string, ReturnType<typeof vi.fn>> & PromiseLike<unknown> = {
+    then: (resolve: (v: unknown) => unknown) => Promise.resolve(resolvedValue).then(resolve),
+  } as any
 
   chain.select = vi.fn().mockReturnValue(chain)
   chain.insert = vi.fn().mockReturnValue(chain)
   chain.update = vi.fn().mockReturnValue(chain)
   chain.upsert = vi.fn().mockReturnValue(chain)
   chain.eq = vi.fn().mockReturnValue(chain)
+  chain.is = vi.fn().mockReturnValue(chain)
   chain.limit = vi.fn().mockReturnValue(chain)
   chain.maybeSingle = terminal
   chain.single = terminal
@@ -235,19 +239,22 @@ describe('SubscriptionRepository', () => {
   // ── getLotCount ────────────────────────────────────────────────────────
 
   describe('getLotCount', () => {
-    it('returns billable_properties count', async () => {
-      const { chain } = createChainMock({ data: { billable_properties: 12 }, error: null })
+    it('returns live lot count from lots table', async () => {
+      // getLotCount now queries lots table with count: exact, head: true
+      const { chain } = createChainMock({ count: 12, error: null })
       mockFrom.mockReturnValue(chain)
 
       const result = await repo.getLotCount('team-1')
 
-      expect(chain.select).toHaveBeenCalledWith('billable_properties')
+      expect(mockFrom).toHaveBeenCalledWith('lots')
+      expect(chain.select).toHaveBeenCalledWith('*', { count: 'exact', head: true })
       expect(chain.eq).toHaveBeenCalledWith('team_id', 'team-1')
+      expect(chain.is).toHaveBeenCalledWith('deleted_at', null)
       expect(result.data).toBe(12)
     })
 
-    it('returns 0 when subscription not found', async () => {
-      const { chain } = createChainMock({ data: null, error: null })
+    it('returns 0 when no lots exist', async () => {
+      const { chain } = createChainMock({ count: 0, error: null })
       mockFrom.mockReturnValue(chain)
 
       const result = await repo.getLotCount('nonexistent')
@@ -255,8 +262,8 @@ describe('SubscriptionRepository', () => {
       expect(result.data).toBe(0)
     })
 
-    it('returns 0 when billable_properties is null', async () => {
-      const { chain } = createChainMock({ data: { billable_properties: null }, error: null })
+    it('returns 0 when count is null', async () => {
+      const { chain } = createChainMock({ count: null, error: null })
       mockFrom.mockReturnValue(chain)
 
       const result = await repo.getLotCount('team-1')
@@ -266,7 +273,7 @@ describe('SubscriptionRepository', () => {
 
     it('returns 0 with error on DB failure', async () => {
       const dbError = { message: 'Query timeout' }
-      const { chain } = createChainMock({ data: null, error: dbError })
+      const { chain } = createChainMock({ count: null, error: dbError })
       mockFrom.mockReturnValue(chain)
 
       const result = await repo.getLotCount('team-1')

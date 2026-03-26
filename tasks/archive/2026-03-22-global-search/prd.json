@@ -1,0 +1,100 @@
+{
+  "project": "SEIDO",
+  "featureName": "Global Search — Cmd+K Command Palette",
+  "branchName": "feature/bank-module",
+  "description": "Recherche globale accessible depuis le header sur toutes les pages gestionnaire. Cmd+K ouvre une command palette permettant de trouver contacts, interventions, contrats, patrimoine (lots/immeubles), conversations et emails. Strategie hybride: FTS (GIN indexes) pour les tables volumineuses, ILIKE pour les petites tables. Single RPC = 1 round-trip DB.",
+  "createdAt": "2026-03-22",
+  "prdSource": null,
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Migration: search_global RPC function",
+      "description": "As a developer, I want a PostgreSQL RPC function that searches across all team entities so that the search API has a single optimized DB round-trip.",
+      "acceptanceCriteria": [
+        "RPC function search_global(p_query text, p_team_id uuid) returns TABLE(entity_type text, entity_id uuid, title text, subtitle text, url text, rank real)",
+        "Hybrid strategy: FTS (to_tsquery with :* prefix) for interventions, emails, conversation_messages — ILIKE for users, lots, buildings, contracts",
+        "Each UNION branch filtered by team_id + deleted_at IS NULL + LIMIT 5",
+        "Outer query: ORDER BY rank DESC LIMIT 25",
+        "Returns empty set if length(p_query) < 2",
+        "SECURITY DEFINER + GRANT EXECUTE TO authenticated",
+        "URL computed in SQL: e.g. '/gestionnaire/contacts/details/' || id",
+        "Interventions searched on: title, description, reference",
+        "Users/contacts searched on: first_name || last_name, email, phone",
+        "Lots searched on: reference + joined building name",
+        "Buildings searched on: name, street, city",
+        "Contracts (leases) searched on: display name via tenant/lot join",
+        "Emails searched on: search_vector (existing weighted FTS)",
+        "Conversation messages searched on: content (existing FTS index)",
+        "Migration applies cleanly: supabase db push --linked",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Migration 20260322200000_add_search_global_rpc.sql: SECURITY DEFINER RPC with hybrid FTS+ILIKE. 7 UNION ALL branches (interventions, contacts, lots, buildings, contracts, emails, conversations). FTS for interventions/emails/messages (existing GIN indexes), ILIKE for contacts/lots/buildings/contracts. Each branch LIMIT 5, outer LIMIT 25. prefix matching via :* tsquery. Min 2 chars. Types regenerated."
+    },
+    {
+      "id": "US-002",
+      "title": "API route /api/search/global",
+      "description": "As a frontend developer, I want a search API endpoint so that the command palette can fetch results with proper auth and validation.",
+      "acceptanceCriteria": [
+        "GET /api/search/global?q=... returns JSON { results: SearchResult[] }",
+        "Auth via getApiAuthContext({ requiredRole: 'gestionnaire' })",
+        "Zod validation: q string min 2 chars, max 100 chars",
+        "Calls supabase.rpc('search_global', { p_query, p_team_id })",
+        "Returns 400 if q too short, 401 if unauthorized",
+        "Response typed: { results: { entity_type, entity_id, title, subtitle, url, rank }[] }",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "app/api/search/global/route.ts: GET with Zod validation (min 2, max 100), getApiAuthContext gestionnaire, supabase.rpc('search_global'). Clean 65-line route."
+    },
+    {
+      "id": "US-003",
+      "title": "Command palette component + topbar integration",
+      "description": "As a gestionnaire, I want a Cmd+K search palette accessible from the header so that I can quickly find any entity from any page.",
+      "acceptanceCriteria": [
+        "components/search/global-search-palette.tsx created as 'use client' component",
+        "Uses existing CommandDialog from components/ui/command.tsx",
+        "Cmd+K / Ctrl+K keyboard shortcut toggles the palette",
+        "Search icon button added in gestionnaire-topbar.tsx (left of notification bell) with Ctrl+K hint text",
+        "200ms debounced fetch to /api/search/global",
+        "Results grouped by entity type with lucide icons: Building2 (buildings), Home (lots), Users (contacts), Wrench (interventions), FileText (contracts), Mail (emails), MessageSquare (conversations)",
+        "Command.Loading spinner during fetch",
+        "Command.Empty 'Aucun resultat' when no matches",
+        "Each result shows title (bold) + subtitle (muted) on two lines",
+        "Palette closes on Escape or click outside",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "components/search/global-search-palette.tsx: 'use client', CommandDialog, Cmd+K shortcut, 200ms debounced fetch, grouped results with color-coded icons per entity type, AbortController for race condition prevention. Integrated in gestionnaire-topbar.tsx left of notification bell with Rechercher label + ⌘K kbd hint."
+    },
+    {
+      "id": "US-004",
+      "title": "Result navigation + recent searches",
+      "description": "As a gestionnaire, I want clicking a search result to navigate me to the entity detail page, and I want to see my recent searches when opening the palette.",
+      "acceptanceCriteria": [
+        "onSelect: router.push(result.url) + close palette",
+        "Last 5 search queries stored in localStorage key 'seido-recent-searches'",
+        "Recent searches shown as CommandGroup when palette opens with empty input",
+        "Each recent item is clickable and re-runs the search",
+        "Clear recents button (X icon) removes all stored searches",
+        "Keyboard navigation works (arrow keys + Enter to select)",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Recent searches: localStorage key 'seido-recent-searches', max 5, shown as CommandGroup with Clock icon when input empty. Clear button (X). handleRecentClick re-runs the search. saveRecentSearch deduplicates before prepending. Keyboard nav works via cmdk (arrow keys + Enter)."
+    }
+  ]
+}

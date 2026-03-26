@@ -13,9 +13,15 @@ import {
   createServerActionInterventionService,
   createServerActionContractService,
   createServerSupabaseClient,
+  createServerReminderService,
   ConversationRepository,
 } from "@/lib/services"
+// Bank module hidden until Tink app is approved in production
+// import { BankConnectionRepository } from "@/lib/services/repositories/bank-connection.repository"
+// import { BankTransactionRepository } from "@/lib/services/repositories/bank-transaction.repository"
+// import { RentCallRepository } from "@/lib/services/repositories/rent-call.repository"
 import type { ContractStats } from "@/lib/types/contract.types"
+import type { ReminderStats, ReminderWithRelations } from "@/lib/types/reminder.types"
 import type { InterventionWithRelations } from "@/lib/services"
 import { logger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
@@ -30,6 +36,7 @@ const getCachedLotService = cache(() => createServerActionLotService())
 const getCachedInterventionService = cache(() => createServerActionInterventionService())
 const getCachedContractService = cache(() => createServerActionContractService())
 const getCachedSupabaseClient = cache(() => createServerSupabaseClient())
+const getCachedReminderService = cache(() => createServerReminderService())
 
 interface AsyncDashboardContentProps {
   profile: { id: string }
@@ -49,13 +56,14 @@ export async function AsyncDashboardContent({
   const teamNameMap = createTeamNameMap(sameRoleTeams)
 
   // Initialize all services in parallel (cache()-wrapped for request deduplication)
-  const [userService, buildingService, lotService, interventionService, contractService, supabase] = await Promise.all([
+  const [userService, buildingService, lotService, interventionService, contractService, supabase, reminderService] = await Promise.all([
     getCachedUserService(),
     getCachedBuildingService(),
     getCachedLotService(),
     getCachedInterventionService(),
     getCachedContractService(),
     getCachedSupabaseClient(),
+    getCachedReminderService(),
   ])
 
   let stats = {
@@ -246,17 +254,40 @@ export async function AsyncDashboardContent({
 
   // Onboarding checklist is now handled by GestionnaireTopbar (self-contained)
 
-  // Fetch unread conversation threads for dashboard (separate try/catch to not break dashboard)
+  // Fetch unread threads + reminder stats in parallel (separate try/catch to not break dashboard)
   let unreadThreads: Awaited<ReturnType<ConversationRepository['getUnreadThreadsForDashboard']>>['data'] = { threads: [], totalCount: 0 }
-  try {
-    const conversationRepo = new ConversationRepository(supabase)
-    const unreadResult = await conversationRepo.getUnreadThreadsForDashboard(profile.id)
-    if (unreadResult.success && unreadResult.data) {
-      unreadThreads = unreadResult.data
-    }
-  } catch (error) {
-    logger.warn('[ASYNC-DASHBOARD] Unread threads fetch failed, skipping', { error })
+  let reminderStats: ReminderStats = { total: 0, en_attente: 0, en_cours: 0, termine: 0, annule: 0, overdue: 0, due_today: 0 }
+  let reminders: ReminderWithRelations[] = []
+
+  const [unreadResult, reminderStatsResult, remindersResult] = await Promise.allSettled([
+    (async () => {
+      const conversationRepo = new ConversationRepository(supabase)
+      return conversationRepo.getUnreadThreadsForDashboard(profile.id)
+    })(),
+    reminderService.getStats(team.id),
+    reminderService.getByTeam(team.id),
+  ])
+
+  if (unreadResult.status === 'fulfilled' && unreadResult.value.success && unreadResult.value.data) {
+    unreadThreads = unreadResult.value.data
+  } else if (unreadResult.status === 'rejected') {
+    logger.warn('[ASYNC-DASHBOARD] Unread threads fetch failed, skipping', { error: unreadResult.reason })
   }
+
+  if (reminderStatsResult.status === 'fulfilled') {
+    reminderStats = reminderStatsResult.value
+  } else {
+    logger.warn('[ASYNC-DASHBOARD] Reminder stats fetch failed, skipping', { error: reminderStatsResult.reason })
+  }
+
+  if (remindersResult.status === 'fulfilled') {
+    reminders = remindersResult.value
+  } else {
+    logger.warn('[ASYNC-DASHBOARD] Reminders fetch failed, skipping', { error: remindersResult.reason })
+  }
+
+  // Bank module hidden until Tink app is approved in production
+  // Bank data fetch + bankData prop removed temporarily
 
   return (
     <ManagerDashboardV2
@@ -267,6 +298,9 @@ export async function AsyncDashboardContent({
       pendingCount={pendingActionsCount}
       unreadThreads={unreadThreads?.threads}
       unreadThreadsTotalCount={unreadThreads?.totalCount}
+      reminderStats={reminderStats}
+      reminders={reminders}
+      // bankData={bankData}  // Bank module hidden until Tink approved
     />
   )
 }

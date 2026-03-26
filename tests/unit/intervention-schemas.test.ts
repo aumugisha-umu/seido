@@ -148,13 +148,21 @@ describe('createManagerInterventionSchema', () => {
   })
 
   it('accepts all assignment modes', () => {
-    for (const mode of ['single', 'group', 'separate']) {
+    for (const mode of ['single', 'group']) {
       const result = createManagerInterventionSchema.safeParse({
         ...validPayload,
         assignmentMode: mode,
       })
       expect(result.success).toBe(true)
     }
+  })
+
+  it('rejects removed "separate" assignment mode', () => {
+    const result = createManagerInterventionSchema.safeParse({
+      ...validPayload,
+      assignmentMode: 'separate',
+    })
+    expect(result.success).toBe(false)
   })
 
   it('accepts optional description (empty or 10+ chars)', () => {

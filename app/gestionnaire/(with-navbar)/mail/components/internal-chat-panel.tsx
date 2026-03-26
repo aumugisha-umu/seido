@@ -21,7 +21,7 @@ import {
   getEmailConversationParticipantsAction,
   getTeamGestionnairesAction
 } from '@/app/actions/email-conversation-actions'
-import { sendMessageAction } from '@/app/actions/conversation-actions'
+import { sendMessageAction } from '@/app/actions/conversations'
 import type { Database } from '@/lib/database.types'
 
 interface ThreadWithParticipants {

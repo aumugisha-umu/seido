@@ -86,13 +86,6 @@ export function CookieConsentBanner() {
                 Personnaliser
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                onClick={declineAll}
-              >
-                Refuser
-              </Button>
-              <Button
                 size="sm"
                 onClick={acceptAll}
               >
@@ -218,13 +211,6 @@ function CookiePreferencesDialog({
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={onDeclineAll}
-            className="sm:mr-auto"
-          >
-            Tout refuser
-          </Button>
           <Button
             variant="outline"
             onClick={handleAcceptAll}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { notifyQuoteRejected } from '@/app/actions/notification-actions'
+import { notifyQuoteRejected } from '@/app/actions/notifications'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { quoteRejectSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'

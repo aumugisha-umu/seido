@@ -13,7 +13,7 @@
 - [ ] Note both Price IDs for env vars
 
 ### 2. Webhook Endpoint
-- [ ] URL: `https://seido.app/api/stripe/webhook`
+- [ ] URL: `https://seido-app.com/api/stripe/webhook`
 - [ ] Events to listen:
   - `checkout.session.completed`
   - `customer.subscription.created`

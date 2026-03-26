@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-17
-**Total Learnings:** 163
+**Last Updated:** 2026-03-25
+**Total Learnings:** 194
 
 ---
 
@@ -135,6 +135,20 @@
 **When to Use:** Any time you optimize a repository query by removing nested JOINs — verify the UI still has all the data it needs, and add batch fetch if needed
 **Added:** 2026-02-20 | **Source:** Independent lots address display fix (3 files, 3 layers)
 
+#### Learning #192: Zod/DB/UI enum drift — 3-layer validation must stay aligned
+**Problem:** `provider_category` had 10 values in the UI (`PROVIDER_CATEGORIES` in `contact-details/constants.ts`), 7 in the DB enum, and only 2 in the Zod schemas (`['prestataire', 'autre']`). Creating contacts with categories like `artisan`, `services`, `energie` silently failed Zod validation at the API layer. No error was visible to the user because the form submission caught the 400 and showed a generic message.
+**Solution:** When adding new enum values to a UI selector, grep all 3 layers: (1) DB enum (`ALTER TYPE ... ADD VALUE`), (2) Zod schema (`z.enum([...])` in `schemas.ts`), (3) UI constants. Use `IF NOT EXISTS` in migrations for safety. The Zod enum must be the superset of all valid values. Also check table configs (`contacts.config.tsx`) for filter dropdowns.
+**Example:** `lib/validation/schemas.ts:167` + `:321` — expanded to 10 values; `supabase/migrations/20260324100000_expand_provider_category_enum.sql`
+**When to Use:** Any time you add values to a UI selector backed by a DB enum — always check all 3 layers
+**Added:** 2026-03-25 | **Source:** Provider category contact creation failing silently
+
+#### Learning #193: Error object serializes as `{}` in pino logger — log message string instead
+**Problem:** `logger.error({ error, file: name }, 'msg')` where `error` is an Error object serialized as `{}` in pino's JSON output. The user saw `"Error: {} Contract file upload error"` with no useful info. This is because pino doesn't serialize Error objects by default in its first argument (the object fields).
+**Solution:** Extract `error.message` first, then log the string: `logger.error({ error: errorMessage, fileName, fileType, fileSize }, 'msg')`. For full stack traces, use `error instanceof Error ? error.stack : 'No stack'` in a separate field. Never pass raw Error objects as structured log fields.
+**Example:** `hooks/use-contract-upload.ts:252` — logs errorMessage + file metadata
+**When to Use:** Any `logger.error()` call that includes a caught error — always extract `.message` first
+**Added:** 2026-03-25 | **Source:** Contract upload error appearing as empty `{}`
+
 ### UI & Components
 
 #### Learning #083: Batch entity-linking with Promise.allSettled + 409 tolerance
@@ -252,6 +266,48 @@
 **Example:** `components/contract/lease-interventions-step.tsx` — RENT_REMINDER_KEY sentinel, branched handlers
 **When to Use:** When a shared component (selector, modal, popover) needs to serve N different data targets on the same page. Route via sentinel keys rather than duplicating the component.
 **Added:** 2026-03-01 | **Source:** Contact assignment on rent reminders
+
+#### Learning #184: Application-layer XOR enforcement for CHECK constraints — priority cascade
+**Problem:** The `reminders` table has `reminders_single_entity CHECK (num_nonnulls(building_id, lot_id, contact_id, contract_id) <= 1)`. The lease wizard caller passes both `lot_id` and `contract_id` in the options object to `createWizardRemindersAction`. The action merged both into the insert payload → PostgREST 23514 error. Silent failure (`{ success: false }`) inside `Promise.all` meant no reminders were created, but the wizard appeared to succeed.
+**Solution:** Enforce the XOR in the action layer with a priority cascade: `contract_id > lot_id > building_id > contact_id`. Each level nulls out all lower-priority entity IDs. Callers can safely pass multiple entity links — the action is the gatekeeper. Also apply the same cascade to `source_template` in recurrence rules, or auto-generated reminders will hit the same constraint.
+**Example:** `app/actions/reminder-actions.ts:306-312` — priority cascade variables
+**When to Use:** Any insert into a table with `num_nonnulls(...) <= 1` CHECK constraint — enforce at the action layer, not just rely on the DB.
+**Added:** 2026-03-25 | **Source:** Lease wizard reminder creation 400 error
+
+#### Learning #185: Template-to-data mapping must spread ALL optional fields
+**Problem:** Standard lease interventions correctly spread `itemType` and `recurrenceRule` from templates via `...(template.itemType ? { itemType: template.itemType } : {})`. But document interventions (from `createMissingDocumentIntervention`) were mapped without this spread — `itemType` was lost. Since templates have `itemType: 'reminder'`, the missing spread caused document items to be routed to `createInterventionAction` instead of `createWizardRemindersAction`.
+**Solution:** When mapping template objects to runtime data objects, ALWAYS spread all optional fields consistently across all mapping sites. When adding a new optional field to a template type, grep all `.map()` calls that consume templates to ensure the field is propagated.
+**Example:** `components/contract/contract-form-container.tsx:513-514` — added itemType/recurrenceRule spread to document interventions
+**When to Use:** Any time you create a new template-to-data mapping, or add a new field to an existing template type.
+**Added:** 2026-03-25 | **Source:** Document interventions misrouted in lease wizard
+
+#### Learning #186: Silent action failures inside Promise.all hide root cause
+**Problem:** `createWizardRemindersAction` catches errors internally and returns `{ success: false }`. Inside the outer `Promise.all`, the logger showed "Lease reminders creation failed" but the wizard still showed "Bail créé avec succès" — the user never saw the error. Since almost ALL lease templates have `itemType: 'reminder'`, the failing reminder path meant zero items were created.
+**Solution:** For critical post-creation operations inside `Promise.all`, consider whether silent failure is acceptable. Options: (1) aggregate failures and show a partial-success toast, (2) use `Promise.allSettled` at the outer level and report per-operation results, (3) at minimum, log with enough detail to debug (include the PostgREST error code).
+**Example:** `components/contract/contract-form-container.tsx:1138-1142` — silent failure logging
+**When to Use:** Any multi-operation submission where individual operation failure should be visible to the user.
+**Added:** 2026-03-25 | **Source:** Lease wizard silent reminder failure
+
+#### Learning #187: Nullish coalescing prop override trap — derived boolean must win over passed prop
+**Problem:** `assignableRoles ?? (isReminder ? GESTIONNAIRE_ONLY : ALL)` never triggers gestionnaire-only because parent always passes a non-null `assignableRoles` prop. The `??` only activates for `null`/`undefined`, not for "I want to override the prop".
+**Solution:** Flip priority: `isReminder ? GESTIONNAIRE_ONLY_ROLES : (assignableRoles ?? ALL_ASSIGNABLE_ROLES)`. The derived boolean (`isReminder`) must take precedence over the parent-passed prop when the derived state is the authoritative source.
+**Example:** `components/contract/intervention-schedule-row.tsx` — assignableRoles resolution
+**When to Use:** Whenever a component receives a configurable prop that should be overridden by an internal state (toggles, mode switches)
+**Added:** 2026-03-25 | **Source:** Reminder Recurrence UX — reminder rows showing all 3 assignable roles
+
+#### Learning #188: `after()` auth context risk — fire-and-forget from client for auth-dependent operations
+**Problem:** Composite server action uses `after()` to defer work post-response. But `createWizardRemindersAction` calls `getServerActionAuthContextOrNull()` which needs request cookies. Inside `after()`, cookies may be stale or unavailable.
+**Solution:** Keep `after()` for operations that use `useServiceRole: true` (bypasses auth). For operations needing user auth context, handle them as fire-and-forget from the client after the composite action returns (auth cookies still fresh).
+**Example:** `lot-creation-form.tsx:fireAndForgetReminders()` — called after `createLotsCompositeAction` returns
+**When to Use:** Any composite server action that mixes service-role and user-auth operations in deferred work
+**Added:** 2026-03-25 | **Source:** Reminder Recurrence UX — composite lot creation path
+
+#### Learning #189: Audit ALL submit paths before adding dispatch split — parallel code paths hide silently
+**Problem:** Lot creation had 3 submit paths: composite existing_building, composite independent, and single-lot. Only updating 1-2 paths leaves the others silently sending all items as interventions, losing reminder-specific behavior (recurrence, gestionnaire-only assignees).
+**Solution:** Before implementing an itemType dispatch split, grep for ALL submit entry points (server action calls, composite payloads, fire-and-forget helpers). Map them in a table. Update each independently.
+**Example:** `lot-creation-form.tsx` — `buildCompositeInterventions` + `fireAndForgetReminders` + `createInterventionsForLot`
+**When to Use:** Any feature that touches submit/dispatch logic in wizards with multiple creation modes
+**Added:** 2026-03-25 | **Source:** Reminder Recurrence UX — missed composite path during initial implementation
 
 #### Learning #010: RLS Access ≠ Explicit Participation
 **Problem:** Managers could view conversations via RLS (`team_id` match) but weren't in `conversation_participants`, breaking read tracking and participant lists.
@@ -495,6 +551,20 @@
 
 ### Security
 
+#### Learning #190: Supabase Storage rejects non-ASCII filename keys — sanitize with NFD
+**Problem:** Uploading a file named `"Données de l'entité enregistrée _ BCE Public Search.pdf"` (French accented chars) caused `StorageApiError: "Invalid key"`. Supabase Storage keys must be ASCII-safe. The `generateUniqueFilename()` function preserved the original name as-is.
+**Solution:** Apply NFD normalization to strip accents (`é`→`e`, `è`→`e`), then regex-replace remaining non-ASCII with `-`, collapse consecutive dashes, cap at 100 chars. Apply to ALL upload routes consistently.
+**Example:** `app/api/upload-contract-document/route.ts:12-20` — sanitized `generateUniqueFilename()`
+**When to Use:** Any Supabase Storage upload route that accepts user-provided filenames — especially in French/multilingual apps
+**Added:** 2026-03-25 | **Source:** Contract document upload "Invalid key" error
+
+#### Learning #191: Rate limiter tier mismatch — concurrent uploads hit sensitive tier limit
+**Problem:** Upload routes were classified as `sensitive` (3 req/60s). When a user uploaded 4 contract documents simultaneously, the 4th request was rate-limited. The error surfaced as `Error: {}` because the Error object serialized empty.
+**Solution:** Move `/upload-` routes to the `api` tier (30 req/10s). Uploads are already auth-gated and file-size-limited — the rate limiter is a DoS protection layer, not the primary security boundary. Keep `/send-`, `/create-`, and auth routes in the stricter tiers.
+**Example:** `lib/rate-limit.ts:153` — removed `pathname.includes('/upload-')` from sensitive check
+**When to Use:** When adding new API routes to rate limiting, consider the realistic concurrent usage pattern (multi-file uploads, batch operations)
+**Added:** 2026-03-25 | **Source:** Multi-file contract upload rate limit failure
+
 #### Learning #033: SECURITY DEFINER function rewrite regression — diff all role branches
 **Problem:** `get_accessible_intervention_ids()` was rewritten in migration `20260211170000` (multi-profile + contract support) but silently lost the `intervention_assignments` branch for locataire (originally added in `20260106160000`). Building-level interventions (`lot_id IS NULL`) became invisible to assigned locataires. The gestionnaire branch also regressed (fixed separately in `20260213120000`).
 **Solution:** Before rewriting any multi-role SECURITY DEFINER function, diff the current DB version branch-by-branch against the new version. Check each role's IF block independently. Use a checklist: admin, gestionnaire, prestataire, locataire — verify all access paths survive.
@@ -543,6 +613,48 @@
 **Example:** `components/intervention/finalization-modal-live.tsx:362` — useMemo `planning`
 **When to Use:** Any component displaying time slot confirmation status or counting proposed slots
 **Added:** 2026-02-16 | **Source:** Finalization modal Planning & Estimation fix
+
+#### Learning #169: Mass assignment via service-role client — Zod .strict() whitelist required
+**Problem:** `POST /api/update-contact` used `createServiceRoleSupabaseClient()` (bypasses RLS) but accepted arbitrary fields from the request body. An attacker could set `role`, `team_id`, `is_active`, or any column.
+**Solution:** Add Zod schema with `.strict()` on the `updateData` object — only whitelisted fields pass. `safeParse()` rejects unknown keys. Service-role routes are the HIGHEST priority for input validation because RLS won't save you.
+**Example:** `app/api/update-contact/route.ts` + `lib/validation/schemas.ts:updateContactSchema`
+**When to Use:** Any API route using `createServiceRoleSupabaseClient()` — MUST have Zod `.strict()` validation
+**Added:** 2026-03-22 | **Source:** Full-stack audit Sprint 1 — US-001
+
+#### Learning #170: getSession() vs getUser() — JWT validation bypass
+**Problem:** `supabase.auth.getSession()` reads the JWT from the cookie WITHOUT server-side validation. A tampered or expired JWT is accepted as valid. The entire auth chain (`requireRole → getUserProfile → getUser`) was built on this.
+**Solution:** Replace with `supabase.auth.getUser()` which makes a server round-trip to validate the JWT. Wrap with `cache()` (React 19) to deduplicate — only 1 network call per request regardless of how many components call it.
+**Example:** `lib/auth-dal.ts:getUser()` — `cache(async () => supabase.auth.getUser())`
+**When to Use:** ALWAYS use `getUser()` for server-side auth. `getSession()` is only safe on client-side where the JWT was just issued.
+**Added:** 2026-03-22 | **Source:** Full-stack audit Sprint 1 — US-002
+
+#### Learning #171: Stripe mapStripeStatus must be fail-closed for unknown statuses
+**Problem:** `mapStripeStatus()` returned `'active'` as default for unrecognized Stripe statuses. A new Stripe status like `'paused'` or a webhook corruption would grant full access.
+**Solution:** Return `'past_due'` (restrictive) for unknown statuses + `logger.warn()`. This is fail-closed: users see a "payment issue" banner instead of silently getting free access. Known statuses are still mapped correctly.
+**Example:** `lib/services/domain/subscription.service.ts:mapStripeStatus()`
+**When to Use:** Any status mapping function with a default/fallback case — choose the most restrictive option, not the most permissive.
+**Added:** 2026-03-22 | **Source:** Full-stack audit Sprint 1 — US-006
+
+#### Learning #172: BaseRepository.delete() is hard DELETE — use softDelete() for entities with deleted_at
+**Problem:** `BaseRepository.delete()` uses `.delete()` (physical removal). Buildings and lots called this, permanently destroying data with no audit trail. Tables already had `deleted_at`/`deleted_by` columns but the base class never used them.
+**Solution:** Added `BaseRepository.softDelete(id, deletedBy?)` that sets `deleted_at = now()` with `.is('deleted_at', null)` guard (idempotent). Services must add `softDelete()` wrappers with their own validation (e.g., "no lots" check for buildings). Active views and RLS already filter `deleted_at IS NULL`.
+**Example:** `lib/services/core/base-repository.ts:softDelete()`, `lib/services/domain/building.service.ts:softDelete()`
+**When to Use:** Any entity with `deleted_at` column — NEVER use `repository.delete()`, always `repository.softDelete()`
+**Added:** 2026-03-22 | **Source:** Gestionnaire verification Sprint 2 — US-001
+
+#### Learning #173: Capture dependent data BEFORE mutation — post-delete queries return null
+**Problem:** `deleteBuildingAction` queried `team_id` from the building AFTER hard-deleting it. The query returned null, so `revalidateTag('buildings-team-${teamId}')` never executed. Stale cache persisted.
+**Solution:** Always fetch data you'll need for side effects BEFORE the mutation. Pattern: `const data = await service.getById(id)` → `await service.softDelete(id)` → use `data.team_id` for revalidation.
+**Example:** `app/gestionnaire/(no-navbar)/biens/immeubles/[id]/actions.ts:deleteBuildingAction`
+**When to Use:** Any delete/archive action that needs entity data for post-mutation side effects (revalidation, notifications, logging)
+**Added:** 2026-03-22 | **Source:** Gestionnaire verification Sprint 2 — US-002
+
+#### Learning #174: Role filtering must be exhaustive — proprietaire silently falls through
+**Problem:** Contact detail page filtered interventions/properties by role: prestataire → locataire → gestionnaire. The `proprietaire` role had no case, so owners saw zero data. No error, just empty arrays.
+**Solution:** Add explicit `else if (contact.role === 'proprietaire')` case. For proprietaires, filter by lots where `lot_contacts.role === 'proprietaire'` or `user.role === 'proprietaire'`, then map interventions on those lots.
+**Example:** `app/gestionnaire/(no-navbar)/contacts/details/[id]/page.tsx` — intervention + property filtering
+**When to Use:** Any role-based switch/if chain — verify ALL 5 roles are handled (gestionnaire, prestataire, locataire, proprietaire, admin), or add a catch-all with logging.
+**Added:** 2026-03-22 | **Source:** Gestionnaire verification Sprint 2 — US-003
 
 ### Planning & Documentation
 
@@ -715,6 +827,69 @@
 **Example:** `tests/e2e/pages/intervention-detail.page.ts:345-358` — `robustClick` method
 **When to Use:** Any E2E click on Radix Portal elements (Dialog, AlertDialog, Popover, DropdownMenu)
 **Added:** 2026-02-21 | **Source:** Intervention workflow E2E — dialog confirm button click failures
+
+#### Learning #175: vi.hoisted() required for mock variables inside vi.mock() factories
+**Problem:** Vitest hoists `vi.mock()` calls to the top of the file, but variables declared after the import block aren't accessible inside the factory function. `const mockFn = vi.fn()` used inside `vi.mock(() => ({ default: mockFn }))` throws `ReferenceError: mockFn is not defined`.
+**Solution:** Use `const { mockFn } = vi.hoisted(() => ({ mockFn: vi.fn() }))`. `vi.hoisted()` declares variables that are also hoisted, making them available inside `vi.mock()` factories. For class mocks, use class expressions: `vi.fn().mockImplementation(() => ({ method: mockMethod }))`.
+**Example:** `tests/unit/bank/cron-routes.test.ts` — hoisted mocks for BankSyncService constructor
+**When to Use:** Any unit test that needs to mock a constructor or use mock variables inside `vi.mock()` factory
+**Added:** 2026-03-22 | **Source:** Bank Module Phase 1 — cron route tests
+
+#### Learning #176: Export pure functions from services for testability without mocking
+**Problem:** Testing business logic inside service classes requires mocking the entire service constructor, Supabase client, and repository chain. A 5-line function becomes a 50-line test setup.
+**Solution:** Export pure functions separately from the service file: `export function calculateMatchConfidence(...)`, `export function calculateDueDates(...)`, `export function isTokenExpiringSoon(...)`. These are testable with simple input→output assertions, no mocks needed. Keep the service class for orchestration.
+**Example:** `lib/services/domain/bank-matching.service.ts:calculateMatchConfidence()`, `lib/services/domain/rent-call.service.ts:calculateDueDates()`
+**When to Use:** Any service with deterministic business logic (scoring, calculations, date math, status mapping) — extract and export as pure functions
+**Added:** 2026-03-22 | **Source:** Bank Module Phase 1 — 113 tests, majority testing pure functions
+
+#### Learning #177: Tink API token is 30min, not 1h — refresh with 2-min buffer
+**Problem:** Tink V2 access tokens expire in 30 minutes (not 1 hour as some docs suggest). Using a 5-minute buffer meant tokens expired mid-sync for large accounts. The 401 error interrupted paginated transaction fetching.
+**Solution:** Store `token_expires_at` on connection record. Check `isTokenExpiringSoon(expiresAt, bufferMinutes=2)` before each sync. Refresh proactively. If a 401 occurs mid-fetch, refresh and retry once.
+**Example:** `lib/services/domain/bank-sync.service.ts:syncConnection()` — token check before fetch loop
+**When to Use:** Any integration with Tink API — always check token expiry with 2-min buffer before operations
+**Added:** 2026-03-22 | **Source:** Bank Module Phase 1 — US-003 Tink API service
+
+#### Learning #178: CSP unsafe-eval and CORS wildcard — dev-only, never production
+**Problem:** `next.config.js` had `'unsafe-eval'` in CSP `script-src` (needed for Next.js dev HMR) and CORS `Access-Control-Allow-Origin: *` on the company lookup route. Both are acceptable in development but create attack surface in production.
+**Solution:** CSP: `${process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : ''}`. CORS: Use `ALLOWED_ORIGIN || NEXT_PUBLIC_SITE_URL || request.headers.get('origin')` with explicit allowlist, never `*`.
+**Example:** `next.config.js:CSP header`, `app/api/company/lookup/route.ts:CORS headers`
+**When to Use:** Any security header that needs different behavior in dev vs prod — always use `NODE_ENV` conditional
+**Added:** 2026-03-22 | **Source:** Full-stack audit Sprint 1 — US-004, US-005
+
+#### Learning #179: IDOR on all `[id]` API routes — verify team_id ownership
+**Problem:** Bank API routes (`/api/bank/transactions/[id]/ignore`, `/api/bank/suggestions/[id]`, `/api/bank/transactions/[id]/reconcile`) accepted any transaction ID without verifying it belonged to the authenticated user's team. An attacker could manipulate transactions belonging to other teams by guessing UUIDs.
+**Solution:** Every `[id]` route must pass `teamId` to the repository query: `.eq('id', id).eq('team_id', teamId)`. The service layer (`reconcileTransaction`, `unlinkTransactionFromEntity`) must also verify `team_id` on all entities before operating. Pattern: auth context → extract teamId → pass to every query.
+**Example:** `app/api/bank/transactions/[id]/reconcile/route.ts`, `lib/services/domain/bank-matching.service.ts:reconcileTransaction`
+**When to Use:** ANY API route with `[id]` parameter in a multi-tenant app — always join on `team_id`
+**Added:** 2026-03-22 | **Source:** Bank Module simplify review — IDOR audit
+
+#### Learning #180: TOCTOU on counters — use atomic SQL RPC instead of read-then-write
+**Problem:** `updateRentCallPayment` did `SELECT total_received → UPDATE total_received + amount`. Two concurrent reconciliations could both read `0`, then both write `amount`, losing one payment. Classic Time-of-Check-Time-of-Use race condition.
+**Solution:** Replace with atomic SQL: `CREATE FUNCTION increment_rent_call_received(p_rent_call_id UUID, p_delta NUMERIC)` using `UPDATE SET total_received = GREATEST(0, COALESCE(total_received, 0) + p_delta)`. Single atomic operation, no read needed.
+**Example:** `supabase/migrations/20260322100000_add_increment_rent_call_received.sql`, `lib/services/domain/bank-matching.service.ts:updateRentCallPayment`
+**When to Use:** Any counter/accumulator field updated by concurrent operations — never read-then-write
+**Added:** 2026-03-22 | **Source:** Bank Module simplify review — TOCTOU fix
+
+#### Learning #181: Factory helper migration breaks constructor-level test mocks
+**Problem:** `subscription-actions.ts` migrated from `new SubscriptionService(stripe, repo, custRepo)` to `createServiceRoleSubscriptionService()` / `createSubscriptionService()` factory helpers. Tests only mocked the `SubscriptionService` class constructor — the factory created real instances internally, bypassing the mock entirely. All checkout/upgrade tests silently failed.
+**Solution:** When production code uses factory functions, mock the FACTORY MODULE (`vi.mock('@/lib/services/domain/subscription-helpers')`), not the class it instantiates. Return mock instances from the factory mock. Constructor-level mocks only work when `new Class()` is called directly in the code under test.
+**Example:** `tests/unit/stripe/subscription-actions.test.ts:28-44` — mock `subscription-helpers` returning mock service instances
+**When to Use:** Any test where the code under test uses a factory/helper to create service instances instead of `new Service()` directly
+**Added:** 2026-03-22 | **Source:** Pre-existing test failure fix — subscription-actions 4 failures
+
+#### Learning #182: `vi.fn().mockImplementation(() => obj)` is NOT constructible — use named function
+**Problem:** `vi.mock('...', () => ({ MyClass: vi.fn().mockImplementation(() => ({ method: mockFn })) }))` fails when the code does `new MyClass()`. Arrow functions lack `[[Construct]]` — they can't be called with `new`. Error: `is not a constructor`.
+**Solution:** Use a named function inside the mock factory: `function MockMyClass() { return { method: mockFn } }; return { MyClass: MockMyClass }`. Named functions have `[[Construct]]` and work with `new`.
+**Example:** `tests/unit/stripe/subscription-actions.test.ts:72-75` — `function MockSubscriptionRepository() { return { findByTeamId } }`
+**When to Use:** Any `vi.mock()` where the mocked export is used with `new` — always use `function`, never arrow/`vi.fn().mockImplementation`
+**Added:** 2026-03-22 | **Source:** Pre-existing test failure fix — SubscriptionRepository mock
+
+#### Learning #183: DST causes ±1h drift in day-based date arithmetic — widen test tolerance
+**Problem:** `30 * 24 * 60 * 60 * 1000` assumes every day is exactly 24 hours. During DST transitions (e.g., March/October in Europe), one day is 23h or 25h. A 30-day trial showed 2,588,400,000ms instead of 2,592,000,000ms — 1 hour short. Test with ±1s tolerance failed.
+**Solution:** Use ±2h tolerance for any test asserting on multi-day date differences: `expect(diff).toBeGreaterThanOrEqual(thirtyDaysMs - twoHoursMs)`. The business logic is correct — it's the assertion that's fragile.
+**Example:** `tests/unit/stripe/trial-initialization.test.ts:157-160` — 30-day trial window assertion
+**When to Use:** Any test comparing Date arithmetic spanning days — DST transitions affect `Date.now()` differences
+**Added:** 2026-03-22 | **Source:** Pre-existing test failure fix — trial-initialization timing
 
 ### Stripe Integration
 
@@ -1214,6 +1389,48 @@
 **Example:** `app/api/emails/counts/route.ts:26-38` — `baseQuery()` factory with `connectionIds` filter
 **When to Use:** Any feature with private/shared access control — verify counts, listings, and search all apply the same filter
 **Added:** 2026-03-19 | **Source:** Email visibility — SSR/API parity audit
+
+#### Learning #164: requireRole('gestionnaire') rejects 'admin' role — DB role must match exactly
+**Problem:** E2E test user (arthur@seido.pm) had `users.role = 'admin'` in DB, but all gestionnaire pages call `requireRole('gestionnaire')`. This strict check rejected the admin role, redirecting to admin dashboard. ALL gestionnaire E2E tests failed with redirect loops.
+**Solution:** Ensure test users have the exact DB role matching their test scenario. `requireRole()` does strict equality, not role hierarchy. An admin user cannot access gestionnaire pages. Fix by updating `users.role` to `'gestionnaire'` for gestionnaire test users, or by using a separate test account per role.
+**Example:** E2E user setup — `users.role` must be `'gestionnaire'` not `'admin'` for gestionnaire page tests
+**When to Use:** Setting up E2E test users or debugging unexpected auth redirects in role-gated pages
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — all gestionnaire tests failing with redirect
+
+#### Learning #165: cancelIntervention union type — callers may pass object or string
+**Problem:** `cancelIntervention(id, reason)` expected `reason: string`, but callers passed a `CancellationData` object `{ reason, cancelledBy }`. TypeScript didn't catch it because the method was loosely typed. Result: cancellation reason stored as `[object Object]` in DB.
+**Solution:** Use union type `reason: string | CancellationData` and handle both cases in the method body. Extract string from object when needed. This preserves backward compatibility with both calling patterns.
+**Example:** `intervention.service.ts` — `cancelIntervention` method signature
+**When to Use:** Any service method that evolved from simple params to structured objects — check all callers
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — cancellation flow bug fix
+
+#### Learning #166: Playwright POM selectors — prefer semantic over CSS class
+**Problem:** CSS class selectors (`.bg-red-500`, `.text-sm`) break across deploys when Tailwind classes change or components are restyled. Tests become maintenance burdens.
+**Solution:** Use Playwright's semantic locators in priority order: `getByRole()` > `getByTestId()` > `getByLabel()` > `getByText()`. Never use CSS class selectors. Add `data-testid` attributes to components when no semantic role exists.
+**Example:** `tests/e2e/playwright/page-objects/*.page.ts` — all POMs use semantic locators
+**When to Use:** Any Playwright E2E test — always use semantic selectors
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — 114 tests across 8 page objects
+
+#### Learning #167: Vercel preview cold starts cause E2E race conditions — use test.slow() generously
+**Problem:** Preview deployments on Vercel have 3-5s cold starts on first request to each serverless function. Tests that navigate and immediately assert content fail intermittently because the page hasn't loaded yet.
+**Solution:** Mark tests hitting preview deployments with `test.slow()` (triples default timeout). Use generous timeouts on `waitForSelector` and `expect` assertions (10-15s minimum). First test in suite should be a warm-up navigation.
+**Example:** QA bot E2E shards — all use `test.slow()` for Vercel preview targets
+**When to Use:** Any E2E test running against Vercel preview/staging deployments (not local dev)
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — intermittent timeouts on preview
+
+#### Learning #168: Radix tab panel scoping — scope assertions to active tabpanel
+**Problem:** `getByText('card content')` matches cards in ALL tab panels (active + inactive). Inactive panels remain in DOM with `data-state="inactive"`. Tests find wrong elements or get ambiguous matches.
+**Solution:** Scope all tab content assertions to `[role="tabpanel"][data-state="active"]`. Use `page.locator('[role="tabpanel"][data-state="active"]').getByText(...)` to ensure you're testing only the visible tab.
+**Example:** Notification/intervention tab tests — cards must be scoped to active panel
+**When to Use:** Any E2E test interacting with Radix Tabs — always scope to active tabpanel
+**Added:** 2026-03-21 | **Source:** QA bot E2E suite — notification tab assertions matching wrong panel
+
+#### Learning #169: Centralize hardcoded email/domain strings into EMAIL_CONFIG
+**Problem:** After migrating `seido.app` → `seido-app.com`, email addresses (`support@`, `contact@`) and URLs (`https://seido-app.com/...`) were hardcoded across 15+ files (templates, footer, reply service). A domain change required a multi-file grep-and-replace sweep — error-prone and easy to miss files.
+**Solution:** Add all email addresses to `EMAIL_CONFIG` in `lib/email/resend-client.ts` (`from`, `supportEmail`, `contactEmail`, `appUrl`). Email templates and components import `EMAIL_CONFIG` instead of hardcoding strings. Exception: UI-facing pages (landing, legal, auth) keep hardcoded strings — importing server-side config into client components adds unnecessary complexity for rarely-changing text.
+**Example:** `emails/components/email-footer.tsx` — `${EMAIL_CONFIG.appUrl}/privacy` instead of `https://seido-app.com/privacy`
+**When to Use:** Any time you see hardcoded email addresses or app URLs in email templates — always use `EMAIL_CONFIG`
+**Added:** 2026-03-25 | **Source:** Post-domain-migration centralization cleanup
 
 ---
 

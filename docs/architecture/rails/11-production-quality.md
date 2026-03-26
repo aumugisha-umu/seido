@@ -366,7 +366,7 @@ pin "chart.js", to: "https://ga.jspm.io/npm:chart.js@4.4.0/dist/chart.js"
 
 ```ruby
 # config/environments/production.rb
-config.action_controller.asset_host = ENV.fetch('CDN_HOST') { 'https://cdn.seido.app' }
+config.action_controller.asset_host = ENV.fetch('CDN_HOST') { 'https://cdn.seido-app.com' }
 
 # Serve compressed assets
 config.assets.compress = true
@@ -602,7 +602,7 @@ jobs:
       - name: Deploy to Staging
         uses: dokku/github-action@master
         with:
-          git_remote_url: 'ssh://dokku@staging.seido.app:22/seido'
+          git_remote_url: 'ssh://dokku@staging.seido-app.com:22/seido'
           ssh_private_key: ${{ secrets.STAGING_SSH_KEY }}
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -750,11 +750,11 @@ EDITOR=vim rails credentials:edit --environment production
 secret_key_base: "..."
 
 database:
-  host: db.seido.app
+  host: db.seido-app.com
   password: "..."
 
 redis:
-  url: redis://redis.seido.app:6379/0
+  url: redis://redis.seido-app.com:6379/0
 
 stripe:
   secret_key: sk_live_...
@@ -829,17 +829,17 @@ production:
     connections:
       - role: master
         database: seido_production
-        host: db-primary.seido.app
+        host: db-primary.seido-app.com
         username: <%= ENV['DATABASE_USERNAME'] %>
         password: <%= ENV['DATABASE_PASSWORD'] %>
       - role: slave
         database: seido_production
-        host: db-replica-1.seido.app
+        host: db-replica-1.seido-app.com
         username: <%= ENV['DATABASE_USERNAME'] %>
         password: <%= ENV['DATABASE_PASSWORD'] %>
       - role: slave
         database: seido_production
-        host: db-replica-2.seido.app
+        host: db-replica-2.seido-app.com
         username: <%= ENV['DATABASE_USERNAME'] %>
         password: <%= ENV['DATABASE_PASSWORD'] %>
 ```
@@ -1264,7 +1264,7 @@ gem 'rack-cors'
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
     # Frontend domains
-    origins ENV.fetch('CORS_ORIGINS', 'https://app.seido.app').split(',')
+    origins ENV.fetch('CORS_ORIGINS', 'https://app.seido-app.com').split(',')
 
     resource '/api/*',
       headers: :any,

@@ -190,7 +190,7 @@ QuoteRequestEmail.PreviewProps = {
   interventionType: 'Plomberie',
   description: 'Fuite d\'eau importante sous l\'évier de la cuisine.',
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
-  quoteUrl: 'https://seido.app/prestataire/devis/DEV-2024-015',
+  quoteUrl: 'https://seido-app.com/prestataire/devis/DEV-2024-015',
   managerName: 'Jean Martin',
   deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
   additionalInfo: 'Accès à l\'appartement possible en semaine entre 9h et 17h.',
@@ -200,17 +200,17 @@ QuoteRequestEmail.PreviewProps = {
     {
       amount: 150,
       label: '150€',
-      url: 'https://seido.app/auth/email-callback?token_hash=xxx&action=submit_quick_estimate&param_amount=150&param_quoteId=DEV-2024-015',
+      url: 'https://seido-app.com/auth/email-callback?token_hash=xxx&action=submit_quick_estimate&param_amount=150&param_quoteId=DEV-2024-015',
     },
     {
       amount: 300,
       label: '300€',
-      url: 'https://seido.app/auth/email-callback?token_hash=yyy&action=submit_quick_estimate&param_amount=300&param_quoteId=DEV-2024-015',
+      url: 'https://seido-app.com/auth/email-callback?token_hash=yyy&action=submit_quick_estimate&param_amount=300&param_quoteId=DEV-2024-015',
     },
     {
       amount: 500,
       label: '500€',
-      url: 'https://seido.app/auth/email-callback?token_hash=zzz&action=submit_quick_estimate&param_amount=500&param_quoteId=DEV-2024-015',
+      url: 'https://seido-app.com/auth/email-callback?token_hash=zzz&action=submit_quick_estimate&param_amount=500&param_quoteId=DEV-2024-015',
     },
   ],
 } as QuoteRequestEmailProps

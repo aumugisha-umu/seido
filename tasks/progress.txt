@@ -1,33 +1,76 @@
-# Progress Log — Email Private/Shared Visibility
-# Started: 2026-03-18
-# Stories: 9 total
-# Design: docs/plans/2026-03-18-email-private-shared-visibility-design.md
+# Progress Log — Reminder Recurrence UX & Property Reclassification
+# Started: 2026-03-25
+# Stories: 7 total
 ---
 
-## 2026-03-19 — Email Section Cleanup & Visibility Plumbing
+## 2026-03-25 — Fix: reminders 400 error (CHECK constraint violation)
+- Implemented: XOR priority cascade in `createWizardRemindersAction` (contract > lot > building > contact), document intervention itemType/recurrenceRule spread fix
+- Files: `app/actions/reminder-actions.ts`, `components/contract/contract-form-container.tsx`
+- Learnings: Application-layer XOR enforcement prevents silent 400 errors; template-to-data mappings must spread ALL optional fields consistently; silent action failures inside Promise.all hide root cause from users
+- Decision: Enforce constraint in action layer (not caller) — callers can safely pass multiple entity links
 
-### Compose Modal Fix
-- Fixed: Select dropdown unclickable inside UnifiedModal (z-index conflict z-50 vs z-[9999])
-- Fix: `SelectContent className="z-[10000]"` + `SelectTrigger className="bg-white w-full"`
-- Added `bg-white` to `.unified-modal__header` in globals.css
+## 2026-03-25 — US-001: RRULE helper utility
+- Implemented: `lib/utils/rrule.ts` — buildRRule, parseRRule, RECURRENCE_PRESETS, getRecurrenceLabel
+- Files: `lib/utils/rrule.ts`, `components/contract/intervention-schedule-row.tsx`
+- Learnings: Lightweight parse/build avoids heavy rrule.js on client; rrule.js only needed server-side for occurrence generation
+- Decision: Keep rrule.js as server-only dynamic import; client uses regex-based parse
 
-### Exhaustive Code Review (3 parallel agents)
-- **console→logger**: Replaced ~22 `console.error/warn` across 7 API routes + 5 client components
-- **any→unknown**: Eliminated ~20 `any` types (page.tsx had 14, catch blocks had 4, service had 1)
-- **Type consolidation**: 3 local `EmailConnection` interfaces → import `TeamEmailConnection` from `email-integration.ts`
-- **SharedWithMeGroup dedup**: local interface → import from `email-share.repository.ts`
-- **Team membership helper**: Extracted `getTeamManagerContext()` in `lib/services/helpers/api-team-context.ts` (used by 3 routes)
-- **N+1 fix**: `connections/route.ts` 2N queries → 2 batch queries
-- **select('*') fix**: `email.repository.ts` → `EMAIL_LIST_COLUMNS` constant (excludes body_html)
-- **Sequential deletes**: `connections/[id]/route.ts` → `Promise.all` for independent deletes
-- **Parameter sprawl**: `createSharesForThread` 6 params → options object
-- **Duplicate methods**: `markAsProcessed` delegates to `markAsRead`
+## 2026-03-25 — US-002: Templates reclassification
+- Implemented: All property templates → itemType:'reminder' + recurrenceRule. Supplier factory gets YEARLY recurrence.
+- Files: `lib/constants/property-interventions.ts`, `lib/constants/supplier-interventions.ts`
+- Learnings: Every template must have explicit itemType — implicit defaults cause silent misrouting
 
-### Critical Visibility Plumbing (found by final review)
-- C1: Added `added_by_user_id` + `visibility` to OAuth callback INSERT
-- C2: Added `added_by_user_id` + `visibility` to IMAP POST route
-- C3: Connected visibility through OAuth flow (authorize reads param → state → callback uses it)
-- C4: Applied `EmailVisibilityService.getAccessibleConnectionIds()` to listing + counts routes
+## 2026-03-25 — US-003: InterventionScheduleRow — toggle + recurrence popover
+- Implemented: Segmented control (Wrench/Bell), RecurrencePopoverContent (4 presets + custom + remove), assignableRoles priority fix
+- Files: `components/contract/intervention-schedule-row.tsx`
+- Learnings: isReminder must take precedence over parent-passed assignableRoles (Learning #187)
 
-### Files changed: 30 files, +1098 -671 lines
-### Learnings: #159-163 added to AGENTS.md
+## 2026-03-25 — US-004+005: Planner + section unification
+- Implemented: handleItemTypeChange/handleRecurrenceChange in planner, merged sections in lease+supplier
+- Files: `components/contract/intervention-planner-step.tsx`, `lease-interventions-step.tsx`, `contract-form-container.tsx`
+- Decision: Per-row toggle replaces section-level grouping — single unified list per wizard
+
+## 2026-03-25 — US-006: PropertyInterventionsStep + dispatch split
+- Implemented: Full propagation in property step, dual dispatch in building+lot forms, composite path split
+- Files: `components/property-interventions-step.tsx`, `building-creation-form.tsx`, `lot-creation-form.tsx`
+- Learnings: Composite after() can't safely call auth-dependent actions — use client fire-and-forget (Learning #188)
+- Decision: buildCompositeInterventions filters intervention-only; fireAndForgetReminders handles reminders client-side
+
+## 2026-03-25 — US-007: Contract submit — recurrenceRule propagation
+- Implemented: Lease gestionnaire-only filter, supplier rrule+filter+toggled items, server action RRULE support
+- Files: `contract-form-container.tsx`, `supplier-contract-actions.ts`, `supplier-contract.types.ts`
+- Learnings: Supplier createReminderInterventions had no RRULE support — refactored to use createWizardRemindersAction
+
+## 2026-03-25 — Fix: Contract upload failures (filename + rate limit + error logging)
+- Implemented: NFD filename sanitization in 3 upload routes, rate limit tier adjustment, pino error serialization fix
+- Files: `app/api/upload-contract-document/route.ts`, `app/api/upload-intervention-document/route.ts`, `app/api/upload-supplier-contract-document/route.ts`, `lib/rate-limit.ts`, `hooks/use-contract-upload.ts`
+- Learnings: Supabase Storage rejects non-ASCII keys; concurrent uploads hit sensitive rate limit; Error objects serialize as `{}` in pino
+- Decision: Upload routes → api tier (30/10s); sanitize filenames with NFD normalization
+
+## 2026-03-25 — Fix: Provider category 3-layer enum drift
+- Implemented: Zod schemas expanded (2→10 values), DB migration for 3 missing enum values, MIME types expanded (HEIC, CSV, octet-stream)
+- Files: `lib/validation/schemas.ts`, `supabase/migrations/20260324100000_expand_provider_category_enum.sql`, `lib/constants/mime-types.ts`
+- Learnings: UI/Zod/DB enum must stay aligned — grep all 3 layers when adding values
+- Decision: Zod enum should be the superset of all valid values
+
+## 2026-03-25 — Feature: Supplier contract annual cost display
+- Implemented: Per-contract annual cost inline (`250 €/mois → 3 000 €/an`), recap with frequency total + bold annual total
+- Files: `components/contract/supplier-confirmation-step.tsx`
+- Learnings: Annual multiplier map is cleaner than switch/case for frequency conversions
+
+## 2026-03-25 — Fix: Email domain seido.app → seido-app.com across all templates
+- Implemented: Updated email domain from `seido.app` to `seido-app.com` in EMAIL_CONFIG (resend-client.ts) and all 28 email templates
+- Files: `lib/email/resend-client.ts`, all templates in `emails/templates/`, `emails/components/`, plus auth/webhook/cron routes
+- Learnings: Domain references were scattered across templates despite EMAIL_CONFIG existing — now fully centralized
+- Decision: All from addresses use `notifications@seido-app.com`, reply-to uses `reply+{token}@seido-app.com`
+
+## 2026-03-25 — Optimization: git* quality gate LIGHT/FULL triage
+- Implemented: LIGHT gate (lint only) for UI/config/styling changes, FULL gate reserved for security/auth/DB/billing
+- Files: `.claude/CLAUDE.md`, `.claude/skills/sp-quality-gate/SKILL.md`
+- Decision: Token-conscious triage based on change scope — saves ~80% tokens on routine commits
+
+## 2026-03-25 — Refactor: Centralize email config — eliminate hardcoded domains
+- Implemented: Added `contactEmail` to EMAIL_CONFIG, replaced `noreply` → `notifications` in reply service fallbacks, replaced hardcoded `support@seido-app.com` with `EMAIL_CONFIG.supportEmail` in 6 templates, replaced hardcoded URLs/contact in email footer with `EMAIL_CONFIG.appUrl`/`EMAIL_CONFIG.contactEmail`
+- Files: `lib/email/resend-client.ts`, `lib/services/domain/email-reply.service.ts`, `emails/components/email-footer.tsx`, 6 templates in `emails/templates/`
+- Learnings: UI-facing pages (landing, legal) intentionally keep hardcoded strings — importing server config into client components is unnecessary overhead
+- Decision: EMAIL_CONFIG is now the single source of truth for all email sending config (from, support, contact, appUrl, appName)

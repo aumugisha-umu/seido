@@ -113,7 +113,7 @@ const getEntityUrl = (entityType: string, entityId?: string | null): string | nu
     lot: `/gestionnaire/biens/lots/${entityId}`,
     contract: `/gestionnaire/contrats/${entityId}`,
     contact: `/gestionnaire/contacts/details/${entityId}`,
-    intervention: `/gestionnaire/interventions/${entityId}`
+    intervention: `/gestionnaire/operations/interventions/${entityId}`
   }
   return routes[entityType] || null
 }

@@ -97,7 +97,7 @@ const STEPS: ChecklistStep[] = [
     howItConnects: 'Le prestataire assigné sera notifié, pourra proposer des créneaux et envoyer un devis.',
     ctaLabel: 'Créer une intervention',
     icon: Wrench,
-    href: '/gestionnaire/interventions/nouvelle-intervention',
+    href: '/gestionnaire/operations/nouvelle-intervention',
   },
   {
     id: 'hasEmail',
@@ -298,7 +298,7 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
                 <div className="flex items-center gap-2 w-20">
                   <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      className="h-full rounded-full bg-primary transition-all duration-300"
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>
@@ -386,7 +386,7 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
                               {step.label}
                             </p>
                             {isSkipped && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
                                 Passée
                               </span>
                             )}

@@ -1,4 +1,4 @@
-import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle, User, Paperclip, CalendarCheck, ClipboardList } from "lucide-react"
+import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle, User, Paperclip, CalendarCheck, ClipboardList, Bell } from "lucide-react"
 import { StepConfig } from "@/components/ui/step-progress-header"
 
 export const buildingSteps: StepConfig[] = [
@@ -119,6 +119,22 @@ export const contractSteps: StepConfig[] = [
   {
     icon: CalendarCheck,
     label: "Interventions"
+  },
+  {
+    icon: Check,
+    label: "Confirmation"
+  }
+]
+
+// Steps pour la création de rappels (3 étapes)
+export const reminderSteps: StepConfig[] = [
+  {
+    icon: Home,
+    label: "Bien"
+  },
+  {
+    icon: Bell,
+    label: "Rappel"
   },
   {
     icon: Check,

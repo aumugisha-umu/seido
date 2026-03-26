@@ -25,7 +25,7 @@ export function InterventionsEmptyState({
     if (createButtonAction) {
       createButtonAction()
     } else {
-      router.push("/gestionnaire/interventions/nouvelle-intervention")
+      router.push("/gestionnaire/operations/nouvelle-intervention")
     }
   }
 

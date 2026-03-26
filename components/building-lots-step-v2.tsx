@@ -205,7 +205,7 @@ export function BuildingLotsStepV2({
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="truncate text-[13px] font-semibold text-gray-800 leading-tight">
+                            <span className="truncate text-[13px] font-semibold text-gray-800 leading-snug">
                               {lot.reference || "Sans réf."}
                             </span>
                             {isOccupied && (
@@ -213,7 +213,7 @@ export function BuildingLotsStepV2({
                             )}
                           </div>
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-[11px] font-medium text-gray-400 leading-none">
+                            <span className="text-[11px] font-medium text-gray-400 leading-tight">
                               {config.label}
                             </span>
                             {subtitle && (

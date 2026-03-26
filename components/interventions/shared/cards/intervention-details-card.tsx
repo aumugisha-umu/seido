@@ -41,7 +41,7 @@ import {
   HelpCircle
 } from 'lucide-react'
 import { InterventionDetailsCardProps } from '../types'
-import { formatDate, formatAmount, formatTime, formatTimeRange } from '../utils/helpers'
+import { formatDate, formatAmount, formatTime, formatTimeRange, isFullDayTime } from '../utils/helpers'
 import { GoogleMapPreview } from '@/components/google-maps/google-map-preview'
 import { ParticipantsRow } from '../layout/participants-row'
 
@@ -287,7 +287,7 @@ const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlann
               ) : (planning.scheduledDate || planningConfig.description) && (
                 <p className="text-xs text-muted-foreground truncate">
                   {planning.scheduledDate
-                    ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime
+                    ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime && !isFullDayTime(planning.scheduledStartTime)
                         ? planning.isFixedScheduling
                           ? ` • ${formatTime(planning.scheduledStartTime)}`
                           : planning.scheduledEndTime

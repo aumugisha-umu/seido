@@ -55,6 +55,8 @@ paths:
 - Contraste couleurs minimum 4.5:1
 - États focus visibles
 - Messages d'erreur associés aux inputs
+- Skip link: `<a href="#main-content" className="sr-only focus:not-sr-only">Aller au contenu</a>` en haut du layout
+- Heading hierarchy séquentielle: h1→h2→h3 (jamais sauter h1→h3)
 
 ## Server vs Client Components
 
@@ -125,6 +127,39 @@ components/
 ❌ Ignorer les états loading/error
 ❌ Oublier l'accessibilité clavier
 ❌ Touch targets < 44px sur mobile
+❌ Dark mode: désaturer les couleurs de 10-15% (pas les mêmes valeurs que light)
+❌ Plusieurs CTA primaires par écran (un seul bouton principal visible)
+
+---
+
+## Animations & Transitions
+
+| Règle | Valeur |
+|-------|--------|
+| Exit vs Enter | Exit = 60-70% de la durée d'entrée |
+| Interruptible | Animations annulables sans casser l'état |
+| Press feedback | Highlight/scale dans 80-150ms au tap |
+| Stagger listes | 30-50ms entre items |
+
+## Layout Numériques
+
+| Règle | Valeur |
+|-------|--------|
+| Shadow scale | shadow-none / shadow-sm / shadow / shadow-md / shadow-lg (5 niveaux) |
+| Adaptive gutters | px-4 mobile → px-6 tablet → px-8 desktop |
+
+## Forms & Feedback
+
+- **Undo**: Proposer undo (toast avec action) au lieu de confirmation quand possible
+- **Single primary CTA**: Un seul CTA principal par écran/section visible
+
+## Icônes & Assets Visuels
+
+- **Lucide uniquement** (jamais Heroicons, jamais emoji structurel)
+- **Stroke width cohérent** : 1.5px ou 2px, jamais mixer
+- **Filled vs Outline** : Outline pour navigation/actions, Filled pour états actifs
+- **Taille cohérente** : 16px (inline) / 20px (boutons) / 24px (headers) / 32px (hero)
+- **Pas de layout shift** au press/hover (utiliser transform, pas width/height)
 
 ---
 

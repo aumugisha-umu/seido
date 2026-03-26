@@ -227,7 +227,7 @@ InterventionCompletedEmail.PreviewProps = {
     'Fuite d\'eau importante sous l\'évier de la cuisine. L\'eau coule en continu depuis ce matin.',
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
   lotReference: 'Apt 3B',
-  interventionUrl: 'https://seido.app/locataire/interventions/INT-2024-042',
+  interventionUrl: 'https://seido-app.com/locataire/interventions/INT-2024-042',
   providerName: 'Pierre Dubois',
   completedAt: new Date(),
   completionNotes:
@@ -236,8 +236,8 @@ InterventionCompletedEmail.PreviewProps = {
   recipientRole: 'locataire',
   // Mode interactif avec boutons Valider/Signaler
   enableInteractiveButtons: true,
-  validateUrl: 'https://seido.app/auth/email-callback?token_hash=xxx&action=validate_intervention&param_type=approve',
-  contestUrl: 'https://seido.app/auth/email-callback?token_hash=yyy&action=validate_intervention&param_type=contest',
+  validateUrl: 'https://seido-app.com/auth/email-callback?token_hash=xxx&action=validate_intervention&param_type=approve',
+  contestUrl: 'https://seido-app.com/auth/email-callback?token_hash=yyy&action=validate_intervention&param_type=contest',
 } as InterventionCompletedEmailProps
 
 export default InterventionCompletedEmail

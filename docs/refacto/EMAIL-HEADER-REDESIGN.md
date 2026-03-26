@@ -305,7 +305,7 @@ npm run dev
 1. **Logo SVG** :
    - Remplacer le "S" textuel par un vrai logo SVG
    - Meilleure qualité sur écrans Retina
-   - Code : `<img src="https://seido.app/logo.svg" width="56" height="56" />`
+   - Code : `<img src="https://seido-app.com/logo.svg" width="56" height="56" />`
 
 2. **Dark Mode Support** :
    - Ajouter `@media (prefers-color-scheme: dark)` pour Apple Mail

@@ -1,8 +1,9 @@
 "use client"
 
-import { AlertTriangle, Building2, Users, FileText, Wrench, AlertCircle, CheckCircle2 } from "lucide-react"
+import { AlertTriangle, Building2, Users, FileText, Wrench, AlertCircle, CheckCircle2, Bell, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { ContractStats } from "@/lib/types/contract.types"
+import type { ReminderStats } from "@/lib/types/reminder.types"
 import { StatsCard, type TrendData } from "./stats-card"
 import { ProgressMini } from "./progress-mini"
 
@@ -42,6 +43,8 @@ interface DashboardStatsCardsProps {
     progressData?: ProgressData
     /** Click handler for "Actions requises" card (scroll to interventions) */
     onActionsClick?: () => void
+    /** Reminder stats for the 6th KPI card */
+    reminderStats?: ReminderStats
 }
 
 // ============================================================================
@@ -61,14 +64,18 @@ export function DashboardStatsCards({
     tenantCount = 0,
     trendData,
     progressData,
-    onActionsClick
+    onActionsClick,
+    reminderStats
 }: DashboardStatsCardsProps) {
     const isManager = buildingsCount !== undefined
+    const hasActiveReminders = reminderStats && (reminderStats.due_today > 0 || reminderStats.overdue > 0 || reminderStats.en_cours > 0 || reminderStats.en_attente > 0)
 
     return (
         <div className={cn(
             "dashboard-stats-cards grid grid-cols-1 gap-3 lg:gap-4",
-            isManager ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" : "md:grid-cols-3"
+            isManager
+                ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+                : "md:grid-cols-3"
         )}>
             {/* Card 1: Actions requises (Always First) */}
             <StatsCard
@@ -80,7 +87,7 @@ export function DashboardStatsCards({
                 iconColor={pendingCount > 0 ? "text-amber-500" : "text-emerald-500"}
                 variant={pendingCount > 0 ? "warning" : "success"}
                 onClick={onActionsClick}
-                href={onActionsClick ? undefined : "/gestionnaire/interventions?filter=pending"}
+                href={onActionsClick ? undefined : "/gestionnaire/operations?filter=pending"}
             />
 
             {/* Card 2: Patrimoine (Manager Only) - Buildings + lots breakdown */}
@@ -177,8 +184,49 @@ export function DashboardStatsCards({
                 icon={Wrench}
                 iconColor="text-blue-600"
                 variant="default"
-                href="/gestionnaire/interventions"
+                href="/gestionnaire/operations"
             />
+
+            {/* Card 6: Rappels (Manager Only, always visible) */}
+            {isManager && (() => {
+                const dueTodayCount = reminderStats?.due_today ?? 0
+                const overdueCount = reminderStats?.overdue ?? 0
+                const enAttenteCount = reminderStats?.en_attente ?? 0
+                const enCoursCount = reminderStats?.en_cours ?? 0
+                const totalActive = enAttenteCount + enCoursCount
+
+                return (
+                    <StatsCard
+                        id="reminders"
+                        label="Rappels"
+                        value={hasActiveReminders ? dueTodayCount : totalActive}
+                        sublabel={hasActiveReminders ? "aujourd'hui" : "Aucun rappel actif"}
+                        secondaryValue={
+                            hasActiveReminders ? (
+                                <div className="flex flex-col gap-0.5">
+                                    {overdueCount > 0 && (
+                                        <span className="text-destructive font-medium flex items-center gap-1 text-xs">
+                                            <AlertTriangle className="h-3 w-3" />
+                                            {overdueCount} en retard
+                                        </span>
+                                    )}
+                                    {enAttenteCount > 0 && (
+                                        <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                                            <Clock className="h-3 w-3" />
+                                            {enAttenteCount} en attente
+                                        </span>
+                                    )}
+                                </div>
+                            ) : null
+                        }
+                        icon={Bell}
+                        iconColor={overdueCount > 0 ? "text-red-500" : hasActiveReminders ? "text-amber-500" : "text-muted-foreground"}
+                        variant={overdueCount > 0 ? "warning" : "default"}
+                        href="/gestionnaire/operations?type=rappel"
+                        alertRing={overdueCount > 0}
+                    />
+                )
+            })()}
         </div>
     )
 }

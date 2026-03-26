@@ -150,7 +150,7 @@ QuoteApprovedEmail.PreviewProps = {
   interventionType: 'Plomberie',
   description: 'Fuite d\'eau importante sous l\'évier de la cuisine.',
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
-  quoteUrl: 'https://seido.app/prestataire/interventions/INT-2024-042',
+  quoteUrl: 'https://seido-app.com/prestataire/interventions/INT-2024-042',
   managerName: 'Jean Martin',
   approvedAmount: 300,
   approvedAt: new Date(),

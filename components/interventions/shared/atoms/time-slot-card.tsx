@@ -34,7 +34,7 @@ import {
   CalendarCheck
 } from 'lucide-react'
 import { TimeSlot, UserRole } from '../types'
-import { formatDateShort, formatTimeRange, formatTime } from '../utils/helpers'
+import { formatDateShort, formatTimeRange, formatTime, isFullDaySlot } from '../utils/helpers'
 import { permissions } from '../utils/permissions'
 
 export interface TimeSlotCardProps {
@@ -227,15 +227,18 @@ export const TimeSlotCard = ({
           <span className="text-sm font-medium">
             {formatDateShort(slot.slot_date)}
           </span>
-          <span className="text-slate-300">•</span>
-          <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-          <span className="text-sm">
-            {/* Mode date fixe (selected_by_manager): afficher seulement l'heure de début */}
-            {slot.selected_by_manager
-              ? formatTime(slot.start_time)
-              : formatTimeRange(slot.start_time, slot.end_time)
-            }
-          </span>
+          {!isFullDaySlot(slot.start_time, slot.end_time) && (
+            <>
+              <span className="text-slate-300">•</span>
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+              <span className="text-sm">
+                {slot.selected_by_manager
+                  ? formatTime(slot.start_time)
+                  : formatTimeRange(slot.start_time, slot.end_time)
+                }
+              </span>
+            </>
+          )}
         </div>
 
         {/* Badge de statut */}
@@ -264,17 +267,20 @@ export const TimeSlotCard = ({
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
             <span className="text-sm font-medium">{formatDateShort(slot.slot_date)}</span>
           </div>
-          <span className="text-slate-300">•</span>
-          <div className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-            <span className="text-sm text-muted-foreground">
-              {/* Mode date fixe (selected_by_manager): afficher seulement l'heure de début */}
-              {slot.selected_by_manager
-                ? formatTime(slot.start_time)
-                : formatTimeRange(slot.start_time, slot.end_time)
-              }
-            </span>
-          </div>
+          {!isFullDaySlot(slot.start_time, slot.end_time) && (
+            <>
+              <span className="text-slate-300">•</span>
+              <div className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                <span className="text-sm text-muted-foreground">
+                  {slot.selected_by_manager
+                    ? formatTime(slot.start_time)
+                    : formatTimeRange(slot.start_time, slot.end_time)
+                  }
+                </span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Badge de statut (confirmé/annulé) */}

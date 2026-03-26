@@ -93,7 +93,7 @@ FeatureEngagementEmail.PreviewProps = {
   interventionCount: 3,
   lotCount: 5,
   daysLeft: 23,
-  billingUrl: 'https://seido.app/gestionnaire/settings/billing',
+  billingUrl: 'https://seido-app.com/gestionnaire/settings/billing',
 } as FeatureEngagementEmailProps
 
 export default FeatureEngagementEmail

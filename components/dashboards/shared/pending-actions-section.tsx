@@ -100,7 +100,7 @@ const getActionPriority = (intervention: Intervention): number => {
 const getViewAllUrl = (userRole: UserRole): string => {
   switch (userRole) {
     case 'gestionnaire':
-      return '/gestionnaire/interventions'
+      return '/gestionnaire/operations'
     case 'prestataire':
       return '/prestataire/interventions'
     case 'locataire':

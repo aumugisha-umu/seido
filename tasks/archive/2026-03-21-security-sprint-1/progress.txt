@@ -1,0 +1,36 @@
+# Progress Log — Security Audit Sprint 1
+# Started: 2026-03-21
+# Stories: 6/6 complete
+# Source: docs/audit/2026-03-21-full-stack-audit.md
+---
+
+## US-001: Fix mass assignment /api/update-contact (S) — DONE
+- Added `updateContactSchema` to lib/validation/schemas.ts with .strict()
+- Route uses safeParse() — rejects unknown fields (role, team_id, auth_user_id blocked)
+- Files: lib/validation/schemas.ts, app/api/update-contact/route.ts
+
+## US-002: Replace getSession() with getUser() in auth-dal.ts (XS) — DONE
+- Changed supabase.auth.getSession() to supabase.auth.getUser()
+- Entire auth chain (requireRole -> getUserProfile -> getUser) now server-validated
+- cache() preserved for deduplication (1 network call per request)
+- Files: lib/auth-dal.ts
+
+## US-003: Add Zod validation to lot-actions.ts (S) — DONE
+- Added updateCompleteLotSchema with uuid validation on lotId/contactId
+- safeParse() at entry, returns { success: false } on invalid input
+- Files: app/actions/lot-actions.ts
+
+## US-004: Condition unsafe-eval to dev only (XS) — DONE
+- CSP script-src now uses template literal with NODE_ENV check
+- Production CSP no longer contains 'unsafe-eval'
+- Files: next.config.js
+
+## US-005: Fix CORS wildcard (XS) — DONE
+- OPTIONS handler uses ALLOWED_ORIGIN -> NEXT_PUBLIC_SITE_URL -> request origin
+- No more wildcard * fallback
+- Files: app/api/company/lookup/route.ts
+
+## US-006: mapStripeStatus fail-closed (XS) — DONE
+- Unknown statuses now log logger.warn and return 'past_due' (fail-closed)
+- Previously returned 'active' (fail-open — dangerous)
+- Files: lib/services/domain/subscription.service.ts

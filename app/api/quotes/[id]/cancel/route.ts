@@ -139,7 +139,7 @@ export async function PATCH(
       metadata: {
         intervention_id: intervention.id,
         quote_id: quoteId,
-        action_url: `/gestionnaire/interventions/${intervention.id}`
+        action_url: `/gestionnaire/operations/interventions/${intervention.id}`
       },
       created_at: new Date().toISOString()
     }))

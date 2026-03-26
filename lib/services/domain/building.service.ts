@@ -208,6 +208,31 @@ export class BuildingService {
   }
 
   /**
+   * Soft delete building (sets deleted_at timestamp)
+   * Preserves data for audit trail while hiding from active queries.
+   */
+  async softDelete(id: string, deletedBy?: string) {
+    const existingBuilding = await this.repository.findByIdWithRelations(id)
+    if (isErrorResponse(existingBuilding)) return existingBuilding
+
+    if (existingBuilding.data.lots && existingBuilding.data.lots.length > 0) {
+      throw new ValidationException(
+        'Cannot delete building with existing lots. Please delete all lots first.',
+        'lots',
+        existingBuilding.data.lots.length
+      )
+    }
+
+    const result = await this.repository.softDelete(id, deletedBy)
+
+    if (result.success) {
+      await this.logBuildingDeletion(existingBuilding.data)
+    }
+
+    return result
+  }
+
+  /**
    * ⚡ OPTIMIZED: Get buildings summary by team (for list views)
    * Returns minimal data: id, name, address_record, lots_count
    * 90% less data than getBuildingsByTeam()

@@ -66,7 +66,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
       { href: "/gestionnaire/dashboard", label: "Dashboard", icon: Home },
       { href: "/gestionnaire/biens", label: "Patrimoine", icon: Building2 },
       { href: "/gestionnaire/contrats", label: "Contrats", icon: FileText },
-      { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench },
+      { href: "/gestionnaire/operations", label: "Opérations", icon: Wrench },
       { href: "/gestionnaire/contacts", label: "Contacts", icon: Users },
       { href: "/gestionnaire/mail", label: "Emails", icon: Mail },
     ],
@@ -236,7 +236,7 @@ export default function DashboardHeader({
       <header 
         className={cn(
           "header",
-          "transition-[top] duration-300 ease-in-out"
+          "transition-[top] duration-300 ease-out"
         )}
         style={{ top: isBannerVisible ? PWA_BANNER_HEIGHT : 0 }}
       >
@@ -370,7 +370,7 @@ export default function DashboardHeader({
 
       {/* Menu mobile/tablet overlay */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-30">
+        <div className="lg:hidden fixed inset-0 z-40">
           {/* Overlay backdrop */}
           <div
             className="fixed inset-0 bg-foreground/50 backdrop-blur-sm"

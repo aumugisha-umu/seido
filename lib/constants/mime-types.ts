@@ -3,6 +3,8 @@ const IMAGE_MIME_TYPES = [
   'image/png',
   'image/gif',
   'image/webp',
+  'image/heic',
+  'image/heif',
 ] as const
 
 const DOCUMENT_MIME_TYPES = [
@@ -30,10 +32,12 @@ export const ALLOWED_DOCUMENT_MIME_TYPES_EXTENDED = [
   ...ALLOWED_DOCUMENT_MIME_TYPES,
   'text/plain',
   'application/zip',
+  'text/csv',
 ] as const
 
 export const ALLOWED_INTERVENTION_MIME_TYPES = [
   ...ALLOWED_DOCUMENT_MIME_TYPES_EXTENDED,
   ...AUDIO_MIME_TYPES,
+  'application/octet-stream',
 ] as const
 

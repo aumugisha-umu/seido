@@ -4,7 +4,7 @@
 **Auteur**: Claude + UX Researcher + UI Designer + Security Auditor
 **Statut**: Revise apres audit complet — pret pour PRD
 **Branche cible**: `feature/bank-module`
-**Revision**: v2 — Corrections post-audit securite, API Tink V2, integration codebase
+**Revision**: v3 — Corrections post-audit securite, API Tink V2, integration codebase, revue doc officielle Tink (MCP context7), analyse UX/UI Researcher, gaps metier BE/FR
 
 ---
 
@@ -26,6 +26,7 @@
 14. [API Routes](#14-api-routes)
 15. [Cron Jobs](#15-cron-jobs)
 16. [Phases d'Implementation](#16-phases-dimplementation)
+17. [Ajouts v3 — Gaps metier et conformite BE/FR](#17-ajouts-v3--gaps-metier-et-conformite-befr)
 
 ---
 
@@ -158,7 +159,7 @@ CREATE TABLE bank_connections (
   currency TEXT NOT NULL DEFAULT 'EUR',
 
   -- Tokens (chiffres via EncryptionService AES-256-GCM)
-  tink_access_token_encrypted TEXT,          -- Expire en 2h
+  tink_access_token_encrypted TEXT,          -- Expire en 30 min (v3: corrige de 2h)
   tink_refresh_token_encrypted TEXT,         -- Long-lived
   token_expires_at TIMESTAMPTZ,              -- Quand l'access token expire
 
@@ -171,6 +172,10 @@ CREATE TABLE bank_connections (
 
   -- Consent (PSD2 90-day limit)
   consent_expires_at TIMESTAMPTZ,
+
+  -- AJOUT v3: Typage du compte (conformite Loi Alur — fonds mandants separes)
+  account_purpose TEXT NOT NULL DEFAULT 'operating'
+    CHECK (account_purpose IN ('operating', 'client_funds', 'security_deposits')),
 
   -- Blacklisting
   is_blacklisted BOOLEAN NOT NULL DEFAULT false,
@@ -228,9 +233,13 @@ CREATE TABLE bank_transactions (
   currency TEXT NOT NULL DEFAULT 'EUR',
   description_original TEXT NOT NULL,         -- descriptions.original (brut banque)
   description_display TEXT,                   -- descriptions.display (nettoye par Tink)
-  counterparty_name TEXT,                     -- Nom expediteur/destinataire
-  counterparty_iban TEXT,                     -- IBAN contrepartie
+  -- CORRECTION v3: structure counterparties riche (payer + payee avec nom et IBAN)
+  payer_name TEXT,                            -- counterparties.payer.name
+  payer_account_number TEXT,                  -- counterparties.payer.identifiers.financialInstitution.accountNumber
+  payee_name TEXT,                            -- counterparties.payee.name
+  payee_account_number TEXT,                  -- counterparties.payee.identifiers.financialInstitution.accountNumber
   reference TEXT,                             -- Communication structuree belge
+  description_detailed TEXT,                  -- descriptions.detailed.unstructured (v3: utile pour matching)
   tink_status TEXT,                           -- BOOKED, PENDING
   merchant_name TEXT,                         -- merchantInformation.merchantName (enrichment)
   merchant_category_code TEXT,                -- MCC code (enrichment)
@@ -281,16 +290,32 @@ CREATE TABLE transaction_links (
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   bank_transaction_id UUID NOT NULL REFERENCES bank_transactions(id),
 
-  -- Entite liee (polymorphique — un seul non-null)
+  -- AJOUT v3: categorie de transaction (6 types au lieu de 3)
+  -- Permet les charges recurrentes, depots de garantie, honoraires
+  entity_type TEXT NOT NULL CHECK (entity_type IN (
+    'rent_call',           -- Loyer (entree)
+    'intervention',        -- Intervention SEIDO (depense)
+    'supplier_contract',   -- Contrat fournisseur (depense)
+    'property_expense',    -- Charge recurrente: syndic, taxe, assurance (depense)
+    'security_deposit',    -- Depot de garantie (neutre — PAS un revenu)
+    'management_fee'       -- Honoraires de gestion (depense agence)
+  )),
+
+  -- Entite liee (polymorphique — un seul non-null selon entity_type)
   rent_call_id UUID REFERENCES rent_calls(id),
   intervention_id UUID REFERENCES interventions(id),
   supplier_contract_id UUID REFERENCES supplier_contracts(id),
+  property_expense_id UUID REFERENCES property_expenses(id),  -- AJOUT v3
+  security_deposit_id UUID REFERENCES security_deposits(id),  -- AJOUT v3
 
-  -- Check: exactement un lien
+  -- Check: exactement un lien parmi les FK, OU entity_type = 'management_fee' (pas de FK)
   CONSTRAINT exactly_one_link CHECK (
     (CASE WHEN rent_call_id IS NOT NULL THEN 1 ELSE 0 END +
      CASE WHEN intervention_id IS NOT NULL THEN 1 ELSE 0 END +
-     CASE WHEN supplier_contract_id IS NOT NULL THEN 1 ELSE 0 END) = 1
+     CASE WHEN supplier_contract_id IS NOT NULL THEN 1 ELSE 0 END +
+     CASE WHEN property_expense_id IS NOT NULL THEN 1 ELSE 0 END +
+     CASE WHEN security_deposit_id IS NOT NULL THEN 1 ELSE 0 END) =
+    CASE WHEN entity_type = 'management_fee' THEN 0 ELSE 1 END
   ),
 
   -- Matching metadata
@@ -306,11 +331,22 @@ CREATE TABLE transaction_links (
   unlinked_by UUID REFERENCES users(id),
 
   -- Phase 1: 1 lien par transaction. Phase 2: multiple.
-  -- Mais pas deux fois a la meme entite
-  CONSTRAINT unique_transaction_entity UNIQUE (
-    bank_transaction_id, rent_call_id, intervention_id, supplier_contract_id
-  )
+  -- CORRECTION v3: UNIQUE avec NULLs ne fonctionne pas en PostgreSQL (NULL != NULL)
+  -- Utiliser des index uniques partiels a la place
 );
+
+-- Index uniques partiels: empechent 2 liens vers la meme entite pour la meme transaction
+CREATE UNIQUE INDEX idx_transaction_links_rent_call
+  ON transaction_links(bank_transaction_id, rent_call_id)
+  WHERE rent_call_id IS NOT NULL AND unlinked_at IS NULL;
+
+CREATE UNIQUE INDEX idx_transaction_links_intervention
+  ON transaction_links(bank_transaction_id, intervention_id)
+  WHERE intervention_id IS NOT NULL AND unlinked_at IS NULL;
+
+CREATE UNIQUE INDEX idx_transaction_links_supplier_contract
+  ON transaction_links(bank_transaction_id, supplier_contract_id)
+  WHERE supplier_contract_id IS NOT NULL AND unlinked_at IS NULL;
 
 ALTER TABLE transaction_links ENABLE ROW LEVEL SECURITY;
 
@@ -489,8 +525,10 @@ Tink utilise **OAuth 2.0 exclusivement** — pas de cles API. Deux types de toke
 
 | Token | Usage | Duree | Refresh |
 |-------|-------|-------|---------|
-| **Client Token** | Operations app-level (creer users, grants) | 30 min | Non (re-demander) |
-| **User Token** | Acceder aux donnees bancaires d'un user | 2h | Oui (refresh_token) |
+| **Client Token** | Operations app-level (creer users, grants) | 30 min (`expires_in: 1800`) | Non (re-demander) |
+| **User Token** | Acceder aux donnees bancaires d'un user | **30 min** (`expires_in: 1800`) | Oui (refresh_token) |
+
+> **CORRECTION v3** : Le token utilisateur expire en **30 min** (1800s), PAS 2h. Confirme par la doc officielle Tink (`POST /api/v1/oauth/token` response). La strategie de refresh doit anticiper cette duree courte.
 
 ### Flux technique detaille
 
@@ -526,7 +564,7 @@ Tink utilise **OAuth 2.0 exclusivement** — pas de cles API. Deux types de toke
                       │   grant_type=authorization_code         │
                       │   code={AUTH_CODE}                      │
                       │   client_id + client_secret             │
-                      │<── { access_token (2h),                │
+                      │<── { access_token (30 min),             │
                       │      refresh_token,                     │
                       │      scope: "accounts:read,..." }      │
                       │                                        │
@@ -564,7 +602,10 @@ Tink utilise **OAuth 2.0 exclusivement** — pas de cles API. Deux types de toke
 → `-4500 / 100 = -45.00 EUR`
 
 ```typescript
-function parseTinkAmount(value: { unscaledValue: string; scale: string }): number {
+// CORRECTION v3: unscaledValue et scale peuvent etre string OU number selon l'endpoint Tink
+// La doc montre les deux formats: { "scale": "1", "unscaledValue": "-1300" } (strings)
+// et { "scale": 2, "unscaledValue": 1050 } (numbers)
+function parseTinkAmount(value: { unscaledValue: string | number; scale: string | number }): number {
   return Number(value.unscaledValue) / Math.pow(10, Number(value.scale))
 }
 ```
@@ -575,14 +616,19 @@ function parseTinkAmount(value: { unscaledValue: string; scale: string }): numbe
 |-----------|-------------|----------|
 | `id` | `tink_transaction_id` | Oui |
 | `accountId` | `bank_connection_id` (via mapping) | Oui |
-| `amount.value` | `amount` (converti) | Oui |
+| `amount.value` | `amount` (converti via `parseTinkAmount`) | Oui |
 | `amount.currencyCode` | `currency` | Oui |
 | `dates.booked` | `transaction_date` | Oui |
 | `dates.value` | `value_date` | Non |
 | `descriptions.original` | `description_original` | Oui |
 | `descriptions.display` | `description_display` | Non |
+| `descriptions.detailed.unstructured` | `description_detailed` | Non (v3) |
 | `status` | `tink_status` (BOOKED/PENDING) | Oui |
 | `reference` | `reference` | Non |
+| `counterparties.payer.name` | `payer_name` | Non (v3) |
+| `counterparties.payer.identifiers.financialInstitution.accountNumber` | `payer_account_number` | Non (v3) |
+| `counterparties.payee.name` | `payee_name` | Non (v3) |
+| `counterparties.payee.identifiers.financialInstitution.accountNumber` | `payee_account_number` | Non (v3) |
 | `merchantInformation.merchantName` | `merchant_name` | Non (enrichment) |
 | `merchantInformation.merchantCategoryCode` | `merchant_category_code` | Non (enrichment) |
 | `identifiers.providerTransactionId` | `provider_transaction_id` | Non |
@@ -602,7 +648,7 @@ function parseTinkAmount(value: { unscaledValue: string; scale: string }): numbe
 | `TINK_CLIENT_SECRET` | Variable d'env serveur | N/A |
 | `TINK_REDIRECT_URI` | Variable d'env serveur | N/A |
 | `TINK_ENVIRONMENT` | Variable d'env (`sandbox` / `production`) | N/A |
-| `access_token` (2h) | `bank_connections.tink_access_token_encrypted` | **EncryptionService** (AES-256-GCM) |
+| `access_token` (30 min) | `bank_connections.tink_access_token_encrypted` | **EncryptionService** (AES-256-GCM) |
 | `refresh_token` | `bank_connections.tink_refresh_token_encrypted` | **EncryptionService** (AES-256-GCM) |
 | IBAN complet | `bank_connections.iban_encrypted` | **EncryptionService** (AES-256-GCM) |
 
@@ -612,12 +658,22 @@ function parseTinkAmount(value: { unscaledValue: string; scale: string }): numbe
 
 ### Scopes OAuth necessaires
 
+**Client token scopes** (operations app-level) :
 ```
-accounts:read          — Lister les comptes et soldes
+authorization:grant    — Generer des authorization codes server-side
+user:create            — Creer un Tink permanent user
+```
+
+**User token scopes** (acces donnees bancaires) :
+```
+accounts:read          — Lister les comptes
+balances:read          — Lire les soldes (REQUIS — absent en v2)
 transactions:read      — Lister les transactions
 credentials:read       — Lire le statut des connexions
 provider-consents:read — Lire le statut du consentement PSD2
 ```
+
+> **CORRECTION v3** : `balances:read` est OBLIGATOIRE pour obtenir les soldes bancaires. Confirme par la doc Tink (response scope: `"accounts:read,balances:read,transactions:read"`). Les scopes client token (`authorization:grant`, `user:create`) etaient implicites mais doivent etre documentes.
 
 ### Refresh Token Strategy
 
@@ -625,8 +681,10 @@ provider-consents:read — Lire le statut du consentement PSD2
 async function getValidUserToken(connection: BankConnection): Promise<string> {
   const accessToken = EncryptionService.decrypt(connection.tink_access_token_encrypted)
 
-  // Token encore valide?
-  if (connection.token_expires_at && new Date(connection.token_expires_at) > new Date()) {
+  // Token encore valide? (ATTENTION: expire en 30 min, pas 2h)
+  // Rafraichir 2 min avant expiration pour eviter les race conditions
+  const bufferMs = 2 * 60 * 1000
+  if (connection.token_expires_at && new Date(connection.token_expires_at).getTime() - bufferMs > Date.now()) {
     return accessToken
   }
 
@@ -661,7 +719,7 @@ async function getValidUserToken(connection: BankConnection): Promise<string> {
 ### Consentement PSD2
 
 - Expire tous les **90 jours** — stocke dans `consent_expires_at`
-- Continuous Access (Standard tier) : background refresh **4x/jour** pendant les 90 jours
+- Continuous Access (necessite permanent users — verifier tier) : background refresh **4x/jour** pendant les 90 jours
 - 7 jours avant expiration → notification email + badge alerte dans l'UI
 - A expiration → `sync_status = 'disconnected'` + banner dans le module
 - Re-authentification via le meme flux Tink Link (redirect, pas iframe)
@@ -799,7 +857,7 @@ Scoring multi-criteres (somme ponderee, seuil 20% pour affichage) :
 | Communication structuree belge | 40% | Regex `\+{3}\d{3}/\d{4}/\d{5}\+{3}` → match contrat |
 | Montant exact | 25% | `abs(transaction.amount - rent_call.total_expected) < 0.01` |
 | Montant approchant (+-5%) | 15% | Tolerance pour frais bancaires |
-| Nom expediteur | 15% | Fuzzy match sur `counterparty_name` vs noms locataires du contrat |
+| Nom expediteur | 15% | Fuzzy match sur `payer_name` (v3: ex-counterparty_name) vs noms locataires du contrat |
 | Date proche echeance (+-15j) | 5% | Proximite avec `rent_call.due_date` |
 
 **Pour les depenses (interventions)** :
@@ -807,7 +865,7 @@ Scoring multi-criteres (somme ponderee, seuil 20% pour affichage) :
 | Critere | Poids | Logique |
 |---------|-------|---------|
 | Montant match devis accepte | 35% | `abs(amount) matches intervention_quotes.amount WHERE status='accepted'` |
-| Nom prestataire | 30% | Fuzzy match `counterparty_name` vs prestataire assigne |
+| Nom prestataire | 30% | Fuzzy match `payee_name` (v3: ex-counterparty_name) vs prestataire assigne |
 | Date post-cloture | 15% | Transaction apres `cloturee_par_*` |
 | Meme compte que paiements precedents | 20% | Historique de ce prestataire |
 
@@ -1472,18 +1530,20 @@ export async function GET() {
 
 ---
 
-## Decisions Ouvertes (a valider)
+## Decisions (validees v3 — 2026-03-21)
 
-| # | Question | Options | Recommandation |
-|---|----------|---------|----------------|
-| 1 | Tink tier Standard vs Enterprise? | Standard (self-service) vs Enterprise (custom) | Standard pour le MVP, upgrade si >500 users |
-| 2 | Generation echeances: trigger DB vs cron? | Trigger a la creation + cron mensuel vs tout cron | Trigger + cron (plus reactif) |
-| 3 | Phase 1: liens multiples ou simple? | 1 lien/transaction vs N liens | 1 lien (simplifier le MVP) |
-| 4 | Historique transactions: 90j (defaut PSD2) vs demander plus? | 90 jours vs 180/365 | 90j defaut, option premium pour plus |
-| 5 | Communication structuree: Phase 1 ou 2? | Inclure dans MVP vs reporter | Phase 2 (marche belge specifique) |
-| 6 | Rapports proprietaires (decomptes): inclure? | Phase 2 vs Phase 3 | Phase 3 (benchmark Smovin, complexe) |
-| 7 | Tink Link: redirect vs iframe? | Redirect (recommande) vs iframe (deprecated) | **Redirect** (meilleur taux de completion, accessible) |
-| 8 | 1 Tink user par equipe ou par gestionnaire? | Par equipe (simplifie) vs par user | Par equipe (alignement team_id) |
+| # | Question | **Decision** | Justification |
+|---|----------|-------------|---------------|
+| 1 | Tink tier | **Enterprise** (permanent users) | Sans persistence >24h, aucun MVP viable. Confirmer avec Tink sales en parallele. |
+| 2 | Generation echeances | **Trigger + cron** | Plus reactif a la creation de contrat |
+| 3 | Liens Phase 1 | **1 lien/transaction** avec `entity_type` des Phase 1 | Simplifie le MVP, 6 categories disponibles |
+| 4 | Historique transactions | **90 jours** (defaut PSD2) | Suffisant pour le lancement |
+| 5 | Communication structuree | **Phase 3** | Matching basique suffisant pour MVP |
+| 6 | Cle de chiffrement | **Renommer `EMAIL_ENCRYPTION_KEY` → `ENCRYPTION_KEY`** | Cle generique, migration one-shot |
+| 7 | Tink Link | **Redirect** + URL `/1.0/transactions/connect-accounts` | Configurable via env var `TINK_LINK_URL`, tester en sandbox |
+| 8 | Tink user | **1 par equipe** | Alignement `team_id` |
+| 9 | Mandants | **Phase 2** | MVP fonctionne pour gestionnaires solo |
+| 10 | Indexation BE | **Phase 2** | Important mais pas bloquant MVP |
 
 ---
 
@@ -1500,7 +1560,7 @@ export async function GET() {
 | FOR ALL dans les policies RLS | **Moyenne** | Policies separees par action (SELECT/INSERT/UPDATE/DELETE) |
 | Pas de `ON DELETE CASCADE` sur team_id | **Moyenne** | Ajouter `REFERENCES teams(id) ON DELETE CASCADE` |
 | `deleted_at` manquant sur `auto_linking_rules` | **Moyenne** | Ajoute avec `deleted_by` |
-| Token Tink expire en 2h pas 24h | **Moyenne** | Corrige dans le doc (etait "24h" dans v1) |
+| Token Tink expire en 30 min, pas 24h ni 2h | **Critique** | Corrige dans le doc (v1: "24h", v2: "2h", v3: "30 min" confirme par doc officielle) |
 | Tink Link iframe deprecated | **Faible** | Utiliser redirect (meilleur taux de completion) |
 | `account_type` manquant | **Faible** | Ajoute (CHECKING, SAVINGS, etc.) |
 
@@ -1517,3 +1577,258 @@ export async function GET() {
 - **Stessa** : https://stessa.com/features (benchmark UX US)
 - **SEIDO patterns** : `lib/services/domain/encryption.service.ts`, `lib/api-auth-helper.ts`, `lib/server-context.ts`
 - **SEIDO email module** (pattern parallele) : `lib/services/repositories/email-connection.repository.ts`
+
+---
+
+## 17. Ajouts v3 — Gaps metier et conformite BE/FR
+
+### 17.1 Nouvelles tables (Phase 2)
+
+#### `property_expenses` — Charges recurrentes par bien
+
+```sql
+CREATE TABLE property_expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- Bien concerne (XOR pattern SEIDO)
+  building_id UUID REFERENCES buildings(id),
+  lot_id UUID REFERENCES lots(id),
+  CONSTRAINT property_expense_xor CHECK (
+    (building_id IS NOT NULL)::int + (lot_id IS NOT NULL)::int = 1
+  ),
+
+  -- Categorie
+  category TEXT NOT NULL CHECK (category IN (
+    'syndic',              -- Charges copropriete / syndic
+    'property_tax',        -- Taxe fonciere / precompte immobilier (BE)
+    'insurance',           -- Assurance PNO
+    'utilities',           -- Eau, electricite parties communes
+    'maintenance',         -- Entretien courant hors intervention
+    'other'
+  )),
+
+  -- Details
+  label TEXT NOT NULL,                        -- Ex: "Appel de fonds T1 2026 — Syndic Gambetta"
+  amount DECIMAL(10,2) NOT NULL,
+  due_date DATE NOT NULL,
+  period_start DATE,
+  period_end DATE,
+
+  -- Recurrence (optionnel)
+  is_recurring BOOLEAN NOT NULL DEFAULT false,
+  recurrence_frequency TEXT CHECK (recurrence_frequency IN ('monthly', 'quarterly', 'annually')),
+
+  -- Statut
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'paid', 'overdue', 'cancelled')),
+
+  -- Audit
+  created_by UUID NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES users(id)
+);
+
+CREATE INDEX idx_property_expenses_team ON property_expenses(team_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_property_expenses_lot ON property_expenses(lot_id, due_date);
+CREATE INDEX idx_property_expenses_building ON property_expenses(building_id, due_date);
+
+ALTER TABLE property_expenses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "property_expenses_select" ON property_expenses FOR SELECT USING (is_team_manager(team_id) AND deleted_at IS NULL);
+CREATE POLICY "property_expenses_insert" ON property_expenses FOR INSERT WITH CHECK (is_team_manager(team_id));
+CREATE POLICY "property_expenses_update" ON property_expenses FOR UPDATE USING (is_team_manager(team_id) AND deleted_at IS NULL);
+```
+
+#### `security_deposits` — Depots de garantie (obligation legale BE/FR)
+
+```sql
+CREATE TABLE security_deposits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  contract_id UUID NOT NULL REFERENCES contracts(id),
+  lot_id UUID NOT NULL REFERENCES lots(id),
+
+  -- Montant
+  amount DECIMAL(10,2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'EUR',
+
+  -- Type (specifique Belgique: 3 formes possibles)
+  deposit_type TEXT NOT NULL DEFAULT 'bank_account'
+    CHECK (deposit_type IN (
+      'bank_account',      -- Compte bancaire bloque (BE + FR)
+      'bank_guarantee',    -- Garantie bancaire (BE)
+      'cpas_guarantee',    -- Garantie CPAS (BE)
+      'cash'               -- Versement direct (FR)
+    )),
+
+  -- Compte de consignation
+  bank_name TEXT,
+  account_reference TEXT,           -- Numero de compte bloque
+
+  -- Cycle de vie
+  status TEXT NOT NULL DEFAULT 'held'
+    CHECK (status IN ('pending', 'held', 'partial_return', 'returned', 'disputed')),
+  received_at DATE,
+  return_due_date DATE,             -- Date limite restitution (1-2 mois apres fin bail FR)
+  returned_at DATE,
+  returned_amount DECIMAL(10,2),
+  deductions JSONB,                 -- [{ reason: "Reparation mur", amount: 150, intervention_id: "..." }]
+
+  -- Audit
+  created_by UUID NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_security_deposits_contract ON security_deposits(contract_id);
+CREATE INDEX idx_security_deposits_team ON security_deposits(team_id, status);
+
+ALTER TABLE security_deposits ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "security_deposits_select" ON security_deposits FOR SELECT USING (is_team_manager(team_id));
+CREATE POLICY "security_deposits_insert" ON security_deposits FOR INSERT WITH CHECK (is_team_manager(team_id));
+CREATE POLICY "security_deposits_update" ON security_deposits FOR UPDATE USING (is_team_manager(team_id));
+```
+
+> **ATTENTION** : Un depot de garantie n'est PAS un revenu. Il ne doit JAMAIS apparaitre dans le P&L. C'est une erreur fiscale classique.
+
+#### `owners` et `owner_properties` — Proprietaires mandants (Phase 2)
+
+```sql
+CREATE TABLE owners (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  contact_id UUID NOT NULL REFERENCES users(id),   -- Lien vers le contact existant
+
+  -- Gestion
+  commission_rate DECIMAL(5,2),                     -- Taux d'honoraires de gestion (ex: 7.5%)
+  iban_virement TEXT,                               -- IBAN pour virement mandant
+  payment_frequency TEXT DEFAULT 'monthly'
+    CHECK (payment_frequency IN ('monthly', 'quarterly')),
+
+  -- Audit
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE owner_properties (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id UUID NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
+
+  -- Bien possede (XOR)
+  building_id UUID REFERENCES buildings(id),
+  lot_id UUID REFERENCES lots(id),
+  CONSTRAINT owner_property_xor CHECK (
+    (building_id IS NOT NULL)::int + (lot_id IS NOT NULL)::int = 1
+  ),
+
+  ownership_percentage DECIMAL(5,2) NOT NULL DEFAULT 100,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Prerequis pour: releves de gestion, P&L par proprietaire, conformite art. 1993 CC (FR)
+```
+
+### 17.2 Rapports manquants (a ajouter a la Section 9)
+
+| Rapport | Phase | Calcul | Obligation |
+|---------|-------|--------|------------|
+| **Quittance de loyer PDF** | **Phase 1** | Template parametrise (locataire, montant, lot, periode) | **Legale** (loi 6/7/1989 FR) |
+| **P&L par proprietaire** | Phase 2 | Loyers percus − charges − honoraires = net mandant | **Legale** (art. 1993 CC FR) |
+| **Releve de gestion mensuel PDF** | Phase 2 | Resume operations du mois par mandant, envoi auto | **Legale** (max 60j FR) |
+| **Taux de vacance locative** | Phase 3 | Jours vacant / jours total × 100, par lot/immeuble | Analytics |
+| **Rendement brut/net par lot** | Phase 3 | Loyers annuels / valeur bien × 100 | Differenciateur |
+| **Cash-flow previsionnel 90j** | Phase 3 | Baux actifs × montant − charges recurrentes connues | **Differenciateur fort** (aucun concurrent BE/FR) |
+| **Decompte annuel charges** | Phase 3 | Provisions versees vs charges reelles → regularisation | **Legale** (BE/FR) |
+
+### 17.3 Indexation automatique des loyers (Belgique) — Phase 2
+
+Formule legale belge (index sante) :
+```
+nouveau_loyer = loyer_base × nouvel_index / index_depart
+```
+
+- **Declencheur** : date anniversaire du bail
+- **Source** : Statbel (SPF Economie) — API ou scraping mensuel
+- **Impact DB** : ajouter `rent_amount_indexed` a `rent_calls`, `index_base` et `index_reference_date` a `contracts`
+- **UX** : Notification gestionnaire "Loyer indexe automatiquement pour [Lot] : 850 → 868 EUR (+2.1%)"
+- **Priorite** : HAUTE pour le marche belge (Smovin le fait, dealbreaker si absent)
+
+### 17.4 Integration Data Invalidation Broadcast
+
+**Fichier** : `lib/data-invalidation.ts` + `contexts/realtime-context.tsx`
+
+Les mutations bank doivent broadcaster pour rafraichir les dashboards en temps reel :
+
+```typescript
+// Apres une reconciliation ou sync
+realtime?.broadcastInvalidation(['bank_transactions', 'stats'])
+
+// Apres creation/modification d'echeance
+realtime?.broadcastInvalidation(['rent_calls', 'stats'])
+```
+
+**Nouveau entity type** a ajouter dans `data-invalidation.ts` :
+- `bank_transactions`
+- `bank_connections`
+- `rent_calls`
+- `property_expenses`
+
+### 17.5 Phases d'implementation mises a jour (v3)
+
+#### Phase 1 — MVP Bancaire (6-8 semaines)
+
+*Inchange* + ajouts :
+- **Quittances de loyer PDF** (obligation legale, effort faible)
+- **`counterparties` structure riche** (payer/payee, pas juste counterparty_name)
+- **Data Invalidation Broadcast** pour mutations bank
+- **Token refresh strategy corrigee** (30 min, pas 2h)
+
+#### Phase 2 — Conformite metier et mandants (6-8 semaines) — NOUVEAU
+
+| Composant | Estimation |
+|-----------|-----------|
+| Entite `owners` + `owner_properties` + releve de gestion | 2 semaines |
+| Table `security_deposits` + workflow depot garantie | 1.5 semaines |
+| Table `property_expenses` + 5 categories etendues | 1 semaine |
+| Indexation loyers Belgique (index sante) | 1 semaine |
+| `account_purpose` typage comptes (Loi Alur) | 0.5 semaine |
+| Portail locataire — section Finances (quittances, historique) | 1.5 semaines |
+
+#### Phase 3 — Intelligence et reporting (4-6 semaines)
+
+*Globalement inchange* + ajouts :
+- **P&L par proprietaire** (mandant)
+- **Taux de vacance locative**
+- **Rendement brut/net par lot**
+- **Cash-flow previsionnel 90 jours** (differenciateur unique BE/FR)
+- **Decompte annuel charges** avec regularisation
+
+#### Phase 4 — Excellence (3-4 semaines)
+
+*Inchange* (export PDF/CSV, split transactions, communication structuree belge)
+
+### 17.6 Decisions — toutes validees (2026-03-21)
+
+Voir section "Decisions (validees v3)" ci-dessus. Toutes les decisions ouvertes ont ete tranchees. Seul le point #1 (tier Tink Enterprise) necessite une confirmation commerciale avec Tink — mais l'implementation code la meme API dans les deux cas.
+
+### 17.7 Corrections post-audit (v3)
+
+| Bug | Gravite | Correction |
+|-----|---------|-----------|
+| Token utilisateur expire en 30 min, pas 2h | **CRITIQUE** | `expires_in: 1800` confirme par doc Tink MCP. Refresh strategy corrigee. |
+| Scope `balances:read` manquant | **CRITIQUE** | Ajoute aux scopes OAuth necessaires |
+| UNIQUE constraint `transaction_links` cassee avec NULLs | **HAUTE** | Remplacee par 3 index uniques partiels |
+| `unscaledValue`/`scale` types mixtes (string/number) | **HAUTE** | `parseTinkAmount` accepte `string \| number` |
+| `counterparty_name`/`counterparty_iban` trop simples | **MOYENNE** | Structure `counterparties` riche (payer/payee) |
+| Entite mandant absente | **CRITIQUE metier** | Nouvelles tables `owners`, `owner_properties` en Phase 2 |
+| Depot de garantie non modelise | **HAUTE metier** | Nouvelle table `security_deposits` en Phase 2 |
+| 5 categories transactions manquantes | **HAUTE metier** | `entity_type` + table `property_expenses` |
+| Quittances PDF absentes | **HAUTE legal** | Ajoutees en Phase 1 |
+| Indexation loyers BE absente | **HAUTE marche** | Ajoutee en Phase 2 |
+| Typage comptes bancaires absent | **MOYENNE legal** | `account_purpose` sur `bank_connections` |
+| Data Invalidation Broadcast absent | **MOYENNE** | Entity types bank ajoutes |
+| `descriptions.detailed` non capture | **FAIBLE** | Champ `description_detailed` ajoute |

@@ -10,7 +10,7 @@ import { logger } from '@/lib/logger';
 /**
  * Sanitizes error messages before storing in DB or logging
  */
-function sanitizeErrorForStorage(error: Error | any): string {
+function sanitizeErrorForStorage(error: unknown): string {
     try {
         const message = error?.message || error?.toString() || 'Unknown error';
         return message
@@ -94,7 +94,7 @@ export class EmailSyncService {
                 .eq('id', connection.id);
 
             if (error) {
-                console.error('Failed to update refreshed token:', error);
+                logger.error({ error }, 'Failed to update refreshed token');
             } else {
                 logger.info('OAuth token refreshed successfully');
             }
@@ -105,9 +105,9 @@ export class EmailSyncService {
                 oauth_access_token: encryptedTokens.encryptedAccessToken,
                 oauth_token_expires_at: expiresAt.toISOString()
             };
-        } catch (err: any) {
-            console.error('Failed to refresh OAuth token:', err);
-            throw new Error(`Échec du rafraîchissement du token OAuth: ${err.message}`);
+        } catch (err: unknown) {
+            logger.error({ err }, 'Failed to refresh OAuth token');
+            throw new Error(`Échec du rafraîchissement du token OAuth: ${err instanceof Error ? err.message : String(err)}`);
         }
     }
 
@@ -126,6 +126,8 @@ export class EmailSyncService {
             }
 
             let processedCount = 0;
+            let blacklistedCount = 0;
+            let duplicateCount = 0;
 
             for (const email of parsedEmails) {
                 // Extract clean email from RFC 5322 format for blacklist check
@@ -140,7 +142,8 @@ export class EmailSyncService {
                 );
 
                 if (isBlacklisted) {
-                    logger.debug({ from: email.from }, 'Skipping blacklisted email');
+                    blacklistedCount++;
+                    logger.debug({ from: email.from }, '[SYNC] Skipping blacklisted email');
                     continue;
                 }
 
@@ -153,7 +156,8 @@ export class EmailSyncService {
                         .eq('message_id', email.messageId);
 
                     if (count && count > 0) {
-                        logger.debug({ messageId: email.messageId }, 'Skipping duplicate email');
+                        duplicateCount++;
+                        logger.debug({ messageId: email.messageId }, '[SYNC] Skipping duplicate email');
                         continue;
                     }
                 }
@@ -176,14 +180,21 @@ export class EmailSyncService {
                         body_html: email.html,
                         received_at: email.date.toISOString(),
                     });
-                } catch (insertError: any) {
+                } catch (insertError: unknown) {
                     // UNIQUE constraint violation (23505) = duplicate, skip silently
-                    if (insertError?.code === '23505') {
+                    if ((insertError as { code?: string })?.code === '23505') {
                         logger.debug({ messageId: email.messageId }, 'Skipping duplicate email (constraint)');
                         continue;
                     }
                     throw insertError;
                 }
+
+                logger.debug({
+                    messageId: email.messageId,
+                    from: email.from,
+                    subject: email.subject?.substring(0, 50),
+                    date: email.date,
+                }, '[SYNC] Email inserted');
 
                 // Save attachments
                 if (email.attachments.length > 0) {
@@ -198,7 +209,7 @@ export class EmailSyncService {
                             .upload(fileName, att.content);
 
                         if (uploadError) {
-                            console.error('Failed to upload attachment', uploadError);
+                            logger.error({ uploadError }, 'Failed to upload attachment');
                             continue;
                         }
 
@@ -216,6 +227,16 @@ export class EmailSyncService {
                 processedCount++;
             }
 
+            logger.info({
+                connectionId: connection.id,
+                email: connection.email_address,
+                imapFetched: parsedEmails.length,
+                inserted: processedCount,
+                blacklisted: blacklistedCount,
+                duplicates: duplicateCount,
+                parseErrors: parsedEmails.length - processedCount - blacklistedCount - duplicateCount,
+            }, '[SYNC] Connection sync summary');
+
             // Update connection status with new maxUid
             await this.connectionRepo.updateLastUid(connection.id, maxUid);
 
@@ -225,9 +246,9 @@ export class EmailSyncService {
                 count: processedCount
             };
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             const sanitizedError = sanitizeErrorForStorage(err);
-            console.error(`Error syncing connection ${connection.id}:`, sanitizedError);
+            logger.error({ connectionId: connection.id, error: sanitizedError }, 'Error syncing connection');
             await this.connectionRepo.recordError(connection.id, sanitizedError);
             return { connectionId: connection.id, status: 'error', error: sanitizedError };
         }

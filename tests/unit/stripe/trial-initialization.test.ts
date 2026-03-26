@@ -8,6 +8,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+vi.mock('@/lib/logger', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+}))
+
 import { SubscriptionService } from '@/lib/services/domain/subscription.service'
 
 // ── Mock factories ─────────────────────────────────────────────────────
@@ -149,10 +154,11 @@ describe('Trial Initialization — initializeTrialSubscription', () => {
     expect(trialStart).toBeGreaterThanOrEqual(before)
     expect(trialStart).toBeLessThanOrEqual(after)
 
-    // trial_end should be ~30 days from now
+    // trial_end should be ~30 days from now (±2h for DST transitions)
     const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000
-    expect(trialEnd - trialStart).toBeGreaterThanOrEqual(thirtyDaysMs - 1000)
-    expect(trialEnd - trialStart).toBeLessThanOrEqual(thirtyDaysMs + 1000)
+    const twoHoursMs = 2 * 60 * 60 * 1000
+    expect(trialEnd - trialStart).toBeGreaterThanOrEqual(thirtyDaysMs - twoHoursMs)
+    expect(trialEnd - trialStart).toBeLessThanOrEqual(thirtyDaysMs + twoHoursMs)
   })
 
   it('does NOT create a Stripe subscription (app-managed trial)', async () => {

@@ -30,13 +30,25 @@ export async function createCompleteProperty(
   lots: Lot[]
 }>> {
   try {
+    // ── Auth context validation (defense-in-depth) ─────────────────────
+    const authContext = await getServerActionAuthContextOrNull('gestionnaire')
+    if (!authContext) {
+      return {
+        success: false,
+        data: { building: {} as Building, lots: [] },
+        error: 'Authentication required',
+        operations: [],
+      }
+    }
+    const { team } = authContext
+
     // ── Subscription limit check (defense-in-depth) ────────────────────
-    if (data.building.team_id && data.lots.length > 0) {
+    if (team.id && data.lots.length > 0) {
       const subService = createServiceRoleSubscriptionService()
-      const canAdd = await subService.canAddProperty(data.building.team_id, data.lots.length)
+      const canAdd = await subService.canAddProperty(team.id, data.lots.length)
       if (!canAdd.allowed) {
         logger.warn('[SERVER-ACTION] Building creation blocked by subscription limit:', {
-          teamId: data.building.team_id,
+          teamId: team.id,
           reason: canAdd.reason,
         })
         return {

@@ -183,10 +183,17 @@ const VirtualizedRow = memo(function VirtualizedRow({
               {getPriorityLabel(intervention.urgency)}
             </Badge>
           )}
-          <span className="truncate text-sm">{intervention.title}</span>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="truncate text-sm">{intervention.title}</span>
+              </TooltipTrigger>
+              <TooltipContent>{intervention.title}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         {intervention.description && (
-          <TooltipProvider>
+          <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">{intervention.description}</p>
@@ -219,7 +226,14 @@ const VirtualizedRow = memo(function VirtualizedRow({
           ) : (
             <MapPin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
           )}
-          <span className="truncate">{locationText}</span>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="truncate">{locationText}</span>
+              </TooltipTrigger>
+              <TooltipContent>{locationText}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -418,7 +432,7 @@ export function InterventionsListViewV1({
         return `/locataire/interventions/${interventionId}`
       case 'gestionnaire':
       default:
-        return `/gestionnaire/interventions/${interventionId}`
+        return `/gestionnaire/operations/interventions/${interventionId}`
     }
   }, [userContext])
 
@@ -890,10 +904,17 @@ export function InterventionsListViewV1({
                           {getPriorityLabel(intervention.urgency)}
                         </Badge>
                       )}
-                      <span className="truncate text-sm">{intervention.title}</span>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="truncate text-sm">{intervention.title}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{intervention.title}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                     {intervention.description && (
-                      <TooltipProvider>
+                      <TooltipProvider delayDuration={300}>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <p className="text-xs text-muted-foreground truncate mt-0.5">{intervention.description}</p>
@@ -926,7 +947,14 @@ export function InterventionsListViewV1({
                       ) : (
                         <MapPin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
                       )}
-                      <span className="truncate">{locationText}</span>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="truncate">{locationText}</span>
+                          </TooltipTrigger>
+                          <TooltipContent>{locationText}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </TableCell>
 

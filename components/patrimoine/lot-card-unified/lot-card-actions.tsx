@@ -111,7 +111,7 @@ export function LotCardActions({
 
             {/* Create intervention - ⚡ Link for prefetch */}
             <DropdownMenuItem asChild className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-              <Link href={`/gestionnaire/interventions/nouvelle-intervention?lot=${lot.id}`} onClick={(e) => e.stopPropagation()}>
+              <Link href={`/gestionnaire/operations/nouvelle-intervention?lot=${lot.id}`} onClick={(e) => e.stopPropagation()}>
                 <Wrench className="h-4 w-4 mr-2" />
                 Créer une intervention
               </Link>

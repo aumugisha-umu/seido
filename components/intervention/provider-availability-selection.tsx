@@ -1,17 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, Clock, Check, X, MessageSquare, CheckCircle, XCircle } from "lucide-react"
+import { Calendar, Check, X, MessageSquare, CheckCircle, XCircle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { logger, logError } from '@/lib/logger'
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { logger } from '@/lib/logger'
+import { AvailabilitySlotList } from './availability-slot-list'
+import { AvailabilityCalendar } from './availability-calendar'
 interface ProviderAvailability {
   person: string
   role: string
@@ -318,59 +317,19 @@ export function ProviderAvailabilitySelection({
     )
   }
 
-  // Si l'intervention est programmée et qu'on n'est pas en mode modification
+  // Si l'intervention est programmee et qu'on n'est pas en mode modification
   if (isScheduled && scheduledDate && scheduledTime && !showModificationMode) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <span>Intervention programmée</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Calendar className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="font-medium text-green-900">
-                  {new Date(scheduledDate).toLocaleDateString('fr-FR', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </p>
-                <p className="text-sm text-green-700">à {scheduledTime}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowModificationMode(true)}
-              className="flex-1 px-3"
-            >
-              <Calendar className="h-3 w-3 mr-2" />
-              Modifier
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSelectedSlot('reject')
-                setShowModificationMode(true)
-              }}
-              className="flex-1 px-3"
-            >
-              <XCircle className="h-3 w-3 mr-2" />
-              Rejeter
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <AvailabilityCalendar
+        scheduledDate={scheduledDate}
+        scheduledTime={scheduledTime}
+        isModificationMode={false}
+        onModify={() => setShowModificationMode(true)}
+        onReject={() => {
+          setSelectedSlot('reject')
+          setShowModificationMode(true)
+        }}
+      />
     )
   }
 

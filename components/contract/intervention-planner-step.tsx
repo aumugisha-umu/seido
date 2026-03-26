@@ -12,11 +12,12 @@
  * Each wizard passes its own sections configuration and assignable roles.
  */
 
-import React, { useMemo, useRef, useState, useCallback, useImperativeHandle, forwardRef } from 'react'
+import React, { useMemo, useRef, useState, useCallback, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { CalendarCheck, Plus } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { CalendarCheck, ChevronDown, Wrench, Bell, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 import { InterventionScheduleRow } from './intervention-schedule-row'
@@ -38,6 +39,7 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
   allowedContactIds,
   preSelectContactIds,
   onAddCustomIntervention,
+  onAddCustomReminder,
   onDeleteCustomIntervention,
   onCustomTitleChange,
   onCustomDescriptionChange,
@@ -51,6 +53,43 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
     interventionKey: string
     contactType: string
   } | null>(null)
+
+  // ─── Mobile detection ─────────────────────────────────────────
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)')
+    setIsMobile(mql.matches)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mql.addEventListener('change', handler)
+    return () => mql.removeEventListener('change', handler)
+  }, [])
+
+  // ─── Collapsible sections ─────────────────────────────────────
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+  const toggleSection = useCallback((sectionId: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev)
+      if (next.has(sectionId)) next.delete(sectionId)
+      else next.add(sectionId)
+      return next
+    })
+  }, [])
+
+  // Auto-collapse reminder sections on mobile
+  useEffect(() => {
+    if (isMobile) {
+      const reminderSections = sections.filter(s => s.collapsible)
+      if (reminderSections.length > 0) {
+        setCollapsedSections(new Set(reminderSections.map(s => s.id)))
+      }
+    } else {
+      setCollapsedSections(new Set())
+    }
+  }, [isMobile, sections])
+
+  // ─── Unified add button ───────────────────────────────────────
+  const [addTypePopoverOpen, setAddTypePopoverOpen] = useState(false)
+  const hasUnifiedAdd = !!(onAddCustomIntervention && onAddCustomReminder)
 
   // ─── Intervention handlers ──────────────────────────────────
 
@@ -197,6 +236,28 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
     )
   }, [activeAssignment, onInterventionsChange, externalAssignedUsers, onExternalContactRemoved])
 
+  // ─── Item type & recurrence handlers ─────────────────────────
+
+  const handleItemTypeChange = useCallback((key: string, newType: 'intervention' | 'reminder') => {
+    onInterventionsChange(prev =>
+      prev.map(i => {
+        if (i.key !== key) return i
+        const updated = { ...i, itemType: newType }
+        // When switching to reminder, remove non-gestionnaire assignees
+        if (newType === 'reminder') {
+          updated.assignedUsers = i.assignedUsers.filter(u => u.role === 'gestionnaire')
+        }
+        return updated
+      })
+    )
+  }, [onInterventionsChange])
+
+  const handleRecurrenceChange = useCallback((key: string, rrule: string | null) => {
+    onInterventionsChange(prev =>
+      prev.map(i => i.key === key ? { ...i, recurrenceRule: rrule ?? undefined } : i)
+    )
+  }, [onInterventionsChange])
+
   // ─── Derived state ─────────────────────────────────────────
 
   const hasEmptyCustomTitle = scheduledInterventions.some(
@@ -206,7 +267,7 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
   // ─── Render ─────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto">
         <div className="flex items-center justify-center gap-2 mb-2">
@@ -220,83 +281,169 @@ export const InterventionPlannerStep = forwardRef<InterventionPlannerRef, Interv
       <div className="max-w-4xl mx-auto">
         <ScrollArea className="max-h-[600px]">
           <div className="space-y-6 py-2 pr-4">
-            {sections.map((section, idx) => (
-              <React.Fragment key={section.id}>
-                {idx > 0 && <Separator />}
-
-                {section.renderCustom ? (
-                  /* Custom section (e.g. rent reminders) */
-                  section.renderCustom()
-                ) : (
-                  /* Standard section with InterventionScheduleRow entries */
-                  <div className={cn(
-                    "space-y-3",
-                    section.allowCustomAdd && "rounded-lg border-2 border-dashed border-indigo-200 bg-indigo-50/30 p-4"
-                  )}>
-                    <div className="flex items-center justify-between">
-                      <h3 className={cn(
-                        "text-sm font-medium flex items-center gap-2",
-                        section.allowCustomAdd ? "font-semibold text-indigo-700" : "text-muted-foreground"
-                      )}>
-                        {section.icon && (
-                          <section.icon className={cn("h-4 w-4", section.allowCustomAdd ? "" : section.iconColorClass)} />
-                        )}
-                        {section.title}
-                      </h3>
-                      {section.allowCustomAdd && onAddCustomIntervention && section.rows.length > 0 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={onAddCustomIntervention}
-                          disabled={hasEmptyCustomTitle}
-                          className="h-7 text-xs gap-1 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Ajouter
-                        </Button>
-                      )}
-                    </div>
-                    {section.rows.length > 0 ? (
-                      <div className="space-y-2">
-                        {section.rows.map(intervention => {
-                          const isCustom = intervention.key.startsWith('custom_')
-                          return (
-                            <InterventionScheduleRow
-                              key={intervention.key}
-                              intervention={intervention}
-                              assignableRoles={assignableRoles}
-                              isEditable={isCustom}
-                              onToggle={(enabled) => handleToggle(intervention.key, enabled)}
-                              onDateChange={(date) => handleDateChange(intervention.key, date)}
-                              onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
-                              onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
-                              onTitleChange={isCustom ? (t) => handleCustomTitleChange(intervention.key, t) : undefined}
-                              onDescriptionChange={isCustom ? (d) => handleCustomDescriptionChange(intervention.key, d) : undefined}
-                              onDelete={isCustom && onDeleteCustomIntervention ? () => onDeleteCustomIntervention(intervention.key) : undefined}
-                              showDelete={isCustom}
-                            />
-                          )
-                        })}
-                      </div>
-                    ) : section.allowCustomAdd && onAddCustomIntervention ? (
+            {/* Unified add button: intervention or reminder — at top for visibility */}
+            {hasUnifiedAdd ? (
+              <div className="flex justify-center pb-2">
+                <Popover open={addTypePopoverOpen} onOpenChange={setAddTypePopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      <Plus className="h-3.5 w-3.5" />
+                      Ajouter un suivi
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3" align="start">
+                    <p className="text-sm font-medium mb-2">Ce suivi implique-t-il quelqu&apos;un d&apos;autre ?</p>
+                    <div className="space-y-1.5">
                       <button
                         type="button"
-                        onClick={onAddCustomIntervention}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md hover:bg-indigo-50/50 transition-colors cursor-pointer text-sm text-indigo-600"
+                        onClick={() => { onAddCustomIntervention?.(); setAddTypePopoverOpen(false) }}
+                        className="w-full flex items-start gap-3 p-2.5 rounded-lg hover:bg-indigo-50 transition-colors text-left"
                       >
-                        <Plus className="h-4 w-4" />
-                        <span className="font-medium">Planifier une intervention</span>
-                        <span className="text-muted-foreground text-xs">&mdash; entretien, réparation, visite...</span>
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100">
+                          <Wrench className="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Oui — Intervention</p>
+                          <p className="text-xs text-muted-foreground">Implique un prestataire ou locataire</p>
+                        </div>
                       </button>
-                    ) : (
-                      <p className="text-sm text-muted-foreground/60 text-center py-4">
-                        Aucun élément dans cette section.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </React.Fragment>
-            ))}
+                      <button
+                        type="button"
+                        onClick={() => { onAddCustomReminder?.(); setAddTypePopoverOpen(false) }}
+                        className="w-full flex items-start gap-3 p-2.5 rounded-lg hover:bg-amber-50 transition-colors text-left"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+                          <Bell className="h-4 w-4 text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Non — Rappel</p>
+                          <p className="text-xs text-muted-foreground">Tâche interne de gestion</p>
+                        </div>
+                      </button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ) : onAddCustomIntervention && (
+              <div className="flex justify-center pb-2">
+                <Button variant="outline" size="sm" onClick={onAddCustomIntervention} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  Ajouter
+                </Button>
+              </div>
+            )}
+
+            {sections.map((section, idx) => {
+
+              const isCollapsed = collapsedSections.has(section.id)
+              const SectionIcon = section.icon
+              const sectionIconColor = section.iconColorClass
+              const activeRowCount = section.rows.filter(r => r.enabled).length
+
+              return (
+                <React.Fragment key={section.id}>
+                  {idx > 0 && <Separator />}
+
+                  {section.renderCustom ? (
+                    /* Custom section (e.g. rent reminders) */
+                    section.renderCustom()
+                  ) : (
+                    /* Standard section with InterventionScheduleRow entries */
+                    <div className={cn(
+                      "space-y-3",
+                      section.allowCustomAdd && "rounded-lg border-2 border-dashed p-4 border-muted-foreground/20 bg-muted/30"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <h3
+                          className={cn(
+                            "text-sm font-medium flex items-center gap-2",
+                            section.allowCustomAdd ? "font-semibold" : "text-muted-foreground",
+                            section.collapsible && "cursor-pointer select-none"
+                          )}
+                          onClick={section.collapsible ? () => toggleSection(section.id) : undefined}
+                          role={section.collapsible ? "button" : undefined}
+                          aria-expanded={section.collapsible ? !isCollapsed : undefined}
+                        >
+                          {SectionIcon && (
+                            <SectionIcon className={cn("h-4 w-4", sectionIconColor)} />
+                          )}
+                          {section.title}
+                          {section.collapsible && (
+                            <>
+                              <ChevronDown className={cn(
+                                "h-4 w-4 transition-transform",
+                                isCollapsed && "-rotate-90"
+                              )} />
+                              {isCollapsed && activeRowCount > 0 && (
+                                <span className="text-xs font-normal text-muted-foreground">
+                                  ({activeRowCount} actif{activeRowCount > 1 ? 's' : ''})
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </h3>
+                        {section.allowCustomAdd && onAddCustomIntervention && section.rows.length > 0 && !hasUnifiedAdd && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={onAddCustomIntervention}
+                            disabled={hasEmptyCustomTitle}
+                            className="h-7 text-xs gap-1 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Ajouter
+                          </Button>
+                        )}
+                      </div>
+                      {!isCollapsed && (
+                        <>
+                          {section.rows.length > 0 ? (
+                            <div className="space-y-2">
+                              {section.rows.map(intervention => {
+                                const isCustom = intervention.key.startsWith('custom_')
+                                return (
+                                  <InterventionScheduleRow
+                                    key={intervention.key}
+                                    intervention={intervention}
+                                    assignableRoles={assignableRoles}
+                                    isEditable={isCustom}
+                                    onToggle={(enabled) => handleToggle(intervention.key, enabled)}
+                                    onDateChange={(date) => handleDateChange(intervention.key, date)}
+                                    onSchedulingOptionChange={(value) => handleSchedulingOptionChange(intervention.key, value)}
+                                    onAssignType={(contactType) => handleAssignType(intervention.key, contactType)}
+                                    onItemTypeChange={(type) => handleItemTypeChange(intervention.key, type)}
+                                    onRecurrenceChange={(rrule) => handleRecurrenceChange(intervention.key, rrule)}
+                                    onTitleChange={isCustom ? (t) => handleCustomTitleChange(intervention.key, t) : undefined}
+                                    onDescriptionChange={isCustom ? (d) => handleCustomDescriptionChange(intervention.key, d) : undefined}
+                                    onDelete={isCustom && onDeleteCustomIntervention ? () => onDeleteCustomIntervention(intervention.key) : undefined}
+                                    showDelete={isCustom}
+                                  />
+                                )
+                              })}
+                            </div>
+                          ) : section.allowCustomAdd && onAddCustomIntervention ? (
+                            <button
+                              type="button"
+                              onClick={onAddCustomIntervention}
+                              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-md hover:bg-indigo-50/50 transition-colors cursor-pointer text-sm text-indigo-600"
+                            >
+                              <Plus className="h-4 w-4" />
+                              <span className="font-medium">Planifier une intervention</span>
+                              <span className="text-muted-foreground text-xs">&mdash; entretien, réparation, visite...</span>
+                            </button>
+                          ) : (
+                            <p className="text-sm text-muted-foreground/60 text-center py-4">
+                              Aucun élément dans cette section.
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </React.Fragment>
+              )
+            })}
+
           </div>
         </ScrollArea>
       </div>

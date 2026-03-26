@@ -1,5 +1,6 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
+// Geist fonts use font-display: swap internally (pre-built by the geist package)
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
@@ -54,7 +55,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body
-        className={`h-screen font-sans ${GeistSans.variable} ${GeistMono.variable} overflow-x-hidden`}
+        className={`min-h-dvh font-sans ${GeistSans.variable} ${GeistMono.variable} overflow-x-hidden`}
         suppressHydrationWarning={true}
       >
         <PWARegister />

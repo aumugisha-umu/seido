@@ -7,6 +7,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react'
+import { logger } from '@/lib/logger'
 import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
@@ -89,6 +90,11 @@ import {
 // Realtime invalidation
 import { useRealtimeOptional } from '@/contexts/realtime-context'
 
+// Extracted sub-components
+import { ProviderGeneralTab } from './provider-general-tab'
+import { ProviderPlanningTab } from './provider-planning-tab'
+import { ProviderModals } from './provider-modals'
+
 // Types
 import type { Database } from '@/lib/database.types'
 
@@ -146,7 +152,6 @@ interface PrestataireInterventionDetailClientProps {
   currentUser: User
   // Multi-provider mode data
   assignmentMode?: AssignmentMode
-  providerInstructions?: string
   parentLink?: ParentLink
   // Chat data
   initialMessagesByThread?: Record<string, any[]>
@@ -178,7 +183,6 @@ export function PrestataireInterventionDetailClient({
   assignments,
   currentUser,
   assignmentMode = 'single',
-  providerInstructions,
   parentLink,
   initialMessagesByThread,
   initialParticipantsByThread
@@ -679,7 +683,7 @@ export function PrestataireInterventionDetailClient({
       setRejectionReason('')
       handleRefresh()
     } catch (error) {
-      console.error('Error rejecting quote request:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error rejecting quote request')
       toast.error('Erreur lors du rejet de la demande')
     } finally {
       setIsRejecting(false)
@@ -713,7 +717,7 @@ export function PrestataireInterventionDetailClient({
       toast.success(successMessage)
       handleRefresh()
     } catch (error) {
-      console.error('Error deleting quote:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error deleting quote')
       toast.error('Erreur lors de la suppression de l\'estimation')
     }
   }
@@ -880,20 +884,6 @@ export function PrestataireInterventionDetailClient({
         </div>
       )}
 
-      {/* Provider-specific instructions (in separate mode) */}
-      {providerInstructions && (
-        <div className="layout-padding pt-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-blue-900 mb-2">
-              Instructions pour vous
-            </h3>
-            <p className="text-sm text-blue-800 whitespace-pre-wrap">
-              {providerInstructions}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Layout pleine largeur sans sidebar */}
       <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
         <div className="flex-1 flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
@@ -903,81 +893,34 @@ export function PrestataireInterventionDetailClient({
             tabs={interventionTabs}
           >
               {/* TAB: GENERAL */}
-              <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <ContentWrapper>
-                  {showConfirmedBanner && <ConfirmationSuccessBanner />}
-                  {showRejectedBanner && <ConfirmationRejectedBanner />}
-
-                  {/* Détails de l'intervention */}
-                  <div className="flex-shrink-0">
-                    <InterventionDetailsCard
-                      title={intervention.title}
-                      description={intervention.description || undefined}
-                      instructions={intervention.instructions || undefined}
-                      interventionStatus={intervention.status}
-                      participants={participants}
-                      currentUserId={currentUser.id}
-                      currentUserRole="prestataire"
-                      onOpenChat={handleOpenChatFromParticipant}
-                      onOpenSlotResponseModal={() => handleOpenResponseModal('')}
-                      onOpenQuoteModal={handleOpenQuoteModal}
-                      pendingSlotsForUser={proposedSlotsCount}
-                      requiresQuote={intervention.requires_quote}
-                      hasSubmittedQuote={transformedQuotes.some(q => q.provider_id === currentUser.id && q.status === 'sent')}
-                      planning={{
-                        scheduledDate,
-                        schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
-                        status: scheduledDate ? 'scheduled'
-                          : proposedSlotsCount > 0 ? 'proposed'
-                          : hasRespondedToAllSlots ? 'responded'
-                          : 'pending',
-                        proposedSlotsCount: hasRespondedToAllSlots ? totalActiveSlotsCount : proposedSlotsCount,
-                        quotesCount: transformedQuotes.length,
-                        requestedQuotesCount: transformedQuotes.filter(q => q.status === 'pending').length,
-                        receivedQuotesCount: transformedQuotes.filter(q => q.status === 'sent').length,
-                        quotesStatus: transformedQuotes.some(q => q.status === 'accepted')
-                          ? 'approved'
-                          : transformedQuotes.some(q => q.status === 'sent')
-                            ? 'received'
-                            : intervention.requires_quote
-                              ? 'pending'
-                              : 'none',
-                        selectedQuoteAmount: transformedQuotes.find(q => q.status === 'accepted')?.amount
-                      }}
-                    />
-                  </div>
-
-                  {/* Rapports de clôture */}
-                  {reports.length > 0 && (
-                    <div className="mt-6">
-                      <ReportsCard reports={reports} />
-                    </div>
-                  )}
-
-                  {/* Documents & Progression — side by side on desktop, stacked on mobile */}
-                  <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <DocumentsCard
-                      documents={transformedDocuments}
-                      userRole="provider"
-                      onUpload={() => { /* TODO: implement document upload */ }}
-                      onView={handleViewDocument}
-                      onDownload={handleDownloadDocument}
-                    />
-                    <InterventionProgressCard
-                      intervention={intervention}
-                      activityLogs={activityLogs.map(log => ({
-                        ...log,
-                        user: (log as any).user_name ? {
-                          id: (log as any).user_id,
-                          name: (log as any).user_name,
-                          email: (log as any).user_email || '',
-                          avatar_url: (log as any).user_avatar_url || null
-                        } : undefined
-                      }))}
-                    />
-                  </div>
-                </ContentWrapper>
-              </TabsContent>
+              <ProviderGeneralTab
+                intervention={intervention}
+                participants={participants}
+                currentUserId={currentUser.id}
+                showConfirmedBanner={showConfirmedBanner}
+                showRejectedBanner={showRejectedBanner}
+                scheduledDate={scheduledDate}
+                proposedSlotsCount={proposedSlotsCount}
+                hasRespondedToAllSlots={hasRespondedToAllSlots}
+                totalActiveSlotsCount={totalActiveSlotsCount}
+                transformedQuotes={transformedQuotes}
+                transformedDocuments={transformedDocuments}
+                reports={reports}
+                onViewDocument={handleViewDocument}
+                onDownloadDocument={handleDownloadDocument}
+                activityLogs={activityLogs.map(log => ({
+                  ...log,
+                  user: (log as any).user_name ? {
+                    id: (log as any).user_id,
+                    name: (log as any).user_name,
+                    email: (log as any).user_email || '',
+                    avatar_url: (log as any).user_avatar_url || null
+                  } : undefined
+                }))}
+                onOpenChatFromParticipant={handleOpenChatFromParticipant}
+                onOpenSlotResponseModal={() => handleOpenResponseModal('')}
+                onOpenQuoteModal={handleOpenQuoteModal}
+              />
 
               {/* TAB: LOCALISATION */}
               <TabsContent value="localisation" className="mt-0 flex-1 flex flex-col overflow-hidden">
@@ -1026,154 +969,67 @@ export function PrestataireInterventionDetailClient({
 
 
               {/* TAB: PLANNING */}
-              <TabsContent value="planning" className="mt-0 flex-1 overflow-auto">
-                <div className="flex flex-col gap-4 p-4 sm:p-6">
-                  {/* Planning */}
-                  <PlanningCard
-                    timeSlots={transformedTimeSlots}
-                    scheduledDate={scheduledDate || undefined}
-                    scheduledStartTime={scheduledStartTime || undefined}
-                    schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
-                    userRole="provider"
-                    currentUserId={currentUser.id}
-                    onApproveSlot={(slotId) => {
-                      const slot = timeSlots.find(s => s.id === slotId)
-                      if (slot) handleAcceptSlot(slot)
-                      else console.error('Slot not found in timeSlots array for id:', slotId)
-                    }}
-                    onRejectSlot={(slotId) => {
-                      const slot = timeSlots.find(s => s.id === slotId)
-                      if (slot) handleRejectSlot(slot)
-                    }}
-                    onOpenResponseModal={handleOpenResponseModal}
-                  />
-
-                  {/* Devis du prestataire */}
-                  <QuotesCard
-                    quotes={transformedQuotes.filter(q => q.provider_id === currentUser.id)}
-                    userRole="provider"
-                    showActions={true}
-                    onRespondToQuote={handleOpenQuoteModal}
-                  />
-                </div>
-              </TabsContent>
+              <ProviderPlanningTab
+                schedulingType={intervention.scheduling_type}
+                scheduledDate={scheduledDate}
+                scheduledStartTime={scheduledStartTime}
+                currentUserId={currentUser.id}
+                transformedTimeSlots={transformedTimeSlots}
+                transformedQuotes={transformedQuotes}
+                onAcceptSlot={(slotId) => {
+                  const slot = timeSlots.find(s => s.id === slotId)
+                  if (slot) handleAcceptSlot(slot)
+                }}
+                onRejectSlot={(slotId) => {
+                  const slot = timeSlots.find(s => s.id === slotId)
+                  if (slot) handleRejectSlot(slot)
+                }}
+                onOpenResponseModal={handleOpenResponseModal}
+                onRespondToQuote={handleOpenQuoteModal}
+              />
             </EntityTabs>
         </div>
       </div>
 
 
-      {/* Quote Submission Modal */}
-      <QuoteSubmissionModal
-        open={quoteModalOpen}
-        onOpenChange={setQuoteModalOpen}
-        intervention={{
-          ...intervention,
-          urgency: intervention.urgency || 'normale',
-          priority: intervention.urgency || 'normale',
-        }}
-        existingQuote={selectedQuote ? transformQuoteToExistingQuote(selectedQuote) : undefined}
-        quoteRequest={selectedQuote ? {
-          id: selectedQuote.id,
-          status: selectedQuote.status,
-          individual_message: selectedQuote.internal_notes || undefined,
-          deadline: intervention.quote_deadline,
-          sent_at: selectedQuote.created_at
-        } : undefined}
-        onSuccess={() => {
+      {/* All modals extracted to ProviderModals component */}
+      <ProviderModals
+        intervention={intervention}
+        quoteModalOpen={quoteModalOpen}
+        onQuoteModalOpenChange={setQuoteModalOpen}
+        selectedQuote={selectedQuote}
+        onQuoteSuccess={() => {
           setQuoteModalOpen(false)
           setSelectedQuote(null)
           handleRefresh()
         }}
-      />
-
-      {/* Reject Quote Request Modal */}
-      <Dialog open={rejectQuoteModalOpen} onOpenChange={setRejectQuoteModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rejeter la demande de devis</DialogTitle>
-            <DialogDescription>
-              Veuillez indiquer pourquoi vous ne pouvez pas répondre à cette demande de devis.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="rejection-reason">
-                Raison du rejet *
-              </Label>
-              <Textarea
-                id="rejection-reason"
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Ex: Intervention hors de ma zone géographique, compétences spécialisées requises, indisponible sur la période..."
-                className="min-h-[120px] mt-2"
-              />
-              <p className="text-xs text-muted-foreground mt-2">
-                Cette raison sera visible par le gestionnaire.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
-              <p className="text-sm text-amber-900">
-                <strong>Attention:</strong> Une fois rejetée, vous ne pourrez plus soumettre de devis pour cette demande.
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setRejectQuoteModalOpen(false)}
-              disabled={isRejecting}
-            >
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmRejectQuote}
-              disabled={!rejectionReason.trim() || isRejecting}
-            >
-              {isRejecting ? 'Rejet en cours...' : 'Confirmer le rejet'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Multi Slot Response Modal (all active slots with pre-filled responses) */}
-      {responseModalSlots.length > 0 && (
-        <MultiSlotResponseModal
-          isOpen={isResponseModalOpen}
-          onClose={() => {
-            setIsResponseModalOpen(false)
-            setResponseModalSlots([])
-            setResponseModalExisting({})
-          }}
-          slots={responseModalSlots}
-          interventionId={intervention.id}
-          existingResponses={Object.keys(responseModalExisting).length > 0
-            ? responseModalExisting
-            : undefined}
-          userProposedSlotIds={userProposedSlotIds}
-          onSuccess={handleRefresh}
-        />
-      )}
-
-      {/* Modify Choice Modal */}
-      <ModifyChoiceModal
-        isOpen={modifyChoiceModalOpen}
-        onClose={() => setModifyChoiceModalOpen(false)}
-        slot={slotToModify}
-        currentResponse={currentChoice}
-        interventionId={intervention.id}
-        onSuccess={() => {
+        rejectQuoteModalOpen={rejectQuoteModalOpen}
+        onRejectQuoteModalOpenChange={setRejectQuoteModalOpen}
+        onConfirmRejectQuote={handleConfirmRejectQuote}
+        rejectionReason={rejectionReason}
+        onRejectionReasonChange={setRejectionReason}
+        isRejecting={isRejecting}
+        responseModalSlots={responseModalSlots}
+        isResponseModalOpen={isResponseModalOpen}
+        responseModalExisting={responseModalExisting}
+        userProposedSlotIds={userProposedSlotIds}
+        onCloseResponseModal={() => {
+          setIsResponseModalOpen(false)
+          setResponseModalSlots([])
+          setResponseModalExisting({})
+        }}
+        onRefresh={handleRefresh}
+        modifyChoiceModalOpen={modifyChoiceModalOpen}
+        onCloseModifyChoiceModal={() => setModifyChoiceModalOpen(false)}
+        slotToModify={slotToModify}
+        currentChoice={currentChoice}
+        onModifyChoiceSuccess={() => {
           setModifyChoiceModalOpen(false)
           setSlotToModify(null)
           handleRefresh()
         }}
+        previewModal={previewModal}
       />
-
-      {/* Modale de prévisualisation de documents (via hook partagé) */}
-      {previewModal}
     </div>
   )
 }

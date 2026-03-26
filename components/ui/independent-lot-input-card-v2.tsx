@@ -22,7 +22,7 @@ import {
   Hash,
   MapPin
 } from "lucide-react"
-import { LotCategory, getAllLotCategories, getLotCategoryConfig } from "@/lib/lot-types"
+import { LotCategory, getAllLotCategories, getLotCategoryConfig, LOT_CATEGORY_SELECTED_STYLES } from "@/lib/lot-types"
 import { AddressFieldsWithMap, type GeocodeResult, type AddressFields } from "@/components/google-maps"
 
 /**
@@ -109,6 +109,37 @@ export function IndependentLotInputCardV2({
   hideActions = false,
   showGoogleMaps = true
 }: IndependentLotInputCardV2Props) {
+  // Inline blur validation state
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({})
+
+  const isRequiredField = (name: string): boolean => {
+    return name === 'reference'
+  }
+
+  const handleFieldBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const fieldName = e.currentTarget.name || e.currentTarget.id
+    const value = e.currentTarget.value
+    setFieldErrors(prev => {
+      const next = { ...prev }
+      if (!value?.trim() && isRequiredField(fieldName)) {
+        next[fieldName] = 'Ce champ est obligatoire'
+      } else {
+        delete next[fieldName]
+      }
+      return next
+    })
+  }
+
+  const clearFieldError = (name: string) => {
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const next = { ...prev }
+        delete next[name]
+        return next
+      })
+    }
+  }
+
   const categories = getAllLotCategories()
   const categoryConfig = getLotCategoryConfig(lot.category)
 
@@ -261,13 +292,23 @@ export function IndependentLotInputCardV2({
               </Label>
               <Input
                 id={`reference-${lot.id}`}
+                name="reference"
                 value={lot.reference || ""}
-                onChange={(e) => onUpdate("reference", e.target.value)}
+                onChange={(e) => {
+                  clearFieldError('reference')
+                  onUpdate("reference", e.target.value)
+                }}
+                onBlur={handleFieldBlur}
                 placeholder="Ex: Appartement 3"
-                className="h-9 text-sm"
+                className={`h-9 text-sm ${fieldErrors.reference ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 required
                 aria-required="true"
+                aria-invalid={!!fieldErrors.reference}
+                aria-describedby={fieldErrors.reference ? `reference-${lot.id}-error` : undefined}
               />
+              {fieldErrors.reference && (
+                <p id={`reference-${lot.id}-error`} className="text-sm text-destructive mt-1">{fieldErrors.reference}</p>
+              )}
             </div>
 
             {/* Category - Right Column */}
@@ -285,6 +326,7 @@ export function IndependentLotInputCardV2({
                 {categories.map((category) => {
                   const Icon = iconComponents[category.icon as keyof typeof iconComponents]
                   const isSelected = lot.category === category.key
+                  const selectedStyles = LOT_CATEGORY_SELECTED_STYLES[category.key as LotCategory]
 
                   return (
                     <label
@@ -301,7 +343,7 @@ export function IndependentLotInputCardV2({
                           flex items-center gap-1.5 px-3 py-2 rounded-full border-2 transition-all duration-200
                           ${
                             isSelected
-                              ? `${category.bgColor} ${category.borderColor} ${category.color} shadow-sm font-medium`
+                              ? `${selectedStyles.bg} ${selectedStyles.border} ${selectedStyles.text} shadow-sm font-medium`
                               : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                           }
                         `}
@@ -359,8 +401,10 @@ export function IndependentLotInputCardV2({
               </Label>
               <Input
                 id={`floor-${lot.id}`}
+                name="floor"
                 value={lot.floor || ""}
                 onChange={(e) => onUpdate("floor", e.target.value)}
+                onBlur={handleFieldBlur}
                 placeholder="Ex: 2"
                 className="h-9 text-sm"
                 aria-label="Numéro d'étage"
@@ -378,8 +422,10 @@ export function IndependentLotInputCardV2({
               </Label>
               <Input
                 id={`door-${lot.id}`}
+                name="doorNumber"
                 value={lot.doorNumber || ""}
                 onChange={(e) => onUpdate("doorNumber", e.target.value)}
+                onBlur={handleFieldBlur}
                 placeholder="Ex: A, 12, A-bis"
                 className="h-9 text-sm"
                 aria-label="Numéro de porte"
@@ -397,8 +443,10 @@ export function IndependentLotInputCardV2({
             </Label>
             <Textarea
               id={`description-${lot.id}`}
+              name="description"
               value={lot.description || ""}
               onChange={(e) => onUpdate("description", e.target.value)}
+              onBlur={handleFieldBlur}
               placeholder="Informations supplémentaires sur le lot..."
               className="text-sm min-h-[72px] resize-none"
               rows={3}

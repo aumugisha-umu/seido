@@ -43,11 +43,15 @@ export const LOT_CATEGORY_LABELS: Record<string, string> = {
 export const CONTACT_ROLES = [
   'locataire',
   'prestataire',
+  'garant',
+  'proprietaire',
 ] as const;
 
 export const CONTACT_ROLE_LABELS: Record<string, string> = {
   'locataire': 'Locataire',
   'prestataire': 'Prestataire',
+  'garant': 'Garant',
+  'proprietaire': 'Propriétaire',
 };
 
 export const CONTRACT_TYPES = [

@@ -38,6 +38,8 @@ interface EmailConnectionRow {
   provider: string
   is_active: boolean
   created_at: string
+  visibility: 'private' | 'shared'
+  added_by_user_id: string | null
 }
 
 interface EmailLinkRow {
@@ -145,27 +147,56 @@ async function getBuildings(supabase: DbClient, teamId: string): Promise<Buildin
   })
 }
 
-async function getEmailConnections(supabase: DbClient, teamId: string): Promise<EmailConnection[]> {
+async function getEmailConnections(supabase: DbClient, teamId: string, userId: string): Promise<EmailConnection[]> {
+  // Service role bypasses RLS — fetch all team connections, then filter in JS
   const { data, error } = await supabase
     .from('team_email_connections')
-    .select('id, email_address, provider, is_active, created_at')
+    .select('id, email_address, provider, is_active, created_at, visibility, added_by_user_id')
     .eq('team_id', teamId)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
 
   if (error) {
-    logger.error({ error: error.message }, 'Error fetching email connections')
-    return []
+    // Fallback: visibility columns may not exist yet (migration not applied)
+    logger.warn({ error: error.message }, 'Email connections query failed, trying without visibility columns')
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('team_email_connections')
+      .select('id, email_address, provider, is_active, created_at')
+      .eq('team_id', teamId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+
+    if (fallbackError) {
+      logger.error({ error: fallbackError.message }, 'Error fetching email connections (fallback)')
+      return []
+    }
+
+    return ((fallbackData || []) as EmailConnectionRow[]).map((c) => ({
+      id: c.id,
+      email_address: c.email_address,
+      provider: c.provider,
+      is_active: c.is_active,
+      visibility: 'shared' as const,
+      unread_count: 0,
+      email_count: 0,
+    }))
   }
 
-  return ((data || []) as EmailConnectionRow[]).map((c) => ({
-    id: c.id,
-    email_address: c.email_address,
-    provider: c.provider,
-    is_active: c.is_active,
-    unread_count: 0,
-    email_count: 0,
-  }))
+  // Filter: show shared connections + user's own private connections
+  return ((data || []) as EmailConnectionRow[])
+    .filter((c) => {
+      const vis = c.visibility || 'shared'
+      return vis === 'shared' || c.added_by_user_id === userId
+    })
+    .map((c) => ({
+      id: c.id,
+      email_address: c.email_address,
+      provider: c.provider,
+      is_active: c.is_active,
+      visibility: (c.visibility || 'shared') as 'private' | 'shared',
+      unread_count: 0,
+      email_count: 0,
+    }))
 }
 
 async function getLinkedEntities(supabase: DbClient, teamId: string): Promise<LinkedEntities> {
@@ -396,7 +427,7 @@ async function getInitialEmails(supabase: DbClient, teamId: string): Promise<{
 
 export default async function MailPage() {
   // Server-side auth context (validates user is gestionnaire)
-  const { team, supabase } = await getServerAuthContext('gestionnaire')
+  const { team, profile, supabase } = await getServerAuthContext('gestionnaire')
 
   // Use service role client for email queries (bypasses slow RLS with 6 policies)
   // Security: getServerAuthContext already validated user is an authenticated gestionnaire
@@ -414,7 +445,7 @@ export default async function MailPage() {
   ] = await Promise.all([
     getEmailCounts(supabaseAdmin, team.id),
     getBuildings(supabase, team.id),
-    getEmailConnections(supabaseAdmin, team.id),
+    getEmailConnections(supabaseAdmin, team.id, profile.id),
     getLinkedEntities(supabaseAdmin, team.id),
     getInitialEmails(supabaseAdmin, team.id)
   ])

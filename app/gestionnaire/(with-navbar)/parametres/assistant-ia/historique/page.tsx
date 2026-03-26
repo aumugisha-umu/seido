@@ -198,7 +198,7 @@ export default async function HistoriqueAppelsPage() {
                   <CardContent className="flex flex-wrap items-center gap-2 px-0 pb-0 pt-3">
                     {call.intervention_id && (
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/gestionnaire/interventions/${call.intervention_id}`}>
+                        <Link href={`/gestionnaire/operations/interventions/${call.intervention_id}`}>
                           <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
                           Voir l&apos;intervention
                         </Link>

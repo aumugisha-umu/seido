@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { getServiceRoleClient } from '@/lib/api-service-role-helper'
+import { updateContactSchema } from '@/lib/validation/schemas'
 
 /**
  * API route pour mettre à jour un contact
@@ -22,26 +23,20 @@ export async function POST(request: Request) {
     logger.info({ userId: currentUser.id }, '📝 [UPDATE-CONTACT] Starting contact update')
 
     // ============================================================================
-    // ÉTAPE 1: Valider les données d'entrée
+    // ÉTAPE 1: Valider les données d'entrée avec Zod (whitelist stricte)
     // ============================================================================
     const body = await request.json()
-    const { contactId, updateData } = body
+    const parsed = updateContactSchema.safeParse(body)
 
-    if (!contactId || typeof contactId !== 'string') {
-      logger.warn({}, '⚠️ [UPDATE-CONTACT] Missing or invalid contactId')
+    if (!parsed.success) {
+      logger.warn({ errors: parsed.error.flatten() }, '⚠️ [UPDATE-CONTACT] Validation failed')
       return NextResponse.json(
-        { error: 'ID de contact manquant ou invalide' },
+        { error: 'Données invalides', details: parsed.error.flatten().fieldErrors },
         { status: 400 }
       )
     }
 
-    if (!updateData || typeof updateData !== 'object') {
-      logger.warn({}, '⚠️ [UPDATE-CONTACT] Missing or invalid updateData')
-      return NextResponse.json(
-        { error: 'Données de mise à jour manquantes' },
-        { status: 400 }
-      )
-    }
+    const { contactId, updateData } = parsed.data
 
     // ============================================================================
     // ÉTAPE 2: Vérifier que le contact existe et appartient à la même équipe

@@ -416,6 +416,364 @@ export type Database = {
           },
         ]
       }
+      auto_linking_rules: {
+        Row: {
+          conditions: Json
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          is_active: boolean
+          last_applied_at: string | null
+          name: string
+          target_contract_id: string | null
+          target_intervention_id: string | null
+          target_supplier_contract_id: string | null
+          target_type: string
+          team_id: string
+          times_applied: number
+          updated_at: string
+        }
+        Insert: {
+          conditions: Json
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          is_active?: boolean
+          last_applied_at?: string | null
+          name: string
+          target_contract_id?: string | null
+          target_intervention_id?: string | null
+          target_supplier_contract_id?: string | null
+          target_type: string
+          team_id: string
+          times_applied?: number
+          updated_at?: string
+        }
+        Update: {
+          conditions?: Json
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          is_active?: boolean
+          last_applied_at?: string | null
+          name?: string
+          target_contract_id?: string | null
+          target_intervention_id?: string | null
+          target_supplier_contract_id?: string | null
+          target_type?: string
+          team_id?: string
+          times_applied?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auto_linking_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_linking_rules_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_linking_rules_target_contract_id_fkey"
+            columns: ["target_contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_linking_rules_target_contract_id_fkey"
+            columns: ["target_contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_linking_rules_target_intervention_id_fkey"
+            columns: ["target_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_linking_rules_target_intervention_id_fkey"
+            columns: ["target_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_linking_rules_target_supplier_contract_id_fkey"
+            columns: ["target_supplier_contract_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auto_linking_rules_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_connections: {
+        Row: {
+          account_name: string | null
+          account_purpose: string
+          account_type: string | null
+          balance: number | null
+          bank_logo_url: string | null
+          bank_name: string
+          blacklisted_at: string | null
+          blacklisted_by: string | null
+          consent_expires_at: string | null
+          created_at: string
+          created_by: string
+          currency: string
+          deleted_at: string | null
+          deleted_by: string | null
+          iban_encrypted: string | null
+          iban_last4: string | null
+          id: string
+          is_blacklisted: boolean
+          last_sync_at: string | null
+          sync_error_message: string | null
+          sync_status: string
+          team_id: string
+          tink_access_token_encrypted: string | null
+          tink_account_id: string
+          tink_credentials_id: string | null
+          tink_refresh_token_encrypted: string | null
+          tink_user_id: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_purpose?: string
+          account_type?: string | null
+          balance?: number | null
+          bank_logo_url?: string | null
+          bank_name: string
+          blacklisted_at?: string | null
+          blacklisted_by?: string | null
+          consent_expires_at?: string | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          iban_encrypted?: string | null
+          iban_last4?: string | null
+          id?: string
+          is_blacklisted?: boolean
+          last_sync_at?: string | null
+          sync_error_message?: string | null
+          sync_status?: string
+          team_id: string
+          tink_access_token_encrypted?: string | null
+          tink_account_id: string
+          tink_credentials_id?: string | null
+          tink_refresh_token_encrypted?: string | null
+          tink_user_id: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string | null
+          account_purpose?: string
+          account_type?: string | null
+          balance?: number | null
+          bank_logo_url?: string | null
+          bank_name?: string
+          blacklisted_at?: string | null
+          blacklisted_by?: string | null
+          consent_expires_at?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          iban_encrypted?: string | null
+          iban_last4?: string | null
+          id?: string
+          is_blacklisted?: boolean
+          last_sync_at?: string | null
+          sync_error_message?: string | null
+          sync_status?: string
+          team_id?: string
+          tink_access_token_encrypted?: string | null
+          tink_account_id?: string
+          tink_credentials_id?: string | null
+          tink_refresh_token_encrypted?: string | null
+          tink_user_id?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_connections_blacklisted_by_fkey"
+            columns: ["blacklisted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_connections_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_connections_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_transactions: {
+        Row: {
+          amount: number
+          bank_connection_id: string
+          created_at: string
+          currency: string
+          description_detailed: string | null
+          description_display: string | null
+          description_original: string
+          id: string
+          ignored_at: string | null
+          ignored_by: string | null
+          merchant_category_code: string | null
+          merchant_name: string | null
+          payee_account_number: string | null
+          payee_name: string | null
+          payer_account_number: string | null
+          payer_name: string | null
+          provider_transaction_id: string | null
+          reconciled_at: string | null
+          reconciled_by: string | null
+          reference: string | null
+          status: string
+          team_id: string
+          tink_status: string | null
+          tink_transaction_id: string
+          transaction_date: string
+          updated_at: string
+          value_date: string | null
+        }
+        Insert: {
+          amount: number
+          bank_connection_id: string
+          created_at?: string
+          currency?: string
+          description_detailed?: string | null
+          description_display?: string | null
+          description_original: string
+          id?: string
+          ignored_at?: string | null
+          ignored_by?: string | null
+          merchant_category_code?: string | null
+          merchant_name?: string | null
+          payee_account_number?: string | null
+          payee_name?: string | null
+          payer_account_number?: string | null
+          payer_name?: string | null
+          provider_transaction_id?: string | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          reference?: string | null
+          status?: string
+          team_id: string
+          tink_status?: string | null
+          tink_transaction_id: string
+          transaction_date: string
+          updated_at?: string
+          value_date?: string | null
+        }
+        Update: {
+          amount?: number
+          bank_connection_id?: string
+          created_at?: string
+          currency?: string
+          description_detailed?: string | null
+          description_display?: string | null
+          description_original?: string
+          id?: string
+          ignored_at?: string | null
+          ignored_by?: string | null
+          merchant_category_code?: string | null
+          merchant_name?: string | null
+          payee_account_number?: string | null
+          payee_name?: string | null
+          payer_account_number?: string | null
+          payer_name?: string | null
+          provider_transaction_id?: string | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          reference?: string | null
+          status?: string
+          team_id?: string
+          tink_status?: string | null
+          tink_transaction_id?: string
+          transaction_date?: string
+          updated_at?: string
+          value_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_bank_connection_id_fkey"
+            columns: ["bank_connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_ignored_by_fkey"
+            columns: ["ignored_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_reconciled_by_fkey"
+            columns: ["reconciled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       building_contacts: {
         Row: {
           building_id: string
@@ -853,6 +1211,7 @@ export type Database = {
       }
       contracts: {
         Row: {
+          auto_rent_calls: boolean
           charges_amount: number | null
           charges_type: Database["public"]["Enums"]["charges_type"]
           comments: string | null
@@ -882,6 +1241,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_rent_calls?: boolean
           charges_amount?: number | null
           charges_type?: Database["public"]["Enums"]["charges_type"]
           comments?: string | null
@@ -911,6 +1271,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_rent_calls?: boolean
           charges_amount?: number | null
           charges_type?: Database["public"]["Enums"]["charges_type"]
           comments?: string | null
@@ -3023,6 +3384,126 @@ export type Database = {
           },
         ]
       }
+      property_expenses: {
+        Row: {
+          amount: number
+          building_id: string | null
+          category: string
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          deleted_by: string | null
+          due_date: string
+          id: string
+          is_recurring: boolean
+          label: string
+          lot_id: string | null
+          period_end: string | null
+          period_start: string | null
+          recurrence_frequency: string | null
+          status: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          building_id?: string | null
+          category: string
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          due_date: string
+          id?: string
+          is_recurring?: boolean
+          label: string
+          lot_id?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          recurrence_frequency?: string | null
+          status?: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          building_id?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          due_date?: string
+          id?: string
+          is_recurring?: boolean
+          label?: string
+          lot_id?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          recurrence_frequency?: string | null
+          status?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_expenses_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_expenses_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_expenses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_expenses_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_expenses_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_expenses_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_expenses_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_expenses_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           created_at: string | null
@@ -3057,6 +3538,514 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurrence_occurrences: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          generated_entity_id: string | null
+          generated_entity_type: string | null
+          id: string
+          occurrence_date: string
+          rule_id: string
+          skipped_reason: string | null
+          status: string
+          team_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          generated_entity_id?: string | null
+          generated_entity_type?: string | null
+          id?: string
+          occurrence_date: string
+          rule_id: string
+          skipped_reason?: string | null
+          status?: string
+          team_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          generated_entity_id?: string | null
+          generated_entity_type?: string | null
+          id?: string
+          occurrence_date?: string
+          rule_id?: string
+          skipped_reason?: string | null
+          status?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurrence_occurrences_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrence_occurrences_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurrence_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrence_occurrences_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurrence_rules: {
+        Row: {
+          auto_create: boolean
+          created_at: string
+          created_by: string
+          dtstart: string
+          id: string
+          is_active: boolean
+          notify_days_before: number
+          rrule: string
+          source_template: Json
+          source_type: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          auto_create?: boolean
+          created_at?: string
+          created_by: string
+          dtstart: string
+          id?: string
+          is_active?: boolean
+          notify_days_before?: number
+          rrule: string
+          source_template: Json
+          source_type: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          auto_create?: boolean
+          created_at?: string
+          created_by?: string
+          dtstart?: string
+          id?: string
+          is_active?: boolean
+          notify_days_before?: number
+          rrule?: string
+          source_template?: Json
+          source_type?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurrence_rules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurrence_rules_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reminders: {
+        Row: {
+          assigned_to: string | null
+          building_id: string | null
+          completed_at: string | null
+          contact_id: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          lot_id: string | null
+          parent_occurrence_id: string | null
+          priority: string
+          recurrence_rule_id: string | null
+          status: string
+          team_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          building_id?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          lot_id?: string | null
+          parent_occurrence_id?: string | null
+          priority?: string
+          recurrence_rule_id?: string | null
+          status?: string
+          team_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          building_id?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          lot_id?: string | null
+          parent_occurrence_id?: string | null
+          priority?: string
+          recurrence_rule_id?: string | null
+          status?: string
+          team_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminders_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_parent_occurrence_id_fkey"
+            columns: ["parent_occurrence_id"]
+            isOneToOne: false
+            referencedRelation: "recurrence_occurrences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_recurrence_rule_id_fkey"
+            columns: ["recurrence_rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurrence_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reminders_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rent_calls: {
+        Row: {
+          building_id: string | null
+          charges_amount: number
+          contract_id: string
+          created_at: string
+          due_date: string
+          id: string
+          is_auto_generated: boolean
+          last_reminder_sent_at: string | null
+          lot_id: string
+          period_end: string
+          period_start: string
+          reminder_count: number
+          rent_amount: number
+          status: string
+          team_id: string
+          total_expected: number | null
+          total_received: number
+          updated_at: string
+        }
+        Insert: {
+          building_id?: string | null
+          charges_amount?: number
+          contract_id: string
+          created_at?: string
+          due_date: string
+          id?: string
+          is_auto_generated?: boolean
+          last_reminder_sent_at?: string | null
+          lot_id: string
+          period_end: string
+          period_start: string
+          reminder_count?: number
+          rent_amount: number
+          status?: string
+          team_id: string
+          total_expected?: number | null
+          total_received?: number
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string | null
+          charges_amount?: number
+          contract_id?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          is_auto_generated?: boolean
+          last_reminder_sent_at?: string | null
+          lot_id?: string
+          period_end?: string
+          period_start?: string
+          reminder_count?: number
+          rent_amount?: number
+          status?: string
+          team_id?: string
+          total_expected?: number | null
+          total_received?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rent_calls_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_calls_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_calls_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_calls_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_calls_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_calls_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_calls_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_calls_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_deposits: {
+        Row: {
+          account_reference: string | null
+          amount: number
+          bank_name: string | null
+          contract_id: string
+          created_at: string
+          created_by: string
+          currency: string
+          deductions: Json | null
+          deposit_type: string
+          id: string
+          lot_id: string
+          received_at: string | null
+          return_due_date: string | null
+          returned_amount: number | null
+          returned_at: string | null
+          status: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_reference?: string | null
+          amount: number
+          bank_name?: string | null
+          contract_id: string
+          created_at?: string
+          created_by: string
+          currency?: string
+          deductions?: Json | null
+          deposit_type?: string
+          id?: string
+          lot_id: string
+          received_at?: string | null
+          return_due_date?: string | null
+          returned_amount?: number | null
+          returned_at?: string | null
+          status?: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_reference?: string | null
+          amount?: number
+          bank_name?: string | null
+          contract_id?: string
+          created_at?: string
+          created_by?: string
+          currency?: string
+          deductions?: Json | null
+          deposit_type?: string
+          id?: string
+          lot_id?: string
+          received_at?: string | null
+          return_due_date?: string | null
+          returned_amount?: number | null
+          returned_at?: string | null
+          status?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_deposits_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_deposits_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_deposits_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_deposits_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_deposits_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_deposits_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "security_deposits_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -3716,6 +4705,141 @@ export type Database = {
           {
             foreignKeyName: "time_slot_responses_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_links: {
+        Row: {
+          auto_rule_id: string | null
+          bank_transaction_id: string
+          entity_type: string
+          id: string
+          intervention_id: string | null
+          linked_at: string
+          linked_by: string
+          match_confidence: number | null
+          match_method: string
+          property_expense_id: string | null
+          rent_call_id: string | null
+          security_deposit_id: string | null
+          supplier_contract_id: string | null
+          team_id: string
+          unlinked_at: string | null
+          unlinked_by: string | null
+        }
+        Insert: {
+          auto_rule_id?: string | null
+          bank_transaction_id: string
+          entity_type: string
+          id?: string
+          intervention_id?: string | null
+          linked_at?: string
+          linked_by: string
+          match_confidence?: number | null
+          match_method?: string
+          property_expense_id?: string | null
+          rent_call_id?: string | null
+          security_deposit_id?: string | null
+          supplier_contract_id?: string | null
+          team_id: string
+          unlinked_at?: string | null
+          unlinked_by?: string | null
+        }
+        Update: {
+          auto_rule_id?: string | null
+          bank_transaction_id?: string
+          entity_type?: string
+          id?: string
+          intervention_id?: string | null
+          linked_at?: string
+          linked_by?: string
+          match_confidence?: number | null
+          match_method?: string
+          property_expense_id?: string | null
+          rent_call_id?: string | null
+          security_deposit_id?: string | null
+          supplier_contract_id?: string | null
+          team_id?: string
+          unlinked_at?: string | null
+          unlinked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_links_auto_rule_id_fkey"
+            columns: ["auto_rule_id"]
+            isOneToOne: false
+            referencedRelation: "auto_linking_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_property_expense_id_fkey"
+            columns: ["property_expense_id"]
+            isOneToOne: false
+            referencedRelation: "property_expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_rent_call_id_fkey"
+            columns: ["rent_call_id"]
+            isOneToOne: false
+            referencedRelation: "rent_calls"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_security_deposit_id_fkey"
+            columns: ["security_deposit_id"]
+            isOneToOne: false
+            referencedRelation: "security_deposits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_supplier_contract_id_fkey"
+            columns: ["supplier_contract_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_links_unlinked_by_fkey"
+            columns: ["unlinked_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -4813,6 +5937,10 @@ export type Database = {
           team_id: string
         }[]
       }
+      increment_rent_call_received: {
+        Args: { p_delta: number; p_rent_call_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: never; Returns: boolean }
       is_assigned_to_intervention: {
         Args: { p_intervention_id: string }
@@ -4878,6 +6006,30 @@ export type Database = {
           p_team_id: string
         }
         Returns: Json
+      }
+      scan_pending_recurrences: {
+        Args: { look_ahead_days?: number }
+        Returns: {
+          auto_create: boolean
+          notify_days_before: number
+          occurrence_date: string
+          occurrence_id: string
+          rule_id: string
+          source_template: Json
+          source_type: string
+          team_id: string
+        }[]
+      }
+      search_global: {
+        Args: { p_query: string; p_team_id: string }
+        Returns: {
+          entity_id: string
+          entity_type: string
+          rank: number
+          subtitle: string
+          title: string
+          url: string
+        }[]
       }
       upsert_ai_phone_usage: {
         Args: { p_minutes: number; p_month: string; p_team_id: string }

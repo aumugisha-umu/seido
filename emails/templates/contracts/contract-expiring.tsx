@@ -110,7 +110,7 @@ ContractExpiringEmail.PreviewProps = {
   lotReference: 'Apt 3B',
   daysUntilExpiry: 7,
   endDate: '15/03/2026',
-  contractUrl: 'https://seido.app/gestionnaire/contrats/abc-123',
+  contractUrl: 'https://seido-app.com/gestionnaire/contrats/abc-123',
 } as ContractExpiringEmailProps
 
 export default ContractExpiringEmail

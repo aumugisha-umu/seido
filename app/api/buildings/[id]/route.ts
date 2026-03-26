@@ -4,7 +4,7 @@ import { createBuildingService } from '@/lib/services/domain/building.service'
 import type { UpdateBuildingDTO } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { updateBuildingSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-import { notifyBuildingUpdated, notifyBuildingDeleted } from '@/app/actions/notification-actions'
+import { notifyBuildingUpdated, notifyBuildingDeleted } from '@/app/actions/notifications'
 import { createActivityLogger } from '@/lib/activity-logger'
 
 /**

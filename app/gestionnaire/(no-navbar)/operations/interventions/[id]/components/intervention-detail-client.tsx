@@ -1,0 +1,2016 @@
+'use client'
+
+/**
+ * Gestionnaire Intervention Detail Client Component
+ * Manages tabs and interactive elements for intervention details
+ */
+
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
+import { TabsContent } from '@/components/ui/tabs'
+// Tab components
+import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
+
+// Lazy-loaded chat component shared across all roles
+import { LazyInterventionChatTab as InterventionChatTab } from '@/components/interventions/lazy-intervention-chat-tab'
+
+// Modale d'upload de documents
+import { DocumentUploadDialog } from '@/components/interventions/document-upload-dialog'
+
+// Composants partagés pour le nouveau design
+import {
+  // Types
+  Quote as SharedQuote,
+  TimeSlot as SharedTimeSlot,
+  Comment as SharedComment,
+  InterventionDocument,
+  TimelineEventData,
+  // Layout
+  ContentWrapper,
+  // Cards
+  InterventionDetailsCard,
+  QuotesCard,
+  PlanningCard,
+  InterventionReport,
+} from '@/components/interventions/shared'
+
+// Unified tabs component (replaces InterventionTabs)
+import {
+  EntityTabs,
+  getInterventionTabsConfig
+} from '@/components/shared/entity-preview'
+
+// Contacts navigator (grid/list views)
+import { InterventionContactsNavigator } from '@/components/interventions/intervention-contacts-navigator'
+
+// Modal pour choisir un créneau
+import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
+// Modal pour répondre à un ou plusieurs créneaux (accepter/refuser)
+import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
+// Hook partagé pour preview/download de documents
+import { useDocumentActions } from '@/components/interventions/shared'
+
+// Intervention components
+import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
+import { AlertCircle, FileText } from 'lucide-react'
+
+// Quote status utilities
+import { getQuoteBadgeStatus, getQuoteBadgeLabel, getQuoteBadgeColor } from '@/lib/utils/quote-status'
+
+// Quote approval/rejection modals
+import { QuoteApprovalModal } from '@/components/quotes/quote-approval-modal'
+import { QuoteRejectionModal } from '@/components/quotes/quote-rejection-modal'
+
+// Role-based actions utilities
+import {
+  getRoleBasedActions,
+  getDotMenuActions,
+  type RoleBasedAction
+} from '@/lib/intervention-action-utils'
+
+// Hooks
+import { useAuth } from '@/hooks/use-auth'
+import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
+import { useTeamStatus } from '@/hooks/use-team-status'
+import { toast } from 'sonner'
+import { useInterventionApproval } from '@/hooks/use-intervention-approval'
+import { useInterventionCancellation } from '@/hooks/use-intervention-cancellation'
+import { useActivityLogs } from '@/hooks/use-activity-logs'
+
+// Activity tab (shared)
+import { ActivityTab } from '@/components/interventions/activity-tab'
+
+// Realtime invalidation
+import { useRealtimeOptional } from '@/contexts/realtime-context'
+
+// Contact selector
+import { ContactSelector, type ContactSelectorRef } from '@/components/contact-selector'
+
+// Actions
+import { assignUserAction, unassignUserAction, cancelQuoteAction } from '@/app/actions/intervention-actions'
+import { addInterventionComment } from '@/app/actions/intervention-comment-actions'
+
+// Confirmation banners
+import {
+  ConfirmationRequiredBanner,
+  ConfirmationSuccessBanner,
+  ConfirmationRejectedBanner
+} from '@/components/intervention/confirmation-required-banner'
+import {
+  getParticipantPermissions,
+  hasConfirmed,
+  hasRejected
+} from '@/lib/utils/intervention-permissions'
+
+// Intervention type icons and utils
+import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
+
+// Modals
+import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
+import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
+// MultiSlotResponseModal already imported above (line 59)
+import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel-quote-request-modal'
+import { CancelQuoteConfirmModal } from '@/components/intervention/modals/cancel-quote-confirm-modal'
+import { FinalizationModalLive } from '@/components/intervention/finalization-modal-live'
+
+// Dynamic import for approval modal (now handles everything in one modal)
+const ApprovalModal = dynamic(() => import("@/components/intervention/modals/approval-modal").then(mod => ({ default: mod.ApprovalModal })), { ssr: false })
+const CancelConfirmationModal = dynamic(() => import("@/components/intervention/modals/cancel-confirmation-modal").then(mod => ({ default: mod.CancelConfirmationModal })), { ssr: false })
+
+// Multi-provider components
+import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
+
+// Google Maps
+import { GoogleMapsProvider } from '@/components/google-maps'
+// AssignmentModeBadge: see InterventionDetailsCard participants row
+
+import type {
+  Intervention,
+  Assignment,
+  Document,
+  Quote,
+  TimeSlot,
+  Thread,
+  Comment,
+  AssignmentMode,
+  InterventionLink,
+  InterventionAddress,
+} from './intervention-detail-types'
+import { TYPE_TO_CATEGORY, CATEGORY_BADGE_STYLES } from './intervention-detail-types'
+import { InterventionHeaderActions } from './intervention-header-actions'
+import { InterventionDocumentsTab } from './intervention-documents-tab'
+import { InterventionCommentsModal } from './intervention-comments-modal'
+
+interface InterventionDetailClientProps {
+  intervention: Intervention
+  assignments: Assignment[]
+  documents: Document[]
+  reports: InterventionReport[]
+  quotes: Quote[]
+  timeSlots: TimeSlot[]
+  threads: Thread[]
+  initialMessagesByThread?: Record<string, any[]>
+  initialParticipantsByThread?: Record<string, any[]>
+  comments: Comment[]
+  // Server-provided user info to prevent hydration mismatch
+  serverUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
+  serverUserId: string
+  // Multi-provider mode data
+  assignmentMode?: AssignmentMode
+  linkedInterventions?: InterventionLink[]
+  isParentIntervention?: boolean
+  isChildIntervention?: boolean
+  providerCount?: number
+  // Address for map display
+  interventionAddress?: InterventionAddress | null
+}
+
+export function InterventionDetailClient({
+  intervention,
+  assignments,
+  documents,
+  reports,
+  quotes,
+  timeSlots,
+  threads,
+  initialMessagesByThread,
+  initialParticipantsByThread,
+  comments,
+  serverUserRole,
+  serverUserId,
+  assignmentMode = 'single',
+  linkedInterventions = [],
+  isParentIntervention = false,
+  isChildIntervention = false,
+  providerCount = 0,
+  interventionAddress
+}: InterventionDetailClientProps) {
+  const router = useRouter()
+  const realtime = useRealtimeOptional()
+  const searchParams = useSearchParams()
+  const { user } = useAuth()
+  const { currentUserTeam } = useTeamStatus()
+  // Deep-link support: ?tab=conversations&thread=group
+  const initialTab = searchParams.get('tab')
+  const initialThread = searchParams.get('thread')
+  const [activeTab, setActiveTab] = useState(
+    initialTab === 'conversations' ? 'conversations' : 'general'
+  )
+
+  // Local state for threads with unread counts (for optimistic updates)
+  const [localThreads, setLocalThreads] = useState(threads)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [cancelQuoteModal, setCancelQuoteModal] = useState<{
+    isOpen: boolean
+    quoteId: string | null
+    providerName: string
+  }>({
+    isOpen: false,
+    quoteId: null,
+    providerName: ''
+  })
+  const [isCancellingQuote, setIsCancellingQuote] = useState(false)
+  // État pour les modales d'approbation/rejet d'estimation
+  const [quoteApprovalModal, setQuoteApprovalModal] = useState<{
+    isOpen: boolean
+    quoteId: string
+    providerName: string
+    totalAmount: number
+  } | null>(null)
+  const [quoteRejectionModal, setQuoteRejectionModal] = useState<{
+    isOpen: boolean
+    quoteId: string
+    providerName: string
+    totalAmount: number
+  } | null>(null)
+  // ✅ FIX 2026-01-26: Use requires_quote field instead of deprecated demande_de_devis status
+  const [requireQuote, setRequireQuote] = useState(intervention.requires_quote || false)
+  const [modalAssignmentMode, setModalAssignmentMode] = useState<AssignmentMode>(assignmentMode || 'group')
+  const [modalProviderInstructions, setModalProviderInstructions] = useState<Record<string, string>>({})
+  const [modalInstructions, setModalInstructions] = useState(intervention.instructions || '')
+  const [requiresConfirmation, setRequiresConfirmation] = useState(false)
+  const [confirmationRequired, setConfirmationRequired] = useState<string[]>([])
+  const [showFinalizationModal, setShowFinalizationModal] = useState(false)
+
+  // Ref to track if URL action has been processed (prevents re-triggering from unstable deps)
+  const processedUrlActionRef = useRef(false)
+
+  // États pour le nouveau design PreviewHybrid
+  const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+  const [selectedSlotIdForChoice, setSelectedSlotIdForChoice] = useState<string | null>(null)
+  const [isChooseModalOpen, setIsChooseModalOpen] = useState(false)
+  // État pour la modale de réponse à un créneau (all active slots)
+  const [responseModalSlots, setResponseModalSlots] = useState<ModalTimeSlot[]>([])
+  const [responseModalExisting, setResponseModalExisting] = useState<
+    Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }>
+  >({})
+  const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
+
+  // Thread type sélectionné pour le chat (utilisé quand on clique sur une icône message)
+  const [selectedThreadType, setSelectedThreadType] = useState<string>(initialThread || 'group')
+
+  // État pour la modale d'upload de documents
+  const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false)
+
+  // Hook partagé pour preview/download de documents
+  const { handleViewDocument, handleDownloadDocument, previewModal } = useDocumentActions({ documents })
+
+  // État pour le message initial dans le chat
+  const [initialChatMessage, setInitialChatMessage] = useState<string | null>(null)
+
+  // État pour la modale de commentaires
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false)
+
+  // Helpers for button visibility based on intervention status
+  const canModifyOrCancel = !['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee', 'demande'].includes(intervention.status)
+  const canFinalize = ['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)
+
+  // Role-based actions from centralized utility
+  const headerActions = getRoleBasedActions(intervention.id, intervention.status, 'gestionnaire')
+  const dotMenuActions = getDotMenuActions(intervention.id, intervention.status, 'gestionnaire')
+
+  // State for action button loading
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // State for cancel quote confirmation modal (from toggle) — supports bulk cancel
+  const [cancelQuoteConfirmModal, setCancelQuoteConfirmModal] = useState<{
+    isOpen: boolean
+    quoteCount: number
+    providerNames: string[]
+  }>({
+    isOpen: false,
+    quoteCount: 0,
+    providerNames: []
+  })
+  const [isCancellingQuoteFromToggle, setIsCancellingQuoteFromToggle] = useState(false)
+
+  // Ref for ContactSelector modal
+  const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
+  // Get params for contact creation return flow
+  const newContactId = searchParams.get('newContactId')
+  const returnedContactType = searchParams.get('contactType')
+
+  // Helper function to get active quote (pending, sent, accepted)
+  const getActiveQuote = () => {
+    return quotes.find(q =>
+      ['pending', 'sent', 'accepted'].includes(q.status)
+    )
+  }
+
+  // Helper: get ALL active quotes (for bulk cancel)
+  const getActiveQuotes = () => {
+    return quotes.filter(q =>
+      ['pending', 'sent'].includes(q.status) && (!q.amount || q.amount <= 0)
+    )
+  }
+
+  // Sync requireQuote state with active quote (not just intervention status)
+  useEffect(() => {
+    const activeQuote = getActiveQuote()
+    setRequireQuote(activeQuote !== undefined)
+  }, [quotes])
+
+  // ============================================================================
+  // Activity Logs for Activity Tab
+  // ============================================================================
+  const teamId = intervention.team_id || currentUserTeam?.id
+  const { activities: activityLogs, loading: activityLoading } = useActivityLogs({
+    teamId: teamId || undefined,
+    entityType: 'intervention',
+    entityId: intervention.id,
+    limit: 100
+  })
+
+  // ============================================================================
+  // Tabs Configuration (unified with EntityTabs)
+  // ============================================================================
+
+  // Calculate total unread messages across all threads (uses local state for optimistic updates)
+  const totalUnreadMessages = useMemo(() => {
+    return localThreads.reduce((total, t) => {
+      const unread = (t as any).unread_count || 0
+      return total + unread
+    }, 0)
+  }, [localThreads])
+
+  // Handler for marking a thread as read (optimistic update)
+  const handleThreadRead = (threadId: string) => {
+    setLocalThreads(prevThreads =>
+      prevThreads.map(t =>
+        t.id === threadId ? { ...t, unread_count: 0 } : t
+      )
+    )
+  }
+
+  // Build tabs with hasUnread indicator for conversations
+  const interventionTabs = useMemo(() => {
+    const baseTabs = getInterventionTabsConfig('manager')
+    return baseTabs.map(tab => {
+      if (tab.value === 'conversations') {
+        return { ...tab, hasUnread: totalUnreadMessages > 0 }
+      }
+      return tab
+    })
+  }, [totalUnreadMessages])
+
+  // ============================================================================
+  // Participant Confirmation Logic
+  // ============================================================================
+
+  // Check if current user is the creator
+  const isCreator = intervention.created_by === serverUserId
+
+  // Find current user's assignment (if any)
+  const currentUserAssignment = useMemo(() => {
+    return assignments.find(a => a.user_id === serverUserId)
+  }, [assignments, serverUserId])
+
+  // Build intervention confirmation info for permissions helper
+  const interventionConfirmationInfo = useMemo(() => ({
+    requires_participant_confirmation: intervention.requires_participant_confirmation ?? false
+  }), [intervention.requires_participant_confirmation])
+
+  // Build assignment confirmation info for permissions helper
+  const assignmentConfirmationInfo = useMemo(() => {
+    if (!currentUserAssignment) return null
+    return {
+      requires_confirmation: currentUserAssignment.requires_confirmation ?? false,
+      confirmation_status: (currentUserAssignment.confirmation_status ?? 'not_required') as 'pending' | 'confirmed' | 'rejected' | 'not_required'
+    }
+  }, [currentUserAssignment])
+
+  // Get permissions for current user
+  const participantPermissions = useMemo(() => {
+    return getParticipantPermissions(
+      interventionConfirmationInfo,
+      assignmentConfirmationInfo,
+      isCreator
+    )
+  }, [interventionConfirmationInfo, assignmentConfirmationInfo, isCreator])
+
+  // Determine which banner to show (if any)
+  const showConfirmationBanner = participantPermissions.canConfirm
+  const showConfirmedBanner = !isCreator && hasConfirmed(assignmentConfirmationInfo)
+  const showRejectedBanner = !isCreator && hasRejected(assignmentConfirmationInfo)
+
+  // Callback after confirmation/rejection
+  const handleConfirmationResponse = () => {
+    // Refresh the page to get updated data
+    realtime?.broadcastInvalidation(['interventions', 'stats'])
+    router.refresh()
+  }
+
+  // Transform assignments into Contact arrays by role (legacy format for modals)
+  const { managers, providers, tenants } = useMemo(() => {
+    const managers = assignments
+      .filter(a => a.role === 'gestionnaire')
+      .map(a => ({
+        id: a.user?.id || '',
+        name: a.user?.name || '',
+        email: a.user?.email || '',
+        phone: a.user?.phone,
+        role: a.user?.role,
+        type: 'gestionnaire' as const,
+        has_account: !!(a.user as any)?.auth_user_id
+      }))
+      .filter(c => c.id) // Remove empty contacts
+
+    const providers = assignments
+      .filter(a => a.role === 'prestataire')
+      .map(a => ({
+        id: a.user?.id || '',
+        name: a.user?.name || '',
+        email: a.user?.email || '',
+        phone: a.user?.phone,
+        role: a.user?.role,
+        type: 'prestataire' as const,
+        has_account: !!(a.user as any)?.auth_user_id
+      }))
+      .filter(c => c.id)
+
+    const tenants = assignments
+      .filter(a => a.role === 'locataire')
+      .map(a => ({
+        id: a.user?.id || '',
+        name: a.user?.name || '',
+        email: a.user?.email || '',
+        phone: a.user?.phone,
+        role: a.user?.role,
+        type: 'locataire' as const,
+        has_account: !!(a.user as any)?.auth_user_id
+      }))
+      .filter(c => c.id)
+
+    return { managers, providers, tenants }
+  }, [assignments])
+
+  // Participant selection state for programming modal
+  const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([])
+  const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([])
+  const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([])
+
+  // Toggle callbacks for participant selection
+  const handleManagerToggle = useCallback((id: string) => {
+    setSelectedManagerIds(prev =>
+      prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]
+    )
+  }, [])
+
+  const handleProviderToggle = useCallback((id: string) => {
+    setSelectedProviderIds(prev =>
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    )
+  }, [])
+
+  const handleTenantToggle = useCallback((id: string) => {
+    setSelectedTenantIds(prev =>
+      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+    )
+  }, [])
+
+  const handleProviderInstructionsChange = useCallback((providerId: string, instructions: string) => {
+    setModalProviderInstructions(prev => ({ ...prev, [providerId]: instructions }))
+  }, [])
+
+  const handleConfirmationRequiredChange = useCallback((userId: string, required: boolean) => {
+    setConfirmationRequired(prev =>
+      required ? [...prev, userId] : prev.filter(id => id !== userId)
+    )
+  }, [])
+
+  // ============================================================================
+  // Transformations pour les composants shared (nouveau design PreviewHybrid)
+  // ============================================================================
+
+  // Participants pour InterventionDetailsCard (ligne Participants dans l'onglet Général)
+  const participants = useMemo(() => ({
+    managers: assignments
+      .filter(a => a.role === 'gestionnaire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'manager' as const,
+        hasAccount: !!a.user!.auth_user_id
+      })),
+    providers: assignments
+      .filter(a => a.role === 'prestataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'provider' as const,
+        hasAccount: !!a.user!.auth_user_id
+      })),
+    tenants: assignments
+      .filter(a => a.role === 'locataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'tenant' as const,
+        hasAccount: !!a.user!.auth_user_id
+      }))
+  }), [assignments])
+
+  // Quotes transformés pour QuotesCard
+  const transformedQuotes: SharedQuote[] = useMemo(() =>
+    quotes.map(q => ({
+      id: q.id,
+      amount: q.amount || 0,
+      status: q.status as SharedQuote['status'],
+      provider_name: q.provider?.name,
+      provider_id: q.provider_id || undefined,
+      created_at: q.created_at || undefined,
+      description: q.description || undefined
+    }))
+    , [quotes])
+
+  // TimeSlots transformés pour PlanningCard
+  const transformedTimeSlots: SharedTimeSlot[] = useMemo(() =>
+    timeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      status: slot.status || 'pending',
+      proposed_by: slot.proposed_by || undefined,
+      proposed_by_user: slot.proposed_by_user ? { name: slot.proposed_by_user.name } : undefined,
+      responses: (slot as any).responses?.map((r: any) => ({
+        id: r.id,
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: r.user ? { name: r.user.name, role: r.user.role || '' } : undefined
+      })),
+      // Mode "date fixe": le gestionnaire a sélectionné directement une date
+      selected_by_manager: slot.selected_by_manager || false
+    }))
+    , [timeSlots])
+
+  // Calculer les stats de réponse pour la section Planning (vue générale)
+  const responseStats = useMemo(() => {
+    // Filtrer les slots actifs (pending ou requested)
+    const activeSlots = transformedTimeSlots.filter(s =>
+      s.status === 'pending' || s.status === 'requested'
+    )
+
+    if (activeSlots.length === 0) return undefined
+
+    // Compter les participants attendus (ceux avec requires_confirmation)
+    const participantsWithConfirmation = assignments.filter(a => a.requires_confirmation)
+    const totalExpectedResponses = participantsWithConfirmation.length
+
+    if (totalExpectedResponses === 0) return undefined
+
+    // Calculer le détail par créneau
+    const slotDetails = activeSlots.map(slot => {
+      const responses = slot.responses || []
+      return {
+        slotDate: slot.slot_date,
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+        accepted: responses.filter(r => r.response === 'accepted').length,
+        rejected: responses.filter(r => r.response === 'rejected').length,
+        pending: responses.filter(r => r.response === 'pending').length
+      }
+    })
+
+    // Trouver le max de réponses reçues (accepted + rejected)
+    const maxResponsesReceived = Math.max(
+      ...slotDetails.map(s => s.accepted + s.rejected),
+      0
+    )
+
+    return {
+      maxResponsesReceived,
+      totalExpectedResponses,
+      slotDetails
+    }
+  }, [transformedTimeSlots, assignments])
+
+  // Comments transformés pour CommentsCard
+  const transformedComments: SharedComment[] = useMemo(() =>
+    comments.map(c => ({
+      id: c.id,
+      author: c.user?.name || 'Utilisateur',
+      content: c.content,
+      date: c.created_at,
+      role: c.user?.role || undefined,
+      is_internal: c.is_internal || false
+    }))
+    , [comments])
+
+  // Documents transformés pour DocumentsCard
+  const transformedDocuments: InterventionDocument[] = useMemo(() =>
+    documents.map(d => ({
+      id: d.id,
+      name: (d as any).original_filename || d.filename || 'Document',
+      type: d.document_type || 'file',
+      size: d.file_size ? `${Math.round(d.file_size / 1024)} KB` : undefined,
+      date: d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('fr-FR') : undefined,
+      url: d.storage_path || undefined
+    }))
+    , [documents])
+
+  // Timeline events pour la progression
+  const timelineEvents: TimelineEventData[] = useMemo(() => {
+    const events: TimelineEventData[] = []
+
+    // Toujours ajouter la création
+    events.push({
+      status: 'demande',
+      date: intervention.created_at || new Date().toISOString(),
+      author: 'Système',
+      authorRole: 'manager'
+    })
+
+    // Ajouter les étapes selon le statut actuel
+    // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
+    const statusOrder = [
+      'demande', 'approuvee', 'planification',
+      'planifiee', 'cloturee_par_prestataire',
+      'cloturee_par_locataire', 'cloturee_par_gestionnaire'
+    ]
+
+    const currentIndex = statusOrder.indexOf(intervention.status)
+
+    if (currentIndex > 0) {
+      events.push({
+        status: 'approuvee',
+        date: intervention.updated_at || new Date().toISOString(),
+        authorRole: 'manager'
+      })
+    }
+
+    if (currentIndex >= statusOrder.indexOf('planifiee')) {
+      events.push({
+        status: 'planifiee',
+        date: intervention.updated_at || new Date().toISOString(),
+        authorRole: 'provider'
+      })
+    }
+
+    return events
+  }, [intervention, requireQuote])
+
+  // Calculer les compteurs de messages non lus par type de thread
+  const unreadCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    threads.forEach(t => {
+      if ((t as any).unread_count && (t as any).unread_count > 0) {
+        counts[t.thread_type] = (counts[t.thread_type] || 0) + (t as any).unread_count
+      }
+    })
+    return counts
+  }, [threads])
+
+  // Récupérer le slot complet pour la modale de choix
+  const selectedFullSlotForChoice = selectedSlotIdForChoice
+    ? timeSlots.find(s => s.id === selectedSlotIdForChoice)
+    : null
+
+  // Slots proposed by current user (for cancel-on-accept logic)
+  const userProposedSlotIds = useMemo(() =>
+    timeSlots
+      .filter(s => s.proposed_by === serverUserId && (s.status === 'pending' || s.status === 'requested'))
+      .map(s => s.id),
+    [timeSlots, serverUserId]
+  )
+
+  // Créneau confirmé (si un créneau est sélectionné/confirmé)
+  const confirmedSlot = timeSlots.find(s => s.status === 'selected')
+  const scheduledDate = confirmedSlot?.slot_date || null
+  const scheduledStartTime = confirmedSlot?.start_time || null
+  const scheduledEndTime = confirmedSlot?.end_time || null
+  // ✅ FIX 2026-01-28: Mode date fixe = ne pas afficher l'heure de fin (calculée auto +1h)
+  const isFixedScheduling = confirmedSlot?.selected_by_manager === true
+
+  // Compter les créneaux proposés (non sélectionnés)
+  // Statuts DB: 'requested' (demandé), 'pending' (en attente), 'selected' (confirmé), 'rejected', 'cancelled'
+  const proposedSlotsCount = timeSlots.filter(s =>
+    s.status === 'pending' || s.status === 'requested'
+  ).length
+
+  // Statut du planning: 'scheduled' si confirmé, 'proposed' si créneaux proposés, 'pending' sinon
+  const planningStatus: 'pending' | 'proposed' | 'scheduled' | 'completed' = scheduledDate
+    ? 'scheduled'
+    : proposedSlotsCount > 0
+      ? 'proposed'
+      : 'pending'
+
+  // Statut des devis
+  const quotesStatus = transformedQuotes.some(q => q.status === 'accepted')
+    ? 'approved'
+    : transformedQuotes.length > 0
+      ? 'received'
+      : intervention.requires_quote
+        ? 'pending'
+        : 'none'
+
+  // Montant du devis validé
+  const selectedQuoteAmount = transformedQuotes.find(q => q.status === 'accepted')?.amount
+
+  // Initialize planning hook with dynamic participant selection
+  const planning = useInterventionPlanning(
+    requireQuote,
+    selectedProviderIds,
+    modalInstructions,
+    selectedManagerIds,
+    selectedTenantIds,
+    modalAssignmentMode,
+    modalProviderInstructions,
+    confirmationRequired,
+    requiresConfirmation,
+    () => {
+      realtime?.broadcastInvalidation(['interventions', 'stats'])
+      router.refresh()
+    },
+  )
+
+  // Reset participant selection and pre-fill scheduling state when programming modal opens
+  useEffect(() => {
+    if (planning.programmingModal.isOpen) {
+      // Reset participants to defaults
+      setSelectedManagerIds(managers.map(m => m.id))
+      setSelectedProviderIds(providers.map(p => p.id))
+      setSelectedTenantIds(tenants.map(t => t.id))
+
+      // Pre-fill confirmation from existing assignments
+      const confirmationUserIds = assignments
+        .filter(a => a.requires_confirmation === true)
+        .map(a => a.user_id)
+        .filter((id): id is string => !!id)
+
+      if (confirmationUserIds.length > 0) {
+        setRequiresConfirmation(true)
+        setConfirmationRequired(confirmationUserIds)
+      } else {
+        setRequiresConfirmation(false)
+        setConfirmationRequired([])
+      }
+
+      // Pre-fill scheduling option from current intervention state (for planification status)
+      const schedulingType = intervention.scheduling_type
+      if (schedulingType === 'fixed') {
+        planning.setProgrammingOption('direct')
+        if (scheduledDate && scheduledStartTime) {
+          planning.setProgrammingDirectSchedule({
+            date: scheduledDate,
+            startTime: scheduledStartTime.substring(0, 5),
+            endTime: scheduledEndTime?.substring(0, 5) || ''
+          })
+        }
+      } else if (schedulingType === 'slots') {
+        planning.setProgrammingOption('propose')
+        const existingSlots = timeSlots
+          .filter(s => s.status === 'pending' || s.status === 'requested')
+          .map(s => ({
+            date: s.slot_date || '',
+            startTime: (s.start_time || '').substring(0, 5),
+            endTime: (s.end_time || '').substring(0, 5)
+          }))
+        if (existingSlots.length > 0) {
+          planning.setProgrammingProposedSlots(existingSlots)
+        }
+      } else if (schedulingType === 'flexible') {
+        planning.setProgrammingOption('organize')
+      }
+    }
+  }, [planning.programmingModal.isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle refresh - défini avant approvalHook pour pouvoir être passé en callback
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true)
+    realtime?.broadcastInvalidation(['interventions', 'stats'])
+    router.refresh()
+    setTimeout(() => setIsRefreshing(false), 1000)
+  }, [router])
+
+  // Initialize approval hook for approve/reject actions
+  const approvalHook = useInterventionApproval(handleRefresh)
+  const cancellationHook = useInterventionCancellation()
+
+  // Prepare intervention data for approval hook
+  const interventionActionData = useMemo(() => {
+    const location = intervention.lot?.reference
+      ? `${intervention.lot.building?.name || intervention.building?.name || ''} - Lot ${intervention.lot.reference}`
+      : intervention.building?.name || 'Localisation non spécifiée'
+
+    // Get address from lot or building
+    const lotRecord = intervention.lot?.address_record
+    const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+    const addressRecord = lotRecord || buildingRecord
+    const address = addressRecord?.formatted_address
+      || (addressRecord?.street || addressRecord?.city
+        ? [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean).join(', ')
+        : null)
+
+    return {
+      id: intervention.id,
+      type: intervention.type || '',
+      status: intervention.status,
+      title: intervention.title,
+      description: intervention.description,
+      urgency: intervention.urgency || 'normale',
+      reference: intervention.reference,
+      created_at: intervention.created_at,
+      created_by: intervention.created_by,
+      location,
+      address,
+      creator_name: intervention.creator?.name || null,
+      lot: intervention.lot ? {
+        reference: intervention.lot.reference || '',
+        building: intervention.lot.building ? { name: intervention.lot.building.name } : undefined
+      } : undefined,
+      building: intervention.building ? { name: intervention.building.name } : undefined,
+      hasFiles: (documents?.length || 0) > 0,
+      filesCount: documents?.length || 0
+    }
+  }, [intervention, documents])
+
+  // Handle action completion from action panel
+  const handleActionComplete = () => {
+    handleRefresh()
+  }
+
+  // Auto-open modals when coming from card/dashboard with action query param
+  // FIX 2026-01-30: Use ref to prevent re-triggering and read URL directly for stability
+  // Note: approvalHook callbacks and interventionActionData are intentionally excluded from deps
+  // because: 1) processedUrlActionRef prevents re-execution, 2) they are memoized/useCallback stable
+  useEffect(() => {
+    // Skip if already processed to prevent re-triggering from unstable dependencies
+    if (processedUrlActionRef.current) return
+
+    // Read URL directly instead of using unstable searchParams object
+    const url = new URL(window.location.href)
+    const actionParam = url.searchParams.get('action')
+
+    if (!actionParam) return
+
+    // Mark as processed BEFORE any state changes
+    processedUrlActionRef.current = true
+
+    // Handle different action types
+    if (actionParam === 'process_request' && intervention.status === 'demande') {
+      setTimeout(() => {
+        approvalHook.openApprovalModal(interventionActionData)
+      }, 100)
+    } else if (actionParam === 'revise_decision' && intervention.status === 'rejetee') {
+      setTimeout(() => {
+        approvalHook.handleApprovalAction(interventionActionData, 'approve')
+      }, 100)
+    } else if (actionParam === 'finalize' && ['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)) {
+      setTimeout(() => {
+        setShowFinalizationModal(true)
+      }, 100)
+    } else if (actionParam === 'start_planning' && intervention.status === 'approuvee') {
+      setTimeout(() => {
+        planning.openProgrammingModal(interventionActionData)
+      }, 100)
+    } else if (actionParam === 'manage_planning' && intervention.status === 'planification') {
+      setTimeout(() => {
+        planning.openProgrammingModal(interventionActionData)
+      }, 100)
+    } else if (actionParam === 'modify_planning' && intervention.status === 'planifiee') {
+      setTimeout(() => {
+        planning.openProgrammingModal(interventionActionData)
+      }, 100)
+    } else {
+      // Unknown action or status mismatch, reset the flag to allow future processing
+      processedUrlActionRef.current = false
+      return
+    }
+
+    // Clean up URL after state update is queued
+    requestAnimationFrame(() => {
+      url.searchParams.delete('action')
+      window.history.replaceState({}, '', url.toString())
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intervention.status])
+
+  // Handler for header action buttons (from getRoleBasedActions)
+  const handleHeaderActionClick = async (action: RoleBasedAction) => {
+    // Special cases: some actions need specific handling
+    switch (action.actionType) {
+      case 'process_request':
+        // Open approval modal without pre-selecting an action
+        approvalHook.openApprovalModal(interventionActionData)
+        return
+      case 'approve':
+        approvalHook.handleApprovalAction(interventionActionData, 'approve')
+        return
+      case 'reject':
+        approvalHook.handleApprovalAction(interventionActionData, 'reject')
+        return
+      case 'revise_decision':
+        // Open approval modal with 'approve' pre-selected to reverse a rejection
+        approvalHook.handleApprovalAction(interventionActionData, 'approve')
+        return
+      case 'request_details':
+        handleRequestDetails()
+        return
+      case 'start_planning':
+        // Open ProgrammingModal via planning hook
+        planning.openProgrammingModal(interventionActionData)
+        return
+      case 'manage_planning':
+      case 'modify_planning':
+        // Open ProgrammingModal pre-filled with current state
+        planning.openProgrammingModal(interventionActionData)
+        return
+      case 'finalize':
+        // Check if it's an API action or navigation
+        if (action.apiRoute) {
+          setActionLoading(action.actionType)
+          try {
+            const response = await fetch(action.apiRoute, {
+              method: action.apiMethod || 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ interventionId: intervention.id })
+            })
+            const data = await response.json()
+            if (data.success) {
+              toast('Action effectuée', { description: 'L\'intervention a été clôturée' })
+              handleRefresh()
+            } else {
+              throw new Error(data.error || 'Erreur lors de l\'action')
+            }
+          } catch (error) {
+            toast.error('Erreur', { description: error instanceof Error ? error.message : 'Impossible d\'effectuer l\'action' })
+          } finally {
+            setActionLoading(null)
+          }
+          return
+        } else if (action.href) {
+          // For finalize with href, open the modal directly
+          setShowFinalizationModal(true)
+          return
+        }
+        break
+      case 'remind_tenant':
+        // API call for remind tenant
+        if (action.apiRoute) {
+          setActionLoading(action.actionType)
+          try {
+            const response = await fetch(action.apiRoute, {
+              method: action.apiMethod || 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ interventionId: intervention.id })
+            })
+            const data = await response.json()
+            if (data.success) {
+              toast('Relance envoyée', { description: 'Le locataire a été relancé par email' })
+              handleRefresh()
+            } else {
+              throw new Error(data.error || 'Erreur lors de l\'envoi')
+            }
+          } catch (error) {
+            toast.error('Erreur', { description: error instanceof Error ? error.message : 'Impossible d\'envoyer la relance' })
+          } finally {
+            setActionLoading(null)
+          }
+          return
+        }
+        break
+      case 'modify':
+        // Navigate to edit page
+        router.push(action.href || `/gestionnaire/operations/interventions/modifier/${intervention.id}`)
+        return
+      case 'cancel':
+        cancellationHook.handleCancellationAction(interventionActionData)
+        return
+    }
+
+    // Default: navigate if href is present
+    if (action.href) {
+      router.push(action.href)
+    }
+  }
+
+  // Handle cancel quote request - open confirmation modal
+  const handleCancelQuoteRequest = (requestId: string) => {
+    const quote = quotes.find(q => q.id === requestId)
+    const providerName = quote?.provider?.name || 'ce prestataire'
+
+    setCancelQuoteModal({
+      isOpen: true,
+      quoteId: requestId,
+      providerName
+    })
+  }
+
+  // Confirm cancel quote request
+  const handleConfirmCancelQuote = async () => {
+    if (!cancelQuoteModal.quoteId) return
+
+    setIsCancellingQuote(true)
+
+    try {
+      const response = await fetch(`/api/intervention/${intervention.id}/quotes/${cancelQuoteModal.quoteId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to cancel quote request')
+      }
+
+      toast('Demande annulée', { description: 'La demande d\'estimation a été annulée avec succès' })
+
+      setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })
+      handleRefresh()
+    } catch (error) {
+      console.error('Error canceling quote request:', error)
+      toast.error('Erreur', { description: 'Une erreur est survenue lors de l\'annulation de la demande' })
+    } finally {
+      setIsCancellingQuote(false)
+    }
+  }
+
+  // Handle toggle quote request ON/OFF
+  const handleToggleQuoteRequest = (checked: boolean) => {
+    // If toggling OFF and there are active quotes, show confirmation modal
+    if (!checked) {
+      const activeQuotes = getActiveQuotes()
+      if (activeQuotes.length > 0) {
+        const providerNames = activeQuotes.map(
+          q => q.provider?.name || 'Prestataire inconnu'
+        )
+        setCancelQuoteConfirmModal({
+          isOpen: true,
+          quoteCount: activeQuotes.length,
+          providerNames
+        })
+        // Don't change toggle state yet (will be updated after confirmation)
+        return
+      }
+    }
+    // If toggling ON or no active quotes, update toggle state directly
+    setRequireQuote(checked)
+  }
+
+  // Confirm cancel ALL quotes from toggle
+  const handleConfirmCancelQuoteFromToggle = async () => {
+    if (cancelQuoteConfirmModal.quoteCount === 0) return
+
+    setIsCancellingQuoteFromToggle(true)
+
+    try {
+      const cancelResponse = await fetch(
+        `/api/intervention/${intervention.id}/quotes/cancel-all`,
+        { method: 'POST' }
+      )
+
+      if (!cancelResponse.ok) {
+        const errorData = await cancelResponse.json().catch(() => ({}))
+        console.error('Bulk quote cancellation failed:', errorData)
+        throw new Error(errorData.error || 'Failed to cancel quotes')
+      }
+
+      const result = await cancelResponse.json()
+
+      toast(result.cancelledCount > 1 ? 'Demandes annulées' : 'Demande annulée', { description: result.message || 'Les demandes d\'estimation ont été annulées' })
+
+      setCancelQuoteConfirmModal({ isOpen: false, quoteCount: 0, providerNames: [] })
+      handleRefresh()
+    } catch (error) {
+      console.error('Error cancelling quotes from toggle:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'annulation'
+      toast.error('Erreur', { description: errorMessage })
+    } finally {
+      setIsCancellingQuoteFromToggle(false)
+    }
+  }
+
+  // Handlers for opening contact modals (using ref)
+  const handleOpenManagerModal = () => {
+    contactSelectorRef.current?.openContactModal('manager')
+  }
+
+  const handleOpenProviderModal = () => {
+    contactSelectorRef.current?.openContactModal('provider')
+  }
+
+  // Callbacks for ContactSelector (immediate application like in creation flow)
+  const handleContactSelected = async (contact: any, contactType: string) => {
+    const role = contactType === 'manager' ? 'gestionnaire' : 'prestataire'
+    const result = await assignUserAction(intervention.id, contact.id, role)
+
+    if (result.success) {
+      toast('Contact assigné', { description: `${contact.name} a été assigné à l'intervention` })
+      handleRefresh()
+    } else {
+      toast.error('Erreur', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
+    }
+  }
+
+  const handleContactCreated = async (contact: any, contactType: string) => {
+    const role = contactType === 'manager' ? 'gestionnaire' : 'prestataire'
+    const result = await assignUserAction(intervention.id, contact.id, role)
+
+    if (result.success) {
+      toast('Contact créé et assigné', { description: `${contact.name} a été créé et assigné à l'intervention` })
+      handleRefresh()
+    } else {
+      toast.error('Erreur', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
+    }
+  }
+
+  const handleContactRemoved = async (contactId: string, contactType: string) => {
+    const role = contactType === 'manager' ? 'gestionnaire' : 'prestataire'
+    const result = await unassignUserAction(intervention.id, contactId, role)
+
+    if (result.success) {
+      toast('Contact retiré', { description: 'Le contact a été retiré de l\'intervention' })
+      handleRefresh()
+    } else {
+      toast.error('Erreur', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
+    }
+  }
+
+  // Handle redirect to multi-step contact creation flow
+  const handleRequestContactCreation = (contactType: string) => {
+    // Build return URL with placeholder that will be replaced by the contact creation page
+    const baseReturnUrl = `/gestionnaire/operations/interventions/${intervention.id}`
+    const returnUrl = `${baseReturnUrl}?newContactId=PLACEHOLDER&contactType=${contactType}`
+    router.push(`/gestionnaire/contacts/nouveau?type=${contactType}&returnUrl=${encodeURIComponent(returnUrl)}`)
+  }
+
+  // Auto-assign newly created contact when returning from contact creation
+  useEffect(() => {
+    if (!newContactId || !returnedContactType || newContactId === 'PLACEHOLDER') return
+
+    const role = returnedContactType === 'gestionnaire' || returnedContactType === 'manager'
+      ? 'gestionnaire'
+      : 'prestataire'
+
+    assignUserAction(intervention.id, newContactId, role).then((result) => {
+      if (result.success) {
+        toast('Contact créé et assigné', { description: 'Le nouveau contact a été créé et assigné avec succès' })
+        // Clean URL params and refresh
+        router.replace(`/gestionnaire/operations/interventions/${intervention.id}`)
+        realtime?.broadcastInvalidation(['interventions', 'stats'])
+        router.refresh()
+      } else {
+        toast.error('Erreur d\'assignation', { description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error) })
+      }
+    })
+  }, [newContactId, returnedContactType, intervention.id, router])
+
+  // Get badge counts for tabs
+  const getBadgeCount = (tab: string) => {
+    switch (tab) {
+      case 'chat':
+        return threads.length > 0 ? threads.length : undefined
+      case 'documents':
+        return documents.length > 0 ? documents.length : undefined
+      case 'time-slots':
+        return timeSlots.length > 0 ? timeSlots.length : undefined
+      default:
+        return undefined
+    }
+  }
+
+  // Get separate badge counts for quotes tab
+  const getQuotesBadges = () => {
+    // Demandes en attente (pending requests - amount=0)
+    const pendingRequests = quotes.filter(q =>
+      q.status === 'pending' && (!q.amount || q.amount === 0)
+    ).length
+
+    // Devis soumis en attente de validation (submitted quotes - amount>0)
+    const submittedQuotes = quotes.filter(q =>
+      (q.status === 'pending' || q.status === 'sent') && q.amount && q.amount > 0
+    ).length
+
+    return { pendingRequests, submittedQuotes }
+  }
+
+  // Handle edit intervention - redirect to edit page
+  const handleOpenProgrammingModalWithData = () => {
+    // Redirect to the edit page instead of opening the modal
+    router.push(`/gestionnaire/operations/interventions/modifier/${intervention.id}`)
+  }
+
+  // Handler pour approuver un slot proposé par le prestataire
+  const handleApproveSlot = async (slot: TimeSlot) => {
+    try {
+      // Construire les dates ISO pour l'API select-slot
+      const slotStart = `${slot.slot_date}T${slot.start_time}`
+      const slotEnd = `${slot.slot_date}T${slot.end_time}`
+
+      const response = await fetch(`/api/intervention/${intervention.id}/select-slot`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slotStart, slotEnd })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast('Créneau approuvé', { description: 'L\'intervention a été planifiée avec succès' })
+        handleRefresh()
+      } else {
+        toast.error('Erreur', { description: result.error || 'Erreur lors de l\'approbation du créneau' })
+      }
+    } catch (error) {
+      console.error('Error approving slot:', error)
+      toast.error('Erreur', { description: 'Erreur lors de l\'approbation du créneau' })
+    }
+  }
+
+  // Handler pour répondre à un slot proposé (accepter/rejeter)
+  const handleOpenSlotResponse = (slot: TimeSlot) => {
+    // Transformer le slot pour le format MultiSlotResponseModal
+    const formattedSlot = {
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      notes: (slot as any).notes || null,
+      proposer_name: slot.proposed_by_user?.first_name
+        ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`
+        : slot.proposed_by_user?.company_name,
+      proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+      responses: (slot as any).responses?.map((r: any) => ({
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: {
+          name: r.user?.first_name
+            ? `${r.user.first_name} ${r.user.last_name || ''}`
+            : r.user?.company_name || 'Utilisateur',
+          role: r.user?.role
+        }
+      })) || []
+    }
+    planning.openSlotResponseModal([formattedSlot], intervention.id)
+  }
+
+  // Handler pour modifier un slot proposé par le gestionnaire
+  const handleEditSlot = (slot: TimeSlot) => {
+    // Ouvrir la modal de programmation avec les données existantes
+    handleOpenProgrammingModalWithData()
+  }
+
+  // Handler pour approuver une estimation → ouvre la modale de confirmation
+  const handleApproveQuote = (quoteId: string) => {
+    const quote = transformedQuotes.find(q => q.id === quoteId)
+    setQuoteApprovalModal({
+      isOpen: true,
+      quoteId,
+      providerName: quote?.provider_name || 'Prestataire',
+      totalAmount: quote?.amount || 0
+    })
+  }
+
+  // Handler pour rejeter une estimation → ouvre la modale de rejet
+  const handleRejectQuote = (quoteId: string) => {
+    const quote = transformedQuotes.find(q => q.id === quoteId)
+    setQuoteRejectionModal({
+      isOpen: true,
+      quoteId,
+      providerName: quote?.provider_name || 'Prestataire',
+      totalAmount: quote?.amount || 0
+    })
+  }
+
+  // Handler pour annuler une demande d'estimation (statut pending)
+  const handleCancelQuote = async (quoteId: string) => {
+    try {
+      const result = await cancelQuoteAction(quoteId, intervention.id)
+
+      if (result.success) {
+        toast('Demande annulée', { description: 'La demande d\'estimation a été annulée' })
+        handleRefresh()
+      } else {
+        toast.error('Erreur', { description: result.error || 'Erreur lors de l\'annulation de la demande' })
+      }
+    } catch (error) {
+      console.error('Error cancelling quote:', error)
+      toast.error('Erreur', { description: 'Erreur lors de l\'annulation de la demande' })
+    }
+  }
+
+  // ============================================================================
+  // Callbacks pour le nouveau design PreviewHybrid
+  // ============================================================================
+
+  // Callbacks pour les conversations - switchent vers l'onglet conversations
+  const handleConversationClick = (participantId: string) => {
+    setActiveConversation(participantId)
+    // Déterminer le type de thread en fonction du rôle du participant
+    const isProvider = participants.providers.some(p => p.id === participantId)
+    const isTenant = participants.tenants.some(p => p.id === participantId)
+    if (isProvider) {
+      setSelectedThreadType('provider_to_managers')
+    } else if (isTenant) {
+      setSelectedThreadType('tenant_to_managers')
+    } else {
+      setSelectedThreadType('group')
+    }
+    // Switch vers l'onglet conversations
+    setActiveTab('conversations')
+  }
+
+  const handleGroupConversationClick = () => {
+    setActiveConversation('group')
+    setSelectedThreadType('group')
+    // Switch vers l'onglet conversations
+    setActiveTab('conversations')
+  }
+
+  // Handler pour ouvrir le chat depuis un participant (icône message dans ParticipantsRow)
+  const handleOpenChatFromParticipant = (
+    _participantId: string,
+    threadType: 'group' | 'tenant_to_managers' | 'provider_to_managers'
+  ) => {
+    setSelectedThreadType(threadType)
+    setActiveTab('conversations')
+  }
+
+  // Handler pour demander des détails (ouvre le chat avec message prérempli)
+  const handleRequestDetails = () => {
+    // Récupérer le prénom du locataire ayant fait la demande
+    const tenant = tenants.length > 0 ? tenants[0] : null
+    const tenantFirstName = tenant?.name?.split(' ')[0] || 'Monsieur/Madame'
+    
+    const message = `Bonjour ${tenantFirstName}, pourriez-vous nous fournir plus de détails sur cette demande afin que nous puissions l'analyser ?`
+    setInitialChatMessage(message)
+    setActiveTab('conversations')
+    setSelectedThreadType('group')
+  }
+
+  // Handler pour changement d'onglet avec réinitialisation du message initial si nécessaire
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    // Réinitialiser le message initial si on quitte l'onglet conversations
+    if (tab !== 'conversations') {
+      setInitialChatMessage(null)
+    }
+  }
+
+  // handleViewDocument, handleDownloadDocument, and previewModal
+  // are provided by the useDocumentActions hook above
+
+  // Handler pour ajouter un commentaire
+  const handleAddComment = async (content: string) => {
+    try {
+      const result = await addInterventionComment({
+        interventionId: intervention.id,
+        content
+      })
+
+      if (result.success) {
+        toast('Commentaire ajouté', { description: 'Votre commentaire a été enregistré' })
+        realtime?.broadcastInvalidation(['interventions', 'stats'])
+        router.refresh()
+      } else {
+        toast.error('Erreur', { description: result.error || 'Impossible d\'ajouter le commentaire' })
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error)
+      toast.error('Erreur', { description: 'Une erreur est survenue' })
+    }
+  }
+
+  // Handler pour ouvrir la modale de choix de créneau
+  const handleChooseSlot = (slotId: string) => {
+    const slotExists = timeSlots.some(s => s.id === slotId)
+    if (slotExists) {
+      setSelectedSlotIdForChoice(slotId)
+      setIsChooseModalOpen(true)
+    }
+  }
+
+  // Handler pour ouvrir la modale de réponse — affiche TOUS les créneaux actifs
+  const handleOpenResponseModal = (_slotId: string) => {
+    const activeSlots = timeSlots.filter(s =>
+      s.status === 'pending' || s.status === 'requested'
+    )
+    if (activeSlots.length === 0) return
+
+    // Transform to modal format
+    const modalSlots: ModalTimeSlot[] = activeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      notes: (slot as any).notes || null,
+      proposer_name: slot.proposed_by_user?.first_name
+        ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`
+        : slot.proposed_by_user?.company_name || (slot.proposed_by_user as any)?.name,
+      proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+      responses: ((slot as any).responses || []).map((r: any) => ({
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: {
+          name: r.user?.first_name
+            ? `${r.user.first_name} ${r.user.last_name || ''}`
+            : r.user?.company_name || r.user?.name || 'Utilisateur',
+          role: r.user?.role
+        }
+      }))
+    }))
+
+    // Build existingResponses with correct type mapping: 'accepted'->'accept', 'rejected'->'reject'
+    const existing: Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }> = {}
+    for (const slot of activeSlots) {
+      const userResp = ((slot as any).responses || []).find(
+        (r: any) => r.user_id === serverUserId
+      )
+      if (userResp && userResp.response !== 'pending') {
+        existing[slot.id] = {
+          response: userResp.response === 'accepted' ? 'accept'
+                  : userResp.response === 'rejected' ? 'reject'
+                  : 'pending',
+          reason: userResp.notes || undefined
+        }
+      }
+    }
+
+    setResponseModalSlots(modalSlots)
+    setResponseModalExisting(existing)
+    setIsResponseModalOpen(true)
+  }
+
+  // Handler pour fermer la modale et rafraîchir
+  const handleChooseModalSuccess = () => {
+    setIsChooseModalOpen(false)
+    setSelectedSlotIdForChoice(null)
+    handleRefresh()
+  }
+
+  // Prepare header data
+  // Note: demande_de_devis removed - quote status shown via getQuoteBadge()
+  const getStatusBadge = (): DetailPageHeaderBadge => {
+    const statusMap: Record<string, { label: string; color: string; dotColor: string }> = {
+      demande: { label: 'Demande', color: 'bg-blue-100 text-blue-800 border-blue-200', dotColor: 'bg-blue-500' },
+      rejetee: { label: 'Rejetée', color: 'bg-red-100 text-red-800 border-red-200', dotColor: 'bg-red-500' },
+      approuvee: { label: 'Approuvée', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
+      planification: { label: 'Planification', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', dotColor: 'bg-yellow-500' },
+      planifiee: { label: 'Planifiée', color: 'bg-indigo-100 text-indigo-800 border-indigo-200', dotColor: 'bg-indigo-500' },
+      // Note: 'en_cours' removed from workflow
+      cloturee_par_prestataire: { label: 'Clôturée (prestataire)', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
+      cloturee_par_locataire: { label: 'Clôturée (locataire)', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
+      cloturee_par_gestionnaire: { label: 'Clôturée', color: 'bg-gray-100 text-gray-800 border-gray-200', dotColor: 'bg-gray-500' },
+      annulee: { label: 'Annulée', color: 'bg-red-100 text-red-800 border-red-200', dotColor: 'bg-red-500' },
+    }
+    const status = statusMap[intervention.status] || statusMap.demande
+    return { ...status, icon: AlertCircle }
+  }
+
+  // Quote status badge - shows when intervention requires quote
+  const getQuoteBadge = (): DetailPageHeaderBadge | null => {
+    if (!intervention.requires_quote) return null
+
+    const quoteStatus = getQuoteBadgeStatus(quotes)
+    if (!quoteStatus) return null
+
+    return {
+      label: getQuoteBadgeLabel(quoteStatus),
+      color: getQuoteBadgeColor(quoteStatus),
+      dotColor: '',
+      icon: FileText
+    }
+  }
+
+  const getUrgencyBadge = (): DetailPageHeaderBadge | null => {
+    const urgency = intervention.urgency || 'normale'
+    const urgencyMap: Record<string, { label: string; color: string; dotColor: string }> = {
+      haute: { label: 'Urgente', color: 'bg-orange-100 text-orange-800 border-orange-200', dotColor: 'bg-orange-500' },
+      normale: { label: 'Normale', color: 'bg-blue-100 text-blue-800 border-blue-200', dotColor: 'bg-blue-500' },
+      basse: { label: 'Basse', color: 'bg-gray-100 text-gray-800 border-gray-200', dotColor: 'bg-gray-500' },
+    }
+    return urgency !== 'normale' ? urgencyMap[urgency] || null : null
+  }
+
+  const getTypeBadge = (): DetailPageHeaderBadge | null => {
+    const typeCode = intervention.type
+    if (!typeCode) return null
+
+    const categoryCode = TYPE_TO_CATEGORY[typeCode] || 'bien'
+    const badgeStyle = CATEGORY_BADGE_STYLES[categoryCode] || CATEGORY_BADGE_STYLES.bien
+    const TypeIcon = getTypeIcon(typeCode)
+
+    // Format label: capitalize first letter and replace underscores with spaces
+    const label = typeCode
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+
+    return {
+      label,
+      color: badgeStyle,
+      dotColor: '', // No dot for type badge, we use icon
+      icon: TypeIcon
+    }
+  }
+
+  const headerBadges: DetailPageHeaderBadge[] = [getTypeBadge(), getStatusBadge(), getQuoteBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
+
+  // Planning date removed from header — already shown in Général + Planning tabs
+  const headerMetadata: DetailPageHeaderMetadata[] = [];
+
+  return (
+    <GoogleMapsProvider>
+      <div className="h-screen flex flex-col overflow-hidden">
+        {/* Unified Detail Page Header */}
+        <DetailPageHeader
+        onBack={() => router.push('/gestionnaire/operations')}
+        backButtonText="Retour"
+        title={intervention.title}
+        badges={headerBadges}
+        metadata={headerMetadata}
+        actionButtons={
+          <InterventionHeaderActions
+            interventionStatus={intervention.status}
+            quotes={quotes}
+            headerActions={headerActions}
+            dotMenuActions={dotMenuActions}
+            transformedComments={transformedComments}
+            actionLoading={actionLoading}
+            onHeaderActionClick={handleHeaderActionClick}
+            onOpenCommentsModal={() => setIsCommentsModalOpen(true)}
+          />
+        }
+      />
+
+      {/* Banner for child interventions (linked from parent) */}
+      {isChildIntervention && linkedInterventions[0]?.parent && (
+        <div className="layout-padding pt-4 bg-background">
+          <LinkedInterventionBanner
+            parentId={linkedInterventions[0].parent.id}
+            parentReference={linkedInterventions[0].parent.reference}
+          />
+        </div>
+      )}
+
+
+      <div className="layout-padding flex-1 min-h-0 bg-muted flex flex-col overflow-hidden">
+
+        {/* ProgrammingModal - for scheduling interventions */}
+        <ProgrammingModal
+          isOpen={planning.programmingModal.isOpen}
+          onClose={planning.closeProgrammingModal}
+          intervention={planning.programmingModal.intervention}
+          programmingOption={planning.programmingOption}
+          onProgrammingOptionChange={planning.setProgrammingOption}
+          directSchedule={planning.programmingDirectSchedule}
+          onDirectScheduleChange={planning.setProgrammingDirectSchedule}
+          proposedSlots={planning.programmingProposedSlots}
+          onAddProposedSlot={planning.addProgrammingSlot}
+          onUpdateProposedSlot={planning.updateProgrammingSlot}
+          onRemoveProposedSlot={planning.removeProgrammingSlot}
+          selectedProviders={selectedProviderIds}
+          onProviderToggle={handleProviderToggle}
+          providers={providers.map(p => ({
+            id: p.id,
+            name: p.name,
+            email: p.email || '',
+            role: p.role,
+            has_account: !!p.has_account
+          }))}
+          onConfirm={planning.handleProgrammingConfirm}
+          isFormValid={planning.isProgrammingFormValid()}
+          isSubmitting={planning.isSubmitting}
+          teamId={teamId || ''}
+          requireQuote={requireQuote}
+          onRequireQuoteChange={setRequireQuote}
+          // Managers
+          managers={managers.map(m => ({
+            id: m.id,
+            name: m.name,
+            email: m.email || '',
+            phone: m.phone || undefined,
+            role: m.role,
+            type: 'gestionnaire' as const,
+            has_account: !!m.has_account
+          }))}
+          selectedManagers={selectedManagerIds}
+          onManagerToggle={handleManagerToggle}
+          // Tenants - show section if there are any
+          tenants={tenants.map(t => ({
+            id: t.id,
+            name: t.name,
+            email: t.email || '',
+            phone: t.phone || undefined,
+            type: 'locataire' as const,
+            has_account: !!t.has_account
+          }))}
+          selectedTenants={selectedTenantIds}
+          onTenantToggle={handleTenantToggle}
+          showTenantsSection={tenants.length > 0}
+          includeTenants={tenants.length > 0}
+          onIncludeTenantsChange={() => {}}
+          // Instructions
+          instructions={modalInstructions}
+          onInstructionsChange={setModalInstructions}
+          // Assignment mode & per-provider instructions
+          assignmentMode={modalAssignmentMode}
+          onAssignmentModeChange={setModalAssignmentMode}
+          providerInstructions={modalProviderInstructions}
+          onProviderInstructionsChange={handleProviderInstructionsChange}
+          // Quote requests (for displaying active quotes in modal)
+          quoteRequests={quotes}
+          // Confirmation participants
+          requiresConfirmation={requiresConfirmation}
+          onRequiresConfirmationChange={setRequiresConfirmation}
+          confirmationRequired={confirmationRequired}
+          onConfirmationRequiredChange={handleConfirmationRequiredChange}
+          currentUserId={serverUserId}
+        />
+
+        {/* Cancel Slot Modal */}
+        <CancelSlotModal
+          isOpen={planning.cancelSlotModal.isOpen}
+          onClose={planning.closeCancelSlotModal}
+          slot={planning.cancelSlotModal.slot}
+          interventionId={intervention.id}
+          onSuccess={handleRefresh}
+        />
+
+        {/* Multi Slot Response Modal (handles both accept/reject for multiple slots) */}
+        <MultiSlotResponseModal
+          isOpen={planning.slotResponseModal.isOpen}
+          onClose={planning.closeSlotResponseModal}
+          slots={planning.slotResponseModal.slots}
+          interventionId={intervention.id}
+          onSuccess={handleRefresh}
+        />
+
+        {/* Cancel Quote Request Modal */}
+        <CancelQuoteRequestModal
+          isOpen={cancelQuoteModal.isOpen}
+          onClose={() => setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })}
+          onConfirm={handleConfirmCancelQuote}
+          providerName={cancelQuoteModal.providerName}
+          isLoading={isCancellingQuote}
+        />
+
+        {/* Cancel Quote Confirm Modal (from toggle — bulk cancel) */}
+        <CancelQuoteConfirmModal
+          isOpen={cancelQuoteConfirmModal.isOpen}
+          onClose={() => setCancelQuoteConfirmModal({ isOpen: false, quoteCount: 0, providerNames: [] })}
+          onConfirm={handleConfirmCancelQuoteFromToggle}
+          quoteCount={cancelQuoteConfirmModal.quoteCount}
+          providerNames={cancelQuoteConfirmModal.providerNames}
+          isLoading={isCancellingQuoteFromToggle}
+        />
+
+        {/* Finalization Modal */}
+        <FinalizationModalLive
+          interventionId={intervention.id}
+          isOpen={showFinalizationModal}
+          onClose={() => setShowFinalizationModal(false)}
+          onComplete={handleRefresh}
+        />
+
+        {/* Layout principal - Full width sans sidebar */}
+        <div className="flex-1 flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <EntityTabs
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            tabs={interventionTabs}
+          >
+            {/* TAB: GENERAL */}
+            <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
+              <ContentWrapper>
+                {/* Bannières de confirmation si nécessaire */}
+                {showConfirmationBanner && (
+                  <ConfirmationRequiredBanner
+                    interventionId={intervention.id}
+                    scheduledDate={intervention.scheduled_date}
+                    scheduledTime={null}
+                    onConfirm={handleConfirmationResponse}
+                    onReject={handleConfirmationResponse}
+                  />
+                )}
+                {showConfirmedBanner && <ConfirmationSuccessBanner />}
+                {showRejectedBanner && <ConfirmationRejectedBanner />}
+
+                {/* Détails de l'intervention (avec participants intégrés) */}
+                <div className="flex-shrink-0">
+                  <InterventionDetailsCard
+                      title={intervention.title}
+                      description={intervention.description || undefined}
+                      instructions={intervention.instructions || undefined}
+                      interventionStatus={intervention.status}
+                      participants={participants}
+                      currentUserId={serverUserId}
+                      currentUserRole={serverUserRole}
+                      onOpenChat={handleOpenChatFromParticipant}
+                      locationDetails={(() => {
+                        // Priorité: adresse du lot (indépendant), sinon adresse du building
+                        const lotRecord = intervention.lot?.address_record
+                        const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                        const record = lotRecord || buildingRecord
+
+                        return {
+                          buildingName: intervention.lot?.building?.name || intervention.building?.name || null,
+                          lotReference: intervention.lot?.reference || null,
+                          fullAddress: record?.formatted_address
+                            || (record?.street || record?.city
+                              ? [record.street, record.postal_code, record.city].filter(Boolean).join(', ')
+                              : null),
+                          latitude: record?.latitude || null,
+                          longitude: record?.longitude || null
+                        }
+                      })()}
+                      planning={{
+                        scheduledDate,
+                        scheduledStartTime,
+                        scheduledEndTime,
+                        isFixedScheduling, // ✅ Mode date fixe: ne pas afficher l'heure de fin
+                        schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
+                        status: planningStatus,
+                        proposedSlotsCount,
+                        quotesCount: transformedQuotes.length,
+                        requestedQuotesCount: transformedQuotes.filter(q => q.status === 'pending').length,
+                        receivedQuotesCount: transformedQuotes.filter(q => q.status === 'sent').length,
+                        quotesStatus,
+                        selectedQuoteAmount,
+                        responseStats
+                      }}
+                      onNavigateToPlanning={() => setActiveTab('planning')}
+                    />
+                  </div>
+
+                  {/* Note: La carte est maintenant intégrée dans InterventionDetailsCard */}
+                  {/* Note: Les commentaires sont maintenant accessibles via l'icône dans le header */}
+                  {/* Note: Les documents sont maintenant dans l'onglet "Documents" dédié */}
+
+                  {/* Linked interventions section (for parent interventions in separate mode) */}
+                  {isParentIntervention && linkedInterventions.length > 0 && (
+                    <LinkedInterventionsSection
+                      links={linkedInterventions}
+                      currentInterventionId={intervention.id}
+                      className="mt-6"
+                    />
+                  )}
+                </ContentWrapper>
+              </TabsContent>
+
+              {/* TAB: CONVERSATIONS */}
+              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-y-auto h-full">
+                <div className="flex-1 flex flex-col min-h-0 p-4 sm:p-6">
+                  <InterventionChatTab
+                    interventionId={intervention.id}
+                    threads={localThreads}
+                    initialMessagesByThread={initialMessagesByThread}
+                    initialParticipantsByThread={initialParticipantsByThread}
+                    currentUserId={serverUserId}
+                    userRole={serverUserRole as 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'}
+                    defaultThreadType={selectedThreadType}
+                    initialMessage={initialChatMessage || undefined}
+                    onMessageSent={() => setInitialChatMessage(null)}
+                    onThreadTypeChange={(threadType) => setSelectedThreadType(threadType)}
+                    onThreadRead={handleThreadRead}
+                  />
+                </div>
+              </TabsContent>
+
+              {/* TAB: PLANNING */}
+              <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6 overflow-y-auto">
+                  {/* Planning */}
+                  <PlanningCard
+                    timeSlots={transformedTimeSlots}
+                    scheduledDate={scheduledDate || undefined}
+                    scheduledStartTime={scheduledStartTime || undefined}
+                    schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
+                    userRole="manager"
+                    currentUserId={serverUserId}
+                    onApproveSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleApproveSlot(slot)
+                    }}
+                    onRejectSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleRejectSlot(slot)
+                    }}
+                    onEditSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleEditSlot(slot)
+                    }}
+                    onCancelSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) planning.openCancelSlotModal(slot, intervention.id)
+                    }}
+                    onChooseSlot={handleChooseSlot}
+                    onOpenResponseModal={handleOpenResponseModal}
+                  />
+
+                  {/* Devis */}
+                  {requireQuote && (
+                    <QuotesCard
+                      quotes={transformedQuotes}
+                      userRole="manager"
+                      showActions={true}
+                      onAddQuote={() => { /* TODO: implement add quote */ }}
+                      onApproveQuote={handleApproveQuote}
+                      onRejectQuote={handleRejectQuote}
+                      onCancelQuote={handleCancelQuote}
+                    />
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* TAB: DOCUMENTS */}
+              <InterventionDocumentsTab
+                reports={reports}
+                transformedDocuments={transformedDocuments}
+                onUpload={() => setIsDocumentUploadOpen(true)}
+                onView={handleViewDocument}
+                onDownload={handleDownloadDocument}
+              />
+
+              {/* TAB: CONTACTS */}
+              <TabsContent value="contacts" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-hidden">
+                  <InterventionContactsNavigator
+                    assignments={assignments}
+                    className="h-full"
+                  />
+                </div>
+              </TabsContent>
+
+              {/* TAB: EMAILS */}
+              <TabsContent value="emails" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6">
+                  <EntityEmailsTab
+                    entityType="intervention"
+                    entityId={intervention.id}
+                    entityName={intervention.title}
+                  />
+                </div>
+              </TabsContent>
+
+              {/* TAB: ACTIVITÉ */}
+              <TabsContent value="activity" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                  <ActivityTab
+                    intervention={intervention}
+                    activityLogs={activityLogs.map(log => ({
+                      ...log,
+                      user: log.user_name ? {
+                        id: log.user_id,
+                        name: log.user_name,
+                        email: log.user_email || '',
+                        avatar_url: log.user_avatar_url || null
+                      } : undefined
+                    }))}
+                  />
+                </div>
+              </TabsContent>
+          </EntityTabs>
+        </div>
+
+        {/* Modale de choix de créneau */}
+        {selectedFullSlotForChoice && (
+          <ChooseTimeSlotModal
+            slot={selectedFullSlotForChoice}
+            interventionId={selectedFullSlotForChoice.intervention_id}
+            hasActiveQuotes={transformedQuotes.some(q => q.status === 'pending' || q.status === 'sent')}
+            open={isChooseModalOpen}
+            onOpenChange={setIsChooseModalOpen}
+            onSuccess={handleChooseModalSuccess}
+          />
+        )}
+
+        {/* Modale de réponse aux créneaux (accepter/refuser — tous les créneaux actifs) */}
+        {responseModalSlots.length > 0 && (
+          <MultiSlotResponseModal
+            isOpen={isResponseModalOpen}
+            onClose={() => {
+              setIsResponseModalOpen(false)
+              setResponseModalSlots([])
+              setResponseModalExisting({})
+            }}
+            slots={responseModalSlots}
+            interventionId={intervention.id}
+            existingResponses={Object.keys(responseModalExisting).length > 0
+              ? responseModalExisting
+              : undefined}
+            userProposedSlotIds={userProposedSlotIds}
+            onSuccess={handleRefresh}
+          />
+        )}
+
+        {/* Contact Selector Modal */}
+        <ContactSelector
+          ref={contactSelectorRef}
+          teamId={intervention.team_id || currentUserTeam?.id || ""}
+          displayMode="compact"
+          hideUI={true}
+          selectedContacts={{
+            manager: managers,
+            provider: providers
+          }}
+          onContactSelected={handleContactSelected}
+          onContactCreated={handleContactCreated}
+          onContactRemoved={handleContactRemoved}
+          onRequestContactCreation={handleRequestContactCreation}
+        />
+
+        {/* Modale d'upload de documents */}
+        <DocumentUploadDialog
+          interventionId={intervention.id}
+          open={isDocumentUploadOpen}
+          onOpenChange={setIsDocumentUploadOpen}
+          onUploadComplete={() => {
+            setIsDocumentUploadOpen(false)
+            realtime?.broadcastInvalidation(['interventions', 'stats'])
+            router.refresh()
+          }}
+        />
+
+        {/* Modale de prévisualisation de documents (via hook partagé) */}
+        {previewModal}
+
+        {/* Modals pour l'approbation/rejet */}
+        {approvalHook.approvalModal.isOpen && (
+          <ApprovalModal
+            isOpen={approvalHook.approvalModal.isOpen}
+            onClose={approvalHook.closeApprovalModal}
+            intervention={approvalHook.approvalModal.intervention}
+            action={approvalHook.approvalModal.action}
+            rejectionReason={approvalHook.rejectionReason}
+            internalComment={approvalHook.internalComment}
+            onRejectionReasonChange={approvalHook.setRejectionReason}
+            onInternalCommentChange={approvalHook.setInternalComment}
+            onActionChange={approvalHook.handleActionChange}
+            onConfirm={approvalHook.handleConfirmAction}
+            isLoading={approvalHook.isLoading}
+            documents={documents}
+          />
+        )}
+
+        {/* Modale d'annulation */}
+        {cancellationHook.cancellationModal.isOpen && (
+          <CancelConfirmationModal
+            isOpen={cancellationHook.cancellationModal.isOpen}
+            onClose={cancellationHook.closeCancellationModal}
+            onConfirm={cancellationHook.handleConfirmCancellation}
+            intervention={cancellationHook.cancellationModal.intervention}
+            cancellationReason={cancellationHook.cancellationReason}
+            onCancellationReasonChange={cancellationHook.setCancellationReason}
+            internalComment={cancellationHook.internalComment}
+            onInternalCommentChange={cancellationHook.setInternalComment}
+            isLoading={cancellationHook.isLoading}
+            error={cancellationHook.error}
+          />
+        )}
+
+        {/* Modale d'approbation d'estimation */}
+        {quoteApprovalModal && (
+          <QuoteApprovalModal
+            isOpen={quoteApprovalModal.isOpen}
+            onClose={() => setQuoteApprovalModal(null)}
+            onSuccess={() => {
+              setQuoteApprovalModal(null)
+              handleRefresh()
+            }}
+            quote={{
+              id: quoteApprovalModal.quoteId,
+              providerName: quoteApprovalModal.providerName,
+              totalAmount: quoteApprovalModal.totalAmount
+            }}
+          />
+        )}
+
+        {/* Modale de rejet d'estimation */}
+        {quoteRejectionModal && (
+          <QuoteRejectionModal
+            isOpen={quoteRejectionModal.isOpen}
+            onClose={() => setQuoteRejectionModal(null)}
+            onSuccess={() => {
+              setQuoteRejectionModal(null)
+              handleRefresh()
+            }}
+            quote={{
+              id: quoteRejectionModal.quoteId,
+              providerName: quoteRejectionModal.providerName,
+              totalAmount: quoteRejectionModal.totalAmount
+            }}
+          />
+        )}
+
+        {/* Modale des commentaires */}
+        <InterventionCommentsModal
+          isOpen={isCommentsModalOpen}
+          onOpenChange={setIsCommentsModalOpen}
+          comments={transformedComments}
+          onAddComment={handleAddComment}
+        />
+      </div>
+    </div>
+    </GoogleMapsProvider>
+  )
+}

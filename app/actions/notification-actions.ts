@@ -86,7 +86,7 @@ function getInterventionUrlForRole(role: string | null, interventionId: string):
       return `/prestataire/interventions/${interventionId}`
     case 'gestionnaire':
     default:
-      return `/gestionnaire/interventions/${interventionId}`
+      return `/gestionnaire/operations/interventions/${interventionId}`
   }
 }
 
@@ -96,7 +96,10 @@ function getInterventionUrlForRole(role: string | null, interventionId: string):
  */
 function getDocumentEntityUrl(role: string | null, entityType: string, entityId: string): string {
   const prefix = role === 'locataire' ? 'locataire' : role === 'prestataire' ? 'prestataire' : 'gestionnaire'
-  if (entityType === 'intervention') return `/${prefix}/interventions/${entityId}`
+  if (entityType === 'intervention') {
+    if (prefix === 'gestionnaire') return `/gestionnaire/operations/interventions/${entityId}`
+    return `/${prefix}/interventions/${entityId}`
+  }
   // Other entity types default to gestionnaire
   return `/gestionnaire/${entityType}s/${entityId}`
 }
@@ -1107,7 +1110,7 @@ export async function notifyDocumentUploaded(params: {
               ? `${uploader.first_name || ''} ${uploader.last_name || ''}`.trim() || 'Un utilisateur'
               : 'Un utilisateur'
 
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
             const entityUrl = `${baseUrl}${getDocumentEntityUrl(assignedUser.role, params.relatedEntityType, params.relatedEntityId)}`
 
             const result = await emailService.send({
@@ -1259,7 +1262,7 @@ export async function notifyContractExpiring({
         const endDateFormatted = contract.end_date
           ? new Date(contract.end_date).toLocaleDateString('fr-FR')
           : 'N/A'
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
         const contractUrl = `${baseUrl}/gestionnaire/contrats/${contractId}`
         const urgencyIcon = daysUntilExpiry <= 7 ? '🔴' : '🟠'
 
@@ -1559,7 +1562,7 @@ export async function createContractNotification(contractId: string) {
         const endDateFormatted = contract.end_date
           ? new Date(contract.end_date).toLocaleDateString('fr-FR')
           : undefined
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
         const contractUrl = `${baseUrl}/locataire/contrats/${contractId}`
 
         for (const contact of contractContacts) {
@@ -1931,7 +1934,7 @@ export async function notifyQuoteSubmittedWithPush(params: {
       sendPushToNotificationRecipients(notifications, {
         title: '📋 Nouvelle estimation',
         message: `${params.providerName}: ${params.amount.toFixed(2)}€`,
-        url: `/gestionnaire/interventions/${params.interventionId}`,
+        url: `/gestionnaire/operations/interventions/${params.interventionId}`,
         type: 'quote_submitted'
       }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyQuoteSubmittedWithPush'))
     }

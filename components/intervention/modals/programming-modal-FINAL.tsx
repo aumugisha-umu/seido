@@ -33,7 +33,7 @@ import { Switch } from "@/components/ui/switch"
 import { ContactSection } from "@/components/ui/contact-section"
 import { ContactSelector, type ContactSelectorRef } from "@/components/contact-selector"
 import { cn } from "@/lib/utils"
-import type { BuildingTenantsResult } from "@/app/actions/contract-actions"
+import type { BuildingTenantsResult } from "@/app/actions/contracts"
 import { type InterventionAction } from "@/lib/intervention-actions-service"
 import {
   getInterventionLocationText,
@@ -43,8 +43,6 @@ import {
   getPriorityLabel
 } from "@/lib/intervention-utils"
 import { QuoteRequestCard } from "@/components/quotes/quote-request-card"
-import { AssignmentModeSelector, type AssignmentMode } from "@/components/intervention/assignment-mode-selector"
-import { ProviderInstructionsInput } from "@/components/intervention/provider-instructions-input"
 import { ParticipantConfirmationSelector } from "@/components/intervention/participant-confirmation-selector"
 import type { Database } from '@/lib/database.types'
 
@@ -100,10 +98,6 @@ interface ProgrammingModalFinalProps {
   onRequireQuoteChange?: (required: boolean) => void
   instructions?: string
   onInstructionsChange?: (instructions: string) => void
-  assignmentMode?: AssignmentMode
-  onAssignmentModeChange?: (mode: AssignmentMode) => void
-  providerInstructions?: Record<string, string>
-  onProviderInstructionsChange?: (providerId: string, instructions: string) => void
   managers?: Contact[]
   selectedManagers?: string[]
   onManagerToggle?: (managerId: string) => void
@@ -398,10 +392,6 @@ export const ProgrammingModalFinal = ({
   onRequireQuoteChange,
   instructions = "",
   onInstructionsChange,
-  assignmentMode = 'group',
-  onAssignmentModeChange,
-  providerInstructions = {},
-  onProviderInstructionsChange,
   managers = [],
   selectedManagers = [],
   onManagerToggle,
@@ -863,15 +853,6 @@ export const ProgrammingModalFinal = ({
               </p>
             </div>
 
-            {/* Assignment mode selector - only when 2+ providers */}
-            {selectedProviders.length > 1 && onAssignmentModeChange && (
-              <AssignmentModeSelector
-                mode={assignmentMode}
-                onModeChange={onAssignmentModeChange}
-                providerCount={selectedProviders.length}
-              />
-            )}
-
             {/* General instructions */}
             <div className="space-y-2">
               <Textarea
@@ -887,26 +868,11 @@ export const ProgrammingModalFinal = ({
               </p>
             </div>
 
-            {/* Per-provider instructions - only in separate mode with 2+ providers */}
-            {assignmentMode === 'separate' && selectedProviders.length > 1 && onProviderInstructionsChange && (
-              <ProviderInstructionsInput
-                providers={selectedProviderContacts.map(p => ({
-                  id: p.id,
-                  name: p.name,
-                  email: p.email,
-                  avatar_url: undefined,
-                  speciality: undefined
-                }))}
-                instructions={providerInstructions}
-                onInstructionsChange={onProviderInstructionsChange}
-              />
-            )}
-
             {/* Info notice about instruction visibility */}
             <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
               <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
               <p className="text-blue-800 text-xs">
-                Les instructions ne seront pas visibles par le locataire. Seuls les contacts invités (ayant un compte) assignés à l'intervention pourront les consulter.
+                Les instructions ne seront pas visibles par le locataire. Seuls les contacts invités (ayant un compte) et assignés à l'intervention pourront les consulter.
               </p>
             </div>
           </div>

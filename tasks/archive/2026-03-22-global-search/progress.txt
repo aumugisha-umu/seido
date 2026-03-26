@@ -1,0 +1,15 @@
+# Progress Log — Global Search (Cmd+K Command Palette)
+# Started: 2026-03-22
+# Stories: 4/4 COMPLETE
+# Branch: feature/bank-module
+---
+
+## 2026-03-22 — US-001: Migration search_global RPC function (M)
+- Migration: supabase/migrations/20260322200000_add_search_global_rpc.sql
+- Hybrid strategy: FTS (to_tsquery :* prefix) for interventions/emails/messages, ILIKE for contacts/lots/buildings/contracts
+- 7 UNION ALL branches, each LIMIT 5, outer ORDER BY rank DESC LIMIT 25
+- SECURITY DEFINER + GRANT TO authenticated
+- URL computed in SQL (avoids client-side entity→route mapping)
+- Contacts searched via team_members join (not users.team_id) for multi-team correctness
+- Conversations: DISTINCT ON thread_id to avoid duplicate threads from multiple matching messages
+- Types regenerated: search_global RPC fully typed in database.types.ts

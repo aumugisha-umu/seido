@@ -84,6 +84,146 @@
 
 ## Sprint Actuel (Mar 2026)
 
+### 2026-03-25 - Centralize Email Config + Compound
+
+**Session: Eliminate hardcoded domains across email templates**
+
+**Ce qui a ete fait:**
+- Added `contactEmail` to `EMAIL_CONFIG` in `lib/email/resend-client.ts`
+- Replaced `noreply` → `notifications` in 2 fallback addresses (email-reply.service.ts)
+- Replaced hardcoded `support@seido-app.com` with `EMAIL_CONFIG.supportEmail` in 6 templates
+- Replaced hardcoded URLs + contact in email footer with `EMAIL_CONFIG.appUrl`/`EMAIL_CONFIG.contactEmail`
+- Compound: Learning #169 added, retrospective created
+
+**Fichiers cles modifies:**
+- `lib/email/resend-client.ts` — contactEmail added
+- `lib/services/domain/email-reply.service.ts` — noreply → notifications
+- `emails/components/email-footer.tsx` — dynamic URLs from EMAIL_CONFIG
+- 6 email templates — supportEmail from EMAIL_CONFIG
+
+---
+
+### 2026-03-25 - Reminder Recurrence UX + Intervention Planner + CHECK Constraint Fix
+
+**Session: Intervention/reminder reclassification, shared planner component, critical bug fix**
+
+**Ce qui a ete fait:**
+- Intervention/reminder itemType reclassification across property-interventions and supplier-interventions templates
+- Shared InterventionPlannerStep component with sections, visual differentiation (Wrench/Bell icons)
+- InterventionScheduleRow enhanced with recurrence config and item type toggle
+- Dual dispatch in lease wizard: interventions to `createInterventionAction`, reminders to `createWizardRemindersAction`
+- Supplier wizard: template reminders via server action, custom/toggled items via separate dispatch
+- **Critical fix**: `reminders_single_entity` CHECK constraint violation — XOR priority cascade (contract > lot > building > contact)
+- **Secondary fix**: Document interventions missing `itemType`/`recurrenceRule` spread from templates
+- Property creation wizards (building + lot) updated with intervention planner integration
+- New `lib/utils/rrule.ts` utility for recurrence rule parsing
+- Landing header improvements
+
+**Fichiers cles modifies:**
+- `app/actions/reminder-actions.ts` — XOR enforcement
+- `components/contract/contract-form-container.tsx` — dual dispatch + document intervention fix
+- `components/contract/intervention-planner-step.tsx` — shared component
+- `components/contract/intervention-schedule-row.tsx` — enhanced row with visual differentiation
+- `components/contract/lease-interventions-step.tsx` — lease-specific planner integration
+- `components/property-interventions-step.tsx` — property creation planner
+- `lib/constants/property-interventions.ts` + `supplier-interventions.ts` — template updates
+
+**Decisions techniques:**
+- Enforce DB CHECK constraints at action layer (not caller) — callers can safely pass multiple entity links
+- Priority cascade pattern: contract > lot > building > contact for single-entity XOR
+- Shared InterventionPlannerStep accepts sections array — flexible for both lease and supplier modes
+
+**Learnings:** AGENTS.md #184-186
+
+---
+
+### 2026-03-22 - Bank Module Phase 1 + Full-Stack Audit + Gestionnaire Verification
+
+**Session: 3 major work streams — 28 stories total, 10 new AGENTS.md learnings**
+
+| Change | Description |
+|--------|-------------|
+| **Bank Module Phase 1** | 17 stories: Tink Open Banking OAuth, transaction sync (4h cron), rent call generation, 5-component reconciliation scoring, quittance PDF, dashboard widgets |
+| **Full-Stack Security Audit** | 128 checks across 6 domains. Sprint 1: 6 critical fixes (mass assignment Zod .strict(), getSession→getUser, CSP/CORS, Stripe fail-closed) |
+| **Gestionnaire Verification** | 93 files reviewed by 8 parallel agents. 5 bugs fixed: BaseRepository.softDelete(), pre-capture team_id, proprietaire role, type safety, avatar accept |
+
+**New infrastructure:**
+- 7 DB tables, 4 repositories, 4 services, 13 API endpoints, 4 crons, 10 components
+- 113 bank unit tests + 17 pre-existing test fixes (652 total passing)
+- BaseRepository.softDelete() available for all repositories
+
+**Key decisions:**
+- Soft delete in BaseRepository (centralized) vs per-repo (fragmented) → centralized
+- Fail-closed for unknown Stripe statuses (past_due, not active)
+- Tink token refresh with 2-min buffer (not 5-min, tokens are 30-min not 1h)
+- Pure function exports from services for zero-mock testing
+
+**Learnings:** AGENTS.md #169-178
+**Retrospective:** `docs/learnings/2026-03-22-audit-verification-bank-retrospective.md`
+
+---
+
+### 2026-03-21 - QA Bot E2E Test Suite + Admin Invite + Email Enhancements
+
+**Session: Full Playwright QA bot suite, admin invite action, email system enhancements (70 files, +13,088/-444 lines)**
+
+| Change | Description |
+|--------|-------------|
+| **Playwright QA bot** | 114 tests across 8 shards, 8 page objects (POM pattern), targeting Vercel preview |
+| **Page Objects** | Dashboard, Interventions, Contacts, Properties, Contracts, Notifications, Settings, Operations |
+| **cancelIntervention fix** | Union type `string \| CancellationData` — callers passed object but method expected string |
+| **Admin invite action** | `inviteGestionnaireAction()` — createUser + magiclink + email via after() |
+| **Email enhancements** | Admin invitation template, resend action, UI dialog |
+| **Auth role fix** | E2E user had `admin` role causing gestionnaire page redirects — strict role matching |
+
+**Key discoveries:**
+- `requireRole('gestionnaire')` does strict equality, not role hierarchy — admin != gestionnaire
+- Vercel preview cold starts (3-5s) need `test.slow()` + generous timeouts
+- Radix tab panels stay in DOM when inactive — must scope to `[data-state="active"]`
+- Intervention auto-advancement: may skip "demande" → "planification" after creation
+
+**Learnings:** AGENTS.md #164-168
+**Retrospective:** `docs/learnings/2026-03-21-qa-bot-suite-retrospective.md`
+
+---
+
+### 2026-03-20 - Operations Section + Reminders/Recurrence + AI Agent Design
+
+**Session 1: Operations Section — Major Feature (118 files, +7102/-1293 lines)**
+
+| Change | Description |
+|--------|-------------|
+| **Operations section** | New `/gestionnaire/operations/` route group replacing `/gestionnaire/interventions/` |
+| **Reminders system** | Full CRUD: create, edit, detail, list, stats — with entity linking (building/lot/contact/contract) |
+| **Recurrence engine** | RFC 5545 RRULE system: rules, occurrences, cron scanner (daily 06:00 UTC) |
+| **Reminder cards** | `reminder-card.tsx`, `reminders-list-view.tsx`, `reminders-navigator.tsx`, stats widget |
+| **Recurrence config** | `recurrence-config.tsx` — visual RRULE builder (daily/weekly/monthly/yearly) |
+| **View mode** | Tab-based navigation: Interventions / Rappels with segment control |
+| **DB migration** | `20260319200000_operations_reminders_recurrence.sql` — 3 new tables, RLS, indexes |
+| **RLS policy fix** | `20260319300000_fix_users_update_policy_recursion.sql` — infinite recursion fix |
+| **Route restructuring** | Interventions moved under `operations/interventions/` |
+| **Deleted files** | Removed separate assignment mode, multi-provider button, provider instructions input |
+| **Intervention service cleanup** | Extracted scheduling logic, removed ~200 lines of dead code |
+| **Sidebar/topbar** | Updated navigation to point to operations section |
+| **Dashboard integration** | Operations stats in async dashboard content |
+
+**New files:** `app/actions/reminder-actions.ts`, `app/api/cron/recurrence-scan/route.ts`, `lib/services/domain/reminder.service.ts`, `lib/services/repositories/reminder.repository.ts`, `lib/services/repositories/recurrence.repository.ts`, `lib/types/reminder.types.ts`, `hooks/use-reminders.ts`, `lib/utils/reminder-helpers.ts`, 8 components in `components/operations/`, 1 component in `components/recurrence/`, 5 pages in `app/gestionnaire/(no-navbar)/operations/`
+
+**New tables:** `reminders`, `recurrence_rules`, `recurrence_occurrences`
+
+**Session 2: AI Intervention Agent Design Document**
+
+Comprehensive design for an AI agent that:
+- Analyzes all intervention-related data (property, contracts, contacts, history, documents, emails)
+- Proposes structured action plans to gestionnaires
+- Executes approved actions with hybrid autonomy (safe=auto, sensitive=confirmation)
+- Extracts document metadata at upload (inline validation)
+
+Design saved: `docs/AI/ai-intervention-agent-design.md`
+Phase 1: Manual (8 stories) / Phase 2: Auto on demande (4 stories) / Phase 2.5: Learning + Embeddings (3 stories)
+
+---
+
 ### 2026-03-19 - Email Section Cleanup + Visibility Plumbing
 
 **Session: Exhaustive email code review (3 parallel agents) + visibility feature wiring**
@@ -601,30 +741,31 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-03-19)
+## Metriques Projet (2026-03-22)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | **23** |
-| Domain Services | **39** |
-| API Routes | **129** |
-| Hooks | **65** |
-| Components | **412** |
-| Pages | **78** |
+| Repositories | **29** (+4 bank) |
+| Domain Services | **44** (+4 bank) |
+| API Routes | **143** (+13 bank) |
+| Hooks | **66** |
+| Components | **430** (+10 bank) |
+| Pages | **84** (+1 banque) |
 | Blog Articles | **23** |
-| DB Tables | **46** |
+| DB Tables | **56** (+7 bank) |
 | DB Enums | 39 |
-| DB Functions | **80** |
-| Migrations | **199** |
-| Server Actions | **17** files |
+| DB Functions | **81** (+1 increment_rent_call_received) |
+| Migrations | **202** (+1 banking) |
+| Cron Jobs | **9** (+4 bank) |
+| Server Actions | **20** files (+2: bank-actions, rent-reminder-actions) |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **163** |
-| **systemPatterns.md Patterns** | **32** |
-| **Shared Cards** | **15** |
+| **AGENTS.md Learnings** | **183** |
+| **systemPatterns.md Patterns** | **40** |
+| **Unit Tests** | **652** (45 files) |
 | **E2E Test Files** | **8** |
 | **E2E Page Objects** | **8** |
-| **Unit Test Files** | **12** |
+| **Retrospectives** | **50** |
 | **Integration Test Files** | **5** |
 
 ### Metriques Ecosysteme .claude/ (2026-03-14)
@@ -710,5 +851,5 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 | **2026-03-19** | **Email visibility plumbing** | **Private/shared email connections** | **OAuth+IMAP flows write visibility, listing/counts filter by access** |
 
 ---
-*Derniere mise a jour: 2026-03-19*
-*Session: Email section cleanup + visibility plumbing, 163 learnings in AGENTS.md, 48 retrospectives*
+*Derniere mise a jour: 2026-03-22*
+*Session: Operations section (reminders/recurrence) + AI agent design, 163 learnings in AGENTS.md, 48 retrospectives*

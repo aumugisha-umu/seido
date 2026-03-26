@@ -1,0 +1,356 @@
+{
+  "project": "SEIDO",
+  "featureName": "Bank Module — Phase 1 MVP (Tink Integration)",
+  "branchName": "feature/bank-module",
+  "description": "Module Banque integre dans SEIDO: connexion bancaire via Tink (Open Banking PSD2), sync auto des transactions, generation auto des echeances de loyer (rent_calls), reconciliation manuelle, quittances PDF, dashboard widgets. Base sur le document de conception v3 revise avec corrections Tink API (token 30min, scope balances:read, counterparties riche), 6 categories de transactions, et tables preparatoires Phase 2 (property_expenses, security_deposits, owners).",
+  "createdAt": "2026-03-21",
+  "prdSource": "docs/banking/2026-03-19-bank-module-tink-integration.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Banking schema migration — all tables + RLS + indexes",
+      "description": "As a developer, I want the complete banking database schema so that all subsequent backend and UI stories have a stable foundation.",
+      "acceptanceCriteria": [
+        "7 new tables created: bank_connections, bank_transactions, transaction_links, rent_calls, auto_linking_rules, property_expenses, security_deposits",
+        "contracts table has new column auto_rent_calls BOOLEAN DEFAULT true",
+        "bank_connections has account_purpose CHECK constraint (operating, client_funds, security_deposits)",
+        "transaction_links has entity_type CHECK (6 types) + exactly_one_link CHECK + 3 partial unique indexes",
+        "RLS enabled on all tables with is_team_manager(team_id) policies (SELECT/INSERT/UPDATE per action)",
+        "All team_id columns have ON DELETE CASCADE to teams(id)",
+        "Performance indexes created (team+status, tink_id, connection+date, contract+due_date, lot+due_date)",
+        "rent_calls has total_expected as GENERATED ALWAYS AS column",
+        "Migration applies cleanly: npm run supabase:migrate"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Migration 20260321100000_add_banking_schema.sql: 7 tables, RLS, indexes, triggers, updated_at. 5 partial unique indexes on transaction_links (not 3 as originally planned — added property_expense and security_deposit). update_updated_at_column() already exists, CREATE OR REPLACE is safe."
+    },
+    {
+      "id": "US-002",
+      "title": "TypeScript types + bank types file",
+      "description": "As a developer, I want TypeScript types for all banking entities so that the backend layer has type safety.",
+      "acceptanceCriteria": [
+        "npm run supabase:types regenerates database.types.ts with new tables",
+        "lib/types/bank.types.ts created with DTOs: CreateBankConnectionDTO, BankConnectionRow, BankTransactionRow, TransactionLinkRow, RentCallRow, AutoLinkingRuleRow",
+        "Tink API response types defined: TinkTokenResponse, TinkAccountResponse, TinkTransactionResponse, TinkAmountValue",
+        "parseTinkAmount function typed to accept string | number for unscaledValue and scale",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "lib/types/bank.types.ts: full Tink API types (TinkTransaction, TinkAccount, TinkTokenResponse), DB row types (BankConnectionRow, BankTransactionRow, RentCallRow, TransactionLinkRow, AutoLinkingRuleRow), DTOs (Create*DTO), safe client types (BankConnectionSafe), matching types (MatchSuggestion), report types (BankReportData). parseTinkAmount handles string|number. supabase:types deferred until migration applied."
+    },
+    {
+      "id": "US-003",
+      "title": "Tink API service — OAuth, token management, data fetching",
+      "description": "As a backend developer, I want a Tink API service that handles all communication with the Tink V2 API so that OAuth flow, token refresh, and data fetching are centralized.",
+      "acceptanceCriteria": [
+        "lib/services/domain/tink-api.service.ts created",
+        "getClientToken(): fetches client access token (30 min expiry) with scopes authorization:grant, user:create",
+        "createTinkUser(market, locale): creates permanent Tink user",
+        "exchangeAuthCode(code): exchanges authorization code for user access token + refresh token",
+        "refreshUserToken(refreshToken): refreshes expired user token with 2-min buffer before expiry",
+        "fetchAccounts(accessToken): fetches accounts from /data/v2/accounts",
+        "fetchTransactions(accessToken, accountId, pageToken?, bookedDateGte?): paginated fetch from /data/v2/transactions with max 100/page",
+        "parseTinkAmount handles both string and number types for unscaledValue/scale",
+        "buildTinkLinkUrl(clientId, redirectUri, market, locale, state): constructs Tink Link redirect URL",
+        "All API errors wrapped with proper error handling (401 → token expired, 429 → rate limit with Retry-After)",
+        "Environment variables: TINK_CLIENT_ID, TINK_CLIENT_SECRET, TINK_REDIRECT_URI, TINK_ENVIRONMENT",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "tink-api.service.ts: getClientToken, exchangeAuthCode, refreshUserToken, createTinkUser, buildTinkLinkUrl, fetchAccounts, fetchTransactions, fetchAllTransactions (auto-paginate), fetchProviderConsents, parseTinkAmount. Custom errors: TinkAuthError (401), TinkRateLimitError (429 with Retry-After). Scope includes balances:read (v3 fix)."
+    },
+    {
+      "id": "US-004",
+      "title": "Bank connection repository with encryption",
+      "description": "As a backend developer, I want a repository for bank_connections that encrypts sensitive data (tokens, IBAN) so that credentials are never stored in plaintext.",
+      "acceptanceCriteria": [
+        "lib/services/repositories/bank-connection.repository.ts extends BaseRepository",
+        "createConnection(dto) encrypts tink_access_token, tink_refresh_token, iban via EncryptionService before insert",
+        "getConnectionsByTeam(teamId) returns connections with decrypted IBAN last4 (NOT full IBAN)",
+        "getConnectionWithTokens(id) decrypts tokens for internal use only",
+        "updateTokens(id, tokens) re-encrypts new tokens after refresh",
+        "toggleBlacklist(id, blacklisted, userId) sets is_blacklisted + blacklisted_at/by",
+        "softDelete(id, userId) sets deleted_at/by",
+        "Pattern mirrors email-connection.repository.ts exactly",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "bank-connection.repository.ts: standalone class (not extending BaseRepository to avoid database.types dependency on new tables). Methods: createConnection (encrypt 3 fields), getConnectionsByTeam (safe projection), getConnectionWithTokens (decrypt for sync), getActiveConnections (for cron), updateTokens (re-encrypt), updateSyncState, toggleBlacklist, softDelete, findTinkUserIdForTeam, getExpiringConnections."
+    },
+    {
+      "id": "US-005",
+      "title": "OAuth flow routes — authorize + callback",
+      "description": "As a gestionnaire, I want to connect my bank account via Tink Link redirect so that my transactions are imported into SEIDO.",
+      "acceptanceCriteria": [
+        "GET /api/bank/oauth/authorize: generates Tink Link URL with client_id, redirect_uri, market, locale, state (CSRF token stored in cookie)",
+        "GET /api/bank/oauth/callback: exchanges auth code for tokens, creates Tink user if first connection, fetches accounts, encrypts and stores in bank_connections",
+        "Both routes use getApiAuthContext() for authentication",
+        "State parameter validated against cookie (CSRF protection)",
+        "On success: redirect to /gestionnaire/banque/comptes with success toast param",
+        "On error: redirect to /gestionnaire/banque/comptes with error toast param",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-003", "US-004"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "OAuth authorize (CSRF state cookie, Tink Link redirect) + callback (code exchange, account fetch, Promise.allSettled for multi-account). 17 tests."
+    },
+    {
+      "id": "US-006",
+      "title": "Bank transaction repository + sync service",
+      "description": "As a backend developer, I want a transaction repository and sync service that imports transactions from Tink and deduplicates them.",
+      "acceptanceCriteria": [
+        "lib/services/repositories/bank-transaction.repository.ts extends BaseRepository",
+        "getTransactionsByTeam(teamId, filters) supports: status, bankConnectionId, dateRange, amountMin/Max, search, pagination",
+        "upsertTransactions(transactions[]) uses ON CONFLICT (tink_transaction_id) DO NOTHING for deduplication",
+        "Maps Tink V2 fields including counterparties (payer_name, payee_name, payer_account_number, payee_account_number) and description_detailed",
+        "lib/services/domain/bank.service.ts created with syncConnection(connectionId): refresh token if needed → fetch transactions paginated → upsert → update last_sync_at + balance",
+        "updateStatus(id, status, userId) handles reconciled/ignored/to_reconcile transitions",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-003", "US-004"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "bank-transaction.repository.ts (6 methods, Tink mapping, full filter chain) + bank-sync.service.ts (token refresh, 90-day lookback, syncAllConnections). 22 tests."
+    },
+    {
+      "id": "US-007",
+      "title": "Sync cron job + consent expiry check",
+      "description": "As a gestionnaire, I want my bank transactions synced automatically every 4 hours so that I don't have to manually trigger imports.",
+      "acceptanceCriteria": [
+        "/api/cron/sync-bank-transactions/route.ts: lists active non-blacklisted connections, syncs each, uses createServiceRoleSupabaseClient()",
+        "Handles token refresh (30 min expiry with 2-min buffer)",
+        "On sync error: sets sync_status='error' + sync_error_message, continues to next connection",
+        "On consent expired: sets sync_status='disconnected'",
+        "/api/cron/check-consent-expiry/route.ts: queries connections with consent_expires_at <= NOW() + 7 days, sends notification email via Resend",
+        "Both crons protected with CRON_SECRET header validation",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-006"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "sync-bank-transactions cron (CRON_SECRET auth, maxDuration=120) + check-consent-expiry cron (marks expired as disconnected, warns expiring). 12 tests. vi.hoisted() pattern for mock constructors."
+    },
+    {
+      "id": "US-008",
+      "title": "Rent call repository + generation service + cron",
+      "description": "As a gestionnaire, I want rent call echeances auto-generated from my active contracts so that I can track expected vs received payments.",
+      "acceptanceCriteria": [
+        "lib/services/repositories/rent-call.repository.ts extends BaseRepository",
+        "getRentCallsByTeam(teamId, filters) supports: status, contractId, lotId, dateRange, pagination",
+        "updatePaymentStatus(id, totalReceived) recalculates status (pending/partial/paid/overdue)",
+        "lib/services/domain/rent-call.service.ts: generateRentCalls(contractId) creates echeances for next 3 months based on payment_frequency",
+        "Calculates due_date correctly for mensuel/trimestriel/semestriel/annuel",
+        "/api/cron/generate-rent-calls/route.ts: monthly cron, generates next month for all active contracts, uses service-role client",
+        "/api/cron/check-unpaid-rent-calls/route.ts: daily cron at 9h, marks overdue (J+2), groups by team for batch notification email",
+        "Deduplication: UNIQUE constraint on (contract_id, due_date) prevents double generation",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "rent-call.repository.ts (10 methods, upsert with onConflict) + rent-call.service.ts (4 frequencies, day clamping, 3-month horizon) + 2 crons (generate + check-unpaid). 18 tests."
+    },
+    {
+      "id": "US-009",
+      "title": "Transaction link repository + reconciliation service",
+      "description": "As a backend developer, I want a reconciliation service that links bank transactions to rent calls or interventions so that the gestionnaire can track which payments match which obligations.",
+      "acceptanceCriteria": [
+        "lib/services/repositories/transaction-link.repository.ts extends BaseRepository",
+        "createLink(dto) sets entity_type + exactly one FK, validates CHECK constraint",
+        "unlinkTransaction(linkId, userId) sets unlinked_at/by, reverts transaction status to to_reconcile, recalculates rent_call total_received",
+        "getLinksForTransaction(transactionId) returns all active links (unlinked_at IS NULL)",
+        "lib/services/domain/bank-matching.service.ts: getSuggestions(transaction, teamId) returns ranked suggestions with confidence score",
+        "Matching algorithm: structured communication (40%), exact amount (25%), approx amount (15%), payer name fuzzy (15%), date proximity (5%)",
+        "Reconciliation updates: transaction.status → reconciled, rent_call.total_received += amount, rent_call.status recalculated",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-006", "US-008"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "transaction-link.repository.ts (5 methods, entity FK mapping) + bank-matching.service.ts (5-component scoring, reconcile/unlink flow). 32 tests."
+    },
+    {
+      "id": "US-010",
+      "title": "API routes — connections, transactions, reconcile, ignore, sync",
+      "description": "As a frontend developer, I want REST API routes for all bank operations so that the UI can interact with the banking backend.",
+      "acceptanceCriteria": [
+        "All routes use getApiAuthContext() with team_id validation",
+        "GET/POST /api/bank/connections: list and create connections",
+        "DELETE/PATCH /api/bank/connections/[id]: soft delete and update",
+        "PATCH /api/bank/connections/[id]/blacklist: toggle blacklist",
+        "GET /api/bank/transactions: list with filters (status, connection, date, amount, search, pagination)",
+        "POST /api/bank/transactions/[id]/reconcile: link transaction to entity",
+        "DELETE /api/bank/transactions/[id]/reconcile: unlink transaction",
+        "PATCH /api/bank/transactions/[id]/ignore: toggle ignore/restore",
+        "POST /api/bank/sync: manual sync trigger for a connection",
+        "GET /api/bank/reports: basic reports data (revenue, expenses, collection rate)",
+        "Zod validation schemas for all request bodies",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-004", "US-006", "US-009"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "5 Zod schemas in bank-schemas.ts + 9 route files under app/api/bank/ (13 endpoints total). Connections CRUD, transactions list/reconcile/ignore, sync, reports, suggestions."
+    },
+    {
+      "id": "US-011",
+      "title": "Server actions — bank-actions.ts + rent-reminder-actions.ts",
+      "description": "As a frontend developer, I want server actions for bank operations so that client components can trigger reconciliation and reminders.",
+      "acceptanceCriteria": [
+        "app/actions/bank-actions.ts: reconcileTransaction, unlinkTransaction, ignoreTransaction, restoreTransaction, triggerManualSync",
+        "app/actions/rent-reminder-actions.ts: sendRentReminder (3 channels: in-app, push, email), with 24h cooldown per rent_call",
+        "All actions use getServerActionAuthContextOrNull('gestionnaire')",
+        "All actions broadcast data invalidation after mutation: broadcastInvalidation(['bank_transactions', 'stats'])",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-009", "US-010"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "bank-actions.ts (4 actions) + rent-reminder-actions.ts (24h cooldown) + data-invalidation-server.ts helper. DataEntity union extended with bank_transactions|rent_calls. 12 tests."
+    },
+    {
+      "id": "US-012",
+      "title": "Banque page + layout + sidebar navigation + tabs",
+      "description": "As a gestionnaire, I want to access the Banque module from the sidebar so that I can manage my bank connections and transactions.",
+      "acceptanceCriteria": [
+        "Landmark icon added to gestionnaire-sidebar.tsx between Interventions and Emails",
+        "Badge shows count of to_reconcile transactions",
+        "app/gestionnaire/(with-navbar)/banque/page.tsx uses getServerAuthContext('gestionnaire')",
+        "app/gestionnaire/(with-navbar)/banque/layout.tsx with tabs: Transactions, Comptes, Regles, Rapports",
+        "Default tab is Transactions",
+        "Empty state when no bank connection (CTA: 'Connecter un compte')",
+        "Mobile responsive (tabs scroll horizontally on small screens)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-010"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Banque page (Server Component + getServerAuthContext), layout, banque-tabs.tsx (URL state), empty-bank-state.tsx. Landmark icon in gestionnaire-sidebar.tsx."
+    },
+    {
+      "id": "US-013",
+      "title": "Comptes tab — connection list, Tink connect, blacklist",
+      "description": "As a gestionnaire, I want to see my connected bank accounts and connect new ones via Tink Link so that I can manage which accounts are synced.",
+      "acceptanceCriteria": [
+        "Account cards show: bank name, account name, IBAN last 4, account type, balance, last sync, sync status, account_purpose badge",
+        "Connect button redirects to /api/bank/oauth/authorize",
+        "Blacklist toggle with confirmation dialog",
+        "Sync status badges: active (green), error (red), disconnected (amber), blacklisted (gray)",
+        "Re-auth CTA when consent expired (sync_status = disconnected)",
+        "Delete connection with AlertDialog confirmation",
+        "Empty state with Landmark icon and CTA",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-012"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "comptes-tab.tsx (grid layout) + connection-card.tsx (status badges, blacklist toggle, delete AlertDialog, relative time)."
+    },
+    {
+      "id": "US-014",
+      "title": "Transactions tab — list with filters and pagination",
+      "description": "As a gestionnaire, I want to see all my bank transactions with filters so that I can quickly find transactions to reconcile.",
+      "acceptanceCriteria": [
+        "Table view on desktop (>= 1024px): Date, Description, Montant, Compte, Statut columns",
+        "Card view on mobile (< 768px)",
+        "Filters: search, compte (Select), statut (Select), periode (DateRange), montant min (Input)",
+        "Default filter: status = to_reconcile",
+        "Status badges: A reconcilier (amber), Reconcilie (green), Ignore (gray) with correct Lucide icons",
+        "Amount formatting: +1 200,00 EUR (emerald) / -342,50 EUR (rose) with tabular-nums and U+2212 minus",
+        "Pagination with page size selector (25/50/100)",
+        "Bulk select checkboxes (preparation for bulk reconciliation Phase 2)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-012"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "transactions-tab.tsx (API fetch, responsive table/card, pagination) + transaction-row.tsx (formatAmount) + transaction-filters.tsx (debounced search, multi-filter)."
+    },
+    {
+      "id": "US-015",
+      "title": "Reconciliation panel — sheet + suggestions + manual search",
+      "description": "As a gestionnaire, I want a side panel to reconcile a transaction by seeing suggestions and searching manually so that I can link transactions to rent calls or interventions.",
+      "acceptanceCriteria": [
+        "Desktop: Sheet right 480px, table compresses to grid-cols-[1fr_480px]",
+        "Mobile: Bottom sheet 85vh with drag handle",
+        "Transaction details shown at top (date, amount, description, payer, reference)",
+        "Suggestions sorted by confidence: green (>85%), amber (50-85%), gray (20-50%), <20% hidden",
+        "No numeric percentage shown — only color coding",
+        "Each suggestion shows: entity type icon, label, amount match indicator, confidence chip",
+        "Manual search: autocomplete for contracts/interventions/lots",
+        "Actions: Valider (link), Ignorer, Supprimer le lien (if reconciled)",
+        "After linking: toast 'Transaction reconciliee' with 10s undo",
+        "Auto-rule prompt after manual link: toast 'Lier automatiquement les futurs virements?'",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-011", "US-014"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "reconciliation-panel.tsx (Sheet right desktop / bottom mobile, suggestion fetch, reconcile/ignore) + suggestion-card.tsx (confidence colors, entity icons, match pills)."
+    },
+    {
+      "id": "US-016",
+      "title": "Dashboard widgets + data invalidation broadcast",
+      "description": "As a gestionnaire, I want bank widgets on my dashboard so that I can see at a glance how many transactions need reconciliation and which rents are overdue.",
+      "acceptanceCriteria": [
+        "Widget 1: 'X transactions a reconcilier' with CircleDashed icon and CTA link to /banque/transactions",
+        "Widget 2: 'Cash flow — Mois YYYY' with TrendingUp icon showing Entrees/Sorties/Net",
+        "Widget 3: 'X loyers en retard (-Y EUR)' with AlertCircle icon, top 3 overdue rent calls listed",
+        "Widgets added to async-dashboard-content.tsx via Promise.all (parallel fetch pattern)",
+        "Props passed to ManagerDashboardV2",
+        "Data invalidation: new entity types 'bank_transactions', 'rent_calls' added to DataEntity union in data-invalidation.ts",
+        "Bank mutations broadcast invalidation for real-time dashboard refresh",
+        "Graceful fallback: widgets show skeleton/zero state if no bank connection",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-012", "US-011"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "dashboard-bank-widgets.tsx (3 widgets: ReconciliationWidget, CashFlowWidget, OverdueRentWidget). async-dashboard-content.tsx + manager-dashboard-v2.tsx modified for bank data."
+    },
+    {
+      "id": "US-017",
+      "title": "Quittance de loyer PDF generation",
+      "description": "As a gestionnaire, I want to generate rent receipt PDFs for my tenants so that I fulfill the legal obligation (loi 6/7/1989 FR) and tenants can download them.",
+      "acceptanceCriteria": [
+        "GET /api/bank/rent-calls/[id]/receipt: generates PDF quittance",
+        "PDF contains: gestionnaire name + team, locataire name, lot address, period, rent amount, charges amount, total, payment date, signature placeholder",
+        "Uses existing PDF generation pattern (if any) or @react-pdf/renderer",
+        "Download button on rent_call row in transactions view (when status = paid)",
+        "Accessible from tenant portal (future Phase 2 integration point)",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-008", "US-010"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Print-optimized HTML quittance with French legal fields (Loi 6/7/1989), XSS protection via escapeHtml(), tenant/manager/lot data joins."
+    }
+  ]
+}

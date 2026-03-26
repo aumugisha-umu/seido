@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2, Paperclip, Wrench, Calendar } from "lucide-react"
+import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2, Paperclip, Wrench, Bell, Calendar } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
@@ -27,7 +27,8 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 import { createLotService, createContactInvitationService } from "@/lib/services"
 import type { Team, User as UserType, Contact } from "@/lib/services/core/service-types"
 import { toast } from "sonner"
-import { batchAssignContactsToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction, getBuildingExistingDocuments } from "./actions"
+import { createLotAction, batchAssignContactsToLotAction, getBuildingWithRelations, getBuildingExistingDocuments } from "./actions"
+import { createLotsCompositeAction, type CompositeLot, type CompositeContact, type CompositeIntervention } from "@/app/actions/create-lots-composite"
 
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -36,7 +37,7 @@ import LotCategorySelector from "@/components/ui/lot-category-selector"
 import type { CreateContactData } from "@/app/gestionnaire/dashboard/actions"
 
 
-import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
+import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
 import { GoogleMapsProvider } from "@/components/google-maps"
 import { logger, logError } from '@/lib/logger'
 import { useSaveFormState, useRestoreFormState } from '@/hooks/use-form-persistence'
@@ -256,7 +257,7 @@ export default function LotCreationForm({
   const [independentLots, setIndependentLots] = useState<IndependentLot[]>([
     {
       id: initialLotId,
-      reference: "Lot 1",
+      reference: "",
       category: "appartement",
       street: "",
       postalCode: "",
@@ -436,36 +437,29 @@ export default function LotCreationForm({
   // Initialiser la référence par défaut pour les nouveaux immeubles
   // Note: Désactivé car l'option "new" redirige maintenant vers la page de création d'immeuble
 
-  // Initialiser et mettre à jour automatiquement la référence du lot
+  // Initialiser la référence par défaut "Lot X" une seule fois au chargement
+  const hasInitializedReference = useRef(false)
   useEffect(() => {
-    if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
-      return // Attendre que les données de catégorie soient chargées
+    if (hasInitializedReference.current) return
+    if (!categoryCountsByTeam) return
+
+    const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
+    const defaultRef = `Lot ${totalTeamLots + 1}`
+
+    // Mettre à jour la référence du lot unique (mode single)
+    if (!lotData.reference) {
+      setLotData(prev => ({ ...prev, reference: defaultRef }))
     }
 
-    // Générer la nouvelle référence par défaut basée sur la catégorie actuelle
-    const category = lotData.category || "appartement"
-    const categoryConfig = getLotCategoryConfig(category)
-    const currentCategoryCount = categoryCountsByTeam[category] || 0
-    const nextNumber = currentCategoryCount + 1
-    const newDefaultReference = `${categoryConfig.label} ${nextNumber}`
-    
-    // Vérifier si la référence actuelle est vide ou correspond à une référence générée par défaut
-    const currentReference = lotData.reference
-    
-    // Créer dynamiquement le pattern basé sur tous les labels de catégorie possibles
-    const allCategories = getAllLotCategories()
-    const categoryLabels = allCategories.map(cat => cat.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    const generatedReferencePattern = new RegExp(`^(${categoryLabels.join('|')})\\s+\\d+$`)
-    const isEmptyOrDefault = !currentReference || generatedReferencePattern.test(currentReference)
-
-    // Ne mettre à jour que si la référence est vide ou générée par défaut
-    if (isEmptyOrDefault && currentReference !== newDefaultReference) {
-      setLotData(prev => ({
-        ...prev,
-        reference: newDefaultReference
-      }))
+    // Mettre à jour le premier lot indépendant s'il est vide
+    if (independentLots.length > 0 && !independentLots[0].reference) {
+      setIndependentLots(prev => prev.map((lot, i) =>
+        i === 0 ? { ...lot, reference: defaultRef } : lot
+      ))
     }
-  }, [lotData.category, categoryCountsByTeam, lotData.reference])
+
+    hasInitializedReference.current = true
+  }, [categoryCountsByTeam])
 
   // ✅ Initialisation automatique du premier lot (pour mode "existing building")
   // NOTE: This hook MUST be called before any early returns to respect React's Rules of Hooks
@@ -477,13 +471,11 @@ export default function LotCreationForm({
       logger.info("🏠 [MULTI-LOT] Auto-initializing first lot...")
 
       const category: LotCategory = "appartement"
-      const categoryConfig = getLotCategoryConfig(category)
-      const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const nextNumber = currentCategoryCount + 1
+      const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
 
       const initialLot = {
         id: "lot1",
-        reference: `${categoryConfig.label} ${nextNumber}`,
+        reference: `Lot ${totalTeamLots + 1}`,
         floor: "0",
         doorNumber: "",
         description: "",
@@ -804,14 +796,11 @@ export default function LotCreationForm({
     }
 
     const category: LotCategory = "appartement"
-    const categoryConfig = getLotCategoryConfig(category)
-    const currentCategoryCount = categoryCountsByTeam[category] || 0
-    const existingLotsOfCategory = lots.filter(l => l.category === category).length
-    const nextNumber = currentCategoryCount + existingLotsOfCategory + 1
+    const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
 
     const newLot = {
       id: `lot${Date.now()}`,
-      reference: `${categoryConfig.label} ${nextNumber}`,
+      reference: `Lot ${totalTeamLots + lots.length + 1}`,
       floor: "0",
       doorNumber: "",
       description: "",
@@ -908,15 +897,6 @@ export default function LotCreationForm({
       if (lot.id === lotId) {
         const updatedLot = { ...lot, [field]: value }
 
-        // Si la catégorie change, recalculer la référence
-        if (field === 'category') {
-          const categoryConfig = getLotCategoryConfig(value as LotCategory)
-          const currentCategoryCount = categoryCountsByTeam[value] || 0
-          const existingLotsOfCategory = lots.filter(l => l.category === value && l.id !== lotId).length
-          const nextNumber = currentCategoryCount + existingLotsOfCategory + 1
-          updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
-        }
-
         return updatedLot
       }
       return lot
@@ -939,10 +919,10 @@ export default function LotCreationForm({
       setUpgradeModalOpen(true)
       return
     }
-    const nextNumber = independentLots.length + 1
+    const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
     const newLot: IndependentLot = {
       id: `independent-lot-${Date.now()}`,
-      reference: `Lot ${nextNumber}`,
+      reference: `Lot ${totalTeamLots + independentLots.length + 1}`,
       category: "appartement",
       street: "",
       postalCode: "",
@@ -1050,14 +1030,6 @@ export default function LotCreationForm({
       return prevLots.map(lot => {
         if (lot.id === lotId) {
           const updatedLot = { ...lot, [field]: value }
-
-          // Si la catégorie change, on peut recalculer la référence
-          if (field === 'category') {
-            const categoryConfig = getLotCategoryConfig(value as LotCategory)
-            const existingLotsOfCategory = prevLots.filter(l => l.category === value && l.id !== lotId).length
-            const nextNumber = existingLotsOfCategory + 1
-            updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
-          }
 
           logger.info("✅ [PAGE] Lot updated:", { lotId, field, newValue: updatedLot[field] })
           return updatedLot
@@ -1210,35 +1182,65 @@ export default function LotCreationForm({
     }
   }
 
-  // Helper: Create scheduled interventions for a lot
+  // Helper: Create scheduled interventions + reminders for a lot (split by itemType)
   const createInterventionsForLot = async (lotId: string, teamId: string) => {
-    const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
-    if (toCreate.length === 0) return
+    const allEnabled = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+    if (allEnabled.length === 0) return
+
+    const interventionItems = allEnabled.filter(i => i.itemType !== 'reminder')
+    const reminderItems = allEnabled.filter(i => i.itemType === 'reminder')
 
     try {
-      const { createInterventionAction } = await import('@/app/actions/intervention-actions')
-      const results = await Promise.allSettled(
-        toCreate.map(async (intervention) => {
-          return createInterventionAction({
-            title: intervention.title,
-            description: intervention.description,
-            type: intervention.interventionTypeCode,
-            urgency: 'basse',
-            lot_id: lotId,
-            team_id: teamId,
-            requested_date: intervention.scheduledDate || undefined
-          }, {
-            useServiceRole: true,
-            assignments: intervention.assignedUsers.length > 0
-              ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
-              : undefined
-          })
-        })
-      )
-      const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as { success?: boolean })?.success).length
-      logger.info({ successCount, total: results.length, lotId }, 'Lot interventions created')
+      const promises: Promise<unknown>[] = []
+
+      // Interventions → createInterventionAction
+      if (interventionItems.length > 0) {
+        const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+        for (const intervention of interventionItems) {
+          promises.push(
+            createInterventionAction({
+              title: intervention.title,
+              description: intervention.description,
+              type: intervention.interventionTypeCode,
+              urgency: 'basse',
+              lot_id: lotId,
+              team_id: teamId,
+              requested_date: intervention.scheduledDate || undefined
+            }, {
+              useServiceRole: true,
+              assignments: intervention.assignedUsers.length > 0
+                ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                : undefined
+            })
+          )
+        }
+      }
+
+      // Reminders → createWizardRemindersAction
+      if (reminderItems.length > 0) {
+        const { createWizardRemindersAction } = await import('@/app/actions/reminder-actions')
+        promises.push(
+          createWizardRemindersAction(
+            reminderItems.map(r => ({
+              title: r.title,
+              description: r.description,
+              due_date: r.scheduledDate ? r.scheduledDate.toISOString() : undefined,
+              lot_id: lotId,
+              rrule: r.recurrenceRule,
+              assignments: r.assignedUsers
+                .filter(a => a.role === 'gestionnaire')
+                .map(a => ({ userId: a.userId, role: a.role }))
+            })),
+            { team_id: teamId }
+          )
+        )
+      }
+
+      const results = await Promise.allSettled(promises)
+      const successCount = results.filter(r => r.status === 'fulfilled').length
+      logger.info({ successCount, total: results.length, lotId }, 'Lot interventions + reminders created')
     } catch (err) {
-      logger.error('⚠️ Intervention creation failed (lot created successfully):', err)
+      logger.error('Intervention/reminder creation failed (lot created successfully):', err)
     }
   }
 
@@ -1270,6 +1272,96 @@ export default function LotCreationForm({
     await batchAssignContactsToLotAction(assignments)
   }
 
+  // Shared helpers for composite payload building (used by both existing_building and independent modes)
+  const buildCompositeContacts = (lotsArray: Array<{ id: string }>): CompositeContact[] => {
+    const contacts: CompositeContact[] = []
+    lotsArray.forEach((lot, lotIndex) => {
+      const lotManagers = assignedManagersByLot[lot.id] || []
+      lotManagers.forEach((manager, index) => {
+        contacts.push({ lotIndex, userId: manager.id, isPrimary: index === 0 })
+      })
+      const lotContacts = lotContactAssignments[lot.id] || {}
+      Object.values(lotContacts).forEach(assignedContacts => {
+        assignedContacts.forEach((contact: Contact, index: number) => {
+          contacts.push({ lotIndex, userId: contact.id, isPrimary: index === 0 })
+        })
+      })
+    })
+    return contacts
+  }
+
+  const buildCompositeInterventions = (lotsCount: number): CompositeIntervention[] => {
+    // Only intervention-type items go through composite action — reminders handled separately
+    const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate && i.itemType !== 'reminder')
+    if (toCreate.length === 0) return []
+    const interventions: CompositeIntervention[] = []
+    for (let lotIndex = 0; lotIndex < lotsCount; lotIndex++) {
+      for (const iv of toCreate) {
+        interventions.push({
+          lotIndex,
+          title: iv.title,
+          description: iv.description,
+          interventionTypeCode: iv.interventionTypeCode,
+          scheduledDate: iv.scheduledDate?.toISOString(),
+          assignedUsers: iv.assignedUsers,
+        })
+      }
+    }
+    return interventions
+  }
+
+  /** Fire-and-forget reminder creation for composite lot paths */
+  const fireAndForgetReminders = (createdLots: Array<{ id: string; lotIndex: number }>, teamId: string) => {
+    const reminderItems = scheduledInterventions.filter(i => i.enabled && i.scheduledDate && i.itemType === 'reminder')
+    if (reminderItems.length === 0) return
+
+    import('@/app/actions/reminder-actions').then(({ createWizardRemindersAction }) => {
+      const promises = createdLots.map(lot =>
+        createWizardRemindersAction(
+          reminderItems.map(r => ({
+            title: r.title,
+            description: r.description,
+            due_date: r.scheduledDate ? r.scheduledDate.toISOString() : undefined,
+            lot_id: lot.id,
+            rrule: r.recurrenceRule,
+            assignments: r.assignedUsers
+              .filter(a => a.role === 'gestionnaire')
+              .map(a => ({ userId: a.userId, role: a.role }))
+          })),
+          { team_id: teamId }
+        )
+      )
+      Promise.allSettled(promises).then(results => {
+        const successCount = results.filter(r => r.status === 'fulfilled').length
+        logger.info({ successCount, total: results.length }, 'Composite lot reminders created')
+      })
+    }).catch(err => {
+      logger.error({ error: err }, 'Failed to create composite lot reminders')
+    })
+  }
+
+  const fireAndForgetDocUploads = (
+    lotsArray: Array<{ id: string }>,
+    createdLots: Array<{ id: string; lotIndex: number }>,
+    teamId: string
+  ) => {
+    const createdLotsMap = new Map(createdLots.map(cl => [cl.lotIndex, cl]))
+    const docPromises: Promise<unknown>[] = []
+    for (let i = 0; i < lotsArray.length; i++) {
+      const upload = lotDocUploads[lotsArray[i].id]
+      const createdLot = createdLotsMap.get(i)
+      if (upload?.hasFiles && createdLot) {
+        docPromises.push(
+          uploadLotDocs(lotsArray[i].id, createdLot.id, teamId)
+            .catch((err: unknown) => logger.error(`⚠️ Doc upload failed for lot ${createdLot.id}:`, err))
+        )
+      }
+    }
+    if (docPromises.length > 0) {
+      Promise.allSettled(docPromises).then(() => logger.info('Document uploads completed'))
+    }
+  }
+
   const handleFinish = async () => {
     if (isSubmitting) return // Double-submission guard
     setIsSubmitting(true)
@@ -1286,111 +1378,54 @@ export default function LotCreationForm({
       return
     }
 
-    // 🆕 MODE MULTI-LOTS pour immeuble existant
+    // 🆕 MODE MULTI-LOTS pour immeuble existant — Composite Action (1 round-trip)
     if (lotData.buildingAssociation === "existing" && lots.length > 0) {
       try {
         logger.info(`🚀 Creating ${lots.length} lots for building:`, lotData.selectedBuilding)
 
-        // Créer tous les lots en parallèle (1st lot checks subscription, rest skip)
-        const lotCreationPromises = lots.map(async (lot, lotIndex) => {
-          try {
-            const lotDataToCreate = {
-              reference: lot.reference,
-              building_id: lotData.selectedBuilding || null,
-              floor: parseInt(String(lot.floor)) || 0,
-              apartment_number: lot.doorNumber || null,
-              category: lot.category,
-              description: lot.description || null,
-              team_id: userTeam.id,
-            }
+        // Build composite payload
+        const compositeLots: CompositeLot[] = lots.map(lot => ({
+          reference: lot.reference,
+          category: lot.category,
+          floor: parseInt(String(lot.floor)) || 0,
+          doorNumber: lot.doorNumber || null,
+          description: lot.description || null,
+        }))
 
-            const result = await createLotAction(lotDataToCreate, {
-              skipSubscriptionCheck: lotIndex > 0, // Only 1st lot checks subscription
-            })
-
-            if (!result.success || !result.data) {
-              logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
-              return null
-            }
-
-            return { lot, createdLot: result.data }
-          } catch (error) {
-            logger.error(`❌ Error creating lot ${lot.reference}:`, error)
-            return null
-          }
+        const result = await createLotsCompositeAction({
+          teamId: userTeam.id,
+          mode: 'existing_building',
+          buildingId: lotData.selectedBuilding || undefined,
+          lots: compositeLots,
+          contacts: buildCompositeContacts(lots),
+          interventions: buildCompositeInterventions(lots.length),
         })
 
-        const creationResults = await Promise.all(lotCreationPromises)
-        const successfulCreations = creationResults.filter((r): r is NonNullable<typeof r> => r !== null)
-
-        logger.info(`✅ Created ${successfulCreations.length}/${lots.length} lots`)
-
-        // Batch assign all contacts + managers across ALL lots in a single server action
-        const allAssignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
-        for (const { lot, createdLot } of successfulCreations) {
-          const lotManagers = assignedManagersByLot[lot.id] || []
-          lotManagers.forEach((manager, index) => {
-            allAssignments.push({ lotId: createdLot.id, userId: manager.id, isPrimary: index === 0 })
-          })
-
-          const lotContacts = lotContactAssignments[lot.id] || {}
-          Object.values(lotContacts).forEach(contacts => {
-            contacts.forEach((contact: Contact, index: number) => {
-              allAssignments.push({ lotId: createdLot.id, userId: contact.id, isPrimary: index === 0 })
-            })
-          })
-        }
-
-        if (allAssignments.length > 0) {
-          await batchAssignContactsToLotAction(allAssignments)
-        }
-
-        // Create interventions + upload documents for ALL lots in parallel
-        const allPostCreationPromises: Promise<unknown>[] = []
-
-        for (const { createdLot } of successfulCreations) {
-          allPostCreationPromises.push(
-            createInterventionsForLot(createdLot.id, userTeam.id)
-          )
-        }
-
-        for (const { lot, createdLot } of successfulCreations) {
-          const upload = lotDocUploads[lot.id]
-          if (upload?.hasFiles) {
-            allPostCreationPromises.push(
-              uploadLotDocs(lot.id, createdLot.id, userTeam.id)
-                .catch((docError: unknown) => logger.error(`⚠️ Document upload failed for lot ${createdLot.id}:`, docError))
-            )
-          }
-        }
-
-        await Promise.allSettled(allPostCreationPromises)
-
-        if (successfulCreations.length === 0) {
-          toast.error("Erreur", { description: "Aucun lot n'a pu être créé." })
+        if (!result.success || !result.createdLots?.length) {
+          toast.error("Erreur", { description: result.error || "Aucun lot n'a pu être créé." })
           setIsSubmitting(false)
           return
         }
 
-        // Succès - Rediriger vers la page de l'immeuble (navigation immédiate)
-        toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's créés' : ' créé'} avec succès`, { description: `Les lots ont été créés et assignés à l'immeuble.` })
+        fireAndForgetDocUploads(lots, result.createdLots, userTeam.id)
+        fireAndForgetReminders(result.createdLots, userTeam.id)
+
+        toast.success(`${result.createdLots.length} lot${result.createdLots.length > 1 ? 's créés' : ' créé'} avec succès`, { description: `Les lots ont été créés et assignés à l'immeuble.` })
         realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
-        router.push(`/gestionnaire/biens/immeubles/${lotData.selectedBuilding}`)
+        window.location.href = `/gestionnaire/biens/immeubles/${lotData.selectedBuilding}`
 
         return
       } catch (error) {
-        // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
         if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
           throw error
         }
-
         logger.error("❌ Error in multi-lot creation:", error)
         toast.error("Erreur lors de la création des lots", { description: "Une erreur est survenue. Veuillez réessayer." })
         return
       }
     }
 
-    // 🆕 MODE MULTI-LOTS INDÉPENDANTS
+    // 🆕 MODE MULTI-LOTS INDÉPENDANTS — Composite Action (1 round-trip)
     if (lotData.buildingAssociation === "independent" && independentLots.length > 0) {
       try {
         // Validation finale avant soumission
@@ -1401,150 +1436,53 @@ export default function LotCreationForm({
           return
         }
 
-        logger.info(`🚀 Creating ${independentLots.length} independent lots`)
+        logger.info(`🚀 Creating ${independentLots.length} independent lots (composite)`)
 
-        // Mapping country names to database enum values (lowercase French)
-        const countryToDBEnum: Record<string, string> = {
-          "Belgique": "belgique",
-          "France": "france",
-          "Luxembourg": "luxembourg",
-          "Pays-Bas": "pays-bas",
-          "Allemagne": "allemagne"
-        }
+        // Build composite payload with address data per lot
+        const compositeLots: CompositeLot[] = independentLots.map(lot => ({
+          reference: lot.reference,
+          category: lot.category,
+          floor: lot.floor ? parseInt(lot.floor) : null,
+          doorNumber: lot.doorNumber || null,
+          description: lot.description || null,
+          address: (lot.street || lot.city) ? {
+            street: lot.street,
+            postalCode: lot.postalCode,
+            city: lot.city,
+            country: lot.country,
+            latitude: lot.latitude,
+            longitude: lot.longitude,
+            placeId: lot.placeId,
+            formattedAddress: lot.formattedAddress,
+          } : undefined,
+        }))
 
-        // Créer tous les lots en parallèle (TOUJOURS créer adresse dans table centralisée)
-        const lotCreationPromises = independentLots.map(async (lot, lotIndex) => {
-          try {
-            let addressId: string | null = null
-
-            // Step 1: ALWAYS create address in centralized table (with or without geocode data)
-            // This ensures consistency - all addresses go through the addresses table
-            if (lot.street || lot.city) {
-              logger.info(`📍 [INDEPENDENT-LOT] Creating address for lot ${lot.reference}`, {
-                street: lot.street,
-                postalCode: lot.postalCode,
-                city: lot.city,
-                country: lot.country,
-                hasGeocode: !!(lot.latitude && lot.longitude),
-                latitude: lot.latitude,
-                longitude: lot.longitude,
-                placeId: lot.placeId,
-                formattedAddress: lot.formattedAddress
-              })
-              const addressResult = await createAddressAction({
-                street: lot.street,
-                postalCode: lot.postalCode,
-                city: lot.city,
-                country: lot.country,
-                // Include geocode data if available
-                latitude: lot.latitude,
-                longitude: lot.longitude,
-                placeId: lot.placeId,
-                formattedAddress: lot.formattedAddress
-              }, userTeam.id)
-
-              if (addressResult.success && addressResult.data) {
-                addressId = addressResult.data.id
-                logger.info(`✅ [INDEPENDENT-LOT] Address created: ${addressId}`)
-              } else {
-                logger.warn(`⚠️ [INDEPENDENT-LOT] Failed to create address: ${addressResult.error?.message}`)
-              }
-            }
-
-            // Step 2: Create lot with address_id link
-            // Note: After migration 20260129200002, lots table no longer has street/postal_code/city/country columns
-            // All address data is stored in centralized addresses table via address_id
-            const lotDataToCreate = {
-              reference: lot.reference,
-              building_id: null, // NULL = independent lot
-              address_id: addressId, // Link to centralized address table
-              floor: lot.floor ? parseInt(lot.floor) : null,
-              apartment_number: lot.doorNumber || null,
-              category: lot.category,
-              description: lot.description || null,
-              team_id: userTeam.id,
-            }
-
-            const result = await createLotAction(lotDataToCreate, {
-              skipSubscriptionCheck: lotIndex > 0, // Only 1st lot checks subscription
-            })
-
-            if (!result.success || !result.data) {
-              logger.error(`❌ Failed to create lot ${lot.reference}:`, JSON.stringify(result.error))
-              return null
-            }
-
-            return { lot, createdLot: result.data }
-          } catch (error) {
-            logger.error(`❌ Error creating lot ${lot.reference}:`, error)
-            return null
-          }
+        const result = await createLotsCompositeAction({
+          teamId: userTeam.id,
+          mode: 'independent',
+          lots: compositeLots,
+          contacts: buildCompositeContacts(independentLots),
+          interventions: buildCompositeInterventions(independentLots.length),
         })
 
-        const creationResults = await Promise.all(lotCreationPromises)
-        const successfulCreations = creationResults.filter((r): r is NonNullable<typeof r> => r !== null)
-
-        logger.info(`✅ Created ${successfulCreations.length}/${independentLots.length} independent lots`)
-
-        // Batch assign all contacts + managers across ALL lots in a single server action
-        const allIndependentAssignments: Array<{ lotId: string; userId: string; isPrimary: boolean }> = []
-        for (const { lot, createdLot } of successfulCreations) {
-          const lotManagers = assignedManagersByLot[lot.id] || []
-          lotManagers.forEach((manager, index) => {
-            allIndependentAssignments.push({ lotId: createdLot.id, userId: manager.id, isPrimary: index === 0 })
-          })
-
-          const lotContacts = lotContactAssignments[lot.id] || {}
-          Object.values(lotContacts).forEach(contacts => {
-            contacts.forEach((contact: Contact, index: number) => {
-              allIndependentAssignments.push({ lotId: createdLot.id, userId: contact.id, isPrimary: index === 0 })
-            })
-          })
-        }
-
-        if (allIndependentAssignments.length > 0) {
-          await batchAssignContactsToLotAction(allIndependentAssignments)
-        }
-
-        // Create interventions + upload documents for ALL lots in parallel
-        const allIndependentPostCreationPromises: Promise<unknown>[] = []
-
-        for (const { createdLot } of successfulCreations) {
-          allIndependentPostCreationPromises.push(
-            createInterventionsForLot(createdLot.id, userTeam.id)
-          )
-        }
-
-        for (const { lot, createdLot } of successfulCreations) {
-          const upload = lotDocUploads[lot.id]
-          if (upload?.hasFiles) {
-            allIndependentPostCreationPromises.push(
-              uploadLotDocs(lot.id, createdLot.id, userTeam.id)
-                .catch((docError: unknown) => logger.error(`⚠️ Document upload failed for lot ${createdLot.id}:`, docError))
-            )
-          }
-        }
-
-        await Promise.allSettled(allIndependentPostCreationPromises)
-
-        if (successfulCreations.length === 0) {
-          toast.error("Erreur", { description: "Aucun lot n'a pu être créé." })
+        if (!result.success || !result.createdLots?.length) {
+          toast.error("Erreur", { description: result.error || "Aucun lot n'a pu être créé." })
           setIsSubmitting(false)
           return
         }
 
-        // Succès - Rediriger vers la page des biens (navigation immédiate)
-        toast.success(`${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
+        fireAndForgetDocUploads(independentLots, result.createdLots, userTeam.id)
+        fireAndForgetReminders(result.createdLots, userTeam.id)
+
+        toast.success(`${result.createdLots.length} lot${result.createdLots.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`, { description: `Les lots ont été créés avec leurs adresses respectives.` })
         realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
-        router.push(`/gestionnaire/biens/lots/${successfulCreations[0].createdLot.id}`)
+        window.location.href = `/gestionnaire/biens/lots/${result.createdLots[0].id}`
 
         return
       } catch (error) {
-        // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
         if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
           throw error
         }
-
         logger.error("❌ Error in independent multi-lot creation:", error)
         toast.error("Erreur lors de la création des lots indépendants", { description: "Une erreur est survenue. Veuillez réessayer." })
         return
@@ -1617,7 +1555,7 @@ export default function LotCreationForm({
       // Succès - Rediriger vers la page des biens (navigation immédiate)
       toast.success("Lot créé avec succès", { description: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.` })
       realtime?.broadcastInvalidation(['lots', 'buildings', 'stats'])
-      router.push(`/gestionnaire/biens/lots/${createdLot.id}`)
+      window.location.href = `/gestionnaire/biens/lots/${createdLot.id}`
 
     } catch (error) {
       // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
@@ -2421,8 +2359,10 @@ export default function LotCreationForm({
               recommended: slot.recommended,
             }))
 
-            // Interventions (shared across all lots in independent mode)
+            // Interventions & reminders (shared across all lots in independent mode)
             const enabledInterventions = scheduledInterventions.filter(i => i.enabled)
+            const interventionItems = enabledInterventions.filter(i => i.itemType !== 'reminder')
+            const reminderItems = enabledInterventions.filter(i => i.itemType === 'reminder')
 
             return (
               <div
@@ -2499,15 +2439,13 @@ export default function LotCreationForm({
                 </ConfirmationSection>
 
                 {/* Interventions */}
-                <ConfirmationSection title="Interventions" compact>
-                  {enabledInterventions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground/60 italic">Aucune intervention planifiee</p>
-                  ) : (
+                {interventionItems.length > 0 && (
+                  <ConfirmationSection title={`Interventions planifiees (${interventionItems.length})`} compact>
                     <div className="space-y-2">
-                      {enabledInterventions.map(intervention => (
+                      {interventionItems.map(intervention => (
                         <div key={intervention.key} className="flex items-center gap-3 rounded-lg border bg-card p-2.5">
-                          <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                            <Calendar className="h-3.5 w-3.5 text-primary" />
+                          <div className="h-7 w-7 rounded-md bg-indigo-50 flex items-center justify-center shrink-0">
+                            <Wrench className="h-3.5 w-3.5 text-indigo-600" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{intervention.title}</p>
@@ -2524,8 +2462,41 @@ export default function LotCreationForm({
                         </div>
                       ))}
                     </div>
-                  )}
-                </ConfirmationSection>
+                  </ConfirmationSection>
+                )}
+
+                {/* Rappels */}
+                {reminderItems.length > 0 && (
+                  <ConfirmationSection title={`Rappels (${reminderItems.length})`} compact>
+                    <div className="space-y-2">
+                      {reminderItems.map(reminder => (
+                        <div key={reminder.key} className="flex items-center gap-3 rounded-lg border bg-card p-2.5">
+                          <div className="h-7 w-7 rounded-md bg-amber-50 flex items-center justify-center shrink-0">
+                            <Bell className="h-3.5 w-3.5 text-amber-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{reminder.title}</p>
+                            {reminder.scheduledDate && (
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(reminder.scheduledDate).toLocaleDateString('fr-FR', {
+                                  day: 'numeric',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ConfirmationSection>
+                )}
+
+                {interventionItems.length === 0 && reminderItems.length === 0 && (
+                  <ConfirmationSection title="Interventions" compact>
+                    <p className="text-sm text-muted-foreground/60 italic">Aucune intervention planifiee</p>
+                  </ConfirmationSection>
+                )}
               </div>
             )
           })}

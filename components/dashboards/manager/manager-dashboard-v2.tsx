@@ -24,6 +24,9 @@ import {
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { UnreadMessagesSection } from "@/components/dashboards/shared/unread-messages-section"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+import { TaskTypeSegment, type TaskType } from "@/components/operations/task-type-segment"
+import { RemindersNavigator } from "@/components/operations/reminders-navigator"
+import { useReminderActions } from "@/hooks/use-reminder-actions"
 import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { TrialUpgradeModal } from "@/components/billing/trial-upgrade-modal"
 import { useSubscription } from "@/hooks/use-subscription"
@@ -34,6 +37,10 @@ import { PageActions } from "@/components/page-actions"
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
 import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
+import type { ReminderStats, ReminderWithRelations } from "@/lib/types/reminder.types"
+// Bank module hidden until Tink app is approved in production
+// import type { BankWidgetsSectionProps } from "@/components/bank/dashboard-bank-widgets"
+// import { BankWidgetsSection } from "@/components/bank/dashboard-bank-widgets"
 
 // Type for intervention row from Supabase (used in realtime callback)
 type DbIntervention = Database['public']['Tables']['interventions']['Row']
@@ -54,14 +61,18 @@ interface ManagerDashboardProps {
     stats: DashboardStats
     tenantCount: number
     contractStats: ContractStats
-    interventions: any[]
+    interventions: DbIntervention[]
     pendingCount: number
     unreadThreads?: UnreadThread[]
     unreadThreadsTotalCount?: number
+    reminderStats?: ReminderStats
+    reminders?: ReminderWithRelations[]
+    // bankData?: BankWidgetsSectionProps  // Bank module hidden until Tink approved
 }
 
-export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount, reminderStats, reminders = [] }: ManagerDashboardProps) {
     const router = useRouter()
+    const { handleStartReminder, handleCompleteReminder, handleCancelReminder } = useReminderActions()
     // Local state for interventions (enables realtime updates)
     const [interventions, setInterventions] = useState(initialInterventions)
 
@@ -89,7 +100,7 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
 
     // ⚡ Memoized navigation callbacks to prevent re-renders
     const navigateToImport = useCallback(() => router.push('/gestionnaire/import'), [router])
-    const navigateToNewIntervention = useCallback(() => router.push('/gestionnaire/interventions/nouvelle-intervention'), [router])
+    const navigateToNewIntervention = useCallback(() => router.push('/gestionnaire/operations/nouvelle-intervention'), [router])
     const navigateToNewContract = useCallback(() => router.push('/gestionnaire/contrats/nouveau'), [router])
     const navigateToNewBuilding = useCallback(() => router.push('/gestionnaire/biens/immeubles/nouveau'), [router])
     const navigateToNewLot = useCallback(() => router.push('/gestionnaire/biens/lots/nouveau'), [router])
@@ -129,6 +140,9 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
+    // Operations tab state (Interventions vs Reminders)
+    const [activeOperationType, setActiveOperationType] = useState<TaskType>('intervention')
+
     // Scroll-to-interventions + focus animation state
     const interventionsRef = useRef<HTMLDivElement>(null)
     const [initialActiveTab, setInitialActiveTab] = useState<string | undefined>(undefined)
@@ -145,7 +159,7 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
 
         // 3. Trigger focus animation
         setFocusInterventions(true)
-        setTimeout(() => setFocusInterventions(false), 1500)
+        setTimeout(() => setFocusInterventions(false), 300)
 
         // 4. Reset initialActiveTab so ContentNavigator returns to uncontrolled mode
         // This allows the user to freely click other tabs afterwards
@@ -228,7 +242,8 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
                             tenantCount,
                             contractStats,
                             onContractClick: navigateToContracts,
-                            onActionsClick: handleActionsClick
+                            onActionsClick: handleActionsClick,
+                            reminderStats
                         })}
                     />
                 </div>
@@ -247,6 +262,7 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
                         tenantCount={tenantCount}
                         contractStats={contractStats}
                         onActionsClick={handleActionsClick}
+                        reminderStats={reminderStats}
                     />
                 </div>
 
@@ -261,28 +277,46 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
                     </div>
                 )}
 
-                {/* Content Section - Unified InterventionsNavigator */}
+                {/* Bank Widgets Section — hidden until Tink approved */}
+
+                {/* Operations Section (Interventions + Reminders) */}
                 <div
                     ref={interventionsRef}
                     className={cn(
-                        "dashboard__content lg:order-3 lg:max-h-[700px] transition-all duration-300 rounded-lg",
+                        "dashboard__content lg:order-4 lg:max-h-[700px] transition-all duration-300 rounded-lg space-y-4",
                         focusInterventions && "ring-2 ring-amber-400/60 ring-offset-2"
                     )}
                 >
-                    <InterventionsNavigator
-                        interventions={interventions}
-                        userContext="gestionnaire"
-                        tabsPreset="dashboard"
-                        showHeader={true}
-                        headerConfig={{
-                            title: "Interventions",
-                            icon: Wrench
-                        }}
-                        showSortOptions={true}
-                        showCombinedFilter={true}
-                        compact={true}
-                        initialActiveTab={initialActiveTab}
+                    <TaskTypeSegment
+                        activeType={activeOperationType}
+                        onTypeChange={setActiveOperationType}
+                        interventionCount={interventions.length}
+                        reminderCount={reminders.length}
                     />
+
+                    {activeOperationType === 'intervention' ? (
+                        <InterventionsNavigator
+                            interventions={interventions}
+                            userContext="gestionnaire"
+                            tabsPreset="dashboard"
+                            showHeader={false}
+                            showSortOptions={true}
+                            showCombinedFilter={true}
+                            compact={true}
+                            initialActiveTab={initialActiveTab}
+                        />
+                    ) : (
+                        <RemindersNavigator
+                            reminders={reminders}
+                            onStart={handleStartReminder}
+                            onComplete={handleCompleteReminder}
+                            onCancel={handleCancelReminder}
+                            emptyStateConfig={{
+                                title: 'Aucun rappel',
+                                description: 'Creez des rappels depuis la section Operations',
+                            }}
+                        />
+                    )}
                 </div>
             </div>
 

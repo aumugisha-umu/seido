@@ -379,7 +379,7 @@ function LotItemRow({ lot, isOccupied, onView, compact = false }: LotItemRowProp
                                 <DropdownMenuItem
                                     onClick={(e) => {
                                         e.stopPropagation()
-                                        router.push(`/gestionnaire/interventions/nouvelle-intervention?lot=${lot.id}`)
+                                        router.push(`/gestionnaire/operations/nouvelle-intervention?lot=${lot.id}`)
                                     }}
                                     className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                 >
@@ -537,7 +537,7 @@ function LotItemRow({ lot, isOccupied, onView, compact = false }: LotItemRowProp
                             <DropdownMenuItem
                                 onClick={(e) => {
                                     e.stopPropagation()
-                                    router.push(`/gestionnaire/interventions/nouvelle-intervention?lot=${lot.id}`)
+                                    router.push(`/gestionnaire/operations/nouvelle-intervention?lot=${lot.id}`)
                                 }}
                                 className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             >

@@ -710,7 +710,7 @@ export function MailClient({
 
     sessionStorage.setItem('intervention-from-email', JSON.stringify(prefillData))
     toast.success('Redirection vers la création d\'intervention')
-    router.push('/gestionnaire/interventions/nouvelle-intervention?fromEmail=true')
+    router.push('/gestionnaire/operations/nouvelle-intervention?fromEmail=true')
   }, [selectedEmail, router])
 
   const handleSoftDelete = useCallback(async (emailId: string) => {

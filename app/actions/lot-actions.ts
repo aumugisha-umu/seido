@@ -13,6 +13,29 @@ import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 // Pages are force-dynamic — no cache invalidation needed
 import type { Lot } from '@/lib/services/core/service-types'
 import { logger } from '@/lib/logger'
+import { z } from 'zod'
+
+const updateCompleteLotSchema = z.object({
+  lotId: z.string().uuid(),
+  lot: z.object({
+    reference: z.string().max(100).optional(),
+    type: z.string().max(50).optional(),
+    surface: z.number().nullable().optional(),
+    rooms: z.number().nullable().optional(),
+    floor: z.number().nullable().optional(),
+    rent_amount: z.number().nullable().optional(),
+    charges_amount: z.number().nullable().optional(),
+    deposit_amount: z.number().nullable().optional(),
+    description: z.string().max(5000).nullable().optional(),
+    is_furnished: z.boolean().nullable().optional(),
+    address_id: z.string().uuid().nullable().optional(),
+  }).passthrough(), // Allow additional DB fields not explicitly listed
+  contacts: z.array(z.object({
+    contactId: z.string().uuid(),
+    contactType: z.string().max(50),
+    isPrimary: z.boolean(),
+  })),
+})
 
 /**
  * Update a complete lot with contacts and managers
@@ -21,7 +44,7 @@ import { logger } from '@/lib/logger'
  * ✅ auth.uid() correctly populated for RLS policies
  * ✅ Proper session management via server-side cookies
  */
-export async function updateCompleteLot(data: {
+export async function updateCompleteLot(rawData: {
   lotId: string
   lot: Partial<Lot>
   contacts: Array<{
@@ -35,6 +58,14 @@ export async function updateCompleteLot(data: {
   error?: string
 }> {
   try {
+    // Validate input at runtime (TS types are erased)
+    const parsed = updateCompleteLotSchema.safeParse(rawData)
+    if (!parsed.success) {
+      logger.warn({ errors: parsed.error.flatten() }, '⚠️ [LOT-UPDATE] Validation failed')
+      return { success: false, error: `Validation error: ${parsed.error.errors[0]?.message}` }
+    }
+    const data = { ...parsed.data, lot: parsed.data.lot as Partial<Lot> }
+
     logger.info('🏠 [SERVER-ACTION] Updating complete lot:', {
       lotId: data.lotId,
       lotReference: data.lot.reference,

@@ -2,11 +2,12 @@
 
 import { useState, useTransition, useCallback } from 'react'
 import Link from 'next/link'
-import { MessageSquare, Check, ExternalLink, CheckCheck, ChevronDown } from 'lucide-react'
+import { MessageSquare, Check, ExternalLink, CheckCheck, ChevronDown, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { markThreadAsReadAction, markAllThreadsAsReadAction } from '@/app/actions/conversation-actions'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { markThreadAsReadAction, markAllThreadsAsReadAction } from '@/app/actions/conversations'
 import type { UnreadThread } from '@/lib/services/repositories/conversation-repository'
 
 // Thread type display config (matching ConversationSelector colors)
@@ -139,11 +140,11 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
         {/* Thread list — collapsible */}
         <div className={cn(
           "transition-all duration-200 overflow-hidden",
-          isCollapsed ? "max-h-0" : "max-h-[2000px]"
+          isCollapsed ? "max-h-0" : "max-h-screen"
         )}>
         <div className={cn(
           "divide-y divide-border/50",
-          visibleThreads.length > MAX_VISIBLE && "max-h-[222px] overflow-y-auto"
+          visibleThreads.length > MAX_VISIBLE && "max-h-[224px] overflow-y-auto"
         )}>
           {visibleThreads.map(thread => {
             const config = THREAD_TYPE_CONFIG[thread.threadType] || THREAD_TYPE_CONFIG.group
@@ -167,27 +168,44 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
                   {/* Intervention info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-medium text-foreground truncate">
-                        {thread.interventionTitle}
-                      </span>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm font-medium text-foreground truncate">
+                              {thread.interventionTitle}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>{thread.interventionTitle}</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       {thread.interventionReference && (
                         <span className="text-xs text-muted-foreground shrink-0">
                           {thread.interventionReference}
                         </span>
                       )}
-                      <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-4 font-medium shrink-0', config.bgClass)}>
+                      <Badge variant="secondary" className={cn('text-xs px-1.5 py-0 h-4 font-medium shrink-0', config.bgClass)}>
                         {config.label}
                       </Badge>
                       {thread.unreadCount > 1 && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-medium bg-red-100 text-red-700 shrink-0">
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 font-medium bg-red-100 text-red-700 shrink-0">
+                          <Circle className="h-1.5 w-1.5 fill-current mr-0.5 inline-block" aria-hidden="true" />
                           {thread.unreadCount}
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      <span className="font-medium text-foreground/70">{thread.lastMessage.senderName}:</span>{' '}
-                      {thread.lastMessage.content}
-                    </p>
+                    <TooltipProvider delayDuration={300}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="text-xs text-muted-foreground truncate">
+                            <span className="font-medium text-foreground/70">{thread.lastMessage.senderName}:</span>{' '}
+                            {thread.lastMessage.content}
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[300px]">
+                          <p><span className="font-medium">{thread.lastMessage.senderName}:</span> {thread.lastMessage.content}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
 
                   {/* Time */}
@@ -203,6 +221,7 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
                       onClick={() => handleMarkAsRead(thread.threadId)}
                       className="h-8 w-8 text-muted-foreground hover:text-green-600 hover:bg-green-50"
                       title="Marquer comme lu"
+                      aria-label="Marquer comme lu"
                     >
                       <Check className="h-4 w-4" />
                     </Button>
@@ -212,6 +231,7 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
                       asChild
                       className="h-8 w-8 text-muted-foreground hover:text-blue-600 hover:bg-blue-50"
                       title="Voir l'intervention"
+                      aria-label="Voir l'intervention"
                     >
                       <Link href={interventionUrl}>
                         <ExternalLink className="h-4 w-4" />
@@ -226,19 +246,35 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
                     <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-1.5" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                        <span className="text-sm font-medium text-foreground truncate">
-                          {thread.interventionTitle}
-                        </span>
-                        <Badge variant="secondary" className={cn('text-[10px] px-1 py-0 h-4 font-medium', config.bgClass)}>
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-sm font-medium text-foreground truncate">
+                                {thread.interventionTitle}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>{thread.interventionTitle}</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <Badge variant="secondary" className={cn('text-xs px-1 py-0 h-4 font-medium', config.bgClass)}>
                           {config.shortLabel}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate mb-2">
-                        <span className="font-medium text-foreground/70">{thread.lastMessage.senderName}:</span>{' '}
-                        {thread.lastMessage.content}
-                      </p>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="text-xs text-muted-foreground truncate mb-2">
+                              <span className="font-medium text-foreground/70">{thread.lastMessage.senderName}:</span>{' '}
+                              {thread.lastMessage.content}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[300px]">
+                            <p><span className="font-medium">{thread.lastMessage.senderName}:</span> {thread.lastMessage.content}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {formatTimeAgo(thread.lastMessage.createdAt)}
                         </span>
                         <div className="flex items-center gap-1">
@@ -246,15 +282,19 @@ export function UnreadMessagesSection({ threads, role, totalCount }: UnreadMessa
                             variant="ghost"
                             size="icon"
                             onClick={() => handleMarkAsRead(thread.threadId)}
-                            className="h-7 w-7 text-muted-foreground hover:text-green-600"
+                            className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-green-600"
+                            aria-label="Marquer comme lu"
+                            title="Marquer comme lu"
                           >
-                            <Check className="h-3.5 w-3.5" />
+                            <Check className="h-4 w-4" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
                             asChild
-                            className="h-7 w-7 text-muted-foreground hover:text-blue-600"
+                            className="min-h-[44px] min-w-[44px] text-muted-foreground hover:text-blue-600"
+                            aria-label="Voir l'intervention"
+                            title="Voir l'intervention"
                           >
                             <Link href={interventionUrl}>
                               <ExternalLink className="h-3.5 w-3.5" />

@@ -46,10 +46,10 @@ Ajouter dans `.env.local` :
 RESEND_API_KEY=re_xxxxxxxxxxxx
 
 # Email d'envoi (domaine vérifié dans Resend)
-RESEND_FROM_EMAIL="SEIDO <noreply@seido.app>"
+RESEND_FROM_EMAIL="SEIDO <notifications@seido-app.com>"
 
 # Email de support
-SUPPORT_EMAIL=support@seido.app
+SUPPORT_EMAIL=support@seido-app.com
 
 # URL de l'application
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -58,7 +58,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ### 2. Vérifier le domaine dans Resend
 
 1. Se connecter à [Resend Dashboard](https://resend.com/domains)
-2. Ajouter votre domaine (ex: `seido.app`)
+2. Ajouter votre domaine (ex: `seido-app.com`)
 3. Configurer les enregistrements DNS (SPF, DKIM, DMARC)
 4. Attendre validation (~24h max)
 
@@ -74,7 +74,7 @@ import { emailService } from '@/lib/email/email-service'
 
 await emailService.sendWelcomeEmail('user@example.com', {
   firstName: 'Marie',
-  confirmationUrl: 'https://seido.app/auth/confirm?token=abc123',
+  confirmationUrl: 'https://seido-app.com/auth/confirm?token=abc123',
   role: 'gestionnaire',
 })
 ```
@@ -94,7 +94,7 @@ await emailService.sendWelcomeEmail('user@example.com', {
 ```typescript
 await emailService.sendPasswordResetEmail('user@example.com', {
   firstName: 'Pierre',
-  resetUrl: 'https://seido.app/auth/update-password?token=xyz789',
+  resetUrl: 'https://seido-app.com/auth/update-password?token=xyz789',
   expiresIn: 60, // minutes
 })
 ```
@@ -135,7 +135,7 @@ await emailService.sendInvitationEmail('user@example.com', {
   inviterName: 'Marie Dupont',
   teamName: 'Résidence Les Jardins',
   role: 'prestataire',
-  invitationUrl: 'https://seido.app/auth/signup?invitation=abc123',
+  invitationUrl: 'https://seido-app.com/auth/signup?invitation=abc123',
   expiresIn: 7, // jours
 })
 ```
@@ -161,7 +161,7 @@ import { emailService } from '@/lib/email/email-service'
 ```typescript
 const result = await emailService.sendWelcomeEmail('user@example.com', {
   firstName: 'Marie',
-  confirmationUrl: 'https://seido.app/confirm',
+  confirmationUrl: 'https://seido-app.com/confirm',
   role: 'gestionnaire',
 })
 

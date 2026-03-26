@@ -21,11 +21,12 @@ import {
   CarouselItem,
   CarouselNext,
   CarouselPrevious,
+  type CarouselApi,
 } from '@/components/ui/carousel'
 import { Star } from 'lucide-react'
 import { testimonials } from '@/data/testimonials'
 import Autoplay from 'embla-carousel-autoplay'
-import { useRef } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 
 interface TestimonialCardProps {
   quote: string
@@ -66,6 +67,26 @@ export function TestimonialsSection() {
   const plugin = useRef(
     Autoplay({ delay: 5000, stopOnInteraction: true })
   )
+  const [api, setApi] = useState<CarouselApi>()
+  const [current, setCurrent] = useState(0)
+  const [count, setCount] = useState(0)
+
+  const onSelect = useCallback(() => {
+    if (!api) return
+    setCurrent(api.selectedScrollSnap())
+    setCount(api.scrollSnapList().length)
+  }, [api])
+
+  useEffect(() => {
+    if (!api) return
+    onSelect()
+    api.on('select', onSelect)
+    api.on('reInit', onSelect)
+    return () => {
+      api.off('select', onSelect)
+      api.off('reInit', onSelect)
+    }
+  }, [api, onSelect])
 
   return (
     <section className="py-16 md:py-24" aria-labelledby="heading-testimonials">
@@ -85,6 +106,7 @@ export function TestimonialsSection() {
           <Carousel
             plugins={[plugin.current]}
             className="w-full"
+            setApi={setApi}
             onMouseEnter={plugin.current.stop}
             onMouseLeave={plugin.current.reset}
             opts={{
@@ -111,6 +133,26 @@ export function TestimonialsSection() {
               <CarouselPrevious className="relative left-0 translate-y-0 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" />
               <CarouselNext className="relative right-0 translate-y-0 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white" />
             </div>
+
+            {/* Dot Indicators */}
+            {count > 0 && (
+              <div className="flex justify-center gap-2 mt-4" role="tablist" aria-label="Position dans le carousel">
+                {Array.from({ length: count }).map((_, i) => (
+                  <button
+                    key={i}
+                    role="tab"
+                    aria-selected={current === i}
+                    aria-label={`Aller au temoignage ${i + 1}`}
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      current === i
+                        ? 'bg-white w-6'
+                        : 'bg-white/30 hover:bg-white/50'
+                    }`}
+                    onClick={() => api?.scrollTo(i)}
+                  />
+                ))}
+              </div>
+            )}
           </Carousel>
         </div>
 

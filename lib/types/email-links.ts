@@ -99,7 +99,7 @@ export const EMAIL_LINK_DISPLAY_CONFIG: Record<EmailLinkEntityType, EmailLinkDis
         labelPlural: 'Interventions',
         icon: 'Wrench',
         color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-        route: '/gestionnaire/interventions'
+        route: '/gestionnaire/operations'
     }
 };
 

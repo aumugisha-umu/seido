@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback } from "react"
-import { ListTodo, AlertTriangle, Settings, Archive, Clock, CalendarClock, LucideIcon, Filter, ArrowUpDown, X, Loader2, ChevronDown } from "lucide-react"
+import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon, Filter, ArrowUpDown, X, Loader2, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -499,25 +499,32 @@ export function InterventionsNavigator({
       }
       dashboardTabs.push(
         {
-          id: "a_planifier",
-          label: "À planifier",
-          icon: CalendarClock,
-          count: getFilteredByTab("a_planifier").length,
-          content: renderTabContent("a_planifier")
+          id: "toutes",
+          label: "Toutes",
+          icon: ListTodo,
+          count: filteredInterventions.length,
+          content: renderTabContent("toutes")
         },
         {
-          id: "en_cours",
-          label: "À venir",
-          icon: Clock,
-          count: getFilteredByTab("en_cours").length,
-          content: renderTabContent("en_cours")
+          id: "demandes_group",
+          label: "Demandes",
+          icon: AlertTriangle,
+          count: getFilteredByTab("demandes_group").length,
+          content: renderTabContent("demandes_group")
         },
         {
-          id: "terminees",
-          label: "Terminées",
+          id: "en_cours_group",
+          label: "En cours",
+          icon: Settings,
+          count: getFilteredByTab("en_cours_group").length,
+          content: renderTabContent("en_cours_group")
+        },
+        {
+          id: "cloturees_group",
+          label: "Clôturées",
           icon: Archive,
-          count: getFilteredByTab("terminees").length,
-          content: renderTabContent("terminees")
+          count: getFilteredByTab("cloturees_group").length,
+          content: renderTabContent("cloturees_group")
         }
       )
       return dashboardTabs
@@ -585,7 +592,7 @@ export function InterventionsNavigator({
 
   // Default tab — show "En cours" when no pending actions on dashboard
   const defaultTab = tabsPreset === 'dashboard'
-    ? (pendingActionsCount > 0 ? "actions_en_attente" : "en_cours")
+    ? (pendingActionsCount > 0 ? "actions_en_attente" : "toutes")
     : tabsPreset === 'prestataire'
     ? "prestataire_en_cours"
     : "toutes"

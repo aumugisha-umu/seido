@@ -9,11 +9,31 @@
 
 ## Commit Workflow (on `git*`)
 
+**Runs autonomously — no manual validation needed.** Only ask user if a blocker requires a design decision.
+
 ```
-git* → sp-quality-gate (4 lenses + simplify quick-scan)
-     → Fix blockers
-     → Step 4.5: Knowledge Capture (compound? memory? CLAUDE.md? agents?)
-     → git add . && git commit && git push origin [branch]
+git* → Triage: LIGHT or FULL quality gate?
+
+LIGHT (default — UI, config, styling, docs, simple fixes, single-concern):
+  → npm run lint
+  → Quick eyeball review of changed files (no agent)
+  → git add . && git commit && git push origin [branch]
+
+FULL (security, auth, RLS, DB migrations, multi-domain, new features with business logic):
+  → sp-quality-gate (autonomous, bypassPermissions)
+  → Automated: lint && build && tests && Playwright E2E
+  → 4-lens review + simplify quick-scan
+  → Fix blockers autonomously
+  → Knowledge Capture + Discovery Tree Sync
+  → git add . && git commit && git push origin [branch]
+
+Triggers for FULL gate:
+  - Touches auth/RLS/middleware/security
+  - New DB migration or schema change
+  - New server action with business logic
+  - Changes to billing/subscription/payment
+  - Cross-cutting changes (3+ domains: DB+API+UI)
+  - User explicitly asks for full review
 ```
 
 ## Skill & Agent Routing (First Response)
@@ -31,6 +51,8 @@ git* → sp-quality-gate (4 lenses + simplify quick-scan)
 3. **Wait for validation** before executing
 
 **Skip for:** single-file edit, quick question, typo fix, config change, rename.
+
+**Agent dispatch:** When spawning agents, include `Read .claude/agents/_base-template.md first` in the prompt for full SEIDO context.
 
 ---
 
@@ -53,8 +75,36 @@ Commands: `/sync-memory` (quick sync) | `/update-memory` (full update)
 ## Regles Obligatoires
 
 **Audit :** A chaque test, mettre a jour `docs/rapport-audit-complet-seido.md`
-**Docs First :** Consulter [Supabase](https://supabase.com/docs), [Next.js](https://nextjs.org/docs), [React](https://react.dev/learn) avant modification.
+**Docs First (context7 priority) :** Avant toute modification touchant une librairie externe (Supabase, Next.js, React, Stripe, Resend, shadcn/ui, etc.) :
+1. **D'abord** utiliser MCP context7 (`resolve-library-id` → `query-docs`) pour chercher la doc a jour
+2. **Si context7 n'a pas la lib ou la section** → consulter la doc officielle en ligne : [Supabase](https://supabase.com/docs), [Next.js](https://nextjs.org/docs), [React](https://react.dev/learn)
+3. **Ne jamais coder de memoire** une API/config quand la doc est accessible via context7
+
 **UX/UI :** Consulter `docs/design/ux-ui-decision-guide.md` pour toute modification UX/UI.
+
+**Test Maintenance (auto-update) :** Quand une modification touche :
+- Une route (`page.tsx` ajoutee/supprimee/renommee)
+- Un wizard/formulaire (etapes ajoutees/supprimees)
+- Un statut ou flow d'intervention (nouveau statut, transition modifiee)
+- Un bouton/action visible par l'utilisateur
+→ Mettre a jour **dans le meme changement** :
+1. `docs/qa/discovery-tree.json` — ajouter/modifier/supprimer le noeud concerne
+2. Les tests E2E impactes (`tests/e2e/`)
+3. Reggenerer le markdown : `npx tsx scripts/generate-discovery-tree.ts`
+
+**Invitations de test :** Toujours utiliser `demo+invite-{timestamp}@seido-app.com` pour les adresses creees lors des tests (E2E, integration).
+
+---
+
+## Discovery Tree (QA)
+
+L'arbre de decouverte est la **source de verite** de tous les chemins testables dans l'application :
+- **JSON** (source) : `docs/qa/discovery-tree.json` — source de verite, mis a jour a chaque changement de route/flow
+- **Markdown** (lisible) : `docs/qa/discovery-tree.md` — auto-genere via `npx tsx scripts/generate-discovery-tree.ts`
+- **103 noeuds** : 9 auth, 70 gestionnaire, 12 locataire, 12 prestataire + 4 scenarios cross-role
+- **3 modes** : discovery (lecture), creation (ecriture), destruction (suppression)
+
+Consulter cet arbre avant d'ajouter une nouvelle page ou de modifier un flow existant.
 
 ---
 
@@ -85,8 +135,9 @@ npx tsc --noEmit [file]  # Validation TS ciblee
 npm run supabase:types   # Regenerer lib/database.types.ts
 npm run supabase:migrate # Nouvelle migration
 npm test                 # Unit tests (vitest)
-npm run test:e2e         # E2E tests (Puppeteer + vitest)
+npm run test:e2e         # E2E tests (Playwright)
 npm run test:e2e:headed  # E2E with visible browser
+npm run test:e2e:debug   # E2E with Playwright inspector
 ```
 
 > Complete list: `techContext.md`
@@ -101,51 +152,9 @@ npm run test:e2e:headed  # E2E with visible browser
 
 ---
 
-## Code Craftsmanship Standards (Embedded from /simplify)
-
-**Applied automatically during ALL code writing.**
-
-### Before Writing Code (Reuse Search)
-1. **Grep the codebase** for similar functions before creating new ones (`lib/utils/`, `lib/constants/`, `components/ui/`, adjacent files)
-2. **If existing utility does 80%+ of what you need** — extend it, don't create a new one
-3. **Check shadcn/ui** before creating UI components
-4. **Check existing constants/enums** before using string literals
-
-### While Writing Code (Quality Guardrails)
-| Anti-Pattern | Correct Pattern |
-|---|---|
-| Redundant state (derived from existing) | Compute from source state |
-| Parameter sprawl (adding params) | Generalize or restructure |
-| Copy-paste with variation | Extract shared abstraction |
-| Stringly-typed (raw strings) | Use constants/enums/unions |
-| `any` types | Proper TypeScript types |
-| `console.log` | Remove or use `logger` |
-| Inline styles | Tailwind classes |
-| Hardcoded colors | CSS variables from `globals.css` |
-
-### After Writing Code (Efficiency Self-Check)
-- [ ] No N+1 queries (batch with `Promise.all`)
-- [ ] Independent async ops run in parallel (not sequential)
-- [ ] No redundant DB queries (same data fetched twice)
-- [ ] No TOCTOU (check-then-act) — operate directly, handle errors
-- [ ] No overly broad queries (loading all when filtering for one)
-- [ ] Event listeners / subscriptions cleaned up on unmount
-- [ ] Separate try-catch for JSON.parse vs business logic errors
-
----
-
-## Parallel Execution Protocol
-
-**For ANY multi-task execution (3+ independent tasks or 2+ tasks touching different file domains):**
-
-1. **Analyze parallelizability:** Map file dependencies — tasks touching different files can run in parallel
-2. **Branch awareness:** `git branch --show-current` — worktrees MUST branch from the CURRENT branch, not main
-3. **Dispatch:** Launch one Agent per domain with `isolation: "worktree"` + `mode: "bypassPermissions"`. Each agent commits on its worktree branch.
-4. **Post-agent simplify:** Each agent runs Craftsmanship Standards self-check on its changes before finishing
-5. **Merge:** Sequentially merge each worktree branch into the current branch (`git merge <branch> --no-edit`)
-6. **Cleanup:** `git worktree remove` + `git branch -D` for each worktree, then `git worktree prune`
-
-**Do NOT parallelize when:** tasks share files, output of one feeds another, or total changes < 3 files.
+**Code Craftsmanship:** Applied automatically during all code writing. Full checklist: `.claude/skills/sp-simplify/craftsmanship-standards.md`
+**Parallel Execution:** See `sp-dispatching-parallel-agents` skill for full protocol. Key rule: worktrees branch from CURRENT branch, not main.
+**Design Quality:** Anti-AI-slop criteria: `docs/design/design-evaluation-criteria.md`
 
 ---
 
@@ -180,4 +189,4 @@ Invoquer `ultrathink-orchestrator` si : 3 tentatives echouees | multi-domaines (
 - **Skill Routing** (triggers, chains, compound): `sp-orchestration` skill
 
 ---
-**Last Updated**: 2026-03-14 | **Status**: Production Ready
+**Last Updated**: 2026-03-25 | **Status**: Production Ready

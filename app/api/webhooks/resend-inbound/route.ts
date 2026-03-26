@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
 
     if (!isValidSignature) {
       logger.error(
-        { 
+        {
           svixId,
           hasSvixHeaders: { id: !!svixId, timestamp: !!svixTimestamp, signature: !!svixSignature },
           hasSecret: !!process.env.RESEND_INBOUND_WEBHOOK_SECRET
@@ -1005,7 +1005,7 @@ async function notifyManagers(
       type: 'email_reply_received' as const,
       title: 'Nouvelle réponse par email',
       message: `${senderName} a répondu par email à l'intervention "${intervention.title || intervention.reference}"`,
-      link: `/gestionnaire/interventions/${intervention.id}?tab=emails`,
+      link: `/gestionnaire/operations/interventions/${intervention.id}?tab=emails`,
       is_read: false
     }))
 
@@ -1041,7 +1041,7 @@ async function notifyManagers(
       sendPushNotificationToUsers(managerIds, {
         title: '📧 Réponse par email',
         message: `${senderName} a répondu`,
-        url: `/gestionnaire/interventions/${intervention.id}?tab=emails`,
+        url: `/gestionnaire/operations/interventions/${intervention.id}?tab=emails`,
         type: 'email_reply'
       }).catch(err => logger.warn({ err }, '⚠️ [PUSH] Failed in notifyManagers'))
     } catch (pushError) {
@@ -1056,7 +1056,7 @@ async function notifyManagers(
       const emailService = new EmailService()
       if (emailService.isConfigured()) {
         const { EmailReplyReceivedEmail } = await import('@/emails/templates/notifications/email-reply-received')
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
 
         for (const assignment of assignments) {
           const user = assignment.users as any
@@ -1080,7 +1080,7 @@ async function notifyManagers(
                 },
                 subject,
                 snippet: textSnippet.substring(0, 200),
-                viewUrl: `${baseUrl}/gestionnaire/interventions/${intervention.id}?tab=emails`,
+                viewUrl: `${baseUrl}/gestionnaire/operations/interventions/${intervention.id}?tab=emails`,
               }),
               tags: [{ name: 'type', value: 'email_reply_received' }],
             })

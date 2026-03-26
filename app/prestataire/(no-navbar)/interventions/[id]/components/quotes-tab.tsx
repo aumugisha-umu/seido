@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import { logger } from '@/lib/logger'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -56,7 +57,6 @@ const typeLabels: Record<string, string> = {
 }
 
 export function QuotesTab({
-  interventionId,
   quotes,
   currentUser,
   onRefresh,
@@ -107,7 +107,7 @@ export function QuotesTab({
       setRejectionReason('')
       onRefresh()
     } catch (error) {
-      console.error('Error rejecting quote request:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error rejecting quote request')
       toast.error('Erreur lors du rejet de la demande')
     } finally {
       setIsRejecting(false)
@@ -142,7 +142,7 @@ export function QuotesTab({
       toast.success(successMessage)
       onRefresh()
     } catch (error) {
-      console.error('Error deleting quote:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error deleting quote')
       toast.error('Erreur lors de la suppression de l\'estimation')
     } finally {
       setDeleting(null)
@@ -227,7 +227,7 @@ export function QuotesTab({
                 Aucun devis
               </p>
               <p className="text-sm text-muted-foreground">
-                Vous n'avez pas encore soumis de devis pour cette intervention
+                Vous n&apos;avez pas encore soumis de devis pour cette intervention
               </p>
             </div>
             ) : (
@@ -349,7 +349,7 @@ export function QuotesTab({
                       {quote.status === 'accepted' && (
                         <div className="mt-3 p-3 rounded bg-green-50 border border-green-200">
                           <p className="text-sm text-green-900">
-                            <strong>Devis accepté!</strong> Vous pouvez maintenant planifier l'intervention.
+                            <strong>Devis accepté!</strong> Vous pouvez maintenant planifier l&apos;intervention.
                           </p>
                         </div>
                       )}

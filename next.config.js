@@ -23,6 +23,11 @@ const nextConfig = {
       { source: '/signup', destination: '/auth/signup', permanent: true },
       { source: '/signin', destination: '/auth/login', permanent: true },
       { source: '/register', destination: '/auth/signup', permanent: true },
+      // US-005: Interventions → Operations rename (all pages now under /operations/)
+      { source: '/gestionnaire/interventions', destination: '/gestionnaire/operations', permanent: true },
+      { source: '/gestionnaire/interventions/:path*', destination: '/gestionnaire/operations/interventions/:path*', permanent: true },
+      { source: '/gestionnaire/taches', destination: '/gestionnaire/operations', permanent: true },
+      { source: '/gestionnaire/taches/:path*', destination: '/gestionnaire/operations/:path*', permanent: true },
     ]
   },
 
@@ -68,7 +73,7 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "base-uri 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clarity.ms https://*.vercel-insights.com https://*.vercel-scripts.com https://*.vercel.app https://*.frill.co https://maps.googleapis.com https://*.googleapis.com",
+              `script-src 'self' 'unsafe-inline' ${process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : ''} https://*.clarity.ms https://*.vercel-insights.com https://*.vercel-scripts.com https://*.vercel.app https://*.frill.co https://maps.googleapis.com https://*.googleapis.com`,
               "style-src 'self' 'unsafe-inline' https://*.frill.co https://fonts.googleapis.com",
               "img-src 'self' data: blob: https: https://*.clarity.ms https://*.googleapis.com https://*.gstatic.com https://*.google.com https://lh3.googleusercontent.com",
               "font-src 'self' data: https://frill-prod-app.b-cdn.net https://fonts.gstatic.com",

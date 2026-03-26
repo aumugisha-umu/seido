@@ -152,7 +152,6 @@ export function getRateLimiterForRoute(pathname: string): Ratelimit {
 
   // Sensitive operations
   if (
-    pathname.includes('/upload-') ||
     pathname.includes('/send-') ||
     pathname === '/api/invite-user' ||
     pathname.includes('/create-')

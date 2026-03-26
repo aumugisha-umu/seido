@@ -76,7 +76,7 @@ const baseInterventionData = {
   description: "Fuite d'eau importante sous l'évier de la cuisine. L'eau coule en continu depuis ce matin.",
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
   lotReference: 'Apt 3B',
-  interventionUrl: 'https://seido.app/interventions/INT-2024-042',
+  interventionUrl: 'https://seido-app.com/interventions/INT-2024-042',
 }
 
 // Date de base fixe pour éviter les erreurs d'hydratation (server/client)
@@ -97,24 +97,24 @@ const slotActionsLocataire = [
     date: futureDate(2),
     startTime: '09:00',
     endTime: '11:00',
-    acceptUrl: 'https://seido.app/auth/email-callback?token=xxx&action=confirm_slot&param_slotId=slot-001',
-    refuseUrl: 'https://seido.app/auth/email-callback?token=yyy&action=reject_slot&param_slotId=slot-001',
+    acceptUrl: 'https://seido-app.com/auth/email-callback?token=xxx&action=confirm_slot&param_slotId=slot-001',
+    refuseUrl: 'https://seido-app.com/auth/email-callback?token=yyy&action=reject_slot&param_slotId=slot-001',
   },
   {
     slotId: 'slot-002',
     date: futureDate(3),
     startTime: '14:00',
     endTime: '16:00',
-    acceptUrl: 'https://seido.app/auth/email-callback?token=xxx&action=confirm_slot&param_slotId=slot-002',
-    refuseUrl: 'https://seido.app/auth/email-callback?token=yyy&action=reject_slot&param_slotId=slot-002',
+    acceptUrl: 'https://seido-app.com/auth/email-callback?token=xxx&action=confirm_slot&param_slotId=slot-002',
+    refuseUrl: 'https://seido-app.com/auth/email-callback?token=yyy&action=reject_slot&param_slotId=slot-002',
   },
   {
     slotId: 'slot-003',
     date: futureDate(4),
     startTime: '10:00',
     endTime: '12:00',
-    acceptUrl: 'https://seido.app/auth/email-callback?token=xxx&action=confirm_slot&param_slotId=slot-003',
-    refuseUrl: 'https://seido.app/auth/email-callback?token=yyy&action=reject_slot&param_slotId=slot-003',
+    acceptUrl: 'https://seido-app.com/auth/email-callback?token=xxx&action=confirm_slot&param_slotId=slot-003',
+    refuseUrl: 'https://seido-app.com/auth/email-callback?token=yyy&action=reject_slot&param_slotId=slot-003',
   },
 ]
 
@@ -124,9 +124,9 @@ const slotActionsPrestataire = slotActionsLocataire.map(slot => ({
 }))
 
 const quickEstimates = [
-  { amount: 150, label: '150€', url: 'https://seido.app/auth/email-callback?action=submit_quick_estimate&param_amount=150' },
-  { amount: 300, label: '300€', url: 'https://seido.app/auth/email-callback?action=submit_quick_estimate&param_amount=300' },
-  { amount: 500, label: '500€', url: 'https://seido.app/auth/email-callback?action=submit_quick_estimate&param_amount=500' },
+  { amount: 150, label: '150€', url: 'https://seido-app.com/auth/email-callback?action=submit_quick_estimate&param_amount=150' },
+  { amount: 300, label: '300€', url: 'https://seido-app.com/auth/email-callback?action=submit_quick_estimate&param_amount=300' },
+  { amount: 500, label: '500€', url: 'https://seido-app.com/auth/email-callback?action=submit_quick_estimate&param_amount=500' },
 ]
 
 // ══════════════════════════════════════════════════════════════
@@ -149,7 +149,7 @@ const emailTemplates: EmailTemplate[] = [
         description: 'Nouvel utilisateur',
         props: {
           firstName: 'Marie',
-          loginUrl: 'https://seido.app/auth/login',
+          loginUrl: 'https://seido-app.com/auth/login',
         },
         render: (props) => <WelcomeEmail {...props} />,
       },
@@ -167,7 +167,7 @@ const emailTemplates: EmailTemplate[] = [
         description: 'Confirmation email',
         props: {
           firstName: 'Jean',
-          confirmationUrl: 'https://seido.app/auth/confirm?token=xxx',
+          confirmationUrl: 'https://seido-app.com/auth/confirm?token=xxx',
         },
         render: (props) => <SignupConfirmationEmail {...props} />,
       },
@@ -185,7 +185,7 @@ const emailTemplates: EmailTemplate[] = [
         description: 'Demande de réinitialisation',
         props: {
           firstName: 'Pierre',
-          resetUrl: 'https://seido.app/auth/reset-password?token=xxx',
+          resetUrl: 'https://seido-app.com/auth/reset-password?token=xxx',
           expiresIn: '24 heures',
         },
         render: (props) => <PasswordResetEmail {...props} />,
@@ -205,7 +205,7 @@ const emailTemplates: EmailTemplate[] = [
         props: {
           firstName: 'Sophie',
           changedAt: BASE_PREVIEW_DATE,
-          supportUrl: 'https://seido.app/support',
+          supportUrl: 'https://seido-app.com/support',
         },
         render: (props) => <PasswordChangedEmail {...props} />,
       },
@@ -226,7 +226,7 @@ const emailTemplates: EmailTemplate[] = [
           inviterName: 'Thomas Martin',
           teamName: 'Immobilière ABC',
           role: 'gestionnaire',
-          invitationUrl: 'https://seido.app/auth/accept-invitation?token=xxx',
+          invitationUrl: 'https://seido-app.com/auth/accept-invitation?token=xxx',
           expiresIn: 7,
         },
         render: (props) => <InvitationEmail {...props} />,
@@ -240,7 +240,7 @@ const emailTemplates: EmailTemplate[] = [
           inviterName: 'Thomas Martin',
           teamName: 'Immobilière ABC',
           role: 'prestataire',
-          invitationUrl: 'https://seido.app/auth/accept-invitation?token=xxx',
+          invitationUrl: 'https://seido-app.com/auth/accept-invitation?token=xxx',
           expiresIn: 7,
         },
         render: (props) => <InvitationEmail {...props} />,
@@ -588,8 +588,8 @@ const emailTemplates: EmailTemplate[] = [
           completionNotes: 'Remplacement du joint et resserrage des raccords. Fuite réparée.',
           recipientRole: 'locataire',
           enableInteractiveButtons: true,
-          validateUrl: 'https://seido.app/auth/email-callback?action=validate_intervention&param_type=approve',
-          contestUrl: 'https://seido.app/auth/email-callback?action=validate_intervention&param_type=contest',
+          validateUrl: 'https://seido-app.com/auth/email-callback?action=validate_intervention&param_type=approve',
+          contestUrl: 'https://seido-app.com/auth/email-callback?action=validate_intervention&param_type=contest',
         },
         render: (props) => <InterventionCompletedEmail {...props} />,
       },
@@ -849,21 +849,19 @@ export default function EmailPreviewClient() {
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('preview')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'preview'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'preview'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   👁️ Aperçu
                 </button>
                 <button
                   onClick={() => setViewMode('html')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    viewMode === 'html'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${viewMode === 'html'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   {'</>'} HTML
                 </button>
@@ -889,11 +887,10 @@ export default function EmailPreviewClient() {
                     onClick={() => {
                       setSelectedCategory(cat.id as EmailCategory | 'all')
                     }}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                      selectedCategory === cat.id
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${selectedCategory === cat.id
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
                   >
                     {cat.icon} {cat.name} ({cat.count})
                   </button>
@@ -914,11 +911,10 @@ export default function EmailPreviewClient() {
                         setSelectedTemplateId(template.id)
                         setSelectedScenarioId(template.scenarios[0].id)
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                        selectedTemplateId === template.id
-                          ? 'bg-blue-50 border border-blue-200'
-                          : 'hover:bg-gray-50 border border-transparent'
-                      }`}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedTemplateId === template.id
+                        ? 'bg-blue-50 border border-blue-200'
+                        : 'hover:bg-gray-50 border border-transparent'
+                        }`}
                     >
                       <div className="font-medium text-gray-900">{template.name}</div>
                       <div className="text-xs text-gray-500">{template.description}</div>
@@ -931,11 +927,10 @@ export default function EmailPreviewClient() {
                           <button
                             key={scenario.id}
                             onClick={() => setSelectedScenarioId(scenario.id)}
-                            className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                              selectedScenarioId === scenario.id
-                                ? 'bg-blue-100 text-blue-700 font-medium'
-                                : 'text-gray-600 hover:bg-gray-100'
-                            }`}
+                            className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${selectedScenarioId === scenario.id
+                              ? 'bg-blue-100 text-blue-700 font-medium'
+                              : 'text-gray-600 hover:bg-gray-100'
+                              }`}
                           >
                             {scenario.name}
                           </button>
@@ -964,11 +959,10 @@ export default function EmailPreviewClient() {
                       {selectedScenario.name} — {selectedScenario.description}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    selectedScenario.name.includes('INTERACTIF')
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${selectedScenario.name.includes('INTERACTIF')
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-600'
+                    }`}>
                     {selectedScenario.name.includes('INTERACTIF') ? '✨ Interactif' : 'Classique'}
                   </span>
                 </div>
@@ -982,7 +976,7 @@ export default function EmailPreviewClient() {
                     <div className="bg-white border-b px-4 py-3">
                       <div className="flex items-center gap-3 text-sm">
                         <span className="text-gray-500">De:</span>
-                        <span className="font-medium">SEIDO &lt;noreply@seido-app.com&gt;</span>
+                        <span className="font-medium">SEIDO &lt;notifications@seido-app.com&gt;</span>
                       </div>
                       <div className="flex items-center gap-3 text-sm mt-1">
                         <span className="text-gray-500">À:</span>

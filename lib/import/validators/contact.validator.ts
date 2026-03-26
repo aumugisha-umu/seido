@@ -216,6 +216,12 @@ function normalizeRole(value: unknown): string | undefined {
     'provider': 'prestataire',
     'fournisseur': 'prestataire',
     'artisan': 'prestataire',
+    'garant': 'garant',
+    'guarantor': 'garant',
+    'caution': 'garant',
+    'proprietaire': 'proprietaire',
+    'propriétaire': 'proprietaire',
+    'owner': 'proprietaire',
   };
 
   return mappings[str];

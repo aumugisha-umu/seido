@@ -3,7 +3,7 @@
 import React from "react"
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
-import { Building2, Home, Users, FileText, CalendarCheck, CheckCircle2, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react"
+import { Building2, Home, Users, FileText, CalendarCheck, CheckCircle2, AlertTriangle, ChevronDown, ChevronRight, Wrench, Bell } from "lucide-react"
 import { ParticipantChip } from "@/components/interventions/shared/layout/participants-row"
 import {
   ConfirmationPageShell,
@@ -101,33 +101,37 @@ const mapManagerGroup = (managers: UserType[]) => ({
 })
 
 // ─── Interventions sub-component (kept inline, not in reusable lib) ──────────
-const InterventionsSummary = ({ interventions }: { interventions: ScheduledInterventionData[] }) => {
-  const [expanded, setExpanded] = React.useState(false)
-  const enabled = interventions.filter((i) => i.enabled && i.scheduledDate)
-  const disabled = interventions.filter((i) => !i.enabled)
 
-  if (enabled.length === 0 && disabled.length === 0) return null
-
+const InterventionGroupSummary = ({
+  items,
+  label,
+  icon: Icon,
+  iconColorClass,
+  expanded,
+  onToggle,
+}: {
+  items: ScheduledInterventionData[]
+  label: string
+  icon: React.ElementType
+  iconColorClass: string
+  expanded: boolean
+  onToggle: () => void
+}) => {
+  if (items.length === 0) return null
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <button
         type="button"
-        onClick={() => setExpanded(!expanded)}
+        onClick={onToggle}
         className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors w-full"
       >
         {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-        <CalendarCheck className="h-3.5 w-3.5" />
-        <span>Interventions ({enabled.length})</span>
-        {disabled.length > 0 && (
-          <span className="text-xs text-muted-foreground ml-auto">
-            {disabled.length} desactivee{disabled.length > 1 ? "s" : ""}
-          </span>
-        )}
+        <Icon className={`h-3.5 w-3.5 ${iconColorClass}`} />
+        <span>{label} ({items.length})</span>
       </button>
-
       {expanded && (
         <div className="space-y-1.5 pl-6">
-          {enabled.map((intervention, i) => (
+          {items.map((intervention, i) => (
             <div key={i} className="flex items-start gap-2 text-sm">
               <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
               <div className="flex items-center gap-2 flex-wrap">
@@ -149,14 +153,46 @@ const InterventionsSummary = ({ interventions }: { interventions: ScheduledInter
               </div>
             </div>
           ))}
-          {disabled.length > 0 && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-              <span>
-                {disabled.length} intervention{disabled.length > 1 ? "s" : ""} desactivee{disabled.length > 1 ? "s" : ""}
-              </span>
-            </div>
-          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const InterventionsSummary = ({ interventions }: { interventions: ScheduledInterventionData[] }) => {
+  const [interventionsExpanded, setInterventionsExpanded] = React.useState(false)
+  const [remindersExpanded, setRemindersExpanded] = React.useState(false)
+  const enabled = interventions.filter((i) => i.enabled && i.scheduledDate)
+  const disabled = interventions.filter((i) => !i.enabled)
+  const interventionItems = enabled.filter((i) => i.itemType !== "reminder")
+  const reminderItems = enabled.filter((i) => i.itemType === "reminder")
+
+  if (enabled.length === 0 && disabled.length === 0) return null
+
+  return (
+    <div className="space-y-2">
+      <InterventionGroupSummary
+        items={interventionItems}
+        label="Interventions planifiees"
+        icon={Wrench}
+        iconColorClass="text-indigo-600"
+        expanded={interventionsExpanded}
+        onToggle={() => setInterventionsExpanded(!interventionsExpanded)}
+      />
+      <InterventionGroupSummary
+        items={reminderItems}
+        label="Rappels"
+        icon={Bell}
+        iconColorClass="text-amber-600"
+        expanded={remindersExpanded}
+        onToggle={() => setRemindersExpanded(!remindersExpanded)}
+      />
+      {disabled.length > 0 && (
+        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground pl-6">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            {disabled.length} element{disabled.length > 1 ? "s" : ""} desactive{disabled.length > 1 ? "s" : ""}
+          </span>
         </div>
       )}
     </div>

@@ -214,8 +214,8 @@ Distribution recommandée des tests :
 | Environnement | URL | Usage |
 |---------------|-----|-------|
 | Local | `localhost:3000` | Développement |
-| Preview | `preview.seido.app` | QA |
-| Production | `app.seido.app` | Validation finale |
+| Preview | `preview.seido-app.com` | QA |
+| Production | `app.seido-app.com` | Validation finale |
 
 ### 5.3 Navigateurs à Tester
 

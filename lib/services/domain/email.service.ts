@@ -67,7 +67,7 @@ export class EmailService {
     }
 
     this.resend = new Resend(apiKey)
-    this.defaultFrom = process.env.RESEND_FROM_EMAIL || 'SEIDO <noreply@seido.app>'
+    this.defaultFrom = process.env.RESEND_FROM_EMAIL || 'SEIDO <notifications@seido-app.com>'
 
     // Charger le logo une seule fois au démarrage (CID attachment)
     this.logoAttachment = this.loadLogoAttachment()
@@ -122,7 +122,7 @@ export class EmailService {
 
       // 3. Envoyer via Resend avec logo CID attaché
       logger.info({ to, subject, hasLogo: !!this.logoAttachment }, '📧 [EMAIL-SERVICE] Sending email via Resend...')
-      
+
       const resendPayload = {
         from: from || this.defaultFrom,
         to: Array.isArray(to) ? to : [to],

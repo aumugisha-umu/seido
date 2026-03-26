@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { WelcomeEmailProps } from '@/emails/utils/types'
 
 export const WelcomeEmail = ({
@@ -112,8 +113,8 @@ export const WelcomeEmail = ({
           <Text className="text-gray-600 text-sm leading-relaxed m-0">
             Notre équipe support est disponible pour vous accompagner dans vos premiers pas.
             Contactez-nous à{' '}
-            <Link href="mailto:support@seido.app" className="text-primary no-underline">
-              support@seido.app
+            <Link href={`mailto:${EMAIL_CONFIG.supportEmail}`} className="text-primary no-underline">
+              {EMAIL_CONFIG.supportEmail}
             </Link>
           </Text>
         </div>
@@ -133,7 +134,7 @@ export const WelcomeEmail = ({
 // Props par défaut pour prévisualisation
 WelcomeEmail.PreviewProps = {
   firstName: 'Marie',
-  dashboardUrl: 'https://seido.app/gestionnaire/dashboard',
+  dashboardUrl: 'https://seido-app.com/gestionnaire/dashboard',
   role: 'gestionnaire',
 } as WelcomeEmailProps
 

@@ -13,6 +13,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import type { TeamAdditionEmailProps } from '@/emails/utils/types'
 
 export const TeamAdditionEmail = ({
@@ -102,7 +103,7 @@ export const TeamAdditionEmail = ({
         {/* Note sécurité */}
         <Text className="text-gray-500 text-xs leading-relaxed m-0">
           Si vous n'attendiez pas cet ajout ou si vous ne connaissez pas {inviterName},
-          veuillez nous contacter à support@seido.app.
+          veuillez nous contacter à {EMAIL_CONFIG.supportEmail}.
         </Text>
       </Section>
 
@@ -118,7 +119,7 @@ TeamAdditionEmail.PreviewProps = {
   inviterName: 'Marie Dupont',
   teamName: 'Résidence Les Jardins',
   role: 'gestionnaire',
-  magicLinkUrl: 'https://seido.app/auth/confirm?token_hash=xxx&type=invite&team_id=yyy',
+  magicLinkUrl: 'https://seido-app.com/auth/confirm?token_hash=xxx&type=invite&team_id=yyy',
 } as TeamAdditionEmailProps
 
 export default TeamAdditionEmail

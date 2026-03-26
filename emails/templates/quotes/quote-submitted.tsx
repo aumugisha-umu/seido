@@ -158,7 +158,7 @@ QuoteSubmittedEmail.PreviewProps = {
   interventionType: 'Plomberie',
   description: 'Fuite d\'eau importante sous l\'évier de la cuisine.',
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
-  quoteUrl: 'https://seido.app/gestionnaire/devis/DEV-2024-015',
+  quoteUrl: 'https://seido-app.com/gestionnaire/devis/DEV-2024-015',
   providerName: 'Pierre Dubois',
   providerCompany: 'Plomberie Express SARL',
   totalHT: 250,

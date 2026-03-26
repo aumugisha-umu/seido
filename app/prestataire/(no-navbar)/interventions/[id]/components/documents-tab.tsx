@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import { logger } from '@/lib/logger'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -116,7 +117,7 @@ export function DocumentsTab({
       toast.success('Document supprimé')
       onRefresh()
     } catch (error) {
-      console.error('Error deleting document:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error deleting document')
       toast.error('Erreur lors de la suppression')
     } finally {
       setDeletingId(null)
@@ -141,7 +142,7 @@ export function DocumentsTab({
       a.click()
       URL.revokeObjectURL(url)
     } catch (error) {
-      console.error('Error downloading document:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error downloading document')
       toast.error('Erreur lors du téléchargement')
     }
   }
@@ -156,7 +157,7 @@ export function DocumentsTab({
 
       window.open(data.publicUrl, '_blank')
     } catch (error) {
-      console.error('Error previewing document:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error previewing document')
       toast.error('Erreur lors de la prévisualisation')
     }
   }

@@ -648,3 +648,32 @@ export const DEV_UTILS = {
     return false
   }
 }
+
+// ============================================================================
+// Operations Phase 1: Reminder Service + Recurrence
+// ============================================================================
+
+export {
+  ReminderRepository,
+  createReminderRepository,
+  createServerReminderRepository,
+  createServerActionReminderRepository,
+} from './repositories/reminder.repository'
+
+export {
+  ReminderService,
+  createServerReminderService,
+  createServerActionReminderService,
+} from './domain/reminder.service'
+
+export {
+  RecurrenceRuleRepository,
+  RecurrenceOccurrenceRepository,
+  createRecurrenceRuleRepository,
+  createServerRecurrenceRuleRepository,
+  createServerActionRecurrenceRuleRepository,
+  createServiceRoleRecurrenceRuleRepository,
+  createRecurrenceOccurrenceRepository,
+  createServerActionRecurrenceOccurrenceRepository,
+  createServiceRoleRecurrenceOccurrenceRepository,
+} from './repositories/recurrence.repository'

@@ -279,8 +279,8 @@ SELECT
 | Environnement | URL | Base de données |
 |---------------|-----|-----------------|
 | **Local** | `http://localhost:3000` | Supabase local |
-| **Preview** | `https://preview.seido.app` | Supabase staging |
-| **Production** | `https://app.seido.app` | Supabase prod |
+| **Preview** | `https://preview.seido-app.com` | Supabase staging |
+| **Production** | `https://app.seido-app.com` | Supabase prod |
 
 ### 6.2 Variables Spécifiques Test
 

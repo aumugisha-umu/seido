@@ -23,10 +23,10 @@ export async function GET() {
         }
 
         const queryStart = Date.now();
-        // Get all connections for the team (including OAuth fields)
+        // RLS policy already filters: shared connections + user's own private
         const { data: connections, error } = await supabase
             .from('team_email_connections')
-            .select('id, provider, email_address, is_active, last_sync_at, last_error, sync_from_date, created_at, auth_method, oauth_token_expires_at')
+            .select('id, provider, email_address, is_active, last_sync_at, last_error, sync_from_date, created_at, auth_method, oauth_token_expires_at, visibility, added_by_user_id')
             .eq('team_id', userProfile.team_id)
             .order('created_at', { ascending: false });
         logger.debug({ elapsed: Date.now() - queryStart }, '[PERF] DB query completed');

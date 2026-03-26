@@ -7,6 +7,7 @@
  */
 
 import { useState, useMemo } from 'react'
+import { logger } from '@/lib/logger'
 import { InterventionSchedulingPreview } from '@/components/interventions/intervention-scheduling-preview'
 import { InterventionProviderGuidelines } from '@/components/interventions/intervention-provider-guidelines'
 import { TimeSlotProposer } from '@/components/interventions/time-slot-proposer'
@@ -200,7 +201,7 @@ export function OverviewTab({
         toast.error(formatErrorMessage(result.error, 'Erreur lors du démarrage des travaux'))
       }
     } catch (error) {
-      console.error('Error starting work:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error starting work')
       toast.error('Erreur lors du démarrage des travaux')
     } finally {
       setIsSubmitting(false)
@@ -226,7 +227,7 @@ export function OverviewTab({
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la finalisation des travaux'))
       }
     } catch (error) {
-      console.error('Error completing work:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error completing work')
       toast.error('Erreur lors de la finalisation des travaux')
     } finally {
       setIsSubmitting(false)
@@ -250,7 +251,7 @@ export function OverviewTab({
         toast.error(formatErrorMessage(result.error, 'Erreur lors de la proposition des créneaux'))
       }
     } catch (error) {
-      console.error('Error proposing time slots:', error)
+      logger.error({ error: error instanceof Error ? error.message : String(error) }, 'Error proposing time slots')
       toast.error('Erreur lors de la proposition des créneaux')
     }
   }

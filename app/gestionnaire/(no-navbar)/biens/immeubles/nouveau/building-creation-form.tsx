@@ -56,7 +56,7 @@ import type { ScheduledInterventionData } from "@/components/contract/interventi
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { buildingSteps } from "@/lib/step-configurations"
-import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
+import { LotCategory, getLotCategoryConfig } from "@/lib/lot-types"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import { logger, logError } from '@/lib/logger'
 import { usePropertyDocumentUpload } from '@/hooks/use-property-document-upload'
@@ -259,6 +259,7 @@ export default function NewImmeubleePage({
     if (clampedStep > maxStepReached) {
       setMaxStepReached(clampedStep)
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // Handler pour le clic sur une étape dans le header
@@ -429,62 +430,16 @@ export default function NewImmeubleePage({
     }
   }, [currentStep, lots])
 
-  // Mettre a jour automatiquement la reference des lots quand leur categorie change
-  useEffect(() => {
-    if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
-      return // Attendre que les donnees de categorie soient chargees
-    }
-
-    // Creer dynamiquement le pattern base sur tous les labels de categorie possibles
-    const allCategories = getAllLotCategories()
-    const categoryLabels = allCategories.map(cat => cat.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    const generatedReferencePattern = new RegExp(`^(${categoryLabels.join('|')})\\s+\\d+$`)
-
-    // Verifier chaque lot pour voir si sa reference doit etre mise a jour
-    const lotsToUpdate: { id: string; newReference: string }[] = []
-
-    lots.forEach(lot => {
-      const category = lot.category || "appartement"
-      const categoryConfig = getLotCategoryConfig(category)
-      const lotsOfSameCategory = lots.filter(l => l.category === category)
-      const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const lotIndex = lotsOfSameCategory.findIndex(l => l.id === lot.id)
-      const nextNumber = currentCategoryCount + lotIndex + 1
-      const newDefaultReference = `${categoryConfig.label} ${nextNumber}`
-      
-      const currentReference = lot.reference
-      const isEmptyOrDefault = !currentReference || generatedReferencePattern.test(currentReference)
-
-      // Ne mettre a jour que si la reference est vide ou generee par defaut
-      if (isEmptyOrDefault && currentReference !== newDefaultReference) {
-        lotsToUpdate.push({ id: lot.id, newReference: newDefaultReference })
-      }
-    })
-
-    // Appliquer toutes les mises a jour en une seule fois
-    if (lotsToUpdate.length > 0) {
-      setLots(prevLots => 
-        prevLots.map(lot => {
-          const update = lotsToUpdate.find(u => u.id === lot.id)
-          return update ? { ...lot, reference: update.newReference } : lot
-        })
-      )
-    }
-  }, [lots.map(lot => lot.category).join(','), categoryCountsByTeam])
-
   // Initialiser automatiquement le premier lot quand on arrive à l'étape 2
   useEffect(() => {
     if (currentStep === 2 && lots.length === 0 && categoryCountsByTeam !== undefined) {
       logger.info('🏗️ [IMMEUBLE] Auto-initializing first lot at step 2')
 
-      const category = "appartement"
-      const categoryConfig = getLotCategoryConfig(category)
-      const currentCategoryCount = categoryCountsByTeam[category] || 0
-      const nextNumber = currentCategoryCount + 1
+      const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
 
       const initialLot: Lot = {
         id: `lot1`,
-        reference: `${categoryConfig.label} ${nextNumber}`,
+        reference: `Lot ${totalTeamLots + 1}`,
         floor: "0",
         doorNumber: "",
         description: "",
@@ -512,15 +467,10 @@ export default function NewImmeubleePage({
       setUpgradeModalOpen(true)
       return
     }
-    // Generer la reference basee sur la categorie par defaut (appartement)
-    const category = "appartement"
-    const categoryConfig = getLotCategoryConfig(category)
-    const currentCategoryCount = categoryCountsByTeam[category] || 0
-    const nextNumber = currentCategoryCount + lots.filter(lot => lot.category === category).length + 1
-    
+    const totalTeamLots = Object.values(categoryCountsByTeam).reduce((sum, count) => sum + count, 0)
     const newLot: Lot = {
       id: `lot${lots.length + 1}`,
-      reference: `${categoryConfig.label} ${nextNumber}`,
+      reference: `Lot ${totalTeamLots + lots.length + 1}`,
       floor: "0",
       doorNumber: "",
       description: "",
@@ -536,15 +486,6 @@ export default function NewImmeubleePage({
     setLots(lots.map((lot) => {
       if (lot.id === id) {
         const updatedLot = { ...lot, [field]: value }
-        
-        // Si la catégorie change, recalculer la référence
-        if (field === 'category') {
-          const categoryConfig = getLotCategoryConfig(value)
-          const currentCategoryCount = categoryCountsByTeam[value] || 0
-          const existingLotsOfCategory = lots.filter(l => l.category === value && l.id !== id).length
-          const nextNumber = currentCategoryCount + existingLotsOfCategory + 1
-          updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
-        }
         
         return updatedLot
       }
@@ -896,12 +837,16 @@ export default function NewImmeubleePage({
         }
       }
 
-      // Building-level interventions — all in parallel
-      const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
-      if (toCreate.length > 0 || Object.keys(lotInterventions).length > 0) {
+      // Building-level interventions + reminders — split by itemType
+      const allEnabled = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+      const toCreateInterventions = allEnabled.filter(i => i.itemType !== 'reminder')
+      const toCreateReminders = allEnabled.filter(i => i.itemType === 'reminder')
+
+      if (toCreateInterventions.length > 0 || toCreateReminders.length > 0 || Object.keys(lotInterventions).length > 0) {
         const { createInterventionAction } = await import('@/app/actions/intervention-actions')
 
-        for (const intervention of toCreate) {
+        // Interventions → createInterventionAction
+        for (const intervention of toCreateInterventions) {
           allPostCreationPromises.push(
             createInterventionAction({
               title: intervention.title,
@@ -920,7 +865,27 @@ export default function NewImmeubleePage({
           )
         }
 
-        // Per-lot interventions — flattened into the same batch (match by reference, not array index)
+        // Reminders → createWizardRemindersAction
+        if (toCreateReminders.length > 0) {
+          const { createWizardRemindersAction } = await import('@/app/actions/reminder-actions')
+          allPostCreationPromises.push(
+            createWizardRemindersAction(
+              toCreateReminders.map(r => ({
+                title: r.title,
+                description: r.description,
+                due_date: r.scheduledDate ? r.scheduledDate.toISOString() : undefined,
+                building_id: result.data.building.id,
+                rrule: r.recurrenceRule,
+                assignments: r.assignedUsers
+                  .filter(a => a.role === 'gestionnaire')
+                  .map(a => ({ userId: a.userId, role: a.role }))
+              })),
+              { team_id: userTeam!.id }
+            )
+          )
+        }
+
+        // Per-lot interventions + reminders — split by itemType
         for (let i = 0; i < lots.length; i++) {
           const tempLotId = lots[i].id
           const realLot = result.data.lots.find((rl: { reference?: string }) => rl.reference === lots[i].reference)
@@ -933,8 +898,11 @@ export default function NewImmeubleePage({
             continue
           }
 
-          const lotIntervs = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
-          for (const intervention of lotIntervs) {
+          const lotEnabled = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
+          const lotInterventionItems = lotEnabled.filter(iv => iv.itemType !== 'reminder')
+          const lotReminderItems = lotEnabled.filter(iv => iv.itemType === 'reminder')
+
+          for (const intervention of lotInterventionItems) {
             allPostCreationPromises.push(
               createInterventionAction({
                 title: intervention.title,
@@ -952,21 +920,46 @@ export default function NewImmeubleePage({
               })
             )
           }
+
+          if (lotReminderItems.length > 0) {
+            const { createWizardRemindersAction } = await import('@/app/actions/reminder-actions')
+            allPostCreationPromises.push(
+              createWizardRemindersAction(
+                lotReminderItems.map(r => ({
+                  title: r.title,
+                  description: r.description,
+                  due_date: r.scheduledDate ? r.scheduledDate.toISOString() : undefined,
+                  lot_id: realLotId,
+                  rrule: r.recurrenceRule,
+                  assignments: r.assignedUsers
+                    .filter(a => a.role === 'gestionnaire')
+                    .map(a => ({ userId: a.userId, role: a.role }))
+                })),
+                { team_id: userTeam!.id }
+              )
+            )
+          }
         }
       }
 
-      const postCreationResults = await Promise.allSettled(allPostCreationPromises)
-      const failedCount = postCreationResults.filter(r => r.status === 'rejected').length
-      if (failedCount > 0) {
-        logger.warn({ failedCount, total: postCreationResults.length }, 'Some post-creation tasks failed')
+      // Fire-and-forget: don't await post-creation tasks — redirect immediately
+      if (allPostCreationPromises.length > 0) {
+        Promise.allSettled(allPostCreationPromises).then(results => {
+          const failedCount = results.filter(r => r.status === 'rejected').length
+          if (failedCount > 0) {
+            logger.warn({ failedCount, total: results.length }, 'Some post-creation tasks failed')
+          } else {
+            logger.info(`All ${results.length} post-creation tasks completed`)
+          }
+        })
       }
 
-      // Succès - Rediriger vers la page des biens
+      // Succès - Rediriger immédiatement
       toast.success("Immeuble créé avec succès", {
         description: `L'immeuble "${result.data.building.name}" a été créé avec ${result.data.lots.length} lot(s).`
       })
       realtime?.broadcastInvalidation(['buildings', 'lots', 'stats'])
-      router.push(`/gestionnaire/biens/immeubles/${result.data.building.id}`)
+      window.location.href = `/gestionnaire/biens/immeubles/${result.data.building.id}`
 
     } catch (err) {
       logger.error("Error creating building:", err)
@@ -1159,7 +1152,7 @@ export default function NewImmeubleePage({
 
         {/* Step 4: Interventions (building-level + per-lot) */}
         {currentStep === 4 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Building-level interventions — in a Card */}
             <Card className="shadow-sm overflow-hidden">
               <CardContent className="px-4 py-4">

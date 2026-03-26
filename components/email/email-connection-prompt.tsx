@@ -105,18 +105,14 @@ export function EmailConnectionPrompt({ onSuccess, onCancel, className, variant 
     const emailAddress = form.watch('emailAddress')
     const password = form.watch('password')
     useEffect(() => {
-        if (!showAdvanced) {
-            form.setValue('imapUsername', emailAddress, { shouldValidate: true })
-            form.setValue('smtpUsername', emailAddress, { shouldValidate: true })
-        }
-    }, [emailAddress, showAdvanced, form])
+        form.setValue('imapUsername', emailAddress, { shouldValidate: true })
+        form.setValue('smtpUsername', emailAddress, { shouldValidate: true })
+    }, [emailAddress, form])
 
     useEffect(() => {
-        if (!showAdvanced) {
-            form.setValue('imapPassword', password, { shouldValidate: true })
-            form.setValue('smtpPassword', password, { shouldValidate: true })
-        }
-    }, [password, showAdvanced, form])
+        form.setValue('imapPassword', password, { shouldValidate: true })
+        form.setValue('smtpPassword', password, { shouldValidate: true })
+    }, [password, form])
 
     const handleTestConnection = async () => {
         const isValid = await form.trigger()
@@ -162,8 +158,18 @@ export function EmailConnectionPrompt({ onSuccess, onCancel, className, variant 
                 throw new Error(error.error || 'Failed to save connection')
             }
 
-            toast.success('Email connection added successfully')
+            const data = await response.json()
+            const connectionId = data.connection?.id
+
+            toast.success('Connexion ajoutée — synchronisation en cours...')
             onSuccess?.()
+
+            // Trigger initial sync in background (fire-and-forget)
+            if (connectionId) {
+                fetch(`/api/emails/connections/${connectionId}/sync`, { method: 'POST' })
+                    .then(res => res.ok ? toast.success('Emails synchronisés !') : toast.error('Erreur de synchronisation'))
+                    .catch(() => toast.error('Erreur de synchronisation'))
+            }
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Failed to save connection'
             toast.error(message)
@@ -300,38 +306,8 @@ export function EmailConnectionPrompt({ onSuccess, onCancel, className, variant 
             {showAdvanced && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
                     <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                        <h3 className="font-semibold flex items-center gap-2">
-                            IMAP (Réception)
-                            <span className="text-xs font-normal text-muted-foreground">(Pré-rempli)</span>
-                        </h3>
-
-                        <FormField
-                            control={form.control}
-                            name="imapUsername"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Identifiant IMAP</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Votre adresse email" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="imapPassword"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Mot de passe IMAP</FormLabel>
-                                    <FormControl>
-                                        <Input type="password" placeholder="Mot de passe du compte ou d'application" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <h3 className="font-semibold">IMAP (Réception)</h3>
+                        <p className="text-xs text-muted-foreground">Serveur de réception</p>
 
                         <div className="grid grid-cols-2 gap-4">
                             <FormField
@@ -365,41 +341,8 @@ export function EmailConnectionPrompt({ onSuccess, onCancel, className, variant 
                     </div>
 
                     <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
-                        <h3 className="font-semibold flex items-center gap-2">
-                            SMTP (Envoi)
-                            <span className="text-xs font-normal text-muted-foreground">(Pré-rempli)</span>
-                        </h3>
-
-                        <FormField
-                            control={form.control}
-                            name="smtpUsername"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Identifiant SMTP</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Votre adresse email" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="smtpPassword"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Mot de passe SMTP</FormLabel>
-                                    <FormControl>
-                                        <Input type="password" placeholder="Mot de passe du compte ou d'application" {...field} />
-                                    </FormControl>
-                                    <FormDescription>
-                                        Identique au mot de passe IMAP en général
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <h3 className="font-semibold">SMTP (Envoi)</h3>
+                        <p className="text-xs text-muted-foreground">Serveur d&apos;envoi</p>
 
                         <div className="grid grid-cols-2 gap-4">
                             <FormField

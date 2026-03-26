@@ -185,7 +185,7 @@ export function InterventionCreateForm({
         if (onSuccess) {
           onSuccess(interventionId)
         } else {
-          router.push(`/gestionnaire/interventions/${interventionId}`)
+          router.push(`/gestionnaire/operations/interventions/${interventionId}`)
         }
       } else {
         toast.error(result.error || 'Erreur lors de la création de l\'intervention')

@@ -435,13 +435,24 @@ export async function verifyInviteOrRecoveryAction(
       }
     }
 
-    // ✅ BUGFIX: type=magiclink pour utilisateurs existants (multi-équipe)
-    // Le token a été généré avec type: 'magiclink', donc on doit le vérifier avec le même type
-    // Ces utilisateurs ont TOUJOURS un mot de passe déjà défini (passwordAlreadySet = true)
+    // type=magiclink: used for admin resend (password not yet set) AND existing user multi-team invites
     if (type === 'magiclink') {
+      // Check if user actually needs to set password (admin resend case)
+      if (needsPasswordSetup) {
+        logger.info('🔑 [VERIFY-INVITE-RECOVERY] Magic link confirmed - password NOT set, redirect to set-password')
+        return {
+          success: true,
+          data: {
+            shouldSetPassword: true,
+            role,
+            redirectTo: '/auth/set-password'
+          }
+        }
+      }
+
+      // Existing user with password — accept invitation and go to dashboard
       logger.info('✅ [VERIFY-INVITE-RECOVERY] Magic link confirmed - existing user, accepting invitation...')
 
-      // Accepter l'invitation automatiquement
       if (teamId && user.email) {
         try {
           const admin = getSupabaseAdmin()
@@ -471,7 +482,7 @@ export async function verifyInviteOrRecoveryAction(
       return {
         success: true,
         data: {
-          shouldSetPassword: false,  // ✅ Utilisateur existant = mot de passe déjà défini
+          shouldSetPassword: false,
           role,
           redirectTo: `/${role}/dashboard?welcome=true${teamId ? `&team=${teamId}` : ''}`
         }

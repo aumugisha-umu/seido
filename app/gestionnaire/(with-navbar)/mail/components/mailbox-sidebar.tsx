@@ -21,10 +21,12 @@ import {
   CheckCircle,
   Circle,
   Mail,
+  Lock,
+  Users,
   type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
-import type { TeamEmailConnection } from '@/lib/types/email-integration'
+import type { TeamEmailConnection, EmailVisibility } from '@/lib/types/email-integration'
 
 // Types pour les entites liees
 export interface LinkedEntity {
@@ -47,6 +49,7 @@ export interface LinkedEntities {
 export type EmailConnection = Pick<TeamEmailConnection, 'id' | 'email_address' | 'provider' | 'is_active'> & {
   unread_count: number
   email_count: number
+  visibility: EmailVisibility
 }
 
 interface MailboxSidebarProps {
@@ -209,29 +212,59 @@ export function MailboxSidebar({
                   )}
                 </Button>
 
-                {/* Individual email connections */}
-                {emailConnections.map(conn => {
-                  const connUnread = sourceCounts[conn.id] || 0
+                {/* Grouped email connections by visibility */}
+                {(() => {
+                  const privateConns = emailConnections.filter(c => c.visibility === 'private')
+                  const sharedConns = emailConnections.filter(c => c.visibility === 'shared')
+
+                  const renderConnectionButton = (conn: EmailConnection) => {
+                    const connUnread = sourceCounts[conn.id] || 0
+                    const VisIcon = conn.visibility === 'private' ? Lock : Users
+                    return (
+                      <Button
+                        key={conn.id}
+                        variant={selectedSource === conn.id ? "secondary" : "ghost"}
+                        size="sm"
+                        className={cn(
+                          "w-full justify-between pl-6 pr-2 h-8 text-sm font-normal",
+                          selectedSource === conn.id && "bg-primary/10 text-primary font-medium"
+                        )}
+                        onClick={() => handleSourceClick(conn.id)}
+                      >
+                        <span className="flex items-center gap-1.5 truncate text-left">
+                          <VisIcon className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+                          {conn.email_address}
+                        </span>
+                        {connUnread > 0 && (
+                          <Badge variant="default" className="ml-2 h-5 px-1.5 text-xs flex-shrink-0">
+                            {connUnread}
+                          </Badge>
+                        )}
+                      </Button>
+                    )
+                  }
+
                   return (
-                    <Button
-                      key={conn.id}
-                      variant={selectedSource === conn.id ? "secondary" : "ghost"}
-                      size="sm"
-                      className={cn(
-                        "w-full justify-between pl-4 pr-2 h-8 text-sm font-normal",
-                        selectedSource === conn.id && "bg-primary/10 text-primary font-medium"
+                    <>
+                      {privateConns.length > 0 && (
+                        <>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-4 pt-2 pb-0.5">
+                            Mes boîtes privées
+                          </p>
+                          {privateConns.map(renderConnectionButton)}
+                        </>
                       )}
-                      onClick={() => handleSourceClick(conn.id)}
-                    >
-                      <span className="truncate text-left">{conn.email_address}</span>
-                      {connUnread > 0 && (
-                        <Badge variant="default" className="ml-2 h-5 px-1.5 text-xs flex-shrink-0">
-                          {connUnread}
-                        </Badge>
+                      {sharedConns.length > 0 && (
+                        <>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-4 pt-2 pb-0.5">
+                            Boîtes partagées
+                          </p>
+                          {sharedConns.map(renderConnectionButton)}
+                        </>
                       )}
-                    </Button>
+                    </>
                   )
-                })}
+                })()}
 
               </CollapsibleContent>
             </Collapsible>

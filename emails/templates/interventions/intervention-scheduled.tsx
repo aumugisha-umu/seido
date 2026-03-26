@@ -223,7 +223,7 @@ InterventionScheduledEmail.PreviewProps = {
     'Fuite d\'eau importante sous l\'évier de la cuisine. L\'eau coule en continu depuis ce matin.',
   propertyAddress: '15 Rue de la Paix, 75002 Paris',
   lotReference: 'Apt 3B',
-  interventionUrl: 'https://seido.app/locataire/interventions/INT-2024-042',
+  interventionUrl: 'https://seido-app.com/locataire/interventions/INT-2024-042',
   providerName: 'Pierre Dubois',
   providerCompany: 'Plomberie Express SARL',
   providerPhone: '+33 6 12 34 56 78',

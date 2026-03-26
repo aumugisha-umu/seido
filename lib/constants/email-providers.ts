@@ -44,6 +44,17 @@ export const EMAIL_PROVIDERS: Record<string, EmailProviderPreset> = {
         smtpUseTls: false,
         setupInstructions: 'Use an App Password. Generate one in Yahoo Account Security settings.'
     },
+    zoho: {
+        id: 'zoho',
+        name: 'Zoho Mail',
+        imapHost: 'imap.zoho.eu',
+        imapPort: 993,
+        imapUseSsl: true,
+        smtpHost: 'smtp.zoho.eu',
+        smtpPort: 587,
+        smtpUseTls: false,
+        setupInstructions: 'Utilisez un mot de passe d\'application. Générez-le dans Zoho Mail > Paramètres > Sécurité.'
+    },
     custom: {
         id: 'custom',
         name: 'Custom Provider',

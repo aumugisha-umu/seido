@@ -1,6 +1,7 @@
 "use client"
 
 import { Bell } from "lucide-react"
+import { GlobalSearchPalette } from "@/components/search/global-search-palette"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { TOPBAR_ACTIONS_SLOT_ID } from "@/components/page-actions"
@@ -23,7 +24,7 @@ import type { OnboardingProgress } from "@/app/actions/subscription-actions"
 const pageTitles: Record<string, string> = {
   "/gestionnaire/dashboard": "Tableau de bord",
   "/gestionnaire/biens": "Patrimoine",
-  "/gestionnaire/interventions": "Interventions",
+  "/gestionnaire/operations": "Operations",
   "/gestionnaire/contacts": "Contacts",
   "/gestionnaire/contrats": "Contrats",
   "/gestionnaire/mail": "Emails",
@@ -118,8 +119,10 @@ export default function GestionnaireTopbar({
           className="hidden lg:flex lg:flex-1 items-center justify-end gap-2 lg:gap-3 min-w-0"
         />
 
-        {/* Right: team selector + notifications */}
+        {/* Right: search + team selector + notifications */}
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <GlobalSearchPalette />
+
           {hasMultipleTeams && (
             <div className="hidden sm:block">
               <TeamSelector

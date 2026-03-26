@@ -308,14 +308,16 @@ export async function POST(request: NextRequest) {
 
     // Determine scheduled date based on scheduling type
     let scheduledDate: string | null = null
-    if (schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time) {
-      scheduledDate = `${fixedDateTime.date}T${fixedDateTime.time}:00.000Z`
+    if (schedulingType === 'fixed' && fixedDateTime?.date) {
+      const time = fixedDateTime.time || '00:00'
+      scheduledDate = `${fixedDateTime.date}T${time}:00.000Z`
     }
     // ✅ FIX 2026-03-01: 1 slot without confirmation = set scheduled_date from the slot (like fixed)
     if (schedulingType === 'slots' && timeSlots && timeSlots.length === 1 && !requiresParticipantConfirmation) {
       const singleSlot = timeSlots[0]
-      if (singleSlot?.date && singleSlot?.startTime) {
-        scheduledDate = `${singleSlot.date}T${singleSlot.startTime}:00.000Z`
+      if (singleSlot?.date) {
+        const slotTime = singleSlot.startTime || '00:00'
+        scheduledDate = `${singleSlot.date}T${slotTime}:00.000Z`
       }
     }
 
@@ -334,7 +336,7 @@ export async function POST(request: NextRequest) {
       onlyOneManager: selectedManagerIds.length === 1,
       noProviders: !selectedProviderIds || selectedProviderIds.length === 0,
       schedulingType,
-      hasFixedDateTime: schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time
+      hasFixedDateTime: schedulingType === 'fixed' && fixedDateTime?.date
     }, "🔍 Analyse des conditions pour déterminer le statut")
 
     // CAS 1: Planification si devis requis (besoin d'attendre les devis)
@@ -348,8 +350,8 @@ export async function POST(request: NextRequest) {
       // ✅ FIX 2026-01-28: Retiré la condition "pas de prestataires" - si date fixe sans confirmation,
       // l'intervention est planifiée même avec un prestataire assigné
     } else if (
-      schedulingType === 'fixed' && // Date/heure fixe
-      fixedDateTime?.date && fixedDateTime?.time && // Date et heure définies
+      schedulingType === 'fixed' && // Date fixe
+      fixedDateTime?.date && // Date définie (heure optionnelle)
       !requiresParticipantConfirmation // Pas de confirmation requise des participants
     ) {
       interventionStatus = 'planifiee'
@@ -827,15 +829,18 @@ export async function POST(request: NextRequest) {
       logger.info({ count: timeSlots.length, isSingleSlotNoConfirmation }, "📅 Creating time slots")
 
       const timeSlotsToInsert = timeSlots
-        .filter((slot: { date?: string; startTime?: string; endTime?: string }) => slot.date && slot.startTime && slot.endTime) // Only valid slots
-        .map((slot: { date: string; startTime: string; endTime: string }) => ({
-          intervention_id: intervention.id,
-          slot_date: slot.date,
-          start_time: slot.startTime,
-          end_time: slot.endTime,
-          status: isSingleSlotNoConfirmation ? 'selected' : 'pending',
-          proposed_by: user.id // Track who proposed these slots
-        }))
+        .filter((slot: { date?: string; startTime?: string; endTime?: string }) => slot.date) // Only slots with a date (time is optional)
+        .map((slot: { date: string; startTime?: string; endTime?: string }) => {
+          const hasSlotTime = slot.startTime && slot.endTime && slot.startTime.includes(':')
+          return {
+            intervention_id: intervention.id,
+            slot_date: slot.date,
+            start_time: hasSlotTime ? slot.startTime! : '00:00',
+            end_time: hasSlotTime ? slot.endTime! : '23:59',
+            status: isSingleSlotNoConfirmation ? 'selected' : 'pending',
+            proposed_by: user.id
+          }
+        })
 
       if (timeSlotsToInsert.length > 0) {
         // ✅ FIX 2026-01-28: Use service role to bypass RLS for time slot creation
@@ -858,18 +863,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle fixed date/time (create single slot)
-    if (schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time) {
-      // Calculate end_time as start_time + 1 hour (to satisfy valid_time_range constraint)
-      const [hours, minutes] = fixedDateTime.time.split(':').map(Number)
-      const endHour = (hours + 1) % 24 // Wrap around midnight
-      const end_time = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+    if (schedulingType === 'fixed' && fixedDateTime?.date) {
+      // If no time specified, use full day (00:00 - 23:59)
+      const hasTime = fixedDateTime.time && fixedDateTime.time.includes(':')
+      const start_time_value = hasTime ? fixedDateTime.time : '00:00'
+      // Calculate end_time: +1 hour if time specified, or 23:59 for full day
+      let end_time: string
+      if (hasTime) {
+        const [hours, minutes] = fixedDateTime.time.split(':').map(Number)
+        const endHour = (hours + 1) % 24
+        end_time = `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+      } else {
+        end_time = '23:59'
+      }
 
       logger.info({
         date: fixedDateTime.date,
-        start_time: fixedDateTime.time,
+        start_time: start_time_value,
         end_time,
-        duration: '1 hour'
-      }, "📅 Creating fixed slot with 1-hour default duration")
+        hasTime,
+      }, "📅 Creating fixed slot")
 
       // ✅ FIX 2026-01-28: Use service role to bypass RLS for time slot creation
       // The RLS policy can_manage_time_slot() has timing issues with multi-profile checks
@@ -879,8 +892,8 @@ export async function POST(request: NextRequest) {
         .insert({
           intervention_id: intervention.id,
           slot_date: fixedDateTime.date,
-          start_time: fixedDateTime.time,
-          end_time: end_time, // ✅ 1 hour after start_time
+          start_time: start_time_value,
+          end_time: end_time,
           // ✅ FIX 2026-01-25: Si confirmation requise, créneau en attente. Sinon: confirmé directement
           status: requiresParticipantConfirmation ? 'pending' : 'selected',
           selected_by_manager: !requiresParticipantConfirmation, // Confirmé seulement si pas de confirmation requise

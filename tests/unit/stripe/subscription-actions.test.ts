@@ -43,9 +43,46 @@ vi.mock('@/lib/services/domain/subscription.service', () => {
   return { SubscriptionService: MockSubscriptionService }
 })
 
-vi.mock('@/lib/services/repositories/subscription.repository', () => ({
-  SubscriptionRepository: vi.fn(),
-}))
+vi.mock('@/lib/services/domain/subscription-helpers', () => {
+  function MockServiceRoleSubscriptionService() {
+    return {
+      getSubscriptionInfo: mockGetSubscriptionInfo,
+      canAddProperty: mockCanAddProperty,
+      hasPaymentMethod: mockHasPaymentMethod,
+      isReadOnlyMode: mockIsReadOnlyMode,
+      createCheckoutSession: mockCreateCheckoutSession,
+      upgradeSubscriptionDirect: mockUpgradeSubscriptionDirect,
+      previewUpgrade: mockPreviewUpgrade,
+      createPortalSession: mockCreatePortalSession,
+      getOrCreateStripeCustomer: mockGetOrCreateStripeCustomer,
+    }
+  }
+  function MockSubscriptionService() {
+    return {
+      getSubscriptionInfo: mockGetSubscriptionInfo,
+      canAddProperty: mockCanAddProperty,
+      hasPaymentMethod: mockHasPaymentMethod,
+      isReadOnlyMode: mockIsReadOnlyMode,
+      createCheckoutSession: mockCreateCheckoutSession,
+      upgradeSubscriptionDirect: mockUpgradeSubscriptionDirect,
+      previewUpgrade: mockPreviewUpgrade,
+      createPortalSession: mockCreatePortalSession,
+      getOrCreateStripeCustomer: mockGetOrCreateStripeCustomer,
+    }
+  }
+  return {
+    createServiceRoleSubscriptionService: () => new (MockServiceRoleSubscriptionService as any)(),
+    createSubscriptionService: () => new (MockSubscriptionService as any)(),
+  }
+})
+
+const mockFindByTeamId = vi.fn().mockResolvedValue({ data: null, error: null })
+vi.mock('@/lib/services/repositories/subscription.repository', () => {
+  function MockSubscriptionRepository() {
+    return { findByTeamId: mockFindByTeamId }
+  }
+  return { SubscriptionRepository: MockSubscriptionRepository }
+})
 vi.mock('@/lib/services/repositories/stripe-customer.repository', () => ({
   StripeCustomerRepository: vi.fn(),
 }))
@@ -61,6 +98,11 @@ vi.mock('@/lib/stripe', () => ({
 
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+}))
+
+vi.mock('@/lib/services/core/supabase-client', () => ({
+  createServerSupabaseClient: vi.fn(() => ({ from: vi.fn() })),
+  createServiceRoleSupabaseClient: vi.fn(() => ({ from: vi.fn() })),
 }))
 
 // ── Helpers ────────────────────────────────────────────────────────────

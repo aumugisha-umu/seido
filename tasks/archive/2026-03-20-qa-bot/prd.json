@@ -1,0 +1,259 @@
+{
+  "project": "SEIDO",
+  "featureName": "QA Bot — Autonomous E2E Testing Agent",
+  "branchName": "feature/qa-bot",
+  "description": "Autonomous QA agent running Playwright E2E tests after every Vercel deployment via GitHub Actions. Phase 1: 8-shard guided scenarios covering all 47 routes. Phase 2: AI-driven autonomous exploration via Claude API + accessibility tree. Phase 3: Reporting with Markdown + GitHub Issues + email notifications.",
+  "createdAt": "2026-03-20",
+  "prdSource": "docs/ai/qa-bot-design.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Playwright Foundation: config + directory structure + scripts",
+      "description": "As a developer, I need Playwright installed with proper config (sharding, blob reporter, projects per role) and package.json scripts",
+      "acceptanceCriteria": [
+        "Playwright and @playwright/test installed as devDependencies",
+        "@anthropic-ai/sdk installed as devDependency",
+        "tests/qa-bot/playwright.config.ts created with: 8 shards support, blob reporter for CI / html for local, 3 projects (gestionnaire, locataire, prestataire) with storageState, chromium only, baseURL from TARGET_URL env",
+        "Directory structure created: tests/qa-bot/{setup,guided,autonomous,reporting,pages,helpers}",
+        "package.json scripts: qa:guided, qa:full",
+        "playwright/.auth/ added to .gitignore",
+        "reports/ added to .gitignore",
+        "npm run lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Playwright 1.52+ installed. Config with blob/html reporter, 5 projects (setup + 3 roles + multi-role). Directories created. Scripts added."
+    },
+    {
+      "id": "US-002",
+      "title": "Auth setup + helpers (routes, selectors, constants)",
+      "description": "As a developer, I need the auth setup file that authenticates 3 QA roles via Supabase GoTrue and saves storageState, plus shared helper utilities",
+      "acceptanceCriteria": [
+        "tests/qa-bot/setup/auth.setup.ts authenticates 3 roles via Supabase GoTrue REST API (reuses existing global-setup.ts pattern)",
+        "Saves storageState per role: playwright/.auth/{gestionnaire,locataire,prestataire}.json",
+        "Reads credentials from QA_TEST_CREDENTIALS env (JSON)",
+        "tests/qa-bot/helpers/routes.ts exports full sitemap (47 routes organized by role)",
+        "tests/qa-bot/helpers/selectors.ts exports shared selector utilities (waitForContent, dismissBanners, etc.)",
+        "tests/qa-bot/helpers/constants.ts exports QA constants (timeouts, team IDs, etc.)",
+        "npm run lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Auth setup with dual credential sources (QA_TEST_CREDENTIALS JSON or E2E_* env vars). Routes: 47 entries with shard mapping. Selectors: Playwright-native helpers. Constants: timeouts, budgets, anomaly patterns."
+    },
+    {
+      "id": "US-003",
+      "title": "Page Object Models (11 POMs)",
+      "description": "As a developer, I need Playwright Page Object Models for all key pages to write clean, maintainable test specs",
+      "acceptanceCriteria": [
+        "tests/qa-bot/pages/dashboard.page.ts — 3-role dashboard verification (KPIs, navigator, carousel)",
+        "tests/qa-bot/pages/intervention-wizard.page.ts — 4-step wizard navigation + form filling",
+        "tests/qa-bot/pages/intervention-detail.page.ts — action buttons, tabs, cards, modals",
+        "tests/qa-bot/pages/building-wizard.page.ts — building creation wizard",
+        "tests/qa-bot/pages/lot-wizard.page.ts — lot creation wizard",
+        "tests/qa-bot/pages/contract-wizard.page.ts — lease + supplier contract creation",
+        "tests/qa-bot/pages/reminder-wizard.page.ts — 3-step reminder creation",
+        "tests/qa-bot/pages/reminder-detail.page.ts — reminder actions + notes",
+        "tests/qa-bot/pages/mail-hub.page.ts — email navigation, detail, compose, linking",
+        "tests/qa-bot/pages/notifications.page.ts — notification list, read/unread, archive",
+        "tests/qa-bot/pages/billing.page.ts — billing page + subscription status",
+        "All POMs use Playwright locators (getByRole, getByTestId, getByText)",
+        "npm run lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [
+        "US-002"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "11 POMs created via 2 parallel agents. All use Playwright-native locators, French labels, async methods."
+    },
+    {
+      "id": "US-004",
+      "title": "Shards 1+2: Auth/Smoke + Patrimoine/Contacts",
+      "description": "As a QA engineer, I need test specs for auth smoke tests across 3 roles and full CRUD for buildings, lots, and contacts",
+      "acceptanceCriteria": [
+        "tests/qa-bot/guided/auth-smoke.spec.ts: login 3 roles, dashboard load + KPI verification, sidebar navigation (6 sections), profile page access, push notification modal renders",
+        "tests/qa-bot/guided/patrimoine.spec.ts: create immeuble (wizard), view/edit immeuble, create lot (linked), view/edit lot, create contact prestataire + locataire, view details/société, contact list search, verify system notification 'Immeuble créé'",
+        "Tests use POMs from tests/qa-bot/pages/",
+        "Tests use storageState for auth (no manual login)",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-003"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "auth-smoke.spec.ts (146 lines): 3-role login, dashboard KPIs, sidebar nav, profile, push modal. patrimoine.spec.ts (313 lines): building+lot CRUD, contacts, system notifications."
+    },
+    {
+      "id": "US-005",
+      "title": "Shard 3: Contrats + Rappels (lifecycle complet)",
+      "description": "As a QA engineer, I need test specs covering contract creation (bail + fournisseur) and the complete reminder lifecycle including recurrence",
+      "acceptanceCriteria": [
+        "tests/qa-bot/guided/contrats-rappels.spec.ts covers:",
+        "Contracts: create bail locatif (wizard + intervention planner), create contrat fournisseur (wizard + supplier), view/edit contracts, document checklist",
+        "Reminders lifecycle: create (3-step wizard with property linking, priority haute, recurrence monthly), view detail (verify badges), start (en_attente → en_cours), add notes + save, complete (en_cours → termine), verify disabled state",
+        "2nd reminder: no property, no recurrence, priority basse → cancel",
+        "Navigator: tabs counts, cards/list toggle",
+        "Overdue: create with past date → verify 'En retard' badge",
+        "Recurrence config: weekly + day selection, monthly mode toggle, end after N occurrences",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-003"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "contrats-rappels.spec.ts (557 lines, 16 tests): bail+fournisseur contracts, full reminder lifecycle, recurrence config, overdue badges, navigator tabs."
+    },
+    {
+      "id": "US-006",
+      "title": "Shard 4: Intervention Lifecycle Multi-Rôle",
+      "description": "As a QA engineer, I need the most critical test spec covering the full intervention lifecycle across gestionnaire, locataire, and prestataire roles",
+      "acceptanceCriteria": [
+        "tests/qa-bot/guided/intervention-lifecycle.spec.ts covers:",
+        "Creation: 4-step wizard (lot selection, type/urgency/description/file, managers+prestataire+locataire+slots+quote+confirmation, summary verify)",
+        "Notification check: 'Intervention créée' in /notifications",
+        "Approval: demande → approuvée, verify conversation threads created, check locataire+prestataire notifications",
+        "Planning: approuvée → planification, verify time slots visible",
+        "Tenant: see intervention on dashboard, confirm time slot (selected)",
+        "Provider: see intervention on dashboard, respond to slots, submit quote (draft → sent), verify gestionnaire notification",
+        "Quote approval: gestionnaire accepts quote → accepted, verify prestataire notification",
+        "Closure chain: prestataire clôture → locataire valide → gestionnaire finalise (with final cost)",
+        "Rejection flow: new intervention → reject with reason → verify notification",
+        "Cancellation: approve → cancel → verify annulée + read-only",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-003"
+      ],
+      "sizing": "L",
+      "passes": true,
+      "notes": "intervention-lifecycle.spec.ts (550 lines, 15 tests): full multi-role lifecycle create→approve→plan→slots→quote→close, rejection flow, cancellation flow."
+    },
+    {
+      "id": "US-007",
+      "title": "Shards 5+6: Conversations/Documents + Email System",
+      "description": "As a QA engineer, I need test specs for conversation threads, document management, and the complete email system",
+      "acceptanceCriteria": [
+        "tests/qa-bot/guided/conversations-docs.spec.ts: send message in group thread, verify notification, test throttle (2 msgs < 5min → no duplicate email), read as locataire, internal comment (manager-only), document upload (gestionnaire + locataire), download (signed URL), tenant intervention request (nouvelle-demande), verify gestionnaire notification",
+        "tests/qa-bot/guided/email-system.spec.ts: email settings page renders, mail hub (folder navigation, email counts, select email, mark processed/unprocessed, archive, search, date filter), email detail (body, attachments, reply pre-fill), email linking (link to building, verify, unlink, filter by entity), compose (modal, fill, send, verify in Sent), internal chat on email, blacklist (add, verify, unblock)",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-003"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "conversations-docs.spec.ts (326 lines): message threads, throttle, documents upload/download, tenant request. email-system.spec.ts (755 lines): mail hub, folders, compose, linking, blacklist, internal chat."
+    },
+    {
+      "id": "US-008",
+      "title": "Shards 7+8: Notifications + Billing/Settings",
+      "description": "As a QA engineer, I need test specs for the notification system across all roles and billing/settings pages",
+      "acceptanceCriteria": [
+        "tests/qa-bot/guided/notifications.spec.ts: /notifications page (3 roles), read/unread separation, mark read → moves, mark unread → moves back, archive, bell popover unread count, click notification → navigate to entity, push subscription modal, notification routing (team broadcast vs personal, creator excluded, role-specific)",
+        "tests/qa-bot/guided/billing-settings.spec.ts: billing page renders, subscription status card, readOnly mode (buttons disabled + tooltip), paramètres equipe, assistant IA settings, AI phone history, locataire lot details (bail, history), locataire/prestataire parametres, import page, help page, cancellation flow (approve → cancel → verify annulée + read-only)",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-003"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "notifications.spec.ts (248 lines): 3-role notifications, read/unread/archive, bell popover, push modal, routing. billing-settings.spec.ts (217 lines): billing, settings, static pages."
+    },
+    {
+      "id": "US-009",
+      "title": "GitHub Actions Workflow (qa-bot.yml)",
+      "description": "As a developer, I need the complete GitHub Actions workflow with sharding, report merging, Vercel integration, and conditional phases",
+      "acceptanceCriteria": [
+        ".github/workflows/qa-bot.yml created with:",
+        "Triggers: repository_dispatch (vercel.deployment.ready + .promoted) + workflow_dispatch (target_url + mode inputs)",
+        "Job guided-tests: 8-shard matrix, fail-fast false, vercel/repository-dispatch/actions/checkout, playwright install --with-deps, blob reporter, artifact upload",
+        "Job merge-reports: download all blob-report-*, merge into HTML, upload qa-html-report artifact",
+        "Job autonomous-exploration: conditional on phase1 pass + production/full mode, budget-limited",
+        "Job reporting: !cancelled(), downloads all reports, generates markdown, creates GitHub issue, sends email",
+        "Job cleanup: !cancelled(), runs cleanup script with service role",
+        "All secrets properly referenced (ANTHROPIC_API_KEY, RESEND_API_KEY, QA_TEST_CREDENTIALS, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)",
+        "npm run lint passes (yaml syntax valid)"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "S",
+      "passes": true,
+      "notes": "qa-bot.yml (243 lines): 5-job pipeline with Vercel dispatch, 8-shard matrix, merge-reports, autonomous, reporting, cleanup."
+    },
+    {
+      "id": "US-010",
+      "title": "Reporting System (Markdown + GitHub Issue + Email + Tracker)",
+      "description": "As a developer, I need the reporting pipeline that generates structured bug reports, creates GitHub issues, sends email notifications, and tracks regression trends",
+      "acceptanceCriteria": [
+        "tests/qa-bot/reporting/report-generator.ts: reads test results + exploration results, generates Markdown report with run info, anomalies (severity, URL, screenshot, console error, steps to reproduce, git blame), coverage summary, phase 1 shard results table",
+        "tests/qa-bot/reporting/github-issue.ts: creates GitHub issue via Octokit when Critical/High anomalies found, with labels (qa-bot, bug, auto-generated), inline screenshots, steps to reproduce, suggested fix workflow",
+        "tests/qa-bot/reporting/email-notifier.ts: sends email via Resend with anomaly summary, links to issue + report + GH Actions run",
+        "tests/qa-bot/reporting/regression-tracker.ts: reads/writes reports/summary.json, tracks anomalies per run, trends (last 7 days), most problematic routes",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "4 reporting modules: report-generator.ts (375 lines), github-issue.ts (295 lines), email-notifier.ts (316 lines), regression-tracker.ts (314 lines)."
+    },
+    {
+      "id": "US-011",
+      "title": "Autonomous Exploration (Claude API + accessibility tree)",
+      "description": "As a developer, I need the AI-driven exploration system that uses Claude API to navigate pages, discover interactive elements, and detect anomalies",
+      "acceptanceCriteria": [
+        "tests/qa-bot/autonomous/explorer.ts: orchestrator that loads sitemap, prioritizes pages (git diff, uncovered routes, historical bugs), iterates with budget limits",
+        "tests/qa-bot/autonomous/page-analyzer.ts: captures page.accessibility.snapshot(), sends to Claude API with structured prompt, parses action commands",
+        "tests/qa-bot/autonomous/anomaly-detector.ts: monitors console errors, network failures (4xx/5xx), error boundaries, placeholder text, layout overflow, slow page loads",
+        "tests/qa-bot/autonomous/budget-limiter.ts: enforces 15 min / 50 pages / 100 API calls limits, tracks spend",
+        "Off-script testing: invalid inputs, double submit, back/forward, refresh mid-wizard, direct URL without auth",
+        "URL whitelist: only *.seido-app.com",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [
+        "US-001"
+      ],
+      "sizing": "M",
+      "passes": true,
+      "notes": "4 autonomous exploration modules: explorer.ts (492 lines), page-analyzer.ts (265 lines), anomaly-detector.ts (237 lines), budget-limiter.ts (159 lines). Claude API + accessibility tree approach."
+    },
+    {
+      "id": "US-012",
+      "title": "Cleanup script + QA seed data documentation",
+      "description": "As a developer, I need a cleanup script that removes test-generated entities after each run, and documentation for setting up QA seed data in Supabase",
+      "acceptanceCriteria": [
+        "tests/qa-bot/helpers/cleanup.ts: connects via service role, deletes interventions/reminders/documents created during run (filtered by QA_TEAM_ID + created_at >= runStartTime), keeps base entities (building, lots, contacts, contracts)",
+        "docs/ai/qa-bot-seed-data.md: instructions for creating QA accounts (3 roles), QA team, seed data (building, lots, lease, supplier contract) in Supabase dashboard",
+        "Cleanup script callable standalone: npx tsx tests/qa-bot/helpers/cleanup.ts",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "cleanup.ts (105 lines): service-role deletion filtered by QA_TEAM_ID + created_at. qa-bot-seed-data.md: full setup guide with SQL + GitHub Secrets."
+    }
+  ]
+}

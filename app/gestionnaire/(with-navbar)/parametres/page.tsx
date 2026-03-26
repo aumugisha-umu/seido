@@ -1,6 +1,7 @@
 import { getServerAuthContext } from "@/lib/server-context"
 import { createServerActionLotService } from "@/lib/services"
 import SettingsPage from "@/components/settings-page"
+import { logger } from "@/lib/logger"
 
 /**
  * Page Paramètres Gestionnaire - Server Component
@@ -20,7 +21,7 @@ export default async function GestionnaireParametresPage() {
       lotCount = lotsResult.data.length
     }
   } catch (error) {
-    console.error('[SETTINGS] Error fetching lot count:', error)
+    logger.error({ error: error instanceof Error ? error.message : String(error) }, '[SETTINGS] Error fetching lot count')
   }
 
   return (

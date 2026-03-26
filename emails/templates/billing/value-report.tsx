@@ -91,7 +91,7 @@ ValueReportEmail.PreviewProps = {
   moneySaved: 180,
   lotCount: 5,
   daysLeft: 16,
-  billingUrl: 'https://seido.app/gestionnaire/settings/billing',
+  billingUrl: 'https://seido-app.com/gestionnaire/settings/billing',
 } as ValueReportEmailProps
 
 export default ValueReportEmail

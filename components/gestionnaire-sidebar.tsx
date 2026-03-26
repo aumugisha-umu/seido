@@ -10,6 +10,7 @@ import {
   FileText,
   Wrench,
   Mail,
+  Landmark,
   Settings,
   HelpCircle,
   LogOut,
@@ -72,8 +73,13 @@ const mainNavItems: NavigationItem[] = [
     { href: "/gestionnaire/contrats/nouveau?type=bail", label: "Bail locatif" },
     { href: "/gestionnaire/contrats/nouveau?type=fournisseur", label: "Contrat fournisseur" },
   ] },
-  { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench, createHref: "/gestionnaire/interventions/nouvelle-intervention", createLabel: "Nouvelle intervention" },
+  { href: "/gestionnaire/operations", label: "Opérations", icon: Wrench, createLabel: "Nouvelle opération", createOptions: [
+    { href: "/gestionnaire/operations/nouvelle-intervention", label: "Nouvelle intervention" },
+    { href: "/gestionnaire/operations/nouveau-rappel", label: "Nouveau rappel" },
+  ] },
   { href: "/gestionnaire/mail", label: "Emails", icon: Mail, createAction: "compose-email", createLabel: "Nouvel email" },
+  // Bank module hidden until Tink app is approved in production
+  // { href: "/gestionnaire/banque", label: "Banque", icon: Landmark },
 ]
 
 const secondaryNavItems: NavigationItem[] = [

@@ -14,6 +14,7 @@ import type {
   PasswordResetEmailProps,
   PasswordChangedEmailProps,
   InvitationEmailProps,
+  AdminInvitationEmailProps,
   TeamAdditionEmailProps,
   EmailSendResult,
   SendEmailOptions,
@@ -81,10 +82,10 @@ async function sendEmailWithRetry(options: SendEmailOptions): Promise<EmailSendR
         contentType: 'image/png', // Type MIME pour le logo (camelCase pour SDK Node.js)
       }
     } else {
-      console.warn('[EMAIL-SERVICE] Logo file not found:', logoPath)
+      logger.warn({ logoPath }, '[EMAIL-SERVICE] Logo file not found')
     }
   } catch (error) {
-    console.error('[EMAIL-SERVICE] Error loading logo for email:', error)
+    logger.error({ error }, '[EMAIL-SERVICE] Error loading logo for email')
   }
 
   for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
@@ -102,13 +103,14 @@ async function sendEmailWithRetry(options: SendEmailOptions): Promise<EmailSendR
 
       if (error) {
         // ✅ Log détaillé de l'erreur Resend
-        console.error('❌ [RESEND-ERROR] Attempt', attempt, '/', RETRY_CONFIG.maxAttempts, {
-          error,
+        logger.error({
+          attempt,
+          maxAttempts: RETRY_CONFIG.maxAttempts,
           errorMessage: error.message || String(error),
           errorName: error.name,
           to: options.to,
           subject: options.subject,
-        })
+        }, '[RESEND-ERROR] Send failed')
         throw error
       }
 
@@ -122,13 +124,13 @@ async function sendEmailWithRetry(options: SendEmailOptions): Promise<EmailSendR
       lastError = error
 
       // Log détaillé avant retry
-      console.warn('⚠️ [EMAIL-RETRY]', {
+      logger.warn({
         attempt,
         maxAttempts: RETRY_CONFIG.maxAttempts,
         error: error instanceof Error ? error.message : JSON.stringify(error),
         to: options.to,
         willRetry: attempt < RETRY_CONFIG.maxAttempts
-      })
+      }, '[EMAIL-RETRY] Attempt failed')
 
       // Si ce n'est pas la dernière tentative, attendre avant de retry
       if (attempt < RETRY_CONFIG.maxAttempts) {
@@ -179,7 +181,7 @@ export const emailService = {
         ],
       })
     } catch (error) {
-      console.error('❌ [EMAIL-SERVICE] Failed to render template:', error)
+      logger.error({ error }, '[EMAIL-SERVICE] Failed to render template')
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Template rendering failed'
@@ -250,6 +252,28 @@ export const emailService = {
       tags: [
         { name: 'category', value: 'auth' },
         { name: 'type', value: 'password-changed' },
+      ],
+    })
+  },
+
+  /**
+   * Envoyer email d'invitation admin (gestionnaire invite par l'admin)
+   */
+  async sendAdminInvitationEmail(
+    to: string,
+    props: AdminInvitationEmailProps
+  ): Promise<EmailSendResult> {
+    const { default: AdminInvitationEmail } = await import('@/emails/templates/auth/admin-invitation')
+    const { html, text } = await renderEmail(AdminInvitationEmail(props))
+
+    return sendEmailWithRetry({
+      to,
+      subject: 'Bienvenue sur SEIDO — Votre espace de gestion vous attend',
+      html,
+      text,
+      tags: [
+        { name: 'category', value: 'auth' },
+        { name: 'type', value: 'admin-invitation' },
       ],
     })
   },

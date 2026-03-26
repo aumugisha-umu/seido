@@ -291,8 +291,8 @@ docs/testing/QA/
 | Environnement | URL | Usage |
 |---------------|-----|-------|
 | Local | `localhost:3000` | Développement |
-| Preview | `preview.seido.app` | QA |
-| Production | `app.seido.app` | Validation finale |
+| Preview | `preview.seido-app.com` | QA |
+| Production | `app.seido-app.com` | Validation finale |
 
 ## Navigateurs à Tester
 

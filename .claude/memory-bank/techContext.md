@@ -15,7 +15,9 @@
 | Forms | React Hook Form + Zod | - |
 | State | React Context | 3 contexts |
 | Caching | Redis + LRU | - |
-| Testing | Vitest + Puppeteer | E2E: 25 tests |
+| Testing (Unit) | Vitest | Unit + integration |
+| Testing (E2E Legacy) | Vitest + Puppeteer | 25 tests |
+| **Testing (QA Bot)** | **Playwright** | **114 tests, 8 shards** |
 | Email | Resend + React Email | 18 templates |
 | Blog/Markdown | gray-matter + react-markdown | remark-gfm, rehype-slug |
 | **Billing** | **Stripe** | **Subscription API** |
@@ -36,6 +38,11 @@
 | Blog articles | `blog/articles/*.md` |
 | **Stripe client** | **`lib/stripe.ts`** |
 | **Subscription service** | **`lib/services/domain/subscription.service.ts`** |
+| **Tink API service** | **`lib/services/domain/tink-api.service.ts`** |
+| **Bank sync service** | **`lib/services/domain/bank-sync.service.ts`** |
+| **Bank matching service** | **`lib/services/domain/bank-matching.service.ts`** |
+| **Bank types** | **`lib/types/bank.types.ts`** |
+| **Bank schemas (Zod)** | **`lib/validation/bank-schemas.ts`** |
 
 ## Commandes
 
@@ -55,6 +62,11 @@ npm test                 # Unit tests (vitest)
 npm run test:e2e         # E2E tests (Puppeteer + vitest, requires dev server)
 npm run test:e2e:headed  # E2E with visible browser (cross-env)
 
+# QA Bot (Playwright — targets Vercel preview)
+npx playwright test                    # Run all 114 tests (8 shards)
+npx playwright test --shard=1/8       # Run specific shard
+npx playwright test auth-smoke.spec   # Run specific spec file
+
 # Database
 npm run supabase:types   # Regenerer lib/database.types.ts
 npm run supabase:migrate # Creer nouvelle migration (avec timestamp correct)
@@ -67,24 +79,32 @@ app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locata
   - 76 pages total (reparties en 5+ route groups)
 app/blog/            # Blog pages (index + [slug] article pages)
 blog/articles/       # Markdown articles with YAML frontmatter
-components/          # 440 composants reutilisables (22 directories)
+components/          # 420 composants reutilisables (23 directories)
 components/blog/     # Blog components (markdown, card, list-client)
 components/billing/  # 11 billing UI components (NEW 2026-02-22)
 components/contracts/ # Supplier contract cards + building contracts tab
-hooks/               # 70 custom hooks (+useSubscription, useStrategicNotification)
+components/operations/ # Reminder cards, list, navigator, stats widget (NEW 2026-03-20)
+components/recurrence/ # RRULE visual builder (NEW 2026-03-20)
+components/bank/       # Bank module UI — tabs, connection cards, transaction rows, reconciliation panel (NEW 2026-03-22)
+hooks/               # 66 custom hooks (+useSubscription, useReminders)
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
-  repositories/      # 25 repositories (+ supplier-contract, supplier-contract-document)
-  domain/            # 63 services (logique metier + supplier-contract)
+  repositories/      # 29 repositories (+ 4 bank: bank-connection, bank-transaction, rent-call, transaction-link)
+  domain/            # 44 services (+ 4 bank: tink-api, bank-sync, bank-matching, rent-call)
     email-notification/  # Module refactore (15 fichiers)
 app/actions/         # 21 server action files (+ supplier-contract-actions)
-app/api/             # 123 API routes (10 domaines + ai-phone)
-  cron/              # 4 CRON jobs (trial-expiration, trial-notifications, behavioral-triggers, cleanup-webhook-events)
+app/api/             # 143 API routes (+13 bank endpoints)
+  cron/              # 9 CRON jobs (+4 bank: sync-bank-transactions, check-consent-expiry, generate-rent-calls, check-unpaid-rent-calls)
+  bank/              # Bank module API routes — connections, transactions, reconcile, sync, reports, OAuth, rent-call receipt (NEW 2026-03-22)
   stripe/            # Stripe webhook handler
   ai-phone/          # AI phone assistant webhook + usage (NEW 2026-03)
 tests/               # E2E test infrastructure (Puppeteer + Vitest)
   e2e/               # 4 test files, 5 POMs, 2 helpers, global setup
   fixtures/          # Test accounts, test-document.pdf
+tests/qa-bot/        # Playwright QA bot (NEW 2026-03-21)
+  specs/             # 8 spec files (auth-smoke, patrimoine, intervention-lifecycle, etc.)
+  pages/             # 10 Page Object Models (POM pattern)
+  helpers/           # Auth setup (GoTrue REST API), test utilities
 docs/                # 230+ fichiers markdown
 docs/stripe/         # Stripe docs (admin-guide, coupon-strategy, production-checklist)
 supabase/migrations/ # 193 migrations SQL (mis a jour 2026-03-11)
@@ -120,7 +140,7 @@ lib/services/domain/
 
 ## Base de Donnees
 
-### Tables Principales (46 total - mis a jour 2026-03-11)
+### Tables Principales (56 total - mis a jour 2026-03-22)
 
 | Phase | Tables |
 |-------|--------|
@@ -131,8 +151,10 @@ lib/services/domain/
 | 5 | intervention_types, intervention_type_categories |
 | 6 | intervention_quotes, quote_attachments, quote_documents |
 | 7 | subscriptions, stripe_customers, stripe_invoices, stripe_webhook_events |
-| **8 (NEW)** | **supplier_contracts, supplier_contract_documents** |
-| **9 (NEW)** | **ai_phone_calls, ai_phone_usage** |
+| 8 | supplier_contracts, supplier_contract_documents |
+| 9 | ai_phone_calls, ai_phone_usage |
+| 10 | reminders, recurrence_rules, recurrence_occurrences |
+| **11 (NEW)** | **bank_connections, bank_transactions, rent_calls, transaction_links, auto_linking_rules, property_expenses, security_deposits** |
 
 ### Stripe Schema (NOUVEAU 2026-02-22)
 
@@ -427,10 +449,12 @@ Fichier: `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 - `intervention_quotes` table - gere le cycle de vie des devis
 - Le statut intervention reste `planification` pendant la gestion des devis
 
-### Migrations Recentes (2026-03-11)
+### Migrations Recentes (2026-03-20)
 
 | Migration | Description |
 |-----------|-------------|
+| `20260319300000` | Fix users UPDATE policy recursion (infinite loop in RLS) |
+| `20260319200000` | Operations: reminders, recurrence_rules, recurrence_occurrences tables + RLS + indexes |
 | `20260311120000` | Remove supplier_contract start_date column |
 | `20260311110000` | Supplier contract intervention type link |
 | `20260311100000` | Supplier contracts + supplier_contract_documents tables |
@@ -541,9 +565,11 @@ class SubscriptionEmailService {
 | **STRIPE_PRICE_ID_YEARLY** | **Stripe price ID for yearly plan** |
 
 ---
-*Derniere mise a jour: 2026-03-11*
-*Analyse approfondie: 46 tables, 123 routes, 70 hooks, 76 pages, 193 migrations*
+*Derniere mise a jour: 2026-03-21*
+*Analyse approfondie: 49 tables, 130 routes, 66 hooks, 83 pages, 201 migrations*
+*QA Bot: 114 Playwright tests, 8 shards, 10 POMs, GitHub Actions CI*
 *Blog: 23 articles, gray-matter + react-markdown, hub-cluster architecture*
 *Stripe: 4 tables, 5 DB functions, 2 services, 2 repositories*
 *Supplier Contracts: 2 tables, 2 repositories, 1 service*
+*Operations: 3 tables (reminders, recurrence_rules, recurrence_occurrences), 2 repositories, 1 service, 1 cron*
 *Regenerer types: npm run supabase:types*

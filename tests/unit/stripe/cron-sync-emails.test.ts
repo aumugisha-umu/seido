@@ -29,6 +29,10 @@ vi.mock('@supabase/supabase-js', () => ({
   })),
 }))
 
+vi.mock('@/lib/logger', () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },
+}))
+
 const originalEnv = process.env
 beforeEach(() => {
   vi.clearAllMocks()

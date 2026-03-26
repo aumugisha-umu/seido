@@ -164,7 +164,7 @@ export const inviteUserSchema = z.object({
   role: z.enum(['admin', 'gestionnaire', 'locataire', 'prestataire', 'proprietaire', 'garant'], {
     errorMap: () => ({ message: 'Invalid role' })
   }),
-  providerCategory: z.enum(['prestataire', 'autre']).optional().nullable(),
+  providerCategory: z.enum(['artisan', 'services', 'energie', 'assurance', 'administration', 'juridique', 'notaire', 'syndic', 'prestataire', 'autre']).optional().nullable(),
   teamId: uuidSchema,
   phone: phoneSchema.nullable(),
   notes: z.string().max(2000).trim().optional().nullable(),
@@ -318,7 +318,7 @@ export const createContactSchema = z.object({
   role: z.enum(['gestionnaire', 'locataire', 'prestataire', 'proprietaire', 'garant'], {
     errorMap: () => ({ message: 'Invalid contact role' })
   }),
-  provider_category: z.enum(['prestataire', 'autre']).optional().nullable(),
+  provider_category: z.enum(['artisan', 'services', 'energie', 'assurance', 'administration', 'juridique', 'notaire', 'syndic', 'prestataire', 'autre']).optional().nullable(),
   speciality: z.string().max(100).trim().optional().nullable(),
   team_id: uuidSchema,
   is_active: z.boolean().optional().default(true),
@@ -401,20 +401,28 @@ export const createManagerInterventionSchema = z.object({
   selectedProviderIds: z.array(uuidSchema).optional(),
 
   // Multi-provider mode
-  assignmentMode: z.enum(['single', 'group', 'separate']).optional().default('single'),
-  providerInstructions: z.record(z.string(), z.string()).optional().default({}),
+  assignmentMode: z.enum(['single', 'group']).optional().default('single'),
 
   // Scheduling
   // ✅ FIX 2026-01-25: Removed 'none' (unused, confusing)
   schedulingType: z.enum(['fixed', 'flexible', 'slots']).optional(),
   fixedDateTime: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
-    time: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be HH:MM'),
+    time: z.string().refine(
+      (val) => val === '' || /^\d{2}:\d{2}$/.test(val),
+      'Time must be HH:MM or empty'
+    ),
   }).optional().nullable(),
   timeSlots: z.array(z.object({
     date: z.string().min(1, 'Date is required'),
-    startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Start time must be HH:MM'),
-    endTime: z.string().regex(/^\d{2}:\d{2}$/, 'End time must be HH:MM'),
+    startTime: z.string().refine(
+      (val) => val === '' || /^\d{2}:\d{2}$/.test(val),
+      'Start time must be HH:MM or empty'
+    ),
+    endTime: z.string().refine(
+      (val) => val === '' || /^\d{2}:\d{2}$/.test(val),
+      'End time must be HH:MM or empty'
+    ),
   })).optional(),
 
   // Options
@@ -441,12 +449,12 @@ export const createManagerInterventionSchema = z.object({
 }).superRefine((data, ctx) => {
   // ✅ FIX 2026-01-25: Validation conditionnelle selon schedulingType
 
-  // Validation Date Fixe : date ET heure obligatoires
+  // Validation Date Fixe : date obligatoire (heure optionnelle)
   if (data.schedulingType === 'fixed') {
-    if (!data.fixedDateTime?.date || !data.fixedDateTime?.time) {
+    if (!data.fixedDateTime?.date) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Date et heure obligatoires pour une planification fixe",
+        message: "Date obligatoire pour une planification fixe",
         path: ['fixedDateTime']
       })
     }
@@ -1041,6 +1049,29 @@ export function validateRequest<T>(schema: z.ZodSchema<T>, data: unknown):
     return { success: false, errors: result.error }
   }
 }
+
+// ============================================================================
+// CONTACT UPDATE SCHEMA (Security: whitelist allowed fields)
+// ============================================================================
+
+/**
+ * Whitelist of fields allowed in /api/update-contact
+ * Prevents mass assignment via service role client (bypasses RLS)
+ */
+export const updateContactSchema = z.object({
+  contactId: uuidSchema,
+  updateData: z.object({
+    name: z.string().max(255).optional(),
+    first_name: z.string().max(100).nullable().optional(),
+    last_name: z.string().max(100).nullable().optional(),
+    email: emailSchema.optional(),
+    phone: z.string().max(30).nullable().optional(),
+    role: z.enum(['gestionnaire', 'prestataire', 'locataire', 'proprietaire']).optional(),
+    speciality: z.string().max(255).nullable().optional(),
+    notes: z.string().max(5000).nullable().optional(),
+    company_id: uuidSchema.nullable().optional(),
+  }).strict(),
+})
 
 /**
  * Format Zod errors for API response

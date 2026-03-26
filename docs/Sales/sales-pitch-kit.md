@@ -3,7 +3,120 @@
 > **Positionnement** : Plateforme d'intelligence operationnelle pour la gestion immobiliere
 > **Audience** : Agences, syndics, coproprietes, patrimoine prive
 > **Arc narratif** : Boucles chronophages → Centralisation → Automatisations → Agent IA
-> **Date** : 2026-03-12
+> **Date** : 2026-03-23
+
+---
+
+## Buyer Profile — Cold Calling Campaign
+
+> Cette section donne a l'equipe commerciale toutes les informations necessaires pour qualifier, cibler et convaincre les prospects lors de la campagne de cold calling.
+
+### Typologie d'entreprise
+
+| Champ | Detail |
+|-------|--------|
+| **Secteur** | Agences immobilieres / Syndics de copropriete / Societes de gestion locative / Administrateurs de biens |
+| **Taille cible** | 2-20 salaries, 80-500 lots geres (coeur de cible). Solo < 80 lots = freemium. > 500 lots = enterprise |
+| **Maturite digitale** | Partielle a moderee — 54% utilisent encore Excel (Pickspace 2019), 60% des PME au niveau 1 de digitalisation (Numiconsult 2024). Outils actuels : Excel + WhatsApp + email + 1 logiciel silo (LOCKimmo, Vilogi, ICS) |
+| **Problematiques** | Boucles de communication chronophages (15h/sem — AppFolio 2023), coordination maintenance (39% y passent 20h+/mois — DoorLoop), migration terrifiante (facilite percue : 2.74/10 — ANGC), conformite reglementaire croissante |
+| **Zone geographique** | **Belgique** : Bruxelles (1 935 agents), Flandre occ. (1 603), Anvers (1 503) = 46% du marche. **France** : Ile-de-France (~6 000 agences), Lyon, Bordeaux, PACA |
+| **Niveau CA** | Agence moyenne FR : 7-10% TTC du loyer CC en honoraires GL. Syndic BE : ~26 EUR/mois/lot. Portefeuille valorise a **250% du CA de gestion** (leservicedegestion.fr) |
+| **Flux logistique** | Reactif : declencheur (appel/email/WhatsApp) → recherche info → transmission → attente → relance → boucle (jours/semaines). 62% travaillent 50+ h/semaine (Buildium via TealHQ) |
+
+### Comportement
+
+| Champ | Detail |
+|-------|--------|
+| **Comportements operationnels** | Mode pompier permanent — 66% du temps sur taches non-strategiques (AppFolio/NAA 2023). Communication multi-canal non centralisee (WhatsApp 80%, email 15%, tel 5%). Delai moyen de reponse : 6 jours (Spliit). Un gestionnaire sans outil adapte plafonne a 100-150 dossiers ; avec un bon logiciel : 200-300 (Garantme) |
+| **Motivations principales** | 1. **Gagner du temps** (15h/sem optimisables). 2. **Croitre sans recruter** (91% des societes — Buildium 2026). 3. **Se conformer** aux nouvelles obligations (rapport mensuel ecrit BE, tracabilite ALUR FR). 4. **Reduire les erreurs** (88% des spreadsheets contiennent des erreurs — U. Hawaii). 5. **Retenir les locataires** (31% resteraient si plus reactif — Buildium 2026) |
+| **Pains** | 1. **Coordination maintenance** = #1 (72% — JoinBeagle 2025). 2. **Communication overload** (73% des locataires attendent reponse le jour meme — TenantCloud). 3. **Admin time sink** (40% du temps — TealHQ). 4. **Conformite reglementaire** (60% rapportent une charge accrue — Resimpli). 5. **Impayes / cash flow** (taux de retard passe de 8.8% a 11.7% — HousingWire 2025). 6. **Document chaos** (spreadsheets + post-its + emails). 7. **Team coordination** (versions differentes, doublons, demandes oubliees) |
+
+### Devises du segment
+
+| Type de gestionnaire | Ce qu'il dit |
+|---------------------|-------------|
+| **Oriente operations ("Le Pompier")** | *"Je passe mes journees a eteindre des feux. Entre les appels des locataires, les relances d'artisans, et les proprietaires qui veulent des nouvelles — je n'ai jamais le temps de travailler SUR mon activite."* |
+| **Oriente donnees ("Le Controleur")** | *"Mon Excel a 47 onglets et je suis le seul a comprendre les formules. Si je pars en vacances, personne ne peut reprendre."* |
+| **Oriente conformite ("Le Juriste")** | *"Chaque annee, une nouvelle loi. DPE, encadrement des loyers, loi Climat... Je passe plus de temps a verifier ma conformite qu'a gerer mes biens."* |
+| **Oriente service client ("L'Hotelier")** | *"Mes locataires attendent une reponse dans l'heure, mes proprietaires veulent un reporting impeccable. Je veux offrir un service 5 etoiles mais mes outils sont de l'epoque du fax."* |
+
+### Marche adressable
+
+| Zone | Operateurs totaux | Dans la cible SEIDO (80-500 lots, 2-20 pers.) | Source |
+|------|-------------------|-----------------------------------------------|--------|
+| **Belgique** | ~11 000 agents IPI (dont 2 635 syndics actifs) | **3 000-5 000** structures | IPI Rapport 2024 |
+| **France** | ~30 000 agences + 15 430 cartes "gestion" + 5 061 cartes "syndic" | **15 000-20 000** structures | FNAIM / SUD Habitat 2026 |
+| **Total** | ~56 000 | **18 000-25 000** | — |
+
+### Qui cibler — Decision maker
+
+| Taille entreprise | Decideur (signe) | Champion (ressent la douleur) | Gatekeeper |
+|-------------------|------------------|-------------------------------|------------|
+| **TPE < 5 pers.** (67% du marche) | Le gerant (= utilisateur) | Meme personne | Aucun — decroche lui-meme |
+| **Petite agence 5-15 pers.** | Directeur / Associe gerant | Gestionnaire locatif senior | Secretaire / assistante |
+| **Cabinet syndic** | Syndic titulaire / Directeur | Gestionnaire de copropriete | Accueil / standard |
+| **Agence moyenne 15-30 pers.** | Directeur + DAF/RAF | Responsable gestion locative | Assistante de direction |
+
+**Poste cible cold call :** Gerant, Directeur, Responsable gestion locative, Syndic titulaire
+
+### Cycle de vente estime
+
+| Segment | ACV | Duree cycle | Notes |
+|---------|-----|-------------|-------|
+| Solo / TPE (< 80 lots) | < 1 000 EUR/an | 14-40 jours | Decision rapide, ROI-driven |
+| Petite agence (80-300 lots) | 1 000-5 000 EUR/an | 1-3 mois | Coeur de cible, trial 30j decisive |
+| Agence moyenne (300-1 000 lots) | 5 000-15 000 EUR/an | 2-4 mois | Besoin demo + validation equipe |
+| Grande agence (1 000+ lots) | > 15 000 EUR/an | 4-9 mois+ | Hors cible court terme |
+
+### Criteres d'achat (par poids)
+
+| Critere | Poids | Source |
+|---------|-------|--------|
+| Rapport qualite-prix | **30%** | BailFacile 2026 |
+| Fonctionnalites (suivi, quittances, maintenance) | **25%** | BailFacile 2026 |
+| Avis utilisateurs / confiance | **20%** | BailFacile 2026 |
+| Facilite d'utilisation | **15%** | Seiitra |
+| Qualite du support | **10%** | ANGC (TIMCI excelle a 4.46/5 hotline) |
+
+### Objections principales et reponses
+
+| Objection | Frequence | Reponse SEIDO |
+|-----------|-----------|---------------|
+| **"La migration est trop compliquee"** | #1 (facilite percue : 2.74/10 — ANGC) | "On vous accompagne de A a Z. Import CSV/Excel en 1 clic, et votre historique est preserve." |
+| **"Ca coute trop cher"** | Forte (67% ont budget < 5 000 EUR/an) | "A partir de 5 EUR/lot/mois. Vous gagnez 15h/semaine — ca represente 36 000 EUR/an en temps recupere." |
+| **"Mon equipe ne va pas l'adopter"** | Forte | "Interface pensee pour etre plus simple que WhatsApp. Onboarding < 10 min. Vos locataires et prestataires ont leur propre portail — ca reduit VOS appels." |
+| **"On fonctionne bien comme ca"** | Inertie = concurrent #1 | "62% des gestionnaires travaillent 50+ heures/semaine. Combien d'heures par semaine passez-vous a coordonner les interventions ?" |
+| **"J'ai deja un logiciel"** | Moyenne | "Est-ce qu'il connecte vos locataires, vos prestataires et vos proprietaires sur la meme plateforme ? C'est ca qui elimine les boucles." |
+
+### Intelligence cold calling
+
+| Parametre | Recommandation | Source |
+|-----------|---------------|--------|
+| **Meilleurs jours** | **Mardi et mercredi** (44% des demos bookees) | Trellus.ai 2025 |
+| **Meilleur creneau initial** | **10h-11h30** pour premier contact | SalesHive 2025 |
+| **Creneau conversion** | **16h-17h** (+71% vs midi) | Cleverly 2026 |
+| **Jours a eviter** | Lundi matin (rattrapage urgences weekend), vendredi apres-midi (terrain) | — |
+| **Taux conversion cold call** | 2-3% moyen (1 RDV / 35-50 appels). Top performers : 5-8% | SalesHive 2025 |
+| **Taux SaaS/tech** | 0.81% (le plus bas cross-industries) → viser 2-3% avec script SEIDO | Focus Digital 2025 |
+| **Donnees propres** | +75% de conversion vs listes non verifiees | SalesHive 2025 |
+| **Opener optimal** | Permission-based : "Nous travaillons avec des gestionnaires comme [ref] qui nous disent que leur plus gros probleme c'est [pain]. Est-ce aussi votre cas ?" (+2.5x — RAIN Group) | Instantly.ai 2025 |
+| **Approche** | **Pain-focused d'abord**, ROI en follow-up. 82% des decideurs disent que les commerciaux sont mal prepares | HubSpot 2024 |
+
+### Hook d'ouverture recommande
+
+> **"Bonjour [Prenom], je suis [Nom] de SEIDO. On travaille avec des gestionnaires en [ville] qui nous disent passer entre 10 et 15 heures par semaine a coordonner les interventions entre locataires et prestataires — est-ce que c'est quelque chose que vous vivez aussi ?"**
+
+Si oui → qualifier le nombre de lots, les outils actuels, la douleur dominante.
+Si non → "Combien de temps estimez-vous y passer ?" (ils sous-estiment toujours → opportunite de recadrer avec les chiffres AppFolio).
+
+### Levier reglementaire (argument de cloture)
+
+| Pays | Obligation recente | Impact | Argument SEIDO |
+|------|-------------------|--------|----------------|
+| **Belgique** | Rapport mensuel ecrit obligatoire au client (AR 28/09/2023, en vigueur 01/02/2024) | Charge admin directe | "SEIDO genere automatiquement le rapport mensuel a partir de vos interventions. Conformite sans effort." |
+| **Belgique** | PV AG dans 30 jours + transmission documents au successeur | Documentation lourde | "Tous vos documents centralises, transmissibles en 1 clic." |
+| **France** | DPE G interdit a la location depuis jan 2025 ; F en 2028 | Suivi parc obligatoire | "Suivez le statut DPE de chaque lot dans SEIDO. Alertes automatiques." |
+| **France** | Tracabilite ALUR + formation 42h/3 ans | Admin + conformite | "Historique complet auditable, conforme ALUR." |
 
 ---
 
@@ -22,7 +135,131 @@ Declencheur (appel, email, WhatsApp, visite)
     → ... (jours / semaines)
 ```
 
-C'est universel a tous les roles (gestionnaire, syndic, prestataire) et toutes les activites (interventions, charges, admin, contentieux). Chiffre d'ancrage : **10h/semaine** pour les moins bien organises. Ambition SEIDO : **reduire a 1h**.
+C'est universel a tous les roles (gestionnaire, syndic, prestataire) et toutes les activites (interventions, charges, admin, contentieux). Chiffre d'ancrage : **10h/semaine** pour les moins bien organises — un chiffre conservateur valide par les etudes sectorielles (la realite est plus proche de 15-24h). Ambition SEIDO : **reduire a 1h**.
+
+---
+
+## Recherche marche — Donnees chiffrees
+
+> Cette section rassemble les donnees sourcees qui soutiennent notre proposition de valeur. A utiliser dans les pitchs, decks, et conversations avec investisseurs/prospects.
+
+### Validation du "10h/semaine" — Le chiffre est conservateur
+
+| Statistique | Source | Annee | Echantillon |
+|---|---|---|---|
+| **15h/semaine (38% du temps de travail)** identifiees comme optimisables par la technologie | AppFolio Hiring & Retention Report | 2023 | n=2 300+ |
+| **18h/semaine** pour les equipes gerant 10 000+ lots | AppFolio (meme etude) | 2023 | idem |
+| **66% du temps** sur taches non-strategiques (42% routine + 24% reactif) | AppFolio / NAA | 2023 | idem |
+| **14-24h/semaine** sur taches repetitives (portefeuilles 20-50 biens) | Jurny / AppFolio Benchmark | 2026 | — |
+| **80h/mois (20h/semaine)** sur taches admin sans automatisation | WorldMetrics compilation | 2024 | — |
+| **40% du temps** sur taches automatisables (auto-evaluation des PMs) | NARPM Member Survey | 2017 | membres NARPM |
+| **12.5h/semaine** economisees par l'IA sur la communication seule | AppFolio Realm-X | 2024 | auto-reporte |
+| Gain jusqu'a **12h/semaine** avec automatisation de la gestion locative | investissement-locatif.com | 2025 | comparatif |
+| "Economisez l'equivalent d'un **mi-temps**" (~20h/sem) | Smovin (concurrent direct BE) | 2025 | marketing |
+
+**Verdict** : Notre claim de 10h/semaine est un plancher, pas un plafond. La source la plus solide — AppFolio 2023, n=2 300+ — situe le chiffre a **15h/semaine**. On peut affirmer en toute confiance : *"Les etudes sectorielles montrent que les professionnels passent en moyenne 15 heures par semaine sur des taches optimisables. Nous estimons que pour les gestionnaires francophones, souvent moins outilles, c'est au minimum 10 heures."*
+
+### Maintenance = Stress #1 et levier de retention
+
+| Statistique | Source | Annee |
+|---|---|---|
+| **38% des proprietaires** : la maintenance est leur source de stress #1 (devant la vacance et les impayes) | Buildium / NARPM Industry Report | 2026 |
+| **31% des locataires hesitants** resteraient si le gestionnaire etait plus reactif sur la maintenance | Buildium / NARPM Industry Report | 2026 |
+| **40% des locataires hesitants** resteraient si le gestionnaire investissait plus dans l'entretien | Buildium / NARPM Industry Report | 2026 |
+| **42% des societes** citent la maintenance comme cible #1 d'amelioration d'efficacite | TenantCloud PM Trends Report | 2024-2025 |
+| **73% des proprietaires** attendent une reponse le jour meme ; la moitie dans les heures | TenantCloud PM Trends Report | 2024-2025 |
+| **39% des PMs** passent 20h+/mois rien que sur les demandes de maintenance | DoorLoop / ReSimpli | 2024 |
+
+### Delais de resolution — Le cout des boucles
+
+| Benchmark | Chiffre | Source |
+|---|---|---|
+| Temps de resolution **world-class** | 2.7 jours ou moins | Property Meld | 2024 |
+| Moyenne du secteur | **4.5 a 7 jours** | Property Meld | 2024 |
+| Seuil critique pour avis negatif | > **5.5 jours** → quasi-zero chance d'avis positif | Property Meld | 2024 |
+| Reparation d'urgence vs planifiee | **3-5x plus cher** en reactif qu'en planifie | OxMaint | 2024 |
+| Cout moyen d'un double dispatch prestataire | **4 800 $/incident**, frequence de 22% en gestion manuelle | Property Meld | 2024 |
+| Temps de coordination maintenance (500 lots) | **10-25h/semaine** | Property Meld / DoorGrow | 2024 |
+
+### Cout de l'inefficacite
+
+| Statistique | Source | Annee |
+|---|---|---|
+| Cout admin par lot : **~2 300 $/an**, en hausse de **20% depuis 2021** | NAA (National Apartment Association) | 2024 |
+| **93% des societes de gestion** rapportent une hausse des depenses | Buildium / NARPM Industry Report | 2026 |
+| **62% des PMs** travaillent 50+ heures/semaine | Buildium via TealHQ | 2024 |
+| **40-60% des PMs** rapportent des symptomes de burnout | IrisCX | 2024 |
+| **64%** se disent stresses par la charge de travail ; **40%** ont pris des conges pour sante mentale | Answer-4u | 2024 |
+| L'automatisation reduit le temps admin de **60%** | AllBetterApp | 2024 |
+| Le temps de reponse aux demandes locataires baisse de **25%** avec un logiciel de gestion | DoorLoop | 2024 |
+
+### Contexte europeen (France / Belgique) — Le marche est sous-equipe
+
+| Finding | Source | Annee |
+|---|---|---|
+| L'immobilier = **l'un des secteurs les moins digitalises** en Europe (DESI 2022) | RICS | 2022 |
+| Les marges s'erodent ; l'automatisation back-office est "**essentielle a la survie**" | Xerfi | 2023 |
+| Turnover chronique, abandons de poste, pression excessive chez les gestionnaires de copropriete | Brault Formations | 2024 |
+| **65%** des coproprietaires satisfaits, mais **33% envisagent de changer** de syndic | FNAIM Enquete Copropriete (n=42 978) | 2019 |
+| "La numerisation de la gestion locative est **encore loin d'etre aboutie**" | Blog de l'A.M.I | 2024 |
+| Mismatch systemique entre l'offre PropTech et les besoins operationnels terrain | MDPI / Sustainability (peer-reviewed, Italie) | 2025 |
+| **95% des proprietaires** et **90% des locataires** veulent interagir en ligne avec leur gestionnaire | Buildium / NARPM Industry Report | 2025 |
+| **58% des societes de gestion** utilisent deja une forme d'IA | Buildium / NARPM Industry Report | 2026 |
+| **91% des societes** veulent agrandir leur portefeuille **sans recruter** | Buildium / NARPM Industry Report | 2026 |
+
+### Temoignages terrain — Verbatims emotionnels
+
+> A utiliser en storytelling, pas en citation formelle. Reformuler si necessaire.
+
+| Verbatim | Source |
+|---|---|
+| *"Je suis au milieu — engueule par un locataire frustre ET un proprietaire qui ne veut pas depenser. Le telephone sonne a toute heure."* | Property manager, Quora |
+| *"Late-night maintenance calls, chasing rent payments, tenant disputes, lease renewals, paperwork — ce qui devait etre du revenu passif ressemble a un deuxieme emploi."* | Investisseur, BiggerPockets |
+| *"On s'appuyait sur d'innombrables spreadsheets et post-its eparpilles — retrouver une information importante etait un cauchemar."* | Avis G2 (Re-Leased) |
+| *"L'interface engendre une charge mentale et une perte de temps."* | Utilisateur francais, Trustpilot (logiciel concurrent) |
+| *"Coordonner la maintenance avec les locataires est frustrant — le technicien est venu, personne n'a ouvert, il est reparti apres 1h d'attente."* | Proprietaire, BiggerPockets |
+| *"On ne pouvait pas depasser 10 biens en gerant nous-memes la partie operationnelle."* | Investisseur, BiggerPockets |
+| *"Malgre le manque de main-d'oeuvre, la maintenance n'est jamais assez rapide pour les locataires ni assez economique pour les proprietaires."* | Discussion forum BiggerPockets |
+| *"Disponibilite et reactivite" = attente #1 des coproprietaires vis-a-vis de leur syndic* | FNAIM Enquete 2019 (n=42 978) |
+
+### 3 citations recommandees pour le pitch deck
+
+1. **La plus forte (chiffre source)** : *"Les professionnels de la gestion immobiliere identifient 15 heures par semaine — 38% de leur temps de travail — comme optimisable grace a la technologie."* — AppFolio, 2023, n=2 300+
+
+2. **Impact business (retention)** : *"31% des locataires hesitants a renouveler leur bail resteraient si leur gestionnaire etait plus reactif sur la maintenance."* — Buildium/NARPM, 2026
+
+3. **Cout de l'inaction (qualite)** : *"Au-dela de 5.5 jours pour resoudre un ticket de maintenance, il y a quasi-zero chance d'obtenir un avis positif du locataire."* — Property Meld, 2024
+
+### Sources completes
+
+**Etudes primaires**
+- [AppFolio 2023 Hiring & Retention Report](https://www.appfolio.com/newsroom/appfolio-survey-highlights-shifts-in-property-management-employee-productivity-and-satisfaction)
+- [Buildium/NARPM 2026 Industry Report](https://www.buildium.com/resource/2026-property-management-industry-report/)
+- [Buildium/NARPM 2025 Industry Report (PDF)](https://www.buildium.com/wp-content/uploads/2024/10/BLDM-2025-Property-Management-Industry-Report.pdf)
+- [Property Meld Monthly Benchmark Report](https://propertymeld.com/monthly-benchmark-report/)
+- [NAA Operating Expense Data 2024](https://naahq.org/news/momentum-management-navigating-elevated-costs-constrained-operating-environment)
+- [NARPM 2017 Member Survey (PDF)](https://www.narpm.org/docs/about/17membersurvey.pdf)
+
+**Contexte europeen**
+- [FNAIM Enquete Copropriete 2019 (PDF)](https://www.fnaim.fr/cms_viewFile.php?idtf=4165&path=9d/4165_646_Resultats_Enquete_Copros_FNAIM_mai_2019.pdf)
+- [Xerfi — Administrateurs de biens](https://www.xerfi.com/presentationetude/Les-strategies-de-riposte-des-administrateurs-de-biens-face-a-l-amplification-des-defis-_21BAT35)
+- [RICS — PropTech Digitisation](https://www.rics.org/eu/news-insight/latest-news/press-releases/huge-digitisation-potential-in-the-real-estate-industry-countdown-to-the-proptech-innovation-award-/)
+- [MDPI — The PropTech Mismatch (Italie, 2025)](https://www.mdpi.com/2071-1050/18/4/1850)
+- [Brault Formations — Burnout gestionnaires](https://www.braultformationsauditsyndic.com/actualites-juridiques/le-burn-out-chez-les-gestionnaires-de-copropr/)
+
+**Benchmarks & statistiques**
+- [Jurny — Time Wasted 2026](https://blog.jurny.com/how-much-time-do-property-managers-waste-on-repetitive-tasks-2026-data)
+- [DoorLoop — PM Industry Stats](https://www.doorloop.com/blog/property-management-industry-stats)
+- [TenantCloud — PM Trends 2024-2025](https://www.tenantcloud.com/blog/property-management-trends-report)
+- [IrisCX — Property Manager Burnout](https://www.iriscx.com/property-manager-burnout/)
+- [OxMaint — Property Maintenance KPIs](https://oxmaint.com/industries/property-management/property-maintenance-kpis-metrics)
+- [AllBetterApp — Pain Points for PMs](https://allbetterapp.com/8-biggest-pain-points-for-property-managers/)
+
+**Forums & temoignages**
+- [BiggerPockets — Coordinating Maintenance](https://www.biggerpockets.com/forums/52/topics/760869-coordinating-maintenance-requests-with-tenants)
+- [BiggerPockets — Hidden Costs of Self-Managing](https://www.biggerpockets.com/blog/the-hidden-costs-of-self-managing-rental-properties)
+- [BiggerPockets — PM Frustrations](https://www.biggerpockets.com/forums/52/topics/1244860-what-frustrations-do-you-face-as-a-property-manager)
+- [Smovin — Automatiser la gestion](https://www.smovin.app/fr-be/automatiser-gestion-locative-et-technique/)
 
 ---
 
@@ -67,29 +304,31 @@ Pendant le pitch, reformulez toujours en Benefice (lie au besoin explicite du pr
 
 | Au lieu de (Avantage) | Dites (Benefice) |
 |----------------------|------------------|
-| "Notre IA pre-mache le travail" | "Puisque vous avez dit vouloir liberer 9h par semaine, notre phase Cerveau automatisera vos reponses aux emails pour atteindre cet objectif" |
-| "SEIDO centralise toutes vos donnees" | "Vous avez mentionne les devis introuvables — dans SEIDO, chaque devis est rattache au bon dossier, vous le retrouvez en 2 secondes" |
-| "Vos prestataires gerent leur planning" | "Vous avez parle des relances qui prennent 1h30 par jour — avec le portail prestataire, c'est eux qui proposent leurs creneaux" |
+| "Notre IA pre-mache le travail" | "Puisque vous avez dit vouloir liberer 9h par semaine, notre phase Cerveau automatisera vos reponses aux emails. AppFolio estime que ca represente 12.5h/semaine sur la communication seule." |
+| "SEIDO centralise toutes vos donnees" | "Vous avez mentionne les devis introuvables — dans SEIDO, chaque devis est rattache au bon dossier, vous le retrouvez en 2 secondes. Plus de spreadsheets et de post-its." |
+| "Vos prestataires gerent leur planning" | "Vous avez parle des relances qui prennent 1h30 par jour — avec le portail prestataire, c'est eux qui proposent leurs creneaux. Fini les doubles deplacements." |
+| "SEIDO ameliore la retention locataire" | "31% des locataires hesitants resteraient si leur gestionnaire etait plus reactif. Avec le suivi 'comme un colis', vos locataires n'ont plus besoin de vous appeler pour savoir ou en est leur demande." |
+| "On vous fait gagner du temps" | "Les etudes montrent 15h/semaine sur des taches optimisables. Vous avez dit y passer combien ? [laisser repondre] C'est exactement ces heures-la qu'on cible." |
 
 ---
 
 ## Pitch 30 secondes — Elevator pitch
 
-> *~80 mots. Pour : networking, salon, rencontre informelle.*
+> *~90 mots. Pour : networking, salon, rencontre informelle.*
 
-En gestion immobiliere, une grande partie du travail consiste a recevoir une demande — par email, appel ou WhatsApp — puis a chercher la bonne information, la transmettre, attendre une reponse, relancer. Ces boucles prennent des jours, parfois des semaines.
+En gestion immobiliere, une grande partie du travail consiste a recevoir une demande — par email, appel ou WhatsApp — puis a chercher la bonne information, la transmettre, attendre une reponse, relancer. Les etudes montrent que ces boucles representent jusqu'a 15 heures par semaine pour un gestionnaire — c'est 38% de son temps de travail. Et chaque boucle ouverte, c'est un locataire qui attend, un prestataire qui patiente, un proprietaire qui s'impatiente.
 
-SEIDO centralise toutes vos donnees, documents et interactions sur une seule plateforme. A chaque demande recue, vous avez tout le contexte en quelques clics. Notre ambition : faire passer ces 10 heures par semaine a 1 heure.
+SEIDO centralise toutes vos donnees, documents et interactions sur une seule plateforme. A chaque demande, vous avez tout le contexte en quelques clics. Notre ambition : ramener ces 10 a 15 heures a 1 heure par semaine.
 
 ---
 
 ## Pitch 1 minute 30 — Intro meeting / demo
 
-> *~230 mots. Pour : debut de rendez-vous, intro demo live, appel de decouverte.*
+> *~260 mots. Pour : debut de rendez-vous, intro demo live, appel de decouverte.*
 
 Seido, c'est une nouvelle maniere de faire de la gestion immobiliere — que ce soit en agence, en copropriete, en syndic ou pour son propre patrimoine.
 
-Pour les differents corps de metier que nous visons, une grande partie de l'activite consiste a attendre un declencheur — une conversation en face a face, un appel, un email, un WhatsApp — pour ensuite rechercher des informations ou des documents, parfois les analyser, puis les transmettre. Et beaucoup de demandes se transforment en fait en boucles qui mettent des jours, voire des semaines a etre finalisees. Pour les moins bien organises, cela peut representer jusqu'a 10 heures par semaine, voire plus selon la nature des activites et la composition du patrimoine. Notre ambition, c'est de reduire au maximum le temps que prennent ces boucles, et de faire passer ce temps de 10 heures a 1 heure par personne par semaine.
+Pour les differents corps de metier que nous visons, une grande partie de l'activite consiste a attendre un declencheur — une conversation en face a face, un appel, un email, un WhatsApp — pour ensuite rechercher des informations ou des documents, parfois les analyser, puis les transmettre. Et beaucoup de demandes se transforment en fait en boucles qui mettent des jours, voire des semaines a etre finalisees. Selon une etude d'AppFolio portant sur plus de 2 000 professionnels, ca represente en moyenne 15 heures par semaine — 38% du temps de travail — sur des taches que la technologie pourrait optimiser. En Belgique et en France, ou le secteur reste l'un des moins digitalises d'Europe selon le DESI, c'est souvent pire. Notre ambition, c'est de reduire au maximum le temps que prennent ces boucles, et de passer de 10-15 heures a 1 heure par personne par semaine.
 
 Et la maniere dont je compte m'y prendre, c'est grace a notre application, sur laquelle vous pouvez centraliser toutes vos donnees, documents et interactions liees a votre patrimoine. Ensuite, notre systeme s'occupe de tout prendre en main — a chaque email, WhatsApp, ou meme appel recu. Vous etes notifie a chaque decision a prendre, vous avez directement tout le contexte pour le faire rapidement en quelques clics, et vous pouvez vous concentrer sur votre coeur de metier. Et plus notre systeme apprend de vos habitudes, plus il vous libere du temps.
 
@@ -97,15 +336,17 @@ Et la maniere dont je compte m'y prendre, c'est grace a notre application, sur l
 
 ## Pitch 3 minutes — Rendez-vous qualifie
 
-> *~450 mots. Pour : premier rendez-vous commercial, pitch investisseur court, demo salon.*
+> *~500 mots. Pour : premier rendez-vous commercial, pitch investisseur court, demo salon.*
 
 Seido, c'est une nouvelle maniere de faire de la gestion immobiliere — que ce soit en agence, en copropriete, en syndic ou pour son propre patrimoine.
 
 **Le probleme qu'on resout**
 
-Pour les differents corps de metier que nous visons, une grande partie de l'activite consiste a attendre un declencheur — un appel, un email, un WhatsApp — pour ensuite rechercher des informations ou des documents, parfois les analyser, puis les transmettre. Et beaucoup de demandes se transforment en boucles qui mettent des jours, voire des semaines a etre finalisees. Pour les moins bien organises, cela peut representer jusqu'a 10 heures par semaine, voire plus.
+Pour les differents corps de metier que nous visons, une grande partie de l'activite consiste a attendre un declencheur — un appel, un email, un WhatsApp — pour ensuite rechercher des informations ou des documents, parfois les analyser, puis les transmettre. Et beaucoup de demandes se transforment en boucles qui mettent des jours, voire des semaines a etre finalisees.
 
-Notre ambition, c'est de reduire au maximum le temps que prennent ces boucles, et de faire passer ce temps de 10 heures a 1 heure par personne par semaine.
+Les chiffres sont parlants : selon AppFolio, les professionnels de l'immobilier passent en moyenne **15 heures par semaine** — 38% de leur temps de travail — sur des taches que la technologie pourrait optimiser. Et Buildium montre que 38% des proprietaires citent la **maintenance comme source de stress numero 1**, tandis que 31% des locataires hesitants a renouveler leur bail resteraient si leur gestionnaire etait simplement **plus reactif**. Quand on sait qu'au-dela de 5 jours pour resoudre une demande, il y a quasi-zero chance d'obtenir un avis positif, on comprend l'urgence.
+
+Notre ambition, c'est de reduire au maximum le temps que prennent ces boucles, et de passer de 10-15 heures a 1 heure par personne par semaine.
 
 **Comment on s'y prend**
 
@@ -121,7 +362,7 @@ Aujourd'hui, on construit le squelette — le logiciel de gestion qui centralise
 
 Mais la vraie ambition, c'est la prochaine etape : un agent intelligent qui va premacher le travail pour vous. Imaginez : un email arrive, l'agent identifie le sujet, retrouve le dossier, prepare une proposition de reponse. Vous n'avez qu'a confirmer ou reprendre la main. Que ce soit pour une regularisation de charges, une demande administrative, ou un suivi de prestataire — l'agent fait l'analyse sur des donnees exactes et vous presente l'action a valider.
 
-Plus notre systeme apprend de vos habitudes, plus il vous libere du temps. C'est ca, la vision SEIDO.
+91% des societes de gestion veulent agrandir leur portefeuille sans recruter. C'est exactement ce que SEIDO permet : gerer plus, avec moins de temps. Et plus notre systeme apprend de vos habitudes, plus il vous libere du temps. C'est ca, la vision SEIDO.
 
 ---
 
@@ -133,9 +374,11 @@ Plus notre systeme apprend de vos habitudes, plus il vous libere du temps. C'est
 
 Quand on regarde le quotidien d'un gestionnaire immobilier, d'un syndic, ou meme d'un proprietaire qui gere son patrimoine, on remarque un schema qui se repete constamment.
 
-Tout commence par un declencheur : un locataire qui appelle pour une fuite, un email d'un prestataire qui envoie un devis, un message WhatsApp d'un proprietaire qui veut un point. A partir de la, c'est toujours la meme boucle : chercher l'information, retrouver le bon document, parfois l'analyser, le transmettre a la bonne personne, attendre une reponse, relancer, re-transmettre. Et ces boucles, elles prennent des jours, parfois des semaines a se refermer. Multipliez ca par le nombre de biens, de locataires, de prestataires — et vous comprenez pourquoi les moins bien organises y laissent facilement 10 heures par semaine, voire plus.
+Tout commence par un declencheur : un locataire qui appelle pour une fuite, un email d'un prestataire qui envoie un devis, un message WhatsApp d'un proprietaire qui veut un point. A partir de la, c'est toujours la meme boucle : chercher l'information, retrouver le bon document, parfois l'analyser, le transmettre a la bonne personne, attendre une reponse, relancer, re-transmettre. Et ces boucles, elles prennent des jours, parfois des semaines a se refermer.
 
-Notre ambition avec SEIDO, c'est de reduire ces boucles au strict minimum — et de faire passer ce temps de 10 heures a 1 heure par personne par semaine.
+Les chiffres le confirment. Selon une etude AppFolio portant sur 2 300 professionnels, **15 heures par semaine** — 38% du temps de travail — sont passees sur des taches que la technologie pourrait optimiser. Pour les portefeuilles de 20 a 50 biens, on monte entre 14 et 24 heures hebdomadaires. En France et en Belgique, ou le secteur immobilier reste l'un des moins digitalises d'Europe selon l'indice DESI, et ou 33% des coproprietaires envisagent de changer de syndic selon la FNAIM, la situation est au moins aussi critique.
+
+Notre ambition avec SEIDO, c'est de reduire ces boucles au strict minimum — et de faire passer ce temps de 10 a 15 heures a 1 heure par personne par semaine.
 
 **Ce qu'on a construit**
 
@@ -144,9 +387,9 @@ SEIDO est une plateforme sur laquelle vous centralisez toutes vos donnees, docum
 A chaque email, WhatsApp, ou meme appel recu, notre systeme prend le relais. Il identifie le contexte, rattache la demande au bon dossier, et vous notifie uniquement quand une decision vous revient. Vous avez tout sous les yeux — l'historique complet, les documents, les echanges — et vous pouvez agir en quelques clics.
 
 Mais ca ne s'arrete pas au gestionnaire. Chaque partie prenante a son propre acces :
-- Vos **locataires** signalent un probleme en 2 minutes et suivent l'avancement comme un colis — sans avoir besoin de vous appeler.
-- Vos **prestataires** recoivent toutes les informations avant de se deplacer, proposent leurs creneaux, soumettent devis et factures — en totale autonomie.
-- Vos **proprietaires** ont une visibilite en temps reel sur leur patrimoine.
+- Vos **locataires** signalent un probleme en 2 minutes et suivent l'avancement comme un colis — sans avoir besoin de vous appeler. Et c'est important : Buildium montre que 31% des locataires hesitants a renouveler resteraient si leur gestionnaire etait simplement plus reactif.
+- Vos **prestataires** recoivent toutes les informations avant de se deplacer, proposent leurs creneaux, soumettent devis et factures — en totale autonomie. Fini les doubles deplacements a 4 800 $ l'incident.
+- Vos **proprietaires** ont une visibilite en temps reel sur leur patrimoine — parce que 38% d'entre eux citent la maintenance comme source de stress numero 1.
 
 Resultat : moins d'appels, moins de relances, moins de boucles. Et vous, vous pouvez enfin vous concentrer sur votre coeur de metier.
 
@@ -164,9 +407,9 @@ Que ce soit pour une regularisation de charges, un traitement de demande adminis
 
 **Pourquoi maintenant**
 
-Le marche de la gestion immobiliere en Belgique est encore tres artisanal — Excel, WhatsApp, emails, papier. Les solutions existantes se concentrent sur la comptabilite ou le juridique, mais personne ne resout le probleme operationnel : les boucles de communication qui consument le temps des equipes.
+Le marche de la gestion immobiliere en Belgique et en France est encore tres artisanal — Excel, WhatsApp, emails, papier. Selon le DESI (indice europeen de digitalisation), l'immobilier est l'un des secteurs les moins digitalises du continent. Xerfi confirme que l'automatisation back-office est devenue "essentielle a la survie" des administrateurs de biens, alors que les marges s'erodent et que 93% des societes rapportent une hausse des depenses. En parallele, 40 a 60% des gestionnaires declarent des symptomes de burnout.
 
-Avec l'arrivee de l'IA generative et des agents autonomes, il y a une fenetre d'opportunite unique : construire le squelette aujourd'hui, les reflexes demain, et le cerveau apres-demain. Celui qui possede les donnees structurees possede l'avantage.
+Les solutions existantes se concentrent sur la comptabilite ou le juridique, mais personne ne resout le probleme operationnel : les boucles de communication qui consument le temps des equipes. Avec l'arrivee de l'IA generative et des agents autonomes, il y a une fenetre d'opportunite unique : construire le squelette aujourd'hui, les reflexes demain, et le cerveau apres-demain. 91% des societes de gestion veulent agrandir leur portefeuille sans recruter — et 58% utilisent deja une forme d'IA. Celui qui possede les donnees structurees possede l'avantage.
 
 SEIDO, c'est une nouvelle maniere de faire de la gestion immobiliere. Et plus notre systeme apprend de vos habitudes, plus il vous libere du temps.
 
@@ -178,12 +421,17 @@ SEIDO, c'est une nouvelle maniere de faire de la gestion immobiliere. Et plus no
 |-------|--------|
 | **Ouverture** | "En gestion immobiliere, tout commence par un declencheur." |
 | **Le probleme** | "Ces boucles prennent des jours. Parfois des semaines." |
-| **L'ambition** | "De 10 heures a 1 heure par personne par semaine." |
+| **Le chiffre choc** | "15 heures par semaine. 38% du temps de travail. Sur des taches que la technologie pourrait faire." |
+| **L'ambition** | "De 10-15 heures a 1 heure par personne par semaine." |
 | **La methode** | "Centraliser, automatiser, puis laisser l'agent premacher." |
 | **Le resultat** | "Vous etes notifie, vous avez le contexte, vous decidez en quelques clics." |
+| **L'impact retention** | "31% des locataires hesitants resteraient si leur gestionnaire etait plus reactif." |
+| **Le seuil critique** | "Au-dela de 5 jours, quasi-zero chance d'avis positif. Chaque jour compte." |
+| **Le marche** | "91% des societes veulent croitre sans recruter. SEIDO rend ca possible." |
 | **La vision** | "Plus notre systeme apprend de vos habitudes, plus il vous libere du temps." |
 | **Le closer** | "Le squelette est la. Les reflexes sont en place. Le cerveau arrive." |
 | **L'identity shift** | "Vous pilotez au lieu d'eteindre des feux." |
+| **L'urgence EU** | "L'immobilier est l'un des secteurs les moins digitalises d'Europe. Ca ne va pas durer." |
 
 ---
 
@@ -191,16 +439,18 @@ SEIDO, c'est une nouvelle maniere de faire de la gestion immobiliere. Et plus no
 
 | Aspect | Ancien (Sales Deck) | Nouveau (Pitch Kit) |
 |--------|---------------------|---------------------|
-| **Framing du probleme** | "Mode pompier" / 40% du temps | "Boucles" / 10h/semaine |
+| **Framing du probleme** | "Mode pompier" / 40% du temps | "Boucles" / 10-15h/semaine (source AppFolio 2023) |
 | **Scope** | Interventions uniquement | Toute la gestion immobiliere |
-| **Promesse** | -70% d'appels, -87% recherche | 10h → 1h par semaine |
+| **Promesse** | -70% d'appels, -87% recherche | 10-15h → 1h par semaine |
+| **Donnees marche** | Aucune source citee | 15+ stats sourcees (AppFolio, Buildium, Property Meld, FNAIM, Xerfi, RICS) |
 | **Arc narratif** | Douleur → Solution → ROI | Boucles → Squelette → Reflexes → Cerveau |
 | **Differenciateur** | Multi-role, portails, ticketing | Plateforme evolutive vers IA autonome |
 | **Horizon** | Outil mature aujourd'hui | Vision 3 phases (investissement long terme) |
 
-**Recommandation** : L'ancien deck reste pertinent pour les demos tactiques (montrer les features, prouver le ROI immediat). Le nouveau pitch kit est plus adapte aux conversations strategiques (investisseurs, partenaires, premiers rendez-vous ou le prospect doit comprendre la vision).
+**Recommandation** : L'ancien deck reste pertinent pour les demos tactiques (montrer les features, prouver le ROI immediat). Le nouveau pitch kit est plus adapte aux conversations strategiques (investisseurs, partenaires, premiers rendez-vous ou le prospect doit comprendre la vision). Les donnees chiffrees de la section "Recherche marche" peuvent alimenter les deux formats.
 
 ---
 
-*Derniere mise a jour : 2026-03-17*
+*Derniere mise a jour : 2026-03-23*
 *Base sur : vision fondateur, productContext.md, sales-deck-seido.md, sales-pitch-gestionnaire.md, SPIN Selling (Rackham)*
+*Recherche marche : AppFolio (2023, 2024), Buildium/NARPM (2025, 2026), Property Meld (2024), NAA (2024), FNAIM (2019), Xerfi, RICS/DESI (2022), MDPI (2025), Jurny (2026), DoorLoop, TenantCloud, forums BiggerPockets/Quora/G2*

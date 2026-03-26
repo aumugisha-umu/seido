@@ -511,12 +511,12 @@ export function InterventionActionButtons({
 
         case 'process_quotes':
           // Naviguer vers l'onglet estimations pour traiter les estimations reçues
-          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=devis`)
+          navigateTo(`/gestionnaire/operations/interventions/${intervention.id}?tab=devis`)
           return
 
         case 'view_quotes':
           // Naviguer vers l'onglet estimations en mode consultation
-          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=devis`)
+          navigateTo(`/gestionnaire/operations/interventions/${intervention.id}?tab=devis`)
           return
 
         case 'waiting_quotes':
@@ -564,7 +564,7 @@ export function InterventionActionButtons({
             onProposeSlots()
             return
           }
-          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=execution`)
+          navigateTo(`/gestionnaire/operations/interventions/${intervention.id}?tab=execution`)
           return
 
         case 'confirm_availabilities':
@@ -575,7 +575,7 @@ export function InterventionActionButtons({
           return
 
         case 'reschedule':
-          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=time-slots`)
+          navigateTo(`/gestionnaire/operations/interventions/${intervention.id}?tab=time-slots`)
           return
 
         case 'start_work':

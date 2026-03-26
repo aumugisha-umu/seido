@@ -1219,7 +1219,7 @@ jobs:
       - name: Deploy to Staging
         uses: dokku/github-action@master
         with:
-          git_remote_url: 'ssh://dokku@staging.seido.app:22/seido'
+          git_remote_url: 'ssh://dokku@staging.seido-app.com:22/seido'
           ssh_private_key: ${{ secrets.STAGING_SSH_KEY }}
 
   # ===================================================================
@@ -1367,11 +1367,11 @@ EDITOR=vim rails credentials:edit --environment production
 secret_key_base: "..."
 
 database:
-  host: db.seido.app
+  host: db.seido-app.com
   password: "..."
 
 redis:
-  url: redis://redis.seido.app:6379/0
+  url: redis://redis.seido-app.com:6379/0
 
 stripe:
   secret_key: sk_live_...

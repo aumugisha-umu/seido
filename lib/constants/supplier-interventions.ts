@@ -98,6 +98,8 @@ export const createSupplierReminderIntervention = (
     assignedUsers: currentUser
       ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
       : [],
+    itemType: 'reminder' as const,
+    recurrenceRule: 'FREQ=YEARLY;INTERVAL=1',
   }
 }
 
@@ -130,4 +132,28 @@ export const createEmptySupplierCustomIntervention = (
   assignedUsers: currentUser
     ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
     : [],
+  itemType: 'intervention' as const,
+})
+
+/**
+ * Create an empty custom reminder for supplier contracts.
+ */
+export const createEmptySupplierCustomReminder = (
+  currentUser?: { id: string; name: string }
+): ScheduledInterventionData => ({
+  key: `custom_reminder_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+  title: '',
+  description: '',
+  interventionTypeCode: 'autre_administratif',
+  icon: 'PenLine',
+  colorClass: 'text-amber-500',
+  enabled: false,
+  scheduledDate: addDays(new Date(), 7),
+  isAutoCalculated: true,
+  availableOptions: SUPPLIER_CUSTOM_SCHEDULING_OPTIONS,
+  selectedSchedulingOption: 'now_plus_7d',
+  assignedUsers: currentUser
+    ? [{ userId: currentUser.id, role: 'gestionnaire' as const, name: currentUser.name }]
+    : [],
+  itemType: 'reminder' as const,
 })

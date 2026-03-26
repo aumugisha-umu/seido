@@ -105,7 +105,7 @@ describe('package.json dependency hygiene', () => {
 describe('GitHub Actions CI pipeline', () => {
   it('.github/workflows/ci.yml exists', () => {
     const ciSource = readFileSync(resolve(ROOT, '.github/workflows/ci.yml'), 'utf-8')
-    expect(ciSource).toContain('npm run lint')
+    expect(ciSource).toContain('next lint')
   })
 
   it('CI runs on push to main and preview branches', () => {

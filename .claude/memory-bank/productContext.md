@@ -151,26 +151,39 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [x] **Intervention Planner Refactoring** (6 stories: shared InterventionPlannerStep component)
 - [x] **Supplier Contracts** (new entity: DB tables, repository, service, card UI, wizard steps)
 - [x] **Email Section Cleanup + Visibility Plumbing** (2026-03-19: 30 files, console->logger, any->unknown, type consolidation, compose modal z-index fix, OAuth/IMAP visibility wiring)
+- [x] **Operations Section + Reminders/Recurrence** (2026-03-20: 118 files, 3 new tables, route restructuring, RRULE cron engine)
+- [x] **QA Bot E2E Test Suite** (2026-03-21: Playwright, 114 tests, 8 shards, 10 POMs, GitHub Actions CI)
+- [x] **Admin Invite** (2026-03-21: `inviteGestionnaireAction` — magic link + Resend email)
+- [x] **cancelIntervention bug fix** (2026-03-21: `string | CancellationData` union type)
+- [x] **Bank Module Phase 1** (2026-03-22: 17 stories, Tink Open Banking, OAuth flow, transaction sync, reconciliation, rent calls, dashboard widgets, quittance PDF)
+- [x] **Full-Stack Security Audit** (2026-03-22: 128 checks, 6 critical fixes — mass assignment, JWT validation, CSP, CORS, Stripe fail-closed, Zod)
+- [x] **Gestionnaire Code Verification** (2026-03-22: 93 files reviewed, 5 bugs fixed — soft delete, proprietaire role, type safety)
+- [ ] **AI Intervention Agent** (design validated — `docs/AI/ai-intervention-agent-design.md`, Phase 1: 8 stories, Phase 2: 4 stories)
+- [ ] **Bank Module Phase 2** (bulk reconciliation, auto-linking rules UI, owner payments)
 - [ ] **Email Visibility Phase 2** (sharing UI, permission management, end-to-end testing)
 - [ ] Landing page redesign (plan exists in docs/plans/)
 
-### Metriques Infrastructure (2026-03-19)
-- **412 composants** (UI + dashboards + workflow + blog + billing + contracts)
-- **65 hooks** custom
-- **23 repositories** + **39 domain services**
-- **129 API routes**
-- **199 migrations SQL**
+### Metriques Infrastructure (2026-03-22)
+- **430 composants** (UI + dashboards + workflow + blog + billing + contracts + operations + bank)
+- **66 hooks** custom
+- **29 repositories** + **44 domain services**
+- **143 API routes**
+- **202 migrations SQL**
+- **56 DB tables**
 - **23 blog articles** (SEO-optimized, sourced, hub-cluster architecture)
-- **163 AGENTS.md learnings**
+- **183 AGENTS.md learnings**
+- **652 unit tests** (45 files)
+- **114 Playwright E2E tests** (8 shards, 10 POMs, GitHub Actions CI)
 
 ## Fonctionnalités Prévues
-- [ ] AI Phone Assistant Phase 2 - Priorité: Haute
+- [ ] Bank Module Phase 2 (bulk reconciliation, auto-linking rules, owner payments) - Priorité: Haute
+- [ ] AI Intervention Agent (Phase 1: manual analysis) - Priorité: Haute - Design: `docs/AI/ai-intervention-agent-design.md`
+- [ ] Audit Sprint 2 (code quality) + Sprint 3 (tech debt) - Priorité: Moyenne
 - [ ] Supplier Contracts Phase 2 (documents, renewal alerts) - Priorité: Moyenne
 - [ ] Export PDF rapports - Priorité: Moyenne
-- [ ] Integration calendrier - Priorité: Moyenne
 - [ ] Dashboard analytics avancé - Priorité: Haute
 
 ---
-*Derniere mise a jour: 2026-03-19*
+*Derniere mise a jour: 2026-03-21*
 *Références: docs/design/persona-gestionnaire-unifie.md, persona-prestataire.md, persona-locataire.md*
 *Stripe: docs/stripe/admin-guide.md, docs/stripe/coupon-strategy.md, docs/stripe/production-checklist.md*

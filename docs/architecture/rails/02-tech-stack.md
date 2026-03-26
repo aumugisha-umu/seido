@@ -2336,7 +2336,7 @@ export default class extends Controller {
 webpush:
   public_key: <%= ENV['VAPID_PUBLIC_KEY'] %>
   private_key: <%= ENV['VAPID_PRIVATE_KEY'] %>
-  subject: mailto:support@seido.app
+  subject: mailto:support@seido-app.com
 
 # Generate keys with:
 # webpush generate_key

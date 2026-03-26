@@ -98,7 +98,7 @@ export async function createInterventionAction() {
 
     // TODO: Implémenter création intervention
     // Pour l'instant, redirection vers le formulaire
-    return { success: true, redirectTo: '/gestionnaire/interventions/nouvelle-intervention' }
+    return { success: true, redirectTo: '/gestionnaire/operations/nouvelle-intervention' }
   } catch (error) {
     logger.error('❌ [DASHBOARD-ACTION] Intervention creation failed:', error)
     return {

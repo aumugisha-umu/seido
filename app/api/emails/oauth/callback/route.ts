@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const error = url.searchParams.get('error')
 
     // Redirect URLs
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/+$/, '')
     const successUrl = `${baseUrl}/gestionnaire/parametres/emails?oauth=success`
     const errorUrl = `${baseUrl}/gestionnaire/parametres/emails?oauth=error`
 
@@ -156,7 +156,7 @@ export async function GET(request: Request) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'unknown_error';
     logger.error({ error: message }, '[EMAILS-API] OAuth callback error');
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/+$/, '')
     return NextResponse.redirect(
       `${baseUrl}/gestionnaire/parametres/emails?oauth=error&message=${encodeURIComponent(message)}`
     )

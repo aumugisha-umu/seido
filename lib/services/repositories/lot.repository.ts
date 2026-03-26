@@ -372,6 +372,22 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
     return { success: true as const, exists: true }
   }
+
+  /**
+   * Find lot by reference and team (for import upsert)
+   */
+  async findByReferenceAndTeam(reference: string, teamId: string) {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select(`*, building:building_id(id, name, team_id)`)
+      .eq('team_id', teamId)
+      .ilike('reference', reference.trim())
+      .limit(1)
+      .maybeSingle()
+
+    if (error) return createErrorResponse(handleError(error, `${this.tableName}:findByReferenceAndTeam`))
+    return { success: true as const, data }
+  }
 }
 
 // Factory functions for creating repository instances

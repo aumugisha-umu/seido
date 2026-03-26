@@ -206,7 +206,7 @@ export async function GET(request: Request) {
           ? `${tenantUser.first_name || ''} ${tenantUser.last_name || ''}`.trim() || tenantUser.name || 'Locataire'
           : undefined
 
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
+        const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com').replace(/\/+$/, '')
         let inAppCount = 0
         let pushCount = 0
         let emailCount = 0

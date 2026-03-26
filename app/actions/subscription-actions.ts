@@ -47,9 +47,11 @@ interface ActionResult<T = unknown> {
 // =============================================================================
 
 function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return 'http://localhost:3000'
+  const url = process.env.NEXT_PUBLIC_SITE_URL
+    || process.env.NEXT_PUBLIC_APP_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+    || 'http://localhost:3000'
+  return url.replace(/\/+$/, '')
 }
 
 // =============================================================================

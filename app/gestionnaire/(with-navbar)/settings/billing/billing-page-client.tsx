@@ -79,6 +79,7 @@ export function BillingPageClient({ initialSubscriptionInfo }: BillingPageClient
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [checkoutVerified, setCheckoutVerified] = useState(false)
+  const [showCheckoutBanner, setShowCheckoutBanner] = useState(true)
   const [lotCount, setLotCount] = useState(Math.max(initialSubscriptionInfo?.actual_lots ?? 1, 1))
 
   // ── Refresh subscription data ──────────────────────────────────────
@@ -98,11 +99,20 @@ export function BillingPageClient({ initialSubscriptionInfo }: BillingPageClient
       verifyCheckoutSession(sessionId).then((result) => {
         if (result.success && result.data?.verified) {
           setCheckoutVerified(true)
+          setShowCheckoutBanner(true)
           refresh()
         }
       })
     }
   }, [searchParams, refresh])
+
+  // ── Auto-dismiss checkout banner after 8s ───────────────────────────
+  useEffect(() => {
+    if (checkoutVerified && showCheckoutBanner) {
+      const timer = setTimeout(() => setShowCheckoutBanner(false), 8000)
+      return () => clearTimeout(timer)
+    }
+  }, [checkoutVerified, showCheckoutBanner])
 
   // ── Actions ────────────────────────────────────────────────────────
   const handleSelectPlan = async (interval: BillingInterval) => {
@@ -146,14 +156,28 @@ export function BillingPageClient({ initialSubscriptionInfo }: BillingPageClient
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
-      {/* Checkout success banner */}
-      {checkoutVerified && (
-        <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
+      {/* Checkout success banner — auto-dismisses after 8s */}
+      {checkoutVerified && showCheckoutBanner && (
+        <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 animate-in fade-in duration-300">
           <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
-          <div>
+          <div className="flex-1">
             <p className="text-sm font-medium text-green-800 dark:text-green-300">Paiement confirm&eacute; !</p>
-            <p className="text-xs text-green-700 dark:text-green-400">Votre abonnement est maintenant actif.</p>
+            <p className="text-xs text-green-700 dark:text-green-400">
+              {isTrialing
+                ? `Votre abonnement d\u00e9butera le ${formatDate(info?.trial_end ?? null)} \u2014 0 EUR pendant l\u2019essai.`
+                : 'Votre abonnement est maintenant actif.'}
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowCheckoutBanner(false)}
+            className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200 p-1"
+            aria-label="Fermer"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
 

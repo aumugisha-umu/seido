@@ -1056,7 +1056,7 @@ async function notifyManagers(
       const emailService = new EmailService()
       if (emailService.isConfigured()) {
         const { EmailReplyReceivedEmail } = await import('@/emails/templates/notifications/email-reply-received')
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
+        const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com').replace(/\/+$/, '')
 
         for (const assignment of assignments) {
           const user = assignment.users as any

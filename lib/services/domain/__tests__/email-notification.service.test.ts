@@ -398,21 +398,4 @@ describe('EmailNotificationService', () => {
     })
   })
 
-  describe('sendInterventionStatusChangeBatch', () => {
-    it('should return stub result (deprecated)', async () => {
-      const service = createEmailNotificationService()
-      const result = await service.sendInterventionStatusChangeBatch(
-        'intervention-1',
-        'demande' as any,
-        'approuvee' as any
-      )
-
-      expect(result).toEqual({
-        success: true,
-        sentCount: 0,
-        failedCount: 0,
-        results: []
-      })
-    })
-  })
 })

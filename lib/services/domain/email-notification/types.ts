@@ -82,7 +82,7 @@ export interface InterventionEmailOptions {
   interventionId: string
 
   /** Triggering event type */
-  eventType: 'created' | 'approved' | 'rejected' | 'scheduled' | 'time_slots_proposed' | 'status_changed' | 'completed'
+  eventType: 'created' | 'scheduled' | 'time_slots_proposed' | 'status_changed' | 'completed'
 
   /** User ID to exclude (usually the creator/actor) */
   excludeUserId?: string | null
@@ -189,17 +189,6 @@ export interface RecipientWithEmail {
   role: UserRole
   company_name?: string | null
   phone?: string | null
-}
-
-/**
- * Context for building an email
- */
-export interface EmailBuildContext {
-  intervention: Intervention
-  enrichedData: EnrichedInterventionData
-  recipient: RecipientWithEmail
-  magicLinkUrl: string
-  filterOptions: RecipientFilterOptions
 }
 
 /**

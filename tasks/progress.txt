@@ -32,3 +32,15 @@
 - Dialog: current trial info, preset +7/+14/+30j buttons, DatePicker, preview, optional reason
 - Loading skeleton with PageSkeleton variant="table"
 - Files: app/admin/(with-navbar)/teams/page.tsx, teams-management-client.tsx, loading.tsx
+
+## 2026-03-26 16:00 — Bugfix: before-user-created hook blocking admin invites
+- Implemented: Fixed invite-only hook that blocked generateLink({type:'invite'}) admin API calls
+- Files: supabase/migrations/20260326210000_fix_hook_allow_admin_invites.sql, app/api/invite-user/route.ts, app/auth/oauth-callback/route.ts
+- Learnings: Supabase auth hooks fire for ALL user creation including admin API. Pre-populate gate tables BEFORE hook-triggering calls. Sanitize hook error messages (pg-functions:// URIs leak).
+- Decision: Two-layer fix — metadata check (password_set=false) for inviteGestionnaireAction (no team_id available), pre-insert for invite-user route (has all FK fields)
+
+## 2026-03-26 17:00 — Email system comprehensive review + fixes
+- Implemented: Security fix (SSRF + auth on test route), bug fixes (welcome email prop, footer links, proprietaire role), code quality (15x error:any→unknown, as any removed, exponential backoff fixed), dead code removal (assets.ts, unused exports/types/methods)
+- Files: app/api/emails/connections/test/route.ts, app/api/send-welcome-email/route.ts, emails/components/email-footer.tsx, emails/templates/auth/welcome.tsx, emails/utils/assets.ts (deleted), emails/utils/render.ts, lib/email/resend-client.ts, lib/services/domain/email-notification/{constants,types,email-notification.service,helpers}.ts, lib/services/domain/email-reply.service.ts, quote-emails.builder.ts, 7 API route files (error:any fixes)
+- Learnings: Always audit ALL routes in API directories (auth gaps hide in less-visible sibling routes). Verify email prop names match type definitions across all call sites. Dead code accumulates silently in large systems — periodic reviews needed.
+- Decision: Parallel 3-agent fix strategy (non-overlapping file sets) + direct dead code cleanup for maximum throughput

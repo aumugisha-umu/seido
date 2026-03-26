@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-03-26
-**Total Learnings:** 200
+**Total Learnings:** 203
 
 ---
 
@@ -1473,6 +1473,27 @@
 **Example:** `app/actions/admin-team-actions.ts:246-286` — deferred email in `extendTeamTrialAction`
 **When to Use:** When deferring work with `after()` AND you already have a service role client — no auth cookie concern
 **Added:** 2026-03-26 | **Source:** Admin Dashboard Redesign + Trial Extension
+
+#### Learning #201: Supabase before-user-created hook blocks admin API calls (generateLink)
+**Problem:** `before-user-created` auth hooks fire for ALL user creation — including `supabase.auth.admin.generateLink({type: 'invite'})`. The invite flow inserts `user_invitations` AFTER `generateLink`, so the hook rejects the invite (chicken-and-egg). Error leaks internal `pg-functions://` URI to the user.
+**Solution:** Two-layer fix: (1) Hook checks `user_metadata.password_set = 'false'` — only set by server-side admin invite actions, never by regular signup or OAuth. (2) For flows with all FK fields available (invite-user route), pre-insert `user_invitations` BEFORE `generateLink`, then update with `invitation_token` after. Also sanitize hook error messages — never expose `pg-functions://` URIs.
+**Example:** `supabase/migrations/20260326210000_fix_hook_allow_admin_invites.sql` + `app/api/invite-user/route.ts:427-453` (pre-insert) + `app/auth/oauth-callback/route.ts:91-93` (sanitize)
+**When to Use:** Any time you add a Supabase auth hook that gates user creation — audit ALL code paths that create auth users (signup, OAuth, admin invite, magiclink). Pre-populate gate tables BEFORE the hook-triggering call.
+**Added:** 2026-03-26 | **Source:** Invite-only hook blocking admin team invitations
+
+#### Learning #202: Unauthenticated API routes — check EVERY route in a directory
+**Problem:** `app/api/emails/connections/test/route.ts` had zero `getApiAuthContext()` — a live SSRF vector. The sibling route `connections/[id]/test/route.ts` had auth. When multiple routes exist in a feature directory, auth gaps hide because reviews focus on the main routes.
+**Solution:** When auditing API routes, check EVERY file in the directory — not just the ones that seem important. Grep for `export async function` in `app/api/` and verify each has auth. For IMAP/SMTP test routes, also add SSRF protection (reject RFC 1918 private IPs, link-local, loopback).
+**Example:** `app/api/emails/connections/test/route.ts` — added `getApiAuthContext()` + `isPrivateHost()` DNS-based SSRF check
+**When to Use:** Any security audit, any new API route directory, any code review of email/connection features
+**Added:** 2026-03-26 | **Source:** Email system comprehensive review
+
+#### Learning #203: Welcome email prop name mismatch — WelcomeEmailProps.dashboardUrl
+**Problem:** `send-welcome-email/route.ts` passed `confirmationUrl` but `WelcomeEmailProps` expects `dashboardUrl`. The CTA button rendered with `undefined` href. The main path via `confirm-actions.ts` was correct; only the API route path was broken.
+**Solution:** Always verify prop names match the type definition when calling email service methods. The `emailService.sendWelcomeEmail()` method takes `WelcomeEmailProps` which requires `dashboardUrl`, not `confirmationUrl`. When two code paths call the same method, check BOTH.
+**Example:** `app/api/send-welcome-email/route.ts:68` — changed `confirmationUrl` to `dashboardUrl`
+**When to Use:** When adding or modifying email send calls — verify prop names against the type in `emails/utils/types.ts`
+**Added:** 2026-03-26 | **Source:** Email system comprehensive review
 
 ---
 

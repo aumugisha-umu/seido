@@ -63,9 +63,10 @@ export async function POST(request: Request) {
                 const result = await syncService.syncConnection(connection as any);
                 logger.info({ connectionId: connection.id, status: result.status }, '[MANUAL-SYNC] Connection sync result');
                 return result;
-            } catch (err: any) {
-                console.error(`📧 [MANUAL-SYNC] Connection ${connection.id} error:`, err.message);
-                return { connectionId: connection.id, status: 'error', error: err.message };
+            } catch (err: unknown) {
+                const errMsg = err instanceof Error ? err.message : String(err);
+                console.error(`📧 [MANUAL-SYNC] Connection ${connection.id} error:`, errMsg);
+                return { connectionId: connection.id, status: 'error', error: errMsg };
             }
         });
 
@@ -91,8 +92,8 @@ export async function POST(request: Request) {
                 newEmails: totalNewEmails
             }
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('📧 [MANUAL-SYNC] Fatal error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }

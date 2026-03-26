@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     logger.info({ user: email }, '📧 [WELCOME-EMAIL-API] Sending welcome email to:')
     const emailResult = await emailService.sendWelcomeEmail(email, {
       firstName,
-      confirmationUrl: `${appUrl}/auth/login`,
+      dashboardUrl: `${appUrl}/auth/login`,
       role: userRole
     })
 

@@ -24,14 +24,14 @@ export const EmailFooter = () => {
       {/* Liens utiles */}
       <Text className="text-gray-500 text-xs leading-tight m-0">
         <Link
-          href={`${EMAIL_CONFIG.appUrl}/unsubscribe`}
+          href={`mailto:${EMAIL_CONFIG.contactEmail}?subject=Desabonnement`}
           className="text-gray-600 no-underline"
         >
           Se désabonner
         </Link>
         {' | '}
         <Link
-          href={`${EMAIL_CONFIG.appUrl}/privacy`}
+          href={`${EMAIL_CONFIG.appUrl}`}
           className="text-gray-600 no-underline ml-2"
         >
           Politique de confidentialité

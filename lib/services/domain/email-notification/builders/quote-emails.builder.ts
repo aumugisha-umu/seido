@@ -75,12 +75,15 @@ export async function buildQuoteRequestEmail(
 // Quote Submitted
 // ══════════════════════════════════════════════════════════════
 
+/** Provider with optional company info for quote submission emails */
+type QuoteSubmittedProvider = User & { company_name?: string | null }
+
 export interface QuoteSubmittedBuildContext {
   quote: { id: string; reference?: string | null; amount?: number | null }
   intervention: Intervention
   property: { address: string }
   manager: User & { email: string }
-  provider: User
+  provider: QuoteSubmittedProvider
 }
 
 /**
@@ -92,7 +95,7 @@ export async function buildQuoteSubmittedEmail(
   const { quote, intervention, property, manager, provider } = context
 
   const providerName = `${provider.first_name || ''} ${provider.last_name || ''}`.trim() ||
-    (provider as any).company_name || 'Prestataire'
+    provider.company_name || 'Prestataire'
 
   const emailProps: QuoteSubmittedEmailProps = {
     firstName: manager.first_name || 'Gestionnaire',
@@ -103,7 +106,7 @@ export async function buildQuoteSubmittedEmail(
     propertyAddress: property.address,
     quoteUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/gestionnaire/operations/interventions/${intervention.id}`,
     providerName,
-    providerCompany: (provider as any).company_name,
+    providerCompany: provider.company_name,
     totalHT: quote.amount || 0,
     totalTTC: quote.amount ? quote.amount * (1 + DEFAULT_TVA_RATE) : 0,
     submittedAt: new Date(),

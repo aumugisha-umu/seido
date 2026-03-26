@@ -1110,7 +1110,7 @@ export async function notifyDocumentUploaded(params: {
               ? `${uploader.first_name || ''} ${uploader.last_name || ''}`.trim() || 'Un utilisateur'
               : 'Un utilisateur'
 
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
+            const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com').replace(/\/+$/, '')
             const entityUrl = `${baseUrl}${getDocumentEntityUrl(assignedUser.role, params.relatedEntityType, params.relatedEntityId)}`
 
             const result = await emailService.send({
@@ -1262,7 +1262,7 @@ export async function notifyContractExpiring({
         const endDateFormatted = contract.end_date
           ? new Date(contract.end_date).toLocaleDateString('fr-FR')
           : 'N/A'
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
+        const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com').replace(/\/+$/, '')
         const contractUrl = `${baseUrl}/gestionnaire/contrats/${contractId}`
         const urgencyIcon = daysUntilExpiry <= 7 ? '🔴' : '🟠'
 
@@ -1562,7 +1562,7 @@ export async function createContractNotification(contractId: string) {
         const endDateFormatted = contract.end_date
           ? new Date(contract.end_date).toLocaleDateString('fr-FR')
           : undefined
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
+        const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com').replace(/\/+$/, '')
         const contractUrl = `${baseUrl}/locataire/contrats/${contractId}`
 
         for (const contact of contractContacts) {

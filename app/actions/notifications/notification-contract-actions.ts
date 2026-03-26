@@ -102,7 +102,7 @@ export async function notifyContractExpiring({
         const endDateFormatted = contract.end_date
           ? new Date(contract.end_date).toLocaleDateString('fr-FR')
           : 'N/A'
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
+        const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com').replace(/\/+$/, '')
         const contractUrl = `${baseUrl}/gestionnaire/contrats/${contractId}`
         const urgencyIcon = daysUntilExpiry <= 7 ? '🔴' : '🟠'
 
@@ -326,7 +326,7 @@ export async function createContractNotification(contractId: string) {
         const endDateFormatted = contract.end_date
           ? new Date(contract.end_date).toLocaleDateString('fr-FR')
           : undefined
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
+        const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com').replace(/\/+$/, '')
         const contractUrl = `${baseUrl}/locataire/contrats/${contractId}`
 
         for (const contact of contractContacts) {

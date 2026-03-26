@@ -75,7 +75,7 @@ export async function createAiCheckoutAction(
       return { success: false, error: 'Failed to create Stripe customer' }
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/+$/, '')
     const stripe = getStripe()
 
     const session = await stripe.checkout.sessions.create({
@@ -266,7 +266,7 @@ export async function createAiTopupAction(): Promise<ActionResult<{ url: string 
     }
 
     const stripe = getStripe()
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/+$/, '')
 
     // Create one-time checkout for top-up
     const session = await stripe.checkout.sessions.create({

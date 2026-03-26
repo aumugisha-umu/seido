@@ -289,7 +289,7 @@ export async function notifyDocumentUploaded(params: {
               ? `${uploader.first_name || ''} ${uploader.last_name || ''}`.trim() || 'Un utilisateur'
               : 'Un utilisateur'
 
-            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
+            const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com').replace(/\/+$/, '')
             const entityUrl = `${baseUrl}${await getDocumentEntityUrl(assignedUser.role, params.relatedEntityType, params.relatedEntityId)}`
 
             const result = await emailService.send({

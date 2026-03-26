@@ -16,6 +16,8 @@ import type {
   InvitationEmailProps,
   AdminInvitationEmailProps,
   TeamAdditionEmailProps,
+  DemoRequestEmailProps,
+  BetaAccessRequestEmailProps,
   EmailSendResult,
   SendEmailOptions,
 } from '@/emails/utils/types'
@@ -325,6 +327,50 @@ export const emailService = {
         { name: 'type', value: 'team-addition' },
         { name: 'role', value: props.role },
         { name: 'team', value: sanitizeTagValue(props.teamName) },
+      ],
+    })
+  },
+
+  /**
+   * Envoyer email de notification de demande de démo (admin)
+   */
+  async sendDemoRequestEmail(
+    to: string | string[],
+    props: DemoRequestEmailProps
+  ): Promise<EmailSendResult> {
+    const { default: DemoRequestEmail } = await import('@/emails/templates/admin/demo-request')
+    const { html, text } = await renderEmail(DemoRequestEmail(props))
+
+    return sendEmailWithRetry({
+      to,
+      subject: `Demande de démo — ${props.name}${props.company ? ` (${props.company})` : ''}`,
+      html,
+      text,
+      tags: [
+        { name: 'category', value: 'admin' },
+        { name: 'type', value: 'demo-request' },
+      ],
+    })
+  },
+
+  /**
+   * Envoyer email de notification de demande d'accès bêta (admin)
+   */
+  async sendBetaAccessRequestEmail(
+    to: string | string[],
+    props: BetaAccessRequestEmailProps
+  ): Promise<EmailSendResult> {
+    const { default: BetaAccessRequestEmail } = await import('@/emails/templates/admin/beta-access-request')
+    const { html, text } = await renderEmail(BetaAccessRequestEmail(props))
+
+    return sendEmailWithRetry({
+      to,
+      subject: `[SEIDO] Demande d'accès — ${props.firstName} ${props.lastName} (${props.email})`,
+      html,
+      text,
+      tags: [
+        { name: 'category', value: 'admin' },
+        { name: 'type', value: 'access-request' },
       ],
     })
   },

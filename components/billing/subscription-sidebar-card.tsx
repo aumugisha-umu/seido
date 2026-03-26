@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CreditCard, Building2, Lock, Plus, Clock } from 'lucide-react'
+import { CreditCard, Building2, Lock, Plus, Clock, CheckCircle2 } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -71,6 +71,7 @@ export function SubscriptionSidebarCard() {
     daysLeftTrial,
     refresh,
   } = useSubscription()
+  const paymentMethodAdded = status?.payment_method_added ?? false
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
 
   const planLabel = getPlanLabel(isFreeTier, hasStripeSubscription, status?.status, billingInterval)
@@ -142,8 +143,36 @@ export function SubscriptionSidebarCard() {
     )
   }
 
-  // ── Trial overage variant: amber alert card with CTA ──────────────────
+  // ── Trial overage variant ─────────────────────────────────────────────
   if (isOverage) {
+    // Payment method added during trial — show green confirmation
+    if (paymentMethodAdded) {
+      return (
+        <div className="mx-2 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-3">
+          <Link href="/gestionnaire/settings/billing" className="block">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300 truncate">
+                Abonnement actif
+              </span>
+              <span className="ml-auto h-2 w-2 rounded-full flex-shrink-0 bg-emerald-500" />
+            </div>
+            <div className="mt-1.5 flex items-center gap-2">
+              <Building2 className="size-3.5 text-emerald-600 dark:text-emerald-500 flex-shrink-0" />
+              <span className="text-xs text-emerald-700 dark:text-emerald-400">
+                {actualLots} lots
+              </span>
+            </div>
+            <p className="mt-1.5 text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+              <Clock className="size-3 flex-shrink-0" />
+              Paiement dans {daysLeftTrial != null && daysLeftTrial > 0 ? `${daysLeftTrial}j` : "moins d'1j"}
+            </p>
+          </Link>
+        </div>
+      )
+    }
+
+    // No payment yet — amber alert with CTA
     return (
       <div className="mx-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3">
         {/* Row 1: Plan label + status dot */}
@@ -210,15 +239,26 @@ export function SubscriptionSidebarCard() {
             </span>
           </div>
 
-          {/* Row 2b: Days left in trial */}
+          {/* Row 2b: Trial status */}
           {isTrialing && daysLeftTrial != null && (
             <div className="mt-1 flex items-center gap-2">
-              <Clock className="size-3.5 text-sidebar-foreground/50 flex-shrink-0" />
-              <span className="text-xs text-sidebar-foreground/70">
-                {daysLeftTrial > 0
-                  ? `${daysLeftTrial} jour${daysLeftTrial > 1 ? 's' : ''} restant${daysLeftTrial > 1 ? 's' : ''}`
-                  : "Expire aujourd'hui"}
-              </span>
+              {paymentMethodAdded ? (
+                <>
+                  <CheckCircle2 className="size-3.5 text-emerald-500 flex-shrink-0" />
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                    Paiement dans {daysLeftTrial > 0 ? `${daysLeftTrial}j` : "moins d'1j"}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Clock className="size-3.5 text-sidebar-foreground/50 flex-shrink-0" />
+                  <span className="text-xs text-sidebar-foreground/70">
+                    {daysLeftTrial > 0
+                      ? `${daysLeftTrial} jour${daysLeftTrial > 1 ? 's' : ''} restant${daysLeftTrial > 1 ? 's' : ''}`
+                      : "Expire aujourd'hui"}
+                  </span>
+                </>
+              )}
             </div>
           )}
 

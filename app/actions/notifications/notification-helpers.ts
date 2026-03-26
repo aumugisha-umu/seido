@@ -47,7 +47,7 @@ export async function sendPushToNotificationRecipients(
 /**
  * Get the correct intervention URL path based on user role
  */
-export function getInterventionUrlForRole(role: string | null, interventionId: string): string {
+export async function getInterventionUrlForRole(role: string | null, interventionId: string): Promise<string> {
   switch (role) {
     case 'locataire':
       return `/locataire/interventions/${interventionId}`
@@ -62,7 +62,7 @@ export function getInterventionUrlForRole(role: string | null, interventionId: s
 /**
  * Get a role-aware URL for a related entity (document context)
  */
-export function getDocumentEntityUrl(role: string | null, entityType: string, entityId: string): string {
+export async function getDocumentEntityUrl(role: string | null, entityType: string, entityId: string): Promise<string> {
   const prefix = role === 'locataire' ? 'locataire' : role === 'prestataire' ? 'prestataire' : 'gestionnaire'
   if (entityType === 'intervention') {
     if (prefix === 'gestionnaire') return `/gestionnaire/operations/interventions/${entityId}`
@@ -152,7 +152,7 @@ export async function sendRoleAwarePushNotifications(
 
   for (const [role, userIds] of byRole) {
     const uniqueUserIds = Array.from(new Set(userIds))
-    const url = getInterventionUrlForRole(role, interventionId)
+    const url = await getInterventionUrlForRole(role, interventionId)
 
     try {
       const result = await sendPushNotificationToUsers(uniqueUserIds, { ...payload, url })

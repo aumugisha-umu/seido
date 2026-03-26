@@ -245,7 +245,7 @@ export async function notifyDocumentUploaded(params: {
         .eq('id', params.assignedTo)
         .single()
 
-      const pushUrl = getDocumentEntityUrl(
+      const pushUrl = await getDocumentEntityUrl(
         assignedUserForPush?.role || null,
         params.relatedEntityType,
         params.relatedEntityId
@@ -290,7 +290,7 @@ export async function notifyDocumentUploaded(params: {
               : 'Un utilisateur'
 
             const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido-app.com'
-            const entityUrl = `${baseUrl}${getDocumentEntityUrl(assignedUser.role, params.relatedEntityType, params.relatedEntityId)}`
+            const entityUrl = `${baseUrl}${await getDocumentEntityUrl(assignedUser.role, params.relatedEntityType, params.relatedEntityId)}`
 
             const result = await emailService.send({
               to: assignedUser.email,

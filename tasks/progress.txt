@@ -1,46 +1,67 @@
-# Progress Log — Admin Dashboard Redesign + Trial Extension
+# Progress Log — Lead Magnet: Calculateur d'Indexation de Loyer
 # Started: 2026-03-26
-# Stories: 5 total
+# Stories: 8 total
+# Design: docs/Sales/lead-magnet-indexation-design.md
 ---
 
-## 2026-03-26 — US-001: Server actions (getAdminTeamsWithSubscriptions + extendTeamTrialAction)
-- Implemented: 3 server actions in app/actions/admin-team-actions.ts
-- getAdminTeamsWithSubscriptions: teams + subscriptions join, parallel fetch for admins/members/lots counts
-- extendTeamTrialAction: status guard (trialing only), update trial_end, activity_logs insert, deferred email via after()
-- getAdminDashboardStats: count-only queries for 4 KPIs (active users, teams, subscriptions, recent interventions)
-- Files: app/actions/admin-team-actions.ts
-- Learnings: activity_logs requires action_type from enum (used 'update'), entity_type='team'; service role needed for subscriptions writes
+## 2026-03-26 — US-001: Health indices JSON + calculation engine
+- Created: lib/indexation/types.ts, calculate.ts, index.ts, health-indices.json
+- 195 monthly indices (2010-01 to 2026-03), base 2013=100
+- Discriminated union IndexationOutcome (success/error) for type-safe results
+- 3 region strategies: Brussels (correction factors), Wallonia (loyer adapté 2 phases), Flanders (permanent CF)
+- Commercial leases: standard formula, no PEB
+- Bail non enregistré: error for Wallonie/Bruxelles, allowed for Flandre
+- Tests: 23 passing (tests/unit/indexation/calculate.test.ts)
+- Learnings: JSON import works natively with resolveJsonModule:true
 
-## 2026-03-26 — US-002: Trial extended email template + emailService method
-- Created emails/templates/admin/trial-extended.tsx (EmailLayout > EmailHeader > Section > EmailFooter)
-- Added TrialExtendedEmailProps to emails/utils/types.ts
-- Added sendTrialExtendedEmail() to lib/email/email-service.ts
-- Files: emails/templates/admin/trial-extended.tsx, emails/utils/types.ts, lib/email/email-service.ts
+## 2026-03-26 — US-002: Health indices update script
+- Created: scripts/update-health-indices.ts
+- Dual-source: NBB.Stat SDMX API (primary) + Statbel CSV (fallback)
+- Safe no-overwrite on failure (exit code 1, existing file preserved)
+- Merge strategy: new entries + updates, sorted chronologically
 
-## 2026-03-26 — US-003: Admin navigation — Equipes link
-- Added { href: '/admin/teams', label: 'Equipes', icon: Building2 } to admin nav in dashboard-header.tsx
-- Files: components/dashboard-header.tsx
+## 2026-03-26 — US-003: DB migration — indexation_leads table
+- Created: supabase/migrations/20260326220000_create_indexation_leads.sql
+- Columns: id, email, type (CHECK), metadata, source, consent_given, ip_address, created_at, expires_at (24 months)
+- Indexes: expires_at (RGPD cleanup), type (analytics)
+- No RLS — service role only access
 
-## 2026-03-26 — US-004: Admin dashboard redesign
-- Rewrote page.tsx: real KPIs via getAdminDashboardStats(), trial teams panel, functional quick links
-- Simplified admin-dashboard-client.tsx: removed broken settings route, logger.info, unused props
-- Files: app/admin/(with-navbar)/dashboard/page.tsx, app/admin/(with-navbar)/dashboard/admin-dashboard-client.tsx
+## 2026-03-26 — US-004: API route POST /api/lead-magnet
+- Created: app/api/lead-magnet/route.ts
+- Zod validation (email, type enum, calcul, honeypot max 0, consent literal true)
+- Rate limiting: rateLimiters.public + getClientIdentifier()
+- Honeypot: silent 200 OK if filled (no DB insert, no email)
+- Insert via createServiceRoleSupabaseClient()
+- First public API route without getApiAuthContext() — security via rate limit + Zod + honeypot
 
-## 2026-03-26 — US-005: Teams management page with trial extension dialog
-- Server component: getServerAuthContext('admin') + stats cards + error display
-- Client component: teams table, status filter, search, StatusBadge, trial extension dialog
-- Dialog: current trial info, preset +7/+14/+30j buttons, DatePicker, preview, optional reason
-- Loading skeleton with PageSkeleton variant="table"
-- Files: app/admin/(with-navbar)/teams/page.tsx, teams-management-client.tsx, loading.tsx
+## 2026-03-26 — US-005: Lettre d'indexation email template
+- Created: emails/templates/lead-magnet/indexation-letter.tsx (React Email)
+- Added IndexationLetterEmailProps to emails/utils/types.ts
+- Updated route to use renderEmail() + IndexationLetterEmail
+- Template includes: result highlight, calculation details, pre-filled formal letter, disclaimer, CTA
+- Removed inline HTML builder from route
 
-## 2026-03-26 16:00 — Bugfix: before-user-created hook blocking admin invites
-- Implemented: Fixed invite-only hook that blocked generateLink({type:'invite'}) admin API calls
-- Files: supabase/migrations/20260326210000_fix_hook_allow_admin_invites.sql, app/api/invite-user/route.ts, app/auth/oauth-callback/route.ts
-- Learnings: Supabase auth hooks fire for ALL user creation including admin API. Pre-populate gate tables BEFORE hook-triggering calls. Sanitize hook error messages (pg-functions:// URIs leak).
-- Decision: Two-layer fix — metadata check (password_set=false) for inviteGestionnaireAction (no team_id available), pre-insert for invite-user route (has all FK fields)
+## 2026-03-26 — US-006: Landing page indexation calculator section
+- Created: components/landing/sections/indexation-section.tsx (~470 lines)
+- Dynamic import in components/landing/landing-page.tsx
+- Full form: bail type, region, PEB, loyer, dates, bail non enregistré
+- Adaptive PEB options per region, hidden fields for commercial
+- Result accordion with 4 explanation sections
+- Email capture: 2 CTAs (lettre + portfolio), RGPD checkbox, honeypot
+- 8 apostrophe escapes fixed for lint
 
-## 2026-03-26 17:00 — Email system comprehensive review + fixes
-- Implemented: Security fix (SSRF + auth on test route), bug fixes (welcome email prop, footer links, proprietaire role), code quality (15x error:any→unknown, as any removed, exponential backoff fixed), dead code removal (assets.ts, unused exports/types/methods)
-- Files: app/api/emails/connections/test/route.ts, app/api/send-welcome-email/route.ts, emails/components/email-footer.tsx, emails/templates/auth/welcome.tsx, emails/utils/assets.ts (deleted), emails/utils/render.ts, lib/email/resend-client.ts, lib/services/domain/email-notification/{constants,types,email-notification.service,helpers}.ts, lib/services/domain/email-reply.service.ts, quote-emails.builder.ts, 7 API route files (error:any fixes)
-- Learnings: Always audit ALL routes in API directories (auth gaps hide in less-visible sibling routes). Verify email prop names match type definitions across all call sites. Dead code accumulates silently in large systems — periodic reviews needed.
-- Decision: Parallel 3-agent fix strategy (non-overlapping file sets) + direct dead code cleanup for maximum throughput
+## 2026-03-26 — US-007: Hero CTA button + JSON-LD FAQ schema
+- Hero CTA: Calculator icon + "Calculer mon indexation gratuitement" smooth-scroll to #indexation
+- 6 indexation FAQ questions added to data/faq.ts (ids 9-14, category 'indexation')
+- Topics: formule de calcul, impact PEB, différences régionales, bail commercial, bail non enregistré, automatisation SEIDO
+- FAQPage JSON-LD already wired via faq array mapping in app/page.tsx — no changes needed to json-ld.tsx
+- Learnings: single source of truth (data/faq.ts) drives both UI accordion and JSON-LD schema
+
+## 2026-03-26 — US-008: Blog SEO article — indexation loyer Belgique
+- Created: blog/articles/calculer-indexation-loyer-belgique.md (1532 words, 7 min read)
+- Hub: essentiel-immo-mars-2026
+- Structure: H1 with 2026, 6 H2 sections (definition, formule, indices, PEB, cas particuliers, FAQ)
+- PEB section covers all 3 regions with tables (Brussels factors, Wallonia adapted rent, Flanders permanent CF)
+- 2 CTA links to /#indexation (intro + closing)
+- 6 FAQ subsections (obligatoire, double indexation, renovation PEB, charges, indice sante, refus)
+- Disclaimer at bottom

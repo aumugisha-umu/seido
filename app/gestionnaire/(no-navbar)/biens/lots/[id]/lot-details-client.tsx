@@ -21,6 +21,7 @@ import { RemindersNavigator } from "@/components/operations/reminders-navigator"
 import { useReminderActions } from '@/hooks/use-reminder-actions'
 import type { ReminderWithRelations } from '@/lib/types/reminder.types'
 import { logger } from '@/lib/logger'
+import { getPebColorClasses } from '@/lib/utils/peb-colors'
 import { toast } from 'sonner'
 import { deleteLotAction } from './actions'
 import { getSubscriptionStatus } from '@/app/actions/subscription-actions'
@@ -592,6 +593,18 @@ export default function LotDetailsClient({
                     </span>
                   </>
                 )}
+                {lot.peb_rating && (() => {
+                  const rating = lot.peb_rating
+                  const pebColors = getPebColorClasses(rating)
+                  return (
+                    <>
+                      <span className="text-muted-foreground hidden sm:inline">•</span>
+                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${pebColors.bg} ${pebColors.text} border ${pebColors.border}`}>
+                        PEB {rating}
+                      </span>
+                    </>
+                  )
+                })()}
               </div>
               {/* Map */}
               {lotAddress?.latitude && lotAddress?.longitude &&

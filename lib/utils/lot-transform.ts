@@ -15,6 +15,7 @@ export interface LotInfo {
   doorNumber: string
   description: string
   category: LotCategory
+  pebRating?: string
   // Address fields (for independent lots only)
   street?: string
   postalCode?: string
@@ -64,7 +65,8 @@ export function transformLotForEdit(lot: any): {
     floor: lot.floor !== null && lot.floor !== undefined ? String(lot.floor) : "",
     doorNumber: lot.apartment_number || "",
     description: lot.description || "",
-    category: (lot.category as LotCategory) || "appartement"
+    category: (lot.category as LotCategory) || "appartement",
+    pebRating: lot.peb_rating || undefined
   }
 
   // Add address fields for independent lots (no building association)

@@ -106,6 +106,7 @@ interface Lot {
   doorNumber: string
   description: string
   category: LotCategory
+  pebRating?: string
 }
 
 interface Contact {
@@ -728,6 +729,7 @@ export default function NewImmeubleePage({
         charges_amount: undefined, // Charges amount removed
         category: lot.category,
         description: lot.description?.trim() || undefined,
+        peb_rating: lot.pebRating || undefined,
       }))
 
       // ✅ Preparer les building_contacts (contacts de l'immeuble)

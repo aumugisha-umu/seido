@@ -59,6 +59,7 @@ export function ContractBasicInfo({
       title={formData.title || ''}
       startDate={formData.startDate || ''}
       durationMonths={formData.durationMonths || 12}
+      signedDate={formData.signedDate || ''}
       comments={formData.comments || ''}
       paymentFrequency={formData.paymentFrequency as PaymentFrequency || 'mensuel'}
       rentAmount={formData.rentAmount || 0}

@@ -71,6 +71,7 @@ interface LeaseFormDetailsMergedV1Props {
   title: string // Editable reference
   startDate: string
   durationMonths: number
+  signedDate?: string
   comments: string
   paymentFrequency: PaymentFrequency
   rentAmount: number
@@ -132,6 +133,7 @@ export default function LeaseFormDetailsMergedV1({
   title,
   startDate,
   durationMonths,
+  signedDate,
   comments,
   paymentFrequency,
   rentAmount,
@@ -425,6 +427,19 @@ export default function LeaseFormDetailsMergedV1({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Date de signature (optional) */}
+            <div className="space-y-1.5 w-44 lg:self-center">
+              <Label htmlFor="signedDate" icon={FileText} size="sm">
+                Date de signature
+              </Label>
+              <DatePicker
+                value={signedDate || ''}
+                onChange={(value) => onFieldChange('signedDate', value)}
+                placeholder="Non signé"
+                className="w-full [&_input]:bg-white"
+              />
             </div>
           </div>
         </div>

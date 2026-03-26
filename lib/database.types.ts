@@ -2079,6 +2079,42 @@ export type Database = {
           },
         ]
       }
+      indexation_leads: {
+        Row: {
+          consent_given: boolean
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          source: string | null
+          type: string
+        }
+        Insert: {
+          consent_given?: boolean
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          source?: string | null
+          type: string
+        }
+        Update: {
+          consent_given?: boolean
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          source?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
       intervention_assignments: {
         Row: {
           assigned_at: string
@@ -3091,6 +3127,7 @@ export type Database = {
           floor: number | null
           id: string
           metadata: Json | null
+          peb_rating: string | null
           reference: string
           team_id: string
           total_interventions: number | null
@@ -3109,6 +3146,7 @@ export type Database = {
           floor?: number | null
           id?: string
           metadata?: Json | null
+          peb_rating?: string | null
           reference: string
           team_id: string
           total_interventions?: number | null
@@ -3127,6 +3165,7 @@ export type Database = {
           floor?: number | null
           id?: string
           metadata?: Json | null
+          peb_rating?: string | null
           reference?: string
           team_id?: string
           total_interventions?: number | null
@@ -5937,6 +5976,7 @@ export type Database = {
           team_id: string
         }[]
       }
+      hook_block_uninvited_signups: { Args: { event: Json }; Returns: Json }
       increment_rent_call_received: {
         Args: { p_delta: number; p_rent_call_id: string }
         Returns: undefined
@@ -6220,6 +6260,9 @@ export type Database = {
         | "energie"
         | "administration"
         | "juridique"
+        | "assurance"
+        | "notaire"
+        | "syndic"
       response_type: "accepted" | "rejected" | "pending"
       subscription_status:
         | "trialing"
@@ -6573,6 +6616,9 @@ export const Constants = {
         "energie",
         "administration",
         "juridique",
+        "assurance",
+        "notaire",
+        "syndic",
       ],
       response_type: ["accepted", "rejected", "pending"],
       subscription_status: [

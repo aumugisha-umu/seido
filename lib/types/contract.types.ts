@@ -294,6 +294,7 @@ export interface ContractFormData {
   contractType: ContractType
   startDate: string
   durationMonths: number
+  signedDate?: string
   comments?: string
 
   // Step 3: Paiements

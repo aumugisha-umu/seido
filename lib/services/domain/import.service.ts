@@ -1100,6 +1100,7 @@ export class ImportService {
           category: (lot.category || 'autre') as 'appartement' | 'maison' | 'garage' | 'local_commercial' | 'autre',
           floor: lot.floor || null,
           description: lot.description || null,
+          peb_rating: lot.peb_rating || null,
           team_id: teamId,
           address_id: addressId,
         };
@@ -1312,6 +1313,7 @@ export class ImportService {
         created_by: userId,
         title: contract.title,
         start_date: contract.start_date,
+        signed_date: contract.signed_date || null,
         duration_months: contract.duration_months,
         rent_amount: contract.rent_amount,
         charges_amount: contract.charges_amount,

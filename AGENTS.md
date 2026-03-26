@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-03-26
-**Total Learnings:** 203
+**Total Learnings:** 206
 
 ---
 
@@ -1494,6 +1494,27 @@
 **Example:** `app/api/send-welcome-email/route.ts:68` — changed `confirmationUrl` to `dashboardUrl`
 **When to Use:** When adding or modifying email send calls — verify prop names against the type in `emails/utils/types.ts`
 **Added:** 2026-03-26 | **Source:** Email system comprehensive review
+
+#### Learning #204: Honeypot hidden inputs must be wired via useRef
+**Problem:** A honeypot `<input>` was rendered offscreen but its value was hardcoded to `''` in the fetch body. Bots filling the field had no effect — the server-side check never received the bot value.
+**Solution:** Use `useRef<HTMLInputElement>(null)` on the hidden input, then send `honeypotRef.current?.value ?? ''` in the API call. Never hardcode the honeypot value.
+**Example:** `components/landing/sections/indexation-section.tsx:59` — `honeypotRef` wired to hidden input
+**When to Use:** Any form with honeypot anti-bot protection
+**Added:** 2026-03-26 | **Source:** Lead magnet indexation calculator — feature evaluation
+
+#### Learning #205: Public API routes — security without auth
+**Problem:** The lead magnet API captures emails from anonymous visitors — no user session exists. Standard `getApiAuthContext()` can't be used.
+**Solution:** Layer 3 defenses: (1) `rateLimiters.public` with IP identification, (2) Zod schema validation with strict constraints, (3) honeypot field. Use `createServiceRoleSupabaseClient()` for DB writes on tables without RLS. Always escape user input in inline HTML emails.
+**Example:** `app/api/lead-magnet/route.ts` — first public API route in SEIDO
+**When to Use:** Any public-facing API endpoint that doesn't require authentication (lead capture, contact forms, public calculators)
+**Added:** 2026-03-26 | **Source:** Lead magnet indexation calculator
+
+#### Learning #206: Single data source for UI + JSON-LD structured data
+**Problem:** FAQ questions were needed both in the landing page accordion UI and in the FAQPage JSON-LD schema for SEO. Duplicating content risks drift.
+**Solution:** Store data in a single typed array (`data/faq.ts`), then map it in both the UI component and the JSON-LD `<script>` tag. Adding items to the array automatically updates both. Use category tags to filter subsets.
+**Example:** `data/faq.ts` → `app/page.tsx` (JSON-LD) + `components/landing/sections/faq-section.tsx` (UI)
+**When to Use:** Any content that appears in both UI and structured data (FAQ, reviews, products, events)
+**Added:** 2026-03-26 | **Source:** Lead magnet indexation calculator — US-007
 
 ---
 

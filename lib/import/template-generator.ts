@@ -16,6 +16,7 @@ import {
   CONTRACT_TYPE_LABELS,
   COUNTRY_LABELS,
   INTERVENTION_TYPE_LABELS,
+  PEB_RATING_LABELS,
 } from './constants';
 import type { TemplateConfig } from './types';
 
@@ -159,6 +160,7 @@ function addInstructionsSheet(
     ['   - Nom Immeuble : Pour rattacher le lot à un immeuble'],
     ['   - Catégorie : ' + Object.values(LOT_CATEGORY_LABELS).join(', ')],
     ['   - Étage : Numéro d\'étage (-10 à 200)'],
+    ['   - PEB : Certificat PEB/EPC (' + Object.keys(PEB_RATING_LABELS).join(', ') + ')'],
     ['   - Rue/Ville/Code Postal : Adresse complète si lot indépendant'],
     [''],
     ['3. CONTACTS'],
@@ -173,6 +175,7 @@ function addInstructionsSheet(
     ['   - Titre* : Nom du contrat'],
     ['   - Réf Lot* : Référence du lot associé'],
     ['   - Date Début* : Format AAAA-MM-JJ (ex: 2024-01-01)'],
+    ['   - Date Signature : Date de signature du bail (format AAAA-MM-JJ, optionnel)'],
     ['   - Durée (mois)* : Durée en mois (1 à 120)'],
     ['   - Loyer* : Montant mensuel'],
     ['   - Charges : Montant des charges'],
@@ -207,6 +210,9 @@ function addInstructionsSheet(
     [''],
     ['Catégories de lots:'],
     ...Object.entries(LOT_CATEGORY_LABELS).map(([k, v]) => [`   - ${k} : ${v}`]),
+    [''],
+    ['Certificats PEB/EPC:'],
+    ...Object.entries(PEB_RATING_LABELS).map(([k, v]) => [`   - ${k} : ${v}`]),
     [''],
     ['Rôles de contacts:'],
     ...Object.entries(CONTACT_ROLE_LABELS).map(([k, v]) => [`   - ${k} : ${v}`]),

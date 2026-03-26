@@ -14,6 +14,7 @@ import { Building2, MapPin, Home, Users, AlertCircle, Eye, Edit, ChevronDown, Ch
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { usePrefetch } from '@/hooks/use-prefetch'
+import { getPebColorClasses } from '@/lib/utils/peb-colors'
 import type { BuildingLotItem, BuildingData } from '@/config/table-configs/patrimoine.config'
 
 interface BuildingCardExpandableProps {
@@ -331,6 +332,16 @@ function LotItemRow({ lot, isOccupied, onView, compact = false }: LotItemRowProp
                             {isOccupied ? "Occupé" : "Libre"}
                         </Badge>
 
+                        {/* PEB badge */}
+                        {lot.peb_rating && (() => {
+                            const pebColors = getPebColorClasses(lot.peb_rating)
+                            return (
+                                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${pebColors.bg} ${pebColors.text} border ${pebColors.border}`}>
+                                    PEB {lot.peb_rating}
+                                </span>
+                            )
+                        })()}
+
                         {/* Contacts badge */}
                         {contactsCount > 0 && (
                             <div className="flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs">
@@ -444,6 +455,17 @@ function LotItemRow({ lot, isOccupied, onView, compact = false }: LotItemRowProp
                                 <X className="h-3 w-3" />
                             )}
                         </Badge>
+                        {lot.peb_rating && (() => {
+                            const pebColors = getPebColorClasses(lot.peb_rating)
+                            return (
+                                <>
+                                    <span className="text-slate-400 text-xs">•</span>
+                                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${pebColors.bg} ${pebColors.text} border ${pebColors.border}`}>
+                                        PEB {lot.peb_rating}
+                                    </span>
+                                </>
+                            )
+                        })()}
                     </div>
 
                     {/* Line 2: Details (Floor, Apt #, Surface, Contacts, Interventions) */}

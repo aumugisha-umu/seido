@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import {
-    Building2, Wrench, Home,
+    Building2, Wrench, Home, Calculator,
     CheckCircle2, ArrowRight, Zap, Shield, BarChart3, Mail,
     Sparkles, Smartphone, Clock, MessageSquare, TrendingUp,
     FileText, AlertTriangle, Linkedin,
@@ -26,6 +26,10 @@ import { BlogArticleCard } from '@/components/blog/blog-article-card'
 const TestimonialsSection = dynamic(
     () => import('./sections/testimonials-section').then(mod => ({ default: mod.TestimonialsSection })),
     { loading: () => <div className="py-16 md:py-24"><div className="container mx-auto px-4 text-center"><div className="h-8 w-64 mx-auto bg-white/5 rounded animate-pulse mb-8" /><div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-4">{[1,2].map(i => <div key={i} className="h-48 rounded-2xl bg-white/5 animate-pulse" />)}</div></div></div> }
+)
+const IndexationSection = dynamic(
+    () => import('./sections/indexation-section').then(mod => ({ default: mod.IndexationSection })),
+    { loading: () => <div className="py-16 md:py-24"><div className="container mx-auto px-4"><div className="max-w-4xl mx-auto h-96 rounded-2xl bg-white/5 animate-pulse" /></div></div> }
 )
 import type { ArticleMeta } from '@/lib/blog'
 
@@ -159,6 +163,21 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                 <Mail className="w-4 md:w-5 h-4 md:h-5 mr-2 md:mr-3" />
                                 Voir SEIDO en action
                             </Button>
+                        </div>
+
+                        <div className="mb-2 md:mb-4 max-w-2xl">
+                            <a
+                                href="#indexation"
+                                className="inline-flex items-center gap-2 text-sm text-blue-300 hover:text-blue-200 transition-colors"
+                                onClick={(e) => {
+                                    e.preventDefault()
+                                    document.getElementById('indexation')?.scrollIntoView({ behavior: 'smooth' })
+                                }}
+                            >
+                                <Calculator className="w-4 h-4" />
+                                Calculer mon indexation gratuitement
+                                <ArrowRight className="w-3 h-3" />
+                            </a>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
@@ -774,6 +793,9 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </div>
                 </FadeIn>
             </section >
+
+            {/* Indexation Calculator - Lead Magnet */}
+            <IndexationSection />
 
             {/* FAQ Section */}
             < section id="faq" className="relative z-10 bg-slate-800/30 py-24" aria-labelledby="heading-faq" >

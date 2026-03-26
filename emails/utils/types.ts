@@ -752,3 +752,20 @@ export interface SubscriptionActivatedEmailProps extends BaseBillingEmailProps {
   /** URL du dashboard */
   dashboardUrl: string
 }
+
+// ─── Lead Magnet ─────────────────────────────────────────────
+export interface IndexationLetterEmailProps {
+  /** Email du destinataire */
+  recipientEmail: string
+  /** Détails du calcul */
+  calcul: {
+    loyer: number
+    region: string
+    peb?: string | null
+    nouveauLoyer: number
+    pourcentage: number
+    formule: string
+  }
+  /** Base légale applicable */
+  baseLegale: string
+}

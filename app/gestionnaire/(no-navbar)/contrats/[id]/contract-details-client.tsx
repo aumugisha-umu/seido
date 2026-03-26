@@ -361,6 +361,18 @@ export default function ContractDetailsClient({
                     showRemaining
                   />
 
+                  {contract.signed_date && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Date de signature</p>
+                      <p className="font-medium">
+                        {(() => {
+                          const [y, m, d] = contract.signed_date.split('-').map(Number);
+                          return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { dateStyle: 'long' });
+                        })()}
+                      </p>
+                    </div>
+                  )}
+
                   {contract.comments && (
                     <>
                       <Separator />

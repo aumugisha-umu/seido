@@ -237,7 +237,8 @@ export default function LotEditClient({
         floor: lotInfo.floor ? parseInt(lotInfo.floor) : undefined,
         apartment_number: lotInfo.doorNumber?.trim() || undefined,
         category: lotInfo.category,
-        description: lotInfo.description?.trim() || undefined
+        description: lotInfo.description?.trim() || undefined,
+        peb_rating: lotInfo.pebRating || null
       }
 
       // Add address fields for independent lots
@@ -387,7 +388,8 @@ export default function LotEditClient({
                     description: lotInfo.description,
                     floor: lotInfo.floor,
                     doorNumber: lotInfo.doorNumber,
-                    category: lotInfo.category
+                    category: lotInfo.category,
+                    pebRating: lotInfo.pebRating
                   }}
                   setBuildingInfo={(info) => {
                     setLotInfo({
@@ -395,7 +397,8 @@ export default function LotEditClient({
                       floor: info.floor || "",
                       doorNumber: info.doorNumber || "",
                       description: info.description,
-                      category: info.category || "appartement"
+                      category: info.category || "appartement",
+                      pebRating: info.pebRating
                     })
                   }}
                   selectedManagerId=""
@@ -426,7 +429,8 @@ export default function LotEditClient({
                     country: lotInfo.country || "Belgique",
                     floor: lotInfo.floor,
                     doorNumber: lotInfo.doorNumber,
-                    description: lotInfo.description
+                    description: lotInfo.description,
+                    pebRating: lotInfo.pebRating
                   }}
                   lotNumber={1}
                   isExpanded={true}

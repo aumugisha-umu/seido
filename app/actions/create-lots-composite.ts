@@ -50,6 +50,7 @@ export type CompositeLot = {
   floor?: number | null
   doorNumber?: string | null
   description?: string | null
+  pebRating?: string
   address?: CompositeAddress
 }
 
@@ -163,6 +164,7 @@ export async function createLotsCompositeAction(
       floor: lot.floor ?? 0,
       apartment_number: lot.doorNumber || null,
       description: lot.description || null,
+      peb_rating: lot.pebRating || null,
       building_id: mode === 'existing_building' ? (buildingId || null) : null,
       address_id: lotAddressIds[index],
       team_id: teamId,

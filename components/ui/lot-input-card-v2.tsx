@@ -23,8 +23,10 @@ import {
   Tag,
   Layers,
   DoorOpen,
-  FileText
+  FileText,
+  Zap
 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LotCategory, getAllLotCategories, getLotCategoryConfig, LOT_CATEGORY_SELECTED_STYLES } from "@/lib/lot-types"
 
 /**
@@ -46,6 +48,7 @@ interface Lot {
   floor: string
   doorNumber: string
   description: string
+  pebRating?: string
 }
 
 interface LotInputCardV2Props {
@@ -246,9 +249,9 @@ export function LotInputCardV2({
             </RadioGroup>
           </div>
 
-          {/* Grid 3-Column: Reference + Floor + Door */}
+          {/* Grid 4-Column: Reference + Floor + Door + PEB */}
           {/* Material Design: 8dp grid with responsive collapse */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             {/* Reference */}
             <div>
               <Label htmlFor={`reference-${lot.id}`} icon={Hash} required size="sm" className="mb-1">
@@ -268,7 +271,7 @@ export function LotInputCardV2({
             {/* Floor */}
             <div>
               <Label htmlFor={`floor-${lot.id}`} icon={Layers} size="sm" className="mb-1">
-                Étage <span className="text-muted-foreground font-normal">(optionnel)</span>
+                Étage <span className="text-muted-foreground font-normal">(opt.)</span>
               </Label>
               <Input
                 id={`floor-${lot.id}`}
@@ -283,7 +286,7 @@ export function LotInputCardV2({
             {/* Door */}
             <div>
               <Label htmlFor={`door-${lot.id}`} icon={DoorOpen} size="sm" className="mb-1">
-                Porte/Boîte <span className="text-muted-foreground font-normal">(optionnel)</span>
+                Porte/Boîte <span className="text-muted-foreground font-normal">(opt.)</span>
               </Label>
               <Input
                 id={`door-${lot.id}`}
@@ -293,6 +296,32 @@ export function LotInputCardV2({
                 className="h-9 text-sm"
                 aria-label="Numéro de porte"
               />
+            </div>
+
+            {/* PEB/EPC Rating */}
+            <div>
+              <Label htmlFor={`peb-${lot.id}`} icon={Zap} size="sm" className="mb-1">
+                PEB <span className="text-muted-foreground font-normal">(opt.)</span>
+              </Label>
+              <Select
+                value={lot.pebRating || ""}
+                onValueChange={(value) => onUpdate("pebRating", value === "none" ? "" : value)}
+              >
+                <SelectTrigger id={`peb-${lot.id}`} className="h-9 text-sm">
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Non renseigné</SelectItem>
+                  <SelectItem value="A+">A+</SelectItem>
+                  <SelectItem value="A">A</SelectItem>
+                  <SelectItem value="B">B</SelectItem>
+                  <SelectItem value="C">C</SelectItem>
+                  <SelectItem value="D">D</SelectItem>
+                  <SelectItem value="E">E</SelectItem>
+                  <SelectItem value="F">F</SelectItem>
+                  <SelectItem value="G">G</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

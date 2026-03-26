@@ -198,6 +198,7 @@ export function ContractConfirmationStep({
               { label: "Date d'effet", value: formData.startDate ? parseLocalDate(formData.startDate).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : undefined, empty: !formData.startDate },
               { label: 'Date de fin', value: endDate ? endDate.toLocaleDateString('fr-FR', { dateStyle: 'long' }) : undefined, empty: !endDate },
               { label: 'Duree', value: durationLabel },
+              { label: 'Date de signature', value: formData.signedDate ? parseLocalDate(formData.signedDate).toLocaleDateString('fr-FR', { dateStyle: 'long' }) : 'Non signe', empty: !formData.signedDate },
               { label: 'Type de charges', value: chargesTypeLabel, empty: !chargesTypeLabel },
               { label: 'Frequence de paiement', value: frequencyLabel, empty: !frequencyLabel },
               ...(formData.comments ? [{ label: 'Commentaires', value: formData.comments, fullWidth: true }] : []),

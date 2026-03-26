@@ -424,6 +424,33 @@ export async function POST(request: Request) {
         let invitationUrl: string
         let isNewAuthUser: boolean
 
+        // PRE-INSERT invitation record BEFORE generateLink.
+        // The before-user-created hook checks user_invitations to allow signups.
+        // Without this, generateLink triggers the hook which blocks the invite.
+        logger.info({}, '📋 [STEP-3-INVITE-PRE] Pre-inserting invitation record (hook gate)...')
+        const { data: preInvitation, error: preInvError } = await supabaseAdmin
+          .from('user_invitations')
+          .insert({
+            email: normalizedEmail!,
+            first_name: firstName,
+            last_name: lastName,
+            role: validUserRole,
+            provider_category: finalProviderCategory,
+            team_id: teamId,
+            invited_by: currentUserProfile.id,
+            user_id: userProfile.id,
+            status: 'pending',
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          })
+          .select('id')
+          .single()
+
+        if (preInvError) {
+          logger.warn({ error: preInvError }, '⚠️ [STEP-3-INVITE-PRE] Failed to pre-insert invitation (non-blocking, hook metadata fallback)')
+        } else {
+          logger.info({ invitationId: preInvitation.id }, '✅ [STEP-3-INVITE-PRE] Invitation pre-inserted')
+        }
+
         if (!existingAuthUser) {
           // ========================================================================
           // CAS A: AUTH N'EXISTE PAS - CRÉER NOUVEAU AUTH USER
@@ -509,32 +536,19 @@ export async function POST(request: Request) {
 
         logger.info({}, '✅ [STEP-3-INVITE-2] Auth linked to profile via Service Role')
 
-        // SOUS-ÉTAPE 3: Créer l'enregistrement d'invitation dans user_invitations
-        // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
-        logger.info({}, '📋 [STEP-3-INVITE-3] Creating invitation record in user_invitations...')
-        const { data: invitationRecord, error: invitationError } = await supabaseAdmin
-          .from('user_invitations')
-          .insert({
-            email: normalizedEmail!, // Non-null assertion car garanti par validation Zod
-            first_name: firstName,
-            last_name: lastName,
-            role: validUserRole,
-            provider_category: finalProviderCategory,
-            team_id: teamId,
-            invited_by: currentUserProfile.id,
-            invitation_token: hashedToken,  // ✅ Token Supabase complet (VARCHAR 255)
-            user_id: userProfile.id,
-            status: 'pending',
-            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          })
-          .select()
-          .single()
+        // SOUS-ÉTAPE 3: Update pre-inserted invitation with token from generateLink
+        logger.info({}, '📋 [STEP-3-INVITE-3] Updating invitation record with token...')
+        if (preInvitation) {
+          const { error: updateInvError } = await supabaseAdmin
+            .from('user_invitations')
+            .update({ invitation_token: hashedToken })
+            .eq('id', preInvitation.id)
 
-        if (invitationError) {
-          logger.error({ invitationError: invitationError }, '⚠️ [STEP-3-INVITE-3] Failed to create invitation record:')
-          // Non bloquant
-        } else {
-          logger.info({ invitationRecord: invitationRecord.id }, '✅ [STEP-3-INVITE-3] Invitation record created:')
+          if (updateInvError) {
+            logger.warn({ error: updateInvError }, '⚠️ [STEP-3-INVITE-3] Failed to update invitation token (non-blocking)')
+          } else {
+            logger.info({ invitationId: preInvitation.id }, '✅ [STEP-3-INVITE-3] Invitation token updated')
+          }
         }
 
         // SOUS-ÉTAPE 4: Envoyer l'email via Resend (déféré avec after() — hors du chemin critique)

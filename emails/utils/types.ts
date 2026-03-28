@@ -68,6 +68,8 @@ export interface AdminInvitationEmailProps extends BaseEmailProps {
   invitationUrl: string
   /** Durée de validité (en jours) */
   expiresIn?: number
+  /** True when resending — adapts copy to renewal tone */
+  isRenewal?: boolean
 }
 
 /**

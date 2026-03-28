@@ -303,7 +303,210 @@ export async function extendTeamTrialAction(
 }
 
 // ---------------------------------------------------------------------------
-// 3. Get admin dashboard stats
+// 3. Change subscription status
+// ---------------------------------------------------------------------------
+
+const ADMIN_SETTABLE_STATUSES = ['trialing', 'active', 'canceled', 'paused', 'free_tier'] as const
+export type AdminSettableStatus = typeof ADMIN_SETTABLE_STATUSES[number]
+
+export async function changeSubscriptionStatusAction(
+  teamId: string,
+  newStatus: AdminSettableStatus,
+): Promise<ActionResult> {
+  try {
+    const { profile, supabase } = await getAdminContext()
+
+    if (!ADMIN_SETTABLE_STATUSES.includes(newStatus)) {
+      return { success: false, error: `Statut invalide: ${newStatus}` }
+    }
+
+    // Load current subscription
+    const { data: sub, error: subError } = await supabase
+      .from('subscriptions')
+      .select('id, status')
+      .eq('team_id', teamId)
+      .limit(1)
+      .maybeSingle()
+
+    if (subError || !sub) {
+      return { success: false, error: 'Abonnement introuvable pour cette equipe' }
+    }
+
+    if (sub.status === newStatus) {
+      return { success: false, error: `Le statut est deja "${newStatus}"` }
+    }
+
+    const oldStatus = sub.status
+
+    // Update status + trial fields if switching to trialing
+    const updateData: Record<string, unknown> = { status: newStatus }
+    if (newStatus === 'trialing') {
+      updateData.trial_start = new Date().toISOString()
+      updateData.trial_end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    }
+
+    const { error: updateError } = await supabase
+      .from('subscriptions')
+      .update(updateData)
+      .eq('id', sub.id)
+
+    if (updateError) {
+      logger.error({ error: updateError }, '[ADMIN-TEAMS] Failed to update subscription status')
+      return { success: false, error: 'Erreur lors de la mise a jour' }
+    }
+
+    // Activity log
+    await supabase.from('activity_logs').insert({
+      action_type: 'update' as const,
+      entity_type: 'team' as const,
+      entity_id: teamId,
+      entity_name: `Status change: ${oldStatus} → ${newStatus}`,
+      description: `Statut abonnement modifie par admin: ${oldStatus} → ${newStatus}`,
+      user_id: profile.id,
+      team_id: teamId,
+      metadata: { old_status: oldStatus, new_status: newStatus },
+    })
+
+    logger.info({ teamId, oldStatus, newStatus }, '[ADMIN-TEAMS] Subscription status changed')
+    return { success: true }
+  } catch (error) {
+    logger.error({ error }, '[ADMIN-TEAMS] Unexpected error changing status')
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 4. Delete team (nuclear)
+// ---------------------------------------------------------------------------
+
+export async function deleteTeamAction(
+  teamId: string,
+  confirmationName: string,
+): Promise<ActionResult<{ deletedAuthUsers: number }>> {
+  try {
+    const { profile, supabase } = await getAdminContext()
+
+    // 1. Load team to verify name confirmation
+    const { data: team, error: teamError } = await supabase
+      .from('teams')
+      .select('id, name')
+      .eq('id', teamId)
+      .is('deleted_at', null)
+      .single()
+
+    if (teamError || !team) {
+      return { success: false, error: 'Equipe introuvable' }
+    }
+
+    if (team.name.trim().toLowerCase() !== confirmationName.trim().toLowerCase()) {
+      return { success: false, error: 'Le nom de confirmation ne correspond pas' }
+    }
+
+    // 2. Get team members with their auth_user_ids
+    const { data: members } = await supabase
+      .from('team_members')
+      .select('user_id, users!inner(auth_user_id)')
+      .eq('team_id', teamId)
+
+    // 3. Find members who are ONLY in this team (single query instead of N+1)
+    const authUserIdsToDelete: string[] = []
+    const userIdsToDelete: string[] = []
+    if (members && members.length > 0) {
+      const memberUserIds = members.map(m => m.user_id)
+
+      // Single query: find all other team memberships for these users
+      const { data: otherMemberships } = await supabase
+        .from('team_members')
+        .select('user_id')
+        .in('user_id', memberUserIds)
+        .neq('team_id', teamId)
+
+      const usersInOtherTeams = new Set(otherMemberships?.map(m => m.user_id) || [])
+
+      for (const member of members) {
+        const user = member.users as unknown as { auth_user_id: string | null }
+        if (!user?.auth_user_id) continue
+
+        if (!usersInOtherTeams.has(member.user_id)) {
+          authUserIdsToDelete.push(user.auth_user_id)
+          userIdsToDelete.push(member.user_id)
+        }
+      }
+    }
+
+    // 4. Delete the team — FK CASCADE handles: team_members, buildings, lots,
+    //    interventions, subscriptions, contacts, contracts, email configs, etc.
+    //    users.team_id gets SET NULL (users survive).
+    const { error: deleteError } = await supabase
+      .from('teams')
+      .delete()
+      .eq('id', teamId)
+
+    if (deleteError) {
+      logger.error({ error: deleteError }, '[ADMIN-TEAMS] Failed to delete team')
+      return { success: false, error: `Erreur lors de la suppression: ${deleteError.message}` }
+    }
+
+    logger.info({ teamId, teamName: team.name }, '[ADMIN-TEAMS] Team deleted (FK cascade)')
+
+    // 5. Delete auth users who were only in this team (parallel)
+    const authResults = await Promise.allSettled(
+      authUserIdsToDelete.map(authUserId =>
+        supabase.auth.admin.deleteUser(authUserId).then(({ error }) => {
+          if (error) logger.warn({ authUserId, error }, '[ADMIN-TEAMS] Failed to delete auth user')
+          return !error
+        })
+      )
+    )
+    const deletedAuthUsers = authResults.filter(r => r.status === 'fulfilled' && r.value).length
+
+    // 6. Clean up orphaned public.users (bulk delete)
+    if (userIdsToDelete.length > 0) {
+      await supabase.from('users').delete().in('id', userIdsToDelete)
+    }
+
+    logger.info(
+      { teamId, teamName: team.name, deletedAuthUsers, totalMembers: members?.length || 0 },
+      '[ADMIN-TEAMS] Team deletion complete'
+    )
+
+    // 7. Activity log (use admin's own team for logging since target team is gone)
+    after(async () => {
+      try {
+        await supabase.from('activity_logs').insert({
+          action_type: 'delete' as const,
+          entity_type: 'team' as const,
+          entity_id: teamId,
+          entity_name: team.name,
+          description: `Equipe "${team.name}" supprimee. ${deletedAuthUsers} compte(s) auth supprime(s).`,
+          user_id: profile.id,
+          team_id: profile.team_id,
+          metadata: {
+            deleted_team_name: team.name,
+            deleted_auth_users: deletedAuthUsers,
+            total_members: members?.length || 0,
+          },
+        })
+      } catch (logError) {
+        logger.warn({ logError }, '[ADMIN-TEAMS] Failed to log team deletion')
+      }
+    })
+
+    return { success: true, data: { deletedAuthUsers } }
+  } catch (error) {
+    logger.error({ error }, '[ADMIN-TEAMS] Unexpected error deleting team')
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 5. Get admin dashboard stats
 // ---------------------------------------------------------------------------
 
 export async function getAdminDashboardStats(): Promise<ActionResult<{

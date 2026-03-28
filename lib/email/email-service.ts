@@ -271,12 +271,14 @@ export const emailService = {
 
     return sendEmailWithRetry({
       to,
-      subject: 'Bienvenue sur SEIDO — Votre espace de gestion vous attend',
+      subject: props.isRenewal
+        ? 'SEIDO — Nouveau lien d\'activation'
+        : 'Bienvenue sur SEIDO — Votre espace de gestion vous attend',
       html,
       text,
       tags: [
         { name: 'category', value: 'auth' },
-        { name: 'type', value: 'admin-invitation' },
+        { name: 'type', value: props.isRenewal ? 'admin-invitation-renewal' : 'admin-invitation' },
       ],
     })
   },

@@ -30,12 +30,38 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Search, Clock, Loader2, Plus } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Search, Clock, Loader2, Plus, Send, Mail, MoreHorizontal, RefreshCw, Trash2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { DatePicker, formatLocalDate } from '@/components/ui/date-picker'
-import { extendTeamTrialAction } from '@/app/actions/admin-team-actions'
-import type { AdminTeam } from '@/app/actions/admin-team-actions'
-import { inviteGestionnaireAction } from '@/app/actions/user-admin-actions'
+import {
+  extendTeamTrialAction,
+  changeSubscriptionStatusAction,
+  deleteTeamAction,
+} from '@/app/actions/admin-team-actions'
+import type { AdminTeam, AdminSettableStatus } from '@/app/actions/admin-team-actions'
+
+const ADMIN_SETTABLE_STATUSES: AdminSettableStatus[] = ['trialing', 'active', 'canceled', 'paused', 'free_tier']
+import { inviteGestionnaireAction, resendGestionnaireInvitationAction } from '@/app/actions/user-admin-actions'
+import type { AdminInvitation } from '@/app/actions/user-admin-actions'
+
+// ---------------------------------------------------------------------------
+// Status labels for change dialog
+// ---------------------------------------------------------------------------
+
+const statusLabels: Record<string, string> = {
+  trialing: 'En essai (30 jours)',
+  active: 'Actif',
+  canceled: 'Annule',
+  paused: 'En pause',
+  free_tier: 'Gratuit',
+}
 
 // ---------------------------------------------------------------------------
 // Status badge helper
@@ -48,6 +74,7 @@ const statusConfig: Record<string, { label: string; variant: 'default' | 'second
   canceled: { label: 'Annule', variant: 'secondary' },
   incomplete: { label: 'Incomplet', variant: 'secondary' },
   paused: { label: 'Pause', variant: 'outline' },
+  free_tier: { label: 'Gratuit', variant: 'outline', className: 'border-slate-300 text-slate-600 bg-slate-50' },
 }
 
 const StatusBadge = ({ status }: { status: string | null }) => {
@@ -79,14 +106,33 @@ const formatDate = (dateStr: string | null): string => {
 }
 
 // ---------------------------------------------------------------------------
+// Invitation status badge
+// ---------------------------------------------------------------------------
+
+const invitationStatusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string }> = {
+  pending: { label: 'En attente', variant: 'outline', className: 'border-blue-300 text-blue-700 bg-blue-50' },
+  expired: { label: 'Expiree', variant: 'destructive' },
+}
+
+const InvitationStatusBadge = ({ status }: { status: string }) => {
+  const config = invitationStatusConfig[status] || { label: status, variant: 'secondary' as const }
+  return (
+    <Badge variant={config.variant} className={config.className}>
+      {config.label}
+    </Badge>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
 interface TeamsManagementClientProps {
   initialTeams: AdminTeam[]
+  initialInvitations: AdminInvitation[]
 }
 
-export function TeamsManagementClient({ initialTeams }: TeamsManagementClientProps) {
+export function TeamsManagementClient({ initialTeams, initialInvitations }: TeamsManagementClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [search, setSearch] = useState('')
@@ -107,6 +153,20 @@ export function TeamsManagementClient({ initialTeams }: TeamsManagementClientPro
     lastName: '',
     organization: '',
   })
+
+  // Status change dialog state
+  const [statusTeam, setStatusTeam] = useState<AdminTeam | null>(null)
+  const [newStatus, setNewStatus] = useState<AdminSettableStatus | ''>('')
+  const [isChangingStatus, setIsChangingStatus] = useState(false)
+
+  // Delete dialog state
+  const [deleteTeam, setDeleteTeam] = useState<AdminTeam | null>(null)
+  const [deleteConfirmName, setDeleteConfirmName] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Resend invitation state
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null)
+  const [resendConfirm, setResendConfirm] = useState<AdminInvitation | null>(null)
 
   // Auto-open dialog from URL param (?extend=teamId)
   useEffect(() => {
@@ -211,6 +271,86 @@ export function TeamsManagementClient({ initialTeams }: TeamsManagementClientPro
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Resend invitation handler
+  // ---------------------------------------------------------------------------
+
+  const handleResendInvitation = async () => {
+    if (!resendConfirm) return
+    const { email, first_name } = resendConfirm
+    setResendingEmail(email)
+    setResendConfirm(null)
+    try {
+      const result = await resendGestionnaireInvitationAction(email)
+      if (result.success) {
+        toast.success(`Invitation relancee pour ${first_name || email}`)
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Erreur lors de la relance')
+      }
+    } catch {
+      toast.error('Erreur inattendue')
+    } finally {
+      setResendingEmail(null)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Change status handler
+  // ---------------------------------------------------------------------------
+
+  const handleChangeStatus = async () => {
+    if (!statusTeam || !newStatus) return
+
+    setIsChangingStatus(true)
+    try {
+      const result = await changeSubscriptionStatusAction(
+        statusTeam.id,
+        newStatus as AdminSettableStatus
+      )
+      if (result.success) {
+        toast.success(`Statut modifie pour ${statusTeam.name}`)
+        setStatusTeam(null)
+        setNewStatus('')
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Erreur lors du changement de statut')
+      }
+    } catch {
+      toast.error('Erreur inattendue')
+    } finally {
+      setIsChangingStatus(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Delete team handler
+  // ---------------------------------------------------------------------------
+
+  const handleDeleteTeam = async () => {
+    if (!deleteTeam) return
+
+    setIsDeleting(true)
+    try {
+      const result = await deleteTeamAction(deleteTeam.id, deleteConfirmName)
+      if (result.success) {
+        const authCount = result.data?.deletedAuthUsers || 0
+        toast.success(
+          `Equipe "${deleteTeam.name}" supprimee. ${authCount} compte(s) supprime(s).`
+        )
+        setDeleteTeam(null)
+        setDeleteConfirmName('')
+        router.refresh()
+      } else {
+        toast.error(result.error || 'Erreur lors de la suppression')
+      }
+    } catch {
+      toast.error('Erreur inattendue')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // Preview computed values
   const previewDaysAdded = useMemo(() => {
     if (!extendTeam?.trial_end || !newTrialEnd) return null
@@ -248,6 +388,8 @@ export function TeamsManagementClient({ initialTeams }: TeamsManagementClientPro
             <SelectItem value="active">Actif</SelectItem>
             <SelectItem value="canceled">Annule</SelectItem>
             <SelectItem value="past_due">Impaye</SelectItem>
+            <SelectItem value="paused">En pause</SelectItem>
+            <SelectItem value="free_tier">Gratuit</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -315,17 +457,39 @@ export function TeamsManagementClient({ initialTeams }: TeamsManagementClientPro
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {isTrial && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenExtendDialog(team)}
-                          className="gap-1"
-                        >
-                          <Clock className="h-3 w-3" />
-                          Etendre
-                        </Button>
-                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {isTrial && (
+                            <DropdownMenuItem onClick={() => handleOpenExtendDialog(team)}>
+                              <Clock className="h-4 w-4 mr-2" />
+                              Etendre l&apos;essai
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => {
+                            setStatusTeam(team)
+                            setNewStatus('')
+                          }}>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Changer le statut
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setDeleteTeam(team)
+                              setDeleteConfirmName('')
+                            }}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Supprimer l&apos;equipe
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 )
@@ -335,11 +499,82 @@ export function TeamsManagementClient({ initialTeams }: TeamsManagementClientPro
         </Table>
       </div>
 
+      {/* Invitations Section */}
+      {initialInvitations.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Mail className="h-5 w-5 text-blue-500" />
+            <h2 className="text-lg font-semibold text-slate-900">
+              Invitations en attente
+            </h2>
+            <Badge variant="secondary" className="ml-1">
+              {initialInvitations.length}
+            </Badge>
+          </div>
+
+          <div className="bg-white rounded-lg border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Invite le</TableHead>
+                  <TableHead>Expire le</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {initialInvitations.map(inv => (
+                  <TableRow key={inv.id}>
+                    <TableCell className="font-medium">
+                      {inv.first_name && inv.last_name
+                        ? `${inv.first_name} ${inv.last_name}`
+                        : inv.first_name || '—'
+                      }
+                      {inv.team_name && (
+                        <p className="text-xs text-muted-foreground">{inv.team_name}</p>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm">{inv.email}</TableCell>
+                    <TableCell>
+                      <InvitationStatusBadge status={inv.status} />
+                    </TableCell>
+                    <TableCell className="text-sm">{formatDate(inv.invited_at)}</TableCell>
+                    <TableCell className="text-sm">
+                      <span className={inv.status === 'expired' ? 'text-red-600 font-medium' : ''}>
+                        {formatDate(inv.expires_at)}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setResendConfirm(inv)}
+                        disabled={resendingEmail === inv.email}
+                        className="gap-1"
+                      >
+                        {resendingEmail === inv.email ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Send className="h-3 w-3" />
+                        )}
+                        Relancer
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
       {/* Extend Trial Dialog */}
       <Dialog open={!!extendTeam} onOpenChange={(open) => !open && setExtendTeam(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Etendre l'essai</DialogTitle>
+            <DialogTitle>Etendre l&apos;essai</DialogTitle>
             <DialogDescription>
               {extendTeam?.name}
             </DialogDescription>
@@ -438,6 +673,175 @@ export function TeamsManagementClient({ initialTeams }: TeamsManagementClientPro
                 </>
               ) : (
                 'Confirmer'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resend Invitation Confirmation Dialog */}
+      <Dialog open={!!resendConfirm} onOpenChange={(open) => !open && setResendConfirm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Relancer l&apos;invitation</DialogTitle>
+            <DialogDescription>
+              {resendConfirm?.first_name && resendConfirm?.last_name
+                ? `${resendConfirm.first_name} ${resendConfirm.last_name}`
+                : resendConfirm?.email
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <p className="text-sm text-slate-700">
+              Un nouveau lien d&apos;invitation sera genere et envoye par email.
+              Le lien sera valide pendant <strong>7 jours</strong> a partir de maintenant.
+            </p>
+            {resendConfirm?.status === 'expired' && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  L&apos;invitation precedente a expire. Le destinataire recevra un email
+                  l&apos;informant qu&apos;un nouveau lien est disponible.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResendConfirm(null)}>
+              Annuler
+            </Button>
+            <Button onClick={handleResendInvitation}>
+              <Send className="h-4 w-4 mr-2" />
+              Confirmer la relance
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Status Dialog */}
+      <Dialog open={!!statusTeam} onOpenChange={(open) => !open && setStatusTeam(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Changer le statut d&apos;abonnement</DialogTitle>
+            <DialogDescription>
+              {statusTeam?.name}
+              {statusTeam?.subscription_status && (
+                <> — actuellement <strong>{statusLabels[statusTeam.subscription_status] || statusTeam.subscription_status}</strong></>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-4">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Nouveau statut</Label>
+              <Select value={newStatus} onValueChange={(v) => setNewStatus(v as AdminSettableStatus)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir un statut..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {ADMIN_SETTABLE_STATUSES.filter(s => s !== statusTeam?.subscription_status).map(s => (
+                    <SelectItem key={s} value={s}>
+                      {statusLabels[s] || s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {newStatus === 'trialing' && statusTeam?.subscription_status !== 'trialing' && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Un nouveau trial de <strong>30 jours</strong> sera initialise.
+                </p>
+              </div>
+            )}
+
+            {newStatus === 'canceled' && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  L&apos;equipe passera en mode lecture seule (pas de suppression de donnees).
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusTeam(null)} disabled={isChangingStatus}>
+              Annuler
+            </Button>
+            <Button onClick={handleChangeStatus} disabled={isChangingStatus || !newStatus}>
+              {isChangingStatus ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Modification...</>
+              ) : (
+                'Confirmer'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Team Dialog */}
+      <Dialog open={!!deleteTeam} onOpenChange={(open) => !open && setDeleteTeam(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" />
+              Supprimer l&apos;equipe
+            </DialogTitle>
+            <DialogDescription>
+              Cette action est irreversible et supprimera toutes les donnees associees.
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteTeam && (
+            <div className="py-4 space-y-4">
+              {/* Impact summary */}
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1">
+                <p className="text-sm font-medium text-red-800">Donnees supprimees :</p>
+                <ul className="text-sm text-red-700 list-disc list-inside space-y-0.5">
+                  <li>{deleteTeam.member_count} membre(s) et leur(s) compte(s)</li>
+                  <li>{deleteTeam.lot_count} lot(s), immeubles, et documents</li>
+                  <li>Interventions, contrats, devis</li>
+                  <li>Abonnement et configuration email</li>
+                </ul>
+                <p className="text-xs text-red-600 mt-2">
+                  Les membres presents dans d&apos;autres equipes conserveront leur compte.
+                </p>
+              </div>
+
+              {/* Confirmation input */}
+              <div>
+                <Label htmlFor="delete-confirm" className="text-sm font-medium mb-2 block">
+                  Tapez <strong className="text-red-700">{deleteTeam.name}</strong> pour confirmer
+                </Label>
+                <Input
+                  id="delete-confirm"
+                  value={deleteConfirmName}
+                  onChange={(e) => setDeleteConfirmName(e.target.value)}
+                  placeholder={deleteTeam.name}
+                  className="border-red-200 focus-visible:ring-red-500"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTeam(null)} disabled={isDeleting}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTeam}
+              disabled={
+                isDeleting ||
+                deleteConfirmName.trim().toLowerCase() !== deleteTeam?.name.trim().toLowerCase()
+              }
+            >
+              {isDeleting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Suppression...</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" />Supprimer definitivement</>
               )}
             </Button>
           </DialogFooter>

@@ -19,7 +19,7 @@ model: opus
 ## Stack Testing
 
 - **Unit/Integration**: Vitest 2.0.0 + jsdom
-- **E2E**: Puppeteer 24.x + Vitest (NOT Playwright)
+- **E2E**: Playwright Test (migrated from Puppeteer 2026-03-23)
 - **Component**: @testing-library/react
 - **Coverage**: v8 provider, 80% threshold
 
@@ -134,7 +134,7 @@ import { checkAccessibility } from '@/test/helpers/a11y'
 - ❌ Missing cleanup → Always cleanup test data
 - ❌ Skipping a11y → Always test accessibility
 - ❌ Ignoring RLS → Test permission boundaries
-- ❌ Using Playwright → Use Puppeteer + Vitest (SEIDO standard)
+- ❌ Using Puppeteer → Use Playwright Test (migrated 2026-03-23)
 
 ## Skills Integration
 
@@ -157,6 +157,70 @@ sp-verification-before-completion → Coverage 80%+
 | Avant implementation | `sp-test-driven-development` | Ecrire tests failing |
 | Tests echouent | `sp-systematic-debugging` | Diagnostic 4 phases |
 | Avant commit | `sp-verification-before-completion` | Verifier coverage |
+
+## Example Output
+
+### When asked to write a unit test (Vitest):
+
+```typescript
+import { describe, it, expect, vi } from 'vitest'
+import { BuildingService } from '@/lib/services/domain/building.service'
+
+describe('BuildingService', () => {
+  const mockRepository = {
+    findByTeamId: vi.fn(),
+    create: vi.fn(),
+  }
+
+  it('should return buildings for team', async () => {
+    const buildings = [{ id: '1', name: 'Building A', team_id: 'team-1' }]
+    mockRepository.findByTeamId.mockResolvedValue(buildings)
+
+    const service = new BuildingService(mockRepository as any)
+    const result = await service.getByTeam('team-1')
+
+    expect(result).toEqual(buildings)
+    expect(mockRepository.findByTeamId).toHaveBeenCalledWith('team-1')
+  })
+})
+```
+
+### When asked to write an E2E test (Playwright):
+
+```typescript
+import { test, expect } from '@playwright/test'
+import { DashboardPage } from '@/tests/shared/pages/dashboard.page'
+
+test.describe('Building creation', () => {
+  let dashboard: DashboardPage
+
+  test.beforeEach(async ({ page }) => {
+    dashboard = new DashboardPage(page)
+    await dashboard.navigateTo()
+    await dashboard.dismissBanners()
+  })
+
+  test('gestionnaire can create a building', async ({ page }) => {
+    await page.getByRole('link', { name: /patrimoine/i }).click()
+    await page.getByRole('button', { name: /nouvel immeuble/i }).click()
+
+    // Fill wizard step 1
+    await page.getByLabel('Nom').fill('Immeuble Test')
+    await page.getByRole('button', { name: /suivant/i }).click()
+
+    // Verify creation
+    await expect(page.getByText('Immeuble Test')).toBeVisible()
+  })
+})
+```
+
+### What NOT to produce:
+- CSS class selectors (`page.locator('.btn-primary')`) — use semantic selectors
+- Missing `dismissBanners()` after navigation (cookie + PWA banners reappear)
+- Shared mutable state between tests (Pattern 5 violation)
+- Hard-coded timeouts (`page.waitForTimeout(3000)`) — use proper waitFor conditions
+- Missing `test.slow()` for Vercel preview cold starts
+- Puppeteer syntax (migrated to Playwright 2026-03-23)
 
 ---
 

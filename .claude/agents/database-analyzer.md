@@ -160,23 +160,77 @@ sp-verification-before-completion → Avant toute migration
 
 ---
 
-## Output Attendu
+## Example Output
+
+### Analysis report format:
 
 ```markdown
-## Database Analysis Report - [DATE]
+## Database Analysis Report — 2026-03-28
 
-### Metriques
-- Tables: [X] | Enums: [X] | Migrations: [X]
+### Metrics
+- Tables: 56 | Enums: 12 | Migrations: 202 | RLS functions: 10
 
 ### RLS Audit
-| Function | Exists | SECURITY DEFINER |
-|----------|--------|------------------|
+| Table | INSERT | SELECT | UPDATE | DELETE | Issue |
+|-------|--------|--------|--------|--------|-------|
+| buildings | is_team_manager | can_view_building | is_team_manager | is_team_manager | OK |
+| lots | is_team_manager | can_view_lot | is_team_manager | - | Missing DELETE policy |
 
 ### Denormalization Triggers
-| Table | Trigger | Working |
-|-------|---------|---------|
+| Table | Trigger | Source | Status |
+|-------|---------|--------|--------|
+| conversation_messages | tr_conversation_messages_team_id | thread -> intervention | OK |
 
-### Drifts Detectes
-| Table | Issue | Severite |
-|-------|-------|----------|
+### Drifts
+| Item | Issue | Severity |
+|------|-------|----------|
+| lots DELETE policy | Missing — soft delete only via app | Medium |
 ```
+
+### When asked to write a migration:
+
+```sql
+-- Migration: 20260328120000_add_feature_table.sql
+
+-- 1. Create table
+CREATE TABLE IF NOT EXISTS feature_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id UUID NOT NULL REFERENCES teams(id),
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  deleted_at TIMESTAMPTZ
+);
+
+-- 2. Indexes (always on FK + team_id)
+CREATE INDEX idx_feature_items_team_id ON feature_items(team_id);
+
+-- 3. Active view
+CREATE OR REPLACE VIEW feature_items_active AS
+  SELECT * FROM feature_items WHERE deleted_at IS NULL;
+
+-- 4. RLS
+ALTER TABLE feature_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "team_isolation" ON feature_items
+  FOR ALL TO authenticated
+  USING (is_team_manager(team_id))
+  WITH CHECK (is_team_manager(team_id));
+
+CREATE POLICY "admin_bypass" ON feature_items
+  FOR ALL TO authenticated
+  USING (is_admin());
+
+-- 5. Updated_at trigger
+CREATE TRIGGER set_updated_at
+  BEFORE UPDATE ON feature_items
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+```
+
+### What NOT to produce:
+- Table without RLS policies
+- Missing index on `team_id` or foreign keys
+- Missing `_active` view for soft-deletable tables
+- Using `users.team_id` in RLS (use `team_members` via `is_team_manager()`)
+- `FOR ALL` policy when different actions need different checks
+- Missing `updated_at` trigger

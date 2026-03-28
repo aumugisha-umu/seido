@@ -11,8 +11,8 @@ paths:
 
 ## Avant Toute Migration
 
-1. **Vérifier** le schéma actuel dans `lib/database.types.ts`
-2. **Nommer** la migration : `YYYYMMDDHHMMSS_description.sql`
+1. **Créer** via CLI : `npx supabase migration new <description>` (auto-timestamp, ne JAMAIS créer le fichier manuellement)
+2. **Vérifier** le schéma actuel dans `lib/database.types.ts`
 3. **Toujours** ajouter RLS policies pour nouvelles tables
 4. **Régénérer** les types après : `npm run supabase:types`
 5. **Mettre à jour** `.claude/memory-bank/techContext.md`
@@ -124,14 +124,17 @@ CREATE POLICY "my_table_admin_all" ON my_table
 ## Commandes
 
 ```bash
+# Créer une nouvelle migration (TOUJOURS via CLI)
+npx supabase migration new <description>
+
 # Régénérer les types TypeScript
 npm run supabase:types
 
-# Créer une nouvelle migration
-npm run supabase:migrate
+# Appliquer les migrations sur la DB liée
+npx supabase db push --linked
 
-# Appliquer les migrations
-npx supabase db push
+# Réparer une migration en erreur
+npx supabase migration repair --status reverted <timestamp> --linked
 ```
 
 ---

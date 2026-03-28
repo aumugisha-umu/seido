@@ -1,11 +1,81 @@
 # CLAUDE.md — Guidance for Claude Code
 
-## INTERDICTIONS (Never violate)
+## Boundaries
 
-1. **No git without `git*`:** NEVER run git add/commit/push unless user types `git*`
-2. **No build without ask:** NEVER run `npm run build` unless user explicitly asks. Use `npm run lint` or `npx tsc --noEmit [file]` for validation. **Exception:** `npm run build` is required during the `git*` quality-gate commit workflow (automated checks step)
-3. **No direct Supabase:** NEVER call Supabase directly in components — Repository Pattern only
-4. **No `any` / `console.log`:** NEVER leave `any` types or `console.log` in production code
+### Auto-Apply (no confirmation needed)
+- Repository Pattern for ALL Supabase queries — never direct calls in components
+- `getServerAuthContext(role)` in Server Components, `getServerActionAuthContextOrNull()` in Server Actions
+- Grep codebase for existing utils/components before creating new ones
+- Docs First: context7 → official docs → never code from memory
+- Update `discovery-tree.json` when adding/modifying/removing routes
+- Use `demo+invite-{timestamp}@seido-app.com` for test email addresses
+- Use `after()` from `next/server` for post-response side-effects (emails, notifications, logs)
+- Add `data-testid` on interactive elements for E2E resilience
+- Before DB-touching changes: read `lib/database.types.ts` + check existing RLS in `.claude/rules/database-rules.md`
+- Before adding/modifying routes: consult `docs/qa/discovery-tree.json` for existing paths
+
+### Ask First (before implementation)
+- New DB migration or schema change
+- New server action with business logic
+- Modifying auth/RLS/middleware/security
+- Cross-cutting changes touching 3+ domains (DB+API+UI)
+- Adding new npm dependency
+- Modifying billing/subscription/payment flow
+- Deleting or renaming files used across multiple modules
+- Changing intervention status flow or quote statuts
+- Deleting DB data or dropping columns
+- Updating `.claude/rules/*.md`, agent configs, or skill definitions
+
+### Never Do
+- `git add`/`commit`/`push` without user typing `git*`
+- `npm run build` without explicit ask (exception: `git*` FULL gate)
+- `npm run dev` without explicit ask
+- Leave `any` types or `console.log` in production code
+- Direct Supabase calls in components (Repository Pattern only)
+- Commit `.env`, credentials, or secrets
+- Force-push to `main`/`preview` branches
+- Use `users.team_id` for access control (use `team_members`)
+- Use `.single()` for multi-team queries (use `.limit(1)`)
+- Create new files when editing existing ones achieves the goal
+- Skip `sp-systematic-debugging` when encountering non-trivial bugs
+- Create migration files manually — use `npx supabase migration new <name>`
+
+## Project Structure
+
+```
+app/                    → Next.js App Router
+  [role]/(with-navbar)/ → Role-scoped pages (admin, gestionnaire, prestataire, locataire)
+  actions/              → Server actions
+  api/                  → API routes (REST + cron/ + webhooks)
+components/             → Reusable UI components (grouped by domain)
+  ui/                   → shadcn/ui primitives
+hooks/                  → Custom React hooks
+lib/
+  services/
+    core/               → Supabase clients, BaseRepository, error handler
+    repositories/       → Data access layer (one per entity)
+    domain/             → Business logic services
+  email/                → Resend client, EMAIL_CONFIG
+  types/                → Shared TypeScript types
+  validation/           → Zod schemas
+  utils/                → Utility functions
+contexts/               → React contexts (auth, realtime, subscription)
+supabase/migrations/    → SQL migrations (chronological)
+tests/                  → E2E (Playwright) + unit (Vitest) + integration
+  shared/pages/         → Shared Page Object Models
+docs/                   → Design docs, plans, learnings, QA
+.claude/                → Agent configs, skills, rules, memory bank, hooks
+blog/articles/          → Markdown blog posts with YAML frontmatter
+middleware.ts           → Auth routing + role redirect (root file)
+```
+
+> Exact counts evolve — use `Glob` to count. Structural map above is stable.
+
+**Key references:**
+- **User paths:** `docs/qa/discovery-tree.json` — source of truth for all testable routes (103 nodes, 3 modes)
+- **DB schema:** `lib/database.types.ts` (generated) + `supabase/migrations/` (SQL source)
+- **RLS functions:** 10 helpers — see `.claude/rules/database-rules.md`
+- **Intervention flow:** 9 statuts, 7 quote statuts — see `.claude/rules/intervention-rules.md`
 
 ## Commit Workflow (on `git*`)
 
@@ -34,6 +104,8 @@ Triggers for FULL gate:
   - Changes to billing/subscription/payment
   - Cross-cutting changes (3+ domains: DB+API+UI)
   - User explicitly asks for full review
+
+Commit message format: `type(scope): description` — types: feat, fix, refactor, docs, test, chore
 ```
 
 ## Skill & Agent Routing (First Response)
@@ -67,80 +139,30 @@ Triggers for FULL gate:
 | `.claude/memory-bank/projectbrief.md` | Pour contexte global |
 | `.claude/memory-bank/progress.md` | Pour suivi projet |
 
-Rules auto-loaded from `.claude/rules/*.md`: intervention-rules, database-rules, ui-rules, seido-reference, feature-reference.
+Rules auto-loaded from `.claude/rules/*.md`: intervention-rules, database-rules, ui-rules, code-quality, testing-rules, seido-reference, feature-reference.
 Commands: `/sync-memory` (quick sync) | `/update-memory` (full update)
-
----
-
-## Regles Obligatoires
-
-**Audit :** A chaque test, mettre a jour `docs/rapport-audit-complet-seido.md`
-**Docs First (context7 priority) :** Avant toute modification touchant une librairie externe (Supabase, Next.js, React, Stripe, Resend, shadcn/ui, etc.) :
-1. **D'abord** utiliser MCP context7 (`resolve-library-id` → `query-docs`) pour chercher la doc a jour
-2. **Si context7 n'a pas la lib ou la section** → consulter la doc officielle en ligne : [Supabase](https://supabase.com/docs), [Next.js](https://nextjs.org/docs), [React](https://react.dev/learn)
-3. **Ne jamais coder de memoire** une API/config quand la doc est accessible via context7
-
-**UX/UI :** Consulter `docs/design/ux-ui-decision-guide.md` pour toute modification UX/UI.
-
-**Test Maintenance (auto-update) :** Quand une modification touche :
-- Une route (`page.tsx` ajoutee/supprimee/renommee)
-- Un wizard/formulaire (etapes ajoutees/supprimees)
-- Un statut ou flow d'intervention (nouveau statut, transition modifiee)
-- Un bouton/action visible par l'utilisateur
-→ Mettre a jour **dans le meme changement** :
-1. `docs/qa/discovery-tree.json` — ajouter/modifier/supprimer le noeud concerne
-2. Les tests E2E impactes (`tests/e2e/`)
-3. Reggenerer le markdown : `npx tsx scripts/generate-discovery-tree.ts`
-
-**Invitations de test :** Toujours utiliser `demo+invite-{timestamp}@seido-app.com` pour les adresses creees lors des tests (E2E, integration).
-
----
-
-## Discovery Tree (QA)
-
-L'arbre de decouverte est la **source de verite** de tous les chemins testables dans l'application :
-- **JSON** (source) : `docs/qa/discovery-tree.json` — source de verite, mis a jour a chaque changement de route/flow
-- **Markdown** (lisible) : `docs/qa/discovery-tree.md` — auto-genere via `npx tsx scripts/generate-discovery-tree.ts`
-- **103 noeuds** : 9 auth, 70 gestionnaire, 12 locataire, 12 prestataire + 4 scenarios cross-role
-- **3 modes** : discovery (lecture), creation (ecriture), destruction (suppression)
-
-Consulter cet arbre avant d'ajouter une nouvelle page ou de modifier un flow existant.
-
----
-
-## Server Component Authentication Pattern
-
-**Pattern OBLIGATOIRE pour toutes les pages Server Component :**
-
-```typescript
-import { getServerAuthContext } from '@/lib/server-context'
-
-export default async function MyPage() {
-  const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
-  const data = await someService.getData(team.id)
-  return <MyPageClient data={data} />
-}
-```
-
-**ANTI-PATTERNS :** Auth manuelle avec `createServerSupabaseClient()` + `supabase.auth.getUser()`, ou pas d'auth du tout. Details : `systemPatterns.md` section "Server Authentication"
 
 ---
 
 ## Development Commands
 
 ```bash
-npm run dev              # Dev server (only if asked)
-npm run lint             # ESLint validation
-npx tsc --noEmit [file]  # Validation TS ciblee
-npm run supabase:types   # Regenerer lib/database.types.ts
-npm run supabase:migrate # Nouvelle migration
-npm test                 # Unit tests (vitest)
-npm run test:e2e         # E2E tests (Playwright)
-npm run test:e2e:headed  # E2E with visible browser
-npm run test:e2e:debug   # E2E with Playwright inspector
+npm run dev                            # Dev server (only if asked)
+npm run lint                           # ESLint validation
+npx tsc --noEmit [file]                # Validation TS ciblee
+npx supabase migration new <name>      # Creer migration (auto-timestamp)
+npm run supabase:types                 # Regenerer lib/database.types.ts
+npm test                               # Unit tests (vitest)
+npm run test:e2e                       # E2E tests (Playwright)
+npm run test:e2e:headed                # E2E with visible browser
+npm run test:e2e:debug                 # E2E with Playwright inspector
 ```
 
+**Migrations:** TOUJOURS utiliser `npx supabase migration new <name>` — ne jamais creer les fichiers SQL manuellement (timestamp incorrecte = conflits de migration).
+
 > Complete list: `techContext.md`
+
+**After DB reset:** `node scripts/create-admin-user.mjs` — recreates admin@seido-app.com (Admin API, idempotent). Required because SQL migrations cannot reliably create auth.users entries (GoTrue internal columns).
 
 ---
 
@@ -189,4 +211,4 @@ Invoquer `ultrathink-orchestrator` si : 3 tentatives echouees | multi-domaines (
 - **Skill Routing** (triggers, chains, compound): `sp-orchestration` skill
 
 ---
-**Last Updated**: 2026-03-25 | **Status**: Production Ready
+**Last Updated**: 2026-03-28 | **Status**: Production Ready

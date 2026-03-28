@@ -79,6 +79,45 @@ function getActiveContext() {
   return meaningful.length > 0 ? meaningful.join('\n') : null;
 }
 
+// ── Environment Health Checks ──
+const warnings = [];
+
+if (!fs.existsSync(path.resolve(ROOT, 'node_modules'))) {
+  warnings.push('node_modules missing — run: npm install');
+}
+
+if (!fs.existsSync(path.resolve(ROOT, '.env.local'))) {
+  warnings.push('.env.local missing — copy from .env.example');
+}
+
+try {
+  const activeCtxStat = fs.statSync(path.resolve(ROOT, '.claude/memory-bank/activeContext.md'));
+  const lastCommitDate = execSafe('git log -1 --format=%ci', '');
+  if (lastCommitDate) {
+    const ctxAge = Date.now() - activeCtxStat.mtimeMs;
+    const commitDate = new Date(lastCommitDate);
+    const commitAge = Date.now() - commitDate.getTime();
+    if (ctxAge - commitAge > 5 * 24 * 60 * 60 * 1000) {
+      warnings.push('activeContext.md is stale — consider /sync-memory');
+    }
+  }
+} catch { /* ignore */ }
+
+try {
+  const typesFile = path.resolve(ROOT, 'lib/database.types.ts');
+  const migrationsDir = path.resolve(ROOT, 'supabase/migrations');
+  if (fs.existsSync(typesFile) && fs.existsSync(migrationsDir)) {
+    const typesStat = fs.statSync(typesFile);
+    const migrations = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+    if (migrations.length > 0) {
+      const latestMigration = fs.statSync(path.resolve(migrationsDir, migrations[migrations.length - 1]));
+      if (latestMigration.mtimeMs > typesStat.mtimeMs) {
+        warnings.push('database.types.ts may be stale — run: npm run supabase:types');
+      }
+    }
+  }
+} catch { /* ignore */ }
+
 // Gather context
 const branch = execSafe('git branch --show-current', 'unknown');
 const commits = execSafe('git log --oneline -5', 'No commits');
@@ -125,6 +164,12 @@ if (activeCtx) {
   activeCtx.split('\n').slice(0, 3).forEach(l => {
     lines.push(`  ${l.substring(0, 100)}`);
   });
+}
+
+if (warnings.length > 0) {
+  lines.push('');
+  lines.push('Warnings:');
+  warnings.forEach(w => lines.push(`  ! ${w}`));
 }
 
 lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

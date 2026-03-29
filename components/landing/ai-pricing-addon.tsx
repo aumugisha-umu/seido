@@ -13,48 +13,59 @@ interface AiPricingAddonProps {
 
 const AI_TIERS = [
   {
-    name: 'Solo',
-    headline: 'Pour les indépendants',
+    name: 'Particulier',
+    headline: 'WhatsApp uniquement',
     monthlyPrice: 49,
     annualPrice: 499,
-    minutes: 60,
+    minutes: 0,
     conversations: 100,
     topupPrice: '0,80',
     topupConvPrice: '0,47',
+    hasVoice: false,
+    anchor: null,
     features: [
-      'Répondez 24/7 à vos locataires',
-      'WhatsApp + SMS',
-      'Interventions créées automatiquement',
+      'Assistant IA disponible 24h/24',
+      'Demandes WhatsApp traitées automatiquement',
+      'Interventions créées sans effort',
+      'Recharge automatique disponible',
     ],
     popular: false,
   },
   {
-    name: 'Equipe',
-    headline: 'Pour les équipes',
+    name: 'Pro',
+    headline: 'WhatsApp, SMS & voix',
     monthlyPrice: 99,
     annualPrice: 999,
     minutes: 180,
     conversations: 300,
     topupPrice: '0,55',
     topupConvPrice: '0,32',
+    hasVoice: true,
+    anchor: 'Tout Particulier, plus :',
     features: [
-      'Appels vocaux inclus',
+      'SMS pour locataires sans smartphone',
+      'Appels vocaux entrants',
+      'Instructions personnalisées par équipe',
+      'Recharge automatique disponible',
     ],
     popular: true,
   },
   {
     name: 'Agence',
-    headline: 'Pour les agences',
+    headline: 'Tous canaux + numéro dédié',
     monthlyPrice: 199,
     annualPrice: 1999,
     minutes: 600,
     conversations: 1000,
     topupPrice: '0,33',
     topupConvPrice: '0,19',
+    hasVoice: true,
+    anchor: 'Tout Pro, plus :',
     features: [
-      'Liez votre numéro à l\'assistant',
-      'Gestion automatisée des emails',
-      'Support prioritaire IA',
+      'Numéro dédié à votre agence',
+      'Emails triés et convertis en interventions',
+      'Recharge automatique disponible',
+      'Support prioritaire',
     ],
     popular: false,
   },
@@ -132,19 +143,26 @@ export function AiPricingAddon({ billingInterval, className }: AiPricingAddonPro
                     +{tier.topupConvPrice}€/conv
                   </span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
-                  <Phone className="w-4 h-4 text-violet-400 flex-shrink-0" />
-                  <span className="text-sm text-white">
-                    <strong>{tier.minutes} min</strong> d&apos;appels
-                  </span>
-                  <span className="text-xs text-white/50 ml-auto">
-                    +{tier.topupPrice}€/min
-                  </span>
-                </div>
+                {tier.hasVoice && (
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
+                    <Phone className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                    <span className="text-sm text-white">
+                      <strong>{tier.minutes} min</strong> d&apos;appels
+                    </span>
+                    <span className="text-xs text-white/50 ml-auto">
+                      +{tier.topupPrice}€/min
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Features */}
               <ul className="space-y-2.5 mb-6 flex-grow">
+                {tier.anchor && (
+                  <li className="text-sm font-medium text-violet-300 mb-1">
+                    {tier.anchor}
+                  </li>
+                )}
                 {tier.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-sm text-white/80">
                     <CheckCircle2 className="w-4 h-4 text-violet-400 flex-shrink-0 mt-0.5" />

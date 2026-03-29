@@ -135,6 +135,10 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
   const [skippedSteps, setSkippedSteps] = useState<Set<string>>(new Set())
   const [celebratingStep, setCelebratingStep] = useState<string | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  // Track whether the user explicitly collapsed the panel this session.
+  // Using a ref (not state) so it survives re-renders without triggering them,
+  // and resets on full page reload (matching the expected behavior).
+  const userCollapsedRef = useRef(false)
 
   // Self-fetch mode: when no props provided, fetch client-side
   const { status: subscriptionStatus } = useSubscription()
@@ -165,8 +169,10 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
     } catch { /* ignore */ }
   }, [])
 
-  // Auto-expand on dashboard until user has at least 1 lot + 1 contact
+  // Auto-expand on dashboard until user has at least 1 lot + 1 contact.
+  // Only on initial mount — once the user collapses it, don't re-open.
   useEffect(() => {
+    if (userCollapsedRef.current) return
     if (!progress) return
     if (pathname !== '/gestionnaire/dashboard') return
     if (!progress.hasLot || !progress.hasContact) {
@@ -179,6 +185,7 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
     if (!expanded) return
     const handleClickOutside = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        userCollapsedRef.current = true
         setExpanded(false)
       }
     }
@@ -190,7 +197,10 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
   useEffect(() => {
     if (!expanded) return
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setExpanded(false)
+      if (e.key === 'Escape') {
+        userCollapsedRef.current = true
+        setExpanded(false)
+      }
     }
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
@@ -233,7 +243,11 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
     <div ref={panelRef} className={cn('relative z-40', className)}>
       {/* Pill trigger — always visible */}
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => {
+          const next = !expanded
+          if (!next) userCollapsedRef.current = true
+          setExpanded(next)
+        }}
         className={cn(
           'flex items-center gap-2.5 px-3 sm:px-4 py-2 rounded-full flex-shrink-0',
           'border shadow-sm transition-all duration-200',
@@ -307,7 +321,7 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
                   </span>
                 </div>
                 <button
-                  onClick={() => setExpanded(false)}
+                  onClick={() => { userCollapsedRef.current = true; setExpanded(false) }}
                   className="p-1 rounded-md hover:bg-muted transition-colors"
                   aria-label="Fermer"
                 >

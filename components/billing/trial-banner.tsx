@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { X, Clock, AlertTriangle, Zap, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { formatDateLongFR } from '@/lib/utils/date-formatting'
 
 // =============================================================================
 // Types
@@ -47,13 +48,6 @@ function isDismissed(daysLeft: number): boolean {
   return Date.now() - Number(dismissedAt) < 24 * 60 * 60 * 1000
 }
 
-function formatDate(isoDate: string): string {
-  return new Date(isoDate).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
-}
 
 // =============================================================================
 // Component
@@ -80,7 +74,7 @@ export function TrialBanner({
 
   // ── Payment method already added → green reassurance ──────────────
   if (paymentMethodAdded) {
-    const endDateFormatted = trialEndDate ? formatDate(trialEndDate) : ''
+    const endDateFormatted = trialEndDate ? formatDateLongFR(trialEndDate) : ''
     return (
       <div className={cn(
         'relative flex items-center gap-3 p-3 rounded-lg border',
@@ -106,7 +100,7 @@ export function TrialBanner({
   }
 
   // ── No payment method → urgency messaging ─────────────────────────
-  const endDateFormatted = trialEndDate ? formatDate(trialEndDate) : ''
+  const endDateFormatted = trialEndDate ? formatDateLongFR(trialEndDate) : ''
 
   let bgClass: string
   let textClass: string

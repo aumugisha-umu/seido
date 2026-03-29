@@ -27,6 +27,7 @@ import {
   verifyCheckoutSession,
 } from '@/app/actions/subscription-actions'
 import { UpgradeModal } from '@/components/billing/upgrade-modal'
+import { formatDateLongFR } from '@/lib/utils/date-formatting'
 
 // =============================================================================
 // Helpers
@@ -44,15 +45,6 @@ function getStatusConfig(status: SubscriptionInfo['status']) {
     paused: { label: 'En pause', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' },
   }
   return map[status] ?? { label: status, color: 'bg-gray-100 text-gray-700' }
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '\u2014'
-  return new Date(dateStr).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  })
 }
 
 // =============================================================================
@@ -183,7 +175,7 @@ export function SubscriptionSummaryCard() {
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800">
                   <AlertTriangle className="h-4 w-4 text-orange-600 flex-shrink-0" />
                   <p className="text-sm text-orange-700 dark:text-orange-400">
-                    Annulation pr&eacute;vue &mdash; Acc&egrave;s jusqu&apos;au {formatDate(info.current_period_end)}
+                    Annulation pr&eacute;vue &mdash; Acc&egrave;s jusqu&apos;au {formatDateLongFR(info.current_period_end)}
                   </p>
                 </div>
               )}
@@ -219,7 +211,7 @@ export function SubscriptionSummaryCard() {
                     {isTrialing ? 'Fin d\u2019essai' : 'Renouvellement'}
                   </p>
                   <p className="text-lg font-semibold">
-                    {isTrialing ? formatDate(info?.trial_end ?? null) : formatDate(info?.current_period_end ?? null)}
+                    {isTrialing ? formatDateLongFR(info?.trial_end ?? null) : formatDateLongFR(info?.current_period_end ?? null)}
                   </p>
                 </div>
 

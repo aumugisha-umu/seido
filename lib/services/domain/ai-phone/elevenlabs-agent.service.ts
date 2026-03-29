@@ -217,7 +217,7 @@ export const createAgent = async (
 
   logger.info(
     { agentId: result.agent_id, teamName },
-    '✅ [ELEVENLABS] Agent created'
+    '[ELEVENLABS] Agent created'
   )
 
   return { agent_id: result.agent_id, name: `SEIDO - ${teamName}` }
@@ -248,7 +248,7 @@ export const updateAgent = async (
       }),
     })
 
-    logger.info({ agentId }, '✅ [ELEVENLABS] Agent prompt updated')
+    logger.info({ agentId }, '[ELEVENLABS] Agent prompt updated')
   } catch (error) {
     throw new ElevenLabsProvisioningError(
       `Failed to update agent ${agentId}`,
@@ -267,7 +267,7 @@ export const deleteAgent = async (agentId: string): Promise<void> => {
       method: 'DELETE',
     })
 
-    logger.info({ agentId }, '✅ [ELEVENLABS] Agent deleted')
+    logger.info({ agentId }, '[ELEVENLABS] Agent deleted')
   } catch (error) {
     throw new ElevenLabsProvisioningError(
       `Failed to delete agent ${agentId}`,
@@ -324,7 +324,7 @@ export const importPhoneNumber = async (
 
   logger.info(
     { phoneNumberId: result.phone_number_id, phoneNumber },
-    '✅ [ELEVENLABS] Phone number imported'
+    '[ELEVENLABS] Phone number imported'
   )
 
   return {
@@ -350,7 +350,7 @@ export const assignAgentToNumber = async (
 
     logger.info(
       { phoneNumberId, agentId },
-      '✅ [ELEVENLABS] Agent assigned to phone number'
+      '[ELEVENLABS] Agent assigned to phone number'
     )
   } catch (error) {
     throw new ElevenLabsProvisioningError(
@@ -370,7 +370,7 @@ export const deletePhoneNumber = async (phoneNumberId: string): Promise<void> =>
       method: 'DELETE',
     })
 
-    logger.info({ phoneNumberId }, '✅ [ELEVENLABS] Phone number deleted')
+    logger.info({ phoneNumberId }, '[ELEVENLABS] Phone number deleted')
   } catch (error) {
     throw new ElevenLabsProvisioningError(
       `Failed to delete phone number ${phoneNumberId}`,

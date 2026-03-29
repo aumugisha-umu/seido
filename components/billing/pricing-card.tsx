@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { calculatePrice, calculateAnnualSavings, FREE_TIER_LIMIT } from '@/lib/stripe'
+import { calculatePrice, calculateAnnualSavings, centsToEuros, FREE_TIER_LIMIT } from '@/lib/stripe'
 
 // =============================================================================
 // Types
@@ -25,11 +25,6 @@ export interface PricingCardProps {
 // =============================================================================
 // Helpers (cents → display)
 // =============================================================================
-
-function centsToEuros(cents: number): string {
-  const euros = cents / 100
-  return euros % 1 === 0 ? `${euros}` : euros.toFixed(2)
-}
 
 function formatSavingsPercent(): string {
   // Annual = 50€/lot/year, Monthly = 5€/lot/month = 60€/lot/year → savings = 10/60 ≈ 17%

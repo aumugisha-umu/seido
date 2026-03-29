@@ -198,7 +198,7 @@ export const provision = async (
 ): Promise<ProvisioningResult> => {
   const mode = process.env.AI_WHATSAPP_PROVISIONING ?? 'manual'
 
-  logger.info({ teamId, teamName, mode }, '🚀 [PROVISIONING] Starting')
+  logger.info({ teamId, teamName, mode }, '[PROVISIONING] Starting')
 
   if (mode === 'manual') {
     return provisionManual(teamId)
@@ -217,7 +217,7 @@ export const deprovision = async (teamId: string): Promise<void> => {
 
   const { data: config } = await supabase
     .from('ai_phone_numbers')
-    .select('*')
+    .select('id, elevenlabs_agent_id, elevenlabs_phone_number_id')
     .eq('team_id', teamId)
     .limit(1)
     .maybeSingle()
@@ -273,11 +273,12 @@ export const updateCustomInstructions = async (
     .update({ custom_instructions: customInstructions, updated_at: new Date().toISOString() })
     .eq('team_id', teamId)
     .select('elevenlabs_agent_id')
-    .single()
+    .limit(1)
+    .maybeSingle()
 
   if (mode === 'auto' && config?.elevenlabs_agent_id) {
     await elevenlabs.updateAgent(config.elevenlabs_agent_id, teamName, customInstructions)
   }
 
-  logger.info({ teamId, mode }, '✅ [PROVISIONING] Custom instructions updated')
+  logger.info({ teamId, mode }, '[PROVISIONING] Custom instructions updated')
 }

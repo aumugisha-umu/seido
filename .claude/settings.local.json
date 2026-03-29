@@ -138,7 +138,9 @@
       "WebFetch(domain:documentation.ibanity.com)",
       "WebFetch(domain:documentation.myponto.com)",
       "WebFetch(domain:myponto.com)",
-      "WebFetch(domain:www.isabelgroup.eu)"
+      "WebFetch(domain:www.isabelgroup.eu)",
+      "WebFetch(domain:www.ipi.be)",
+      "WebFetch(domain:github.blog)"
     ],
     "deny": [],
     "ask": []

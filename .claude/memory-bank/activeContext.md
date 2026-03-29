@@ -281,8 +281,5 @@ draft -> pending -> sent -> accepted (terminal positif)
 ---
 
 ## Files Recently Modified
-### 2026-03-26 19:32:14 (Auto-updated)
-- `C:/Users/arthu/.claude/plans/drifting-swinging-iverson.md`
-- `C:/Users/arthu/Desktop/Coding/seido-app/app/gestionnaire/(with-navbar)/aide/page.tsx`
-- `C:/Users/arthu/Desktop/Coding/seido-app/data/faq.ts`
-- `C:/Users/arthu/Desktop/Coding/seido-app/app/gestionnaire/(with-navbar)/aide/aide-client.tsx`
+### 2026-03-29 10:38:49 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/plans/2026-03-29-smart-routing-v2-design.md`

@@ -390,7 +390,7 @@ export type Database = {
           {
             foreignKeyName: "ai_phone_numbers_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -439,48 +439,54 @@ export type Database = {
       }
       ai_whatsapp_sessions: {
         Row: {
+          channel: string
           contact_phone: string
           created_at: string
           extracted_data: Json
           id: string
           identified_user_id: string | null
+          identified_via: string | null
           intervention_id: string | null
           language: string
           last_message_at: string
           messages: Json
           phone_number_id: string | null
           status: string
-          team_id: string
+          team_id: string | null
           updated_at: string
         }
         Insert: {
+          channel?: string
           contact_phone: string
           created_at?: string
           extracted_data?: Json
           id?: string
           identified_user_id?: string | null
+          identified_via?: string | null
           intervention_id?: string | null
           language?: string
           last_message_at?: string
           messages?: Json
           phone_number_id?: string | null
           status?: string
-          team_id: string
+          team_id?: string | null
           updated_at?: string
         }
         Update: {
+          channel?: string
           contact_phone?: string
           created_at?: string
           extracted_data?: Json
           id?: string
           identified_user_id?: string | null
+          identified_via?: string | null
           intervention_id?: string | null
           language?: string
           last_message_at?: string
           messages?: Json
           phone_number_id?: string | null
           status?: string
-          team_id?: string
+          team_id?: string | null
           updated_at?: string
         }
         Relationships: [

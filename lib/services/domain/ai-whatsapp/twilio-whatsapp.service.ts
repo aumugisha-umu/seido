@@ -1,5 +1,13 @@
 import { logger } from '@/lib/logger'
 import { getTwilioAuth, TWILIO_API } from '@/lib/services/domain/twilio-auth'
+import type { MessageChannel } from './types'
+
+// ============================================================================
+// Channel-aware phone formatting
+// ============================================================================
+
+const formatPhone = (phone: string, channel: MessageChannel): string =>
+  channel === 'whatsapp' ? `whatsapp:${phone}` : phone
 
 // ============================================================================
 // Send WhatsApp text message
@@ -8,13 +16,14 @@ import { getTwilioAuth, TWILIO_API } from '@/lib/services/domain/twilio-auth'
 export const sendWhatsAppMessage = async (
   fromNumber: string,
   to: string,
-  body: string
+  body: string,
+  channel: MessageChannel = 'whatsapp'
 ): Promise<string> => {
   const { sid, header } = getTwilioAuth()
 
   const params = new URLSearchParams({
-    From: `whatsapp:${fromNumber}`,
-    To: `whatsapp:${to}`,
+    From: formatPhone(fromNumber, channel),
+    To: formatPhone(to, channel),
     Body: body,
   })
 
@@ -32,56 +41,13 @@ export const sendWhatsAppMessage = async (
 
   if (!response.ok) {
     const error = await response.text()
-    throw new Error(`Twilio WhatsApp send failed (${response.status}): ${error}`)
+    throw new Error(`Twilio ${channel} send failed (${response.status}): ${error}`)
   }
 
   const data = await response.json() as { sid: string }
   const messageSid = data.sid
 
-  logger.info({ messageSid, to }, '[TWILIO-WA] Message sent')
-  return messageSid
-}
-
-// ============================================================================
-// Send WhatsApp media message (image with caption)
-// ============================================================================
-
-export const sendWhatsAppMediaMessage = async (
-  fromNumber: string,
-  to: string,
-  caption: string,
-  mediaUrl: string
-): Promise<string> => {
-  const { sid, header } = getTwilioAuth()
-
-  const params = new URLSearchParams({
-    From: `whatsapp:${fromNumber}`,
-    To: `whatsapp:${to}`,
-    Body: caption,
-    MediaUrl: mediaUrl,
-  })
-
-  const response = await fetch(
-    `${TWILIO_API}/Accounts/${sid}/Messages.json`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: header,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    }
-  )
-
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Twilio WhatsApp media send failed (${response.status}): ${error}`)
-  }
-
-  const data = await response.json() as { sid: string }
-  const messageSid = data.sid
-
-  logger.info({ messageSid, to }, '[TWILIO-WA] Media message sent')
+  logger.info({ messageSid, to, channel }, '[TWILIO] Message sent')
   return messageSid
 }
 
@@ -117,7 +83,8 @@ export const downloadMedia = async (mediaUrl: string): Promise<{
 export const sendDisambiguationMessage = async (
   fromNumber: string,
   to: string,
-  options: Array<{ id: string; label: string }>
+  options: Array<{ id: string; label: string }>,
+  channel: MessageChannel = 'whatsapp'
 ): Promise<string> => {
   const optionsList = options
     .map((opt, i) => `${i + 1}. ${opt.label}`)
@@ -125,7 +92,7 @@ export const sendDisambiguationMessage = async (
 
   const body = `Bonjour ! Vous êtes lié à plusieurs gestionnaires.\nPour quelle adresse souhaitez-vous signaler un problème ?\n\n${optionsList}\n\nRépondez avec le numéro correspondant.`
 
-  return sendWhatsAppMessage(fromNumber, to, body)
+  return sendWhatsAppMessage(fromNumber, to, body, channel)
 }
 
 /**

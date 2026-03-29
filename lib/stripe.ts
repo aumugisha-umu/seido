@@ -113,3 +113,8 @@ export function calculateAnnualSavings(lotCount: number): number {
   const annualTotal = lotCount * PRICE_PER_LOT_ANNUAL
   return monthlyTotal - annualTotal
 }
+
+export function centsToEuros(cents: number): string {
+  const euros = cents / 100
+  return euros % 1 === 0 ? `${euros}` : euros.toFixed(2)
+}

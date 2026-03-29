@@ -8,6 +8,7 @@
  *
  * Usage:
  *   node scripts/test-provisioning.mjs --mode=register --phone=+32460257659
+ *   node scripts/test-provisioning.mjs --mode=register --phone=+32460257659 --waba-id=1676364816877004
  *   node scripts/test-provisioning.mjs --mode=register --phone=+32460257659 --webhook=https://abc.ngrok.app/api/webhooks/whatsapp
  *   node scripts/test-provisioning.mjs --mode=status --sender-sid=XExxxxxxxx
  *   node scripts/test-provisioning.mjs --mode=list
@@ -33,6 +34,7 @@ const MODE = args.mode ?? 'register'
 const PHONE = args.phone ?? process.env.DEV_WHATSAPP_PHONE_NUMBER ?? '+32460257659'
 const SENDER_SID = args['sender-sid'] ?? ''
 const WEBHOOK_URL = args.webhook ?? `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/api/webhooks/whatsapp`
+const WABA_ID = args['waba-id'] ?? ''
 
 // ============================================================================
 // Env validation
@@ -84,9 +86,34 @@ function getSupabase() {
 // Twilio Senders API
 // ============================================================================
 
-async function registerWhatsAppSender(phoneNumber, webhookUrl) {
+async function registerWhatsAppSender(phoneNumber, webhookUrl, wabaId) {
   log('>>',`Registering ${phoneNumber} as WhatsApp Sender...`)
   log('>>',`Webhook: ${webhookUrl}`)
+  if (wabaId) log('>>', `Linking to existing WABA: ${wabaId}`)
+
+  const payload = {
+    sender_id: `whatsapp:${phoneNumber}`,
+    profile: {
+      name: 'Seido',
+      about: 'Gestion immobiliere intelligente',
+      description: 'Seido - Plateforme de gestion immobiliere avec assistant IA',
+      address: 'Bruxelles, Belgique',
+      vertical: 'Other',
+      websites: ['https://seido-app.com'],
+    },
+    webhook: {
+      callback_url: webhookUrl,
+      callback_method: 'POST',
+    },
+  }
+
+  // Link to existing WABA if provided (avoids Twilio creating a new one)
+  if (wabaId) {
+    payload.configuration = {
+      waba_id: wabaId,
+      verification_method: 'sms',
+    }
+  }
 
   const res = await fetch(TWILIO_SENDERS_API, {
     method: 'POST',
@@ -94,21 +121,7 @@ async function registerWhatsAppSender(phoneNumber, webhookUrl) {
       Authorization: twilioAuth,
       'Content-Type': 'application/json; charset=utf-8',
     },
-    body: JSON.stringify({
-      sender_id: `whatsapp:${phoneNumber}`,
-      profile: {
-        name: 'Seido',
-        about: 'Gestion immobiliere intelligente',
-        description: 'Seido - Plateforme de gestion immobiliere avec assistant IA',
-        address: 'Bruxelles, Belgique',
-        vertical: 'Other',
-        websites: ['https://seido-app.com'],
-      },
-      webhook: {
-        callback_url: webhookUrl,
-        callback_method: 'POST',
-      },
-    }),
+    body: JSON.stringify(payload),
   })
 
   const data = await res.json()
@@ -136,7 +149,7 @@ async function getSenderStatus(senderSid) {
 }
 
 async function listSenders() {
-  const res = await fetch(TWILIO_SENDERS_API, {
+  const res = await fetch(`${TWILIO_SENDERS_API}?Channel=whatsapp`, {
     headers: {
       Authorization: twilioAuth,
       'Content-Type': 'application/json; charset=utf-8',
@@ -243,7 +256,7 @@ async function modeRegister() {
   // Step 1: Register with Twilio Senders API
   let sender
   try {
-    sender = await registerWhatsAppSender(PHONE, WEBHOOK_URL)
+    sender = await registerWhatsAppSender(PHONE, WEBHOOK_URL, WABA_ID)
   } catch (err) {
     log('!!', `Registration failed: ${err.message}`)
     process.exit(1)

@@ -1,3 +1,5 @@
+export type MessageChannel = 'whatsapp' | 'sms'
+
 export type IdentificationMethod =
   | 'phone_match'
   | 'address_match'
@@ -20,6 +22,7 @@ export interface IncomingWhatsAppMessage {
   identifiedUserId?: string | null
   identifiedVia: IdentificationMethod
   candidateTeams?: Array<{ teamId: string; userId: string }>
+  channel: MessageChannel
 }
 
 export interface SessionExtractedData {

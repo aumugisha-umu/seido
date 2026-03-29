@@ -1,69 +1,31 @@
-# Progress Log — AI Add-on Billing — Single Subscription Model
-# Started: 2026-03-28
-# Stories: 11 total
-# Design: docs/plans/2026-03-28-ai-addon-billing-unified-design.md
+# Progress Log — SMS Agent — Conversational AI via SMS
+# Started: 2026-03-29
+# Stories: 5 total
 ---
 
-## US-001 ✅ — Stripe price config restructure + helpers (2026-03-28)
-- Files: lib/stripe.ts, app/actions/ai-subscription-actions.ts, lib/services/domain/stripe-webhook.handler.ts
-- Changes: STRIPE_AI_PRICES nested {month,year}, AI_PRICE_IDS Set, isAiPrice(), isMainPrice(), getTierFromPriceId(), getIntervalFromAiPriceId(), BillingInterval type
-- Consumer fixes: ai-subscription-actions uses .month, webhook detectAiTier delegates to getTierFromPriceId
+## US-001: Add channel field to types + sessions DB ✅
+- Migration: supabase/migrations/20260329084439_add_channel_to_sessions.sql
+- Types: lib/services/domain/ai-whatsapp/types.ts (MessageChannel type)
+- Lint: 0 new errors
 
-## US-011 ✅ — Env config + verifyAiCheckoutSession update (2026-03-28)
-- Files: .env.example, app/actions/ai-subscription-actions.ts
-- Changes: 3 annual AI price env vars, verifyAiCheckoutSession uses isAiPrice() find instead of items.data[0]
+## US-002: Adapt twilio-whatsapp.service for SMS ✅
+- Modified: lib/services/domain/ai-whatsapp/twilio-whatsapp.service.ts
+- Added formatPhone() helper, channel param on all send functions
+- Lint: 0 new errors
 
-## US-002 ✅ — Refactor items.data[0] → find-by-price (2026-03-28)
-- Files: subscription.service.ts, stripe-webhook.handler.ts, subscription-actions.ts, ai-subscription-actions.ts
-- 7 locations refactored from items.data[0] to find(i => !isAiPrice(i.price.id))
-- syncPeriodDatesFromStripe and verifyCheckoutSession use fallback to [0] for backward compat
+## US-003: Create SMS webhook /api/webhooks/sms ✅
+- Created: app/api/webhooks/sms/route.ts (12 lines, thin adapter)
+- Reuses handleTwilioIncoming from WhatsApp route
+- Lint: 0 new errors
 
-## US-003 ✅ — AI checkout action: trial vs active subscription paths (2026-03-28)
-- Files: app/actions/ai-subscription-actions.ts
-- Path A (active sub): subscriptions.update + provisioning, returns { immediate: true }
-- Path B (trial): Checkout with billing_cycle_anchor = trialEnd, returns { url }
-- Guards: double-click (DB + Stripe side), unpaid invoice check
+## US-004: Adapt conversation engine for SMS channel ✅
+- Modified: lib/services/domain/ai-whatsapp/conversation-engine.service.ts
+- 9 sendWhatsAppMessage calls updated with message.channel
+- createRoutingSession now stores channel
+- buildSystemPrompt: shorter lengthRule for SMS (160 char segments)
+- Lint: 0 new errors
 
-## US-004 ✅ — Preview + remove AI add-on actions (2026-03-28)
-- Files: app/actions/ai-subscription-actions.ts
-- previewAiAddonAction uses invoices.createPreview for prorated amount
-- removeAiAddonAction handles single-item (cancel sub) vs multi-item (del item)
-- Deprovision triggered after removal
-
-## US-005 ✅ — Webhook handler: items-based AI detection (2026-03-28)
-- Files: lib/services/domain/stripe-webhook.handler.ts
-- ensureAiProvisioned (idempotent) + ensureAiDeprovisioned added
-- Items-based detection in both created/updated handlers
-- Legacy metadata.addon_type route preserved for pre-unified subs
-
-## US-006 ✅ — Unit tests: price helpers + action logic (2026-03-28)
-- Files: tests/unit/stripe/stripe-utils.test.ts
-- 21 new tests (35 total, all passing)
-- Covers isAiPrice, isMainPrice, getTierFromPriceId, getIntervalFromAiPriceId, STRIPE_AI_PRICES structure
-
-## US-007 ✅ — Trial auto-conversion: autoConvertTrialWithAi() (2026-03-28)
-- Files: lib/services/domain/subscription.service.ts, app/api/cron/trial-expiration/route.ts
-- autoConvertTrialWithAi in subscription.service + cron pre-check for AI trial teams
-- If lotCount <= FREE_TIER_LIMIT: free_tier + no main item. If > : adds main per-lot item, status active
-- Email notification on auto-conversion
-
-## US-008 ✅ — UI: billing interval toggle + confirmation modals (2026-03-28)
-- Files: assistant-ia-settings-client.tsx, ai-subscription-actions.ts, assistant-ia/page.tsx
-- Interval toggle (month/year) for trial users with -17% badge
-- Trial banner with auto-conversion notice and trial end date
-- Active subscribers: auto-detected interval, confirmation modal with proration preview
-- Resilier button with AlertDialog, destructive styling, loading state
-- AiSubscriptionInfo extended with subscriptionStatus, trialEnd, billingInterval
-- Test mocks fixed: added price.id to all Stripe subscription item mocks
-
-## US-009 ✅ — Settings page: enhanced compact AI card (2026-03-28)
-- Files: components/settings-page.tsx, gestionnaire/parametres/page.tsx
-- AiAssistantCard: active → green badge, phone, progress bar, conversation count
-- Inactive → price anchor (49eur/mois) + "Decouvrir" CTA with arrow
-- AI status fetched server-side via Promise.all (parallel with lot count)
-
-## US-010 ✅ — Dashboard: AI tab always visible + empty state (2026-03-28)
-- Files: task-type-segment.tsx, operations-page-client.tsx, async-operations-content.tsx
-- Removed hide condition from task-type-segment (AI tab now always visible)
-- Non-subscribed empty state: Bot icon + "Decouvrir les plans" CTA
-- isAiSubscribed prop piped from server → client via Promise.all
+## US-005: Configure webhook + env + cleanup ✅
+- Modified: .env.example — added SMS webhook path, removed stale Meta WABA vars
+- Lint: 0 new errors
+- Tests: 781 passed, 7 failed (pre-existing integration failures)

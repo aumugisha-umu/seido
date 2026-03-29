@@ -1,208 +1,92 @@
 {
   "project": "SEIDO",
-  "featureName": "AI Add-on Billing — Single Subscription Model",
+  "featureName": "SMS Agent — Conversational AI via SMS",
   "branchName": "preview",
-  "description": "Unify AI add-on and main subscription into a single Stripe subscription with 1-2 items. Supports AI during trial (billing_cycle_anchor), auto-conversion at trial end, prorated add/remove, annual AI prices.",
-  "createdAt": "2026-03-28",
-  "prdSource": "docs/plans/2026-03-28-ai-addon-billing-unified-design.md",
-  "status": "in_progress",
+  "description": "Extend the WhatsApp AI conversation engine to support SMS. Same flow (routing by sender phone, AI triage, intervention creation) but via SMS channel. Reuse 90% of existing code by adding a channel field.",
+  "createdAt": "2026-03-29",
+  "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Stripe price config restructure + helpers",
-      "description": "As a developer, I want STRIPE_AI_PRICES nested by interval and isAiPrice()/getTierFromPriceId() helpers so that multi-item subscription logic can reliably identify AI vs main items.",
+      "title": "Add channel field to types + sessions DB",
+      "description": "As the system, I need a channel discriminator so the engine knows whether to reply via SMS or WhatsApp",
       "acceptanceCriteria": [
-        "STRIPE_AI_PRICES is nested: { solo: { month, year }, equipe: { month, year }, agence: { month, year } }",
-        "AI_PRICE_IDS Set contains all 6 AI price IDs (3 monthly + 3 annual)",
-        "isAiPrice(priceId) returns true for AI prices, false otherwise",
-        "getTierFromPriceId(priceId) returns AiTier or null",
-        "Existing imports (STRIPE_AI_PRICES, AiTier) still work across codebase",
+        "channel column added to ai_whatsapp_sessions (default 'whatsapp')",
+        "IncomingWhatsAppMessage type has channel: 'whatsapp' | 'sms'",
+        "Types regenerated",
         "Lint passes"
       ],
       "priority": 1,
       "dependsOn": [],
       "sizing": "XS",
       "passes": true,
-      "notes": "Added BillingInterval type, isMainPrice(), getIntervalFromAiPriceId() as bonus helpers. Consumers updated: ai-subscription-actions uses .month, webhook uses getTierFromPriceId."
+      "notes": "Migration 20260329084439. MessageChannel type + channel field on IncomingWhatsAppMessage."
     },
     {
       "id": "US-002",
-      "title": "Refactor items.data[0] → find-by-price across billing code",
-      "description": "As a developer, I want all Stripe subscription item access to use isAiPrice() lookup instead of items.data[0] so that multi-item subscriptions work correctly.",
+      "title": "Adapt twilio-whatsapp.service for SMS",
+      "description": "As the system, I need the message sending service to handle both SMS and WhatsApp so replies go through the right channel",
       "acceptanceCriteria": [
-        "subscription.service.ts: upgradeSubscriptionDirect() finds main item via !isAiPrice()",
-        "subscription.service.ts: previewUpgrade() finds main item via !isAiPrice()",
-        "subscription.service.ts: syncPeriodDatesFromStripe() reads period from main item",
-        "subscription-actions.ts: verifyCheckoutSession() finds main item by price",
-        "stripe-webhook.handler.ts: all handlers find items by price, not index",
-        "subscriptions.stripe_price_id always stores main price ID (not AI)",
+        "sendMessage() adds whatsapp: prefix only when channel is 'whatsapp'",
+        "SMS replies have no prefix on From/To",
+        "Existing WhatsApp flow unchanged",
         "Lint passes"
       ],
-      "priority": 1,
+      "priority": 2,
       "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "notes": "HIGH #7 done. 5 locations refactored: subscription.service (3), webhook handler (2), subscription-actions (2). Pattern: find(!isAiPrice) with [0] fallback for period dates."
+      "notes": "formatPhone() helper. All send functions accept optional channel param with default 'whatsapp'."
     },
     {
       "id": "US-003",
-      "title": "AI checkout action: trial vs active subscription paths",
-      "description": "As a gestionnaire, I want the AI checkout to handle both trial users (Stripe Checkout with billing_cycle_anchor) and active subscribers (subscriptions.update to add item) so that billing is unified.",
+      "title": "Create SMS webhook /api/webhooks/sms",
+      "description": "As a tenant, I want to send an SMS to report a maintenance issue so I can use the AI assistant without WhatsApp",
       "acceptanceCriteria": [
-        "createAiCheckoutAction(tier, billingInterval) accepts interval param",
-        "Trial path: creates Checkout Session with billing_cycle_anchor = trial end date",
-        "Active sub path: calls stripe.subscriptions.update() to add AI item (no redirect)",
-        "Returns { url } for checkout path or { immediate: true } for update path",
-        "Double-click guard: rejects if AI item already exists on subscription",
-        "Unpaid invoice guard: rejects if latest invoice is open/past_due",
+        "POST /api/webhooks/sms receives Twilio SMS webhooks",
+        "Twilio signature validated (X-Twilio-Signature)",
+        "Routing by sender phone (same as WhatsApp)",
+        "Message passed to conversation engine with channel='sms'",
+        "Returns TwiML 200 response",
         "Lint passes"
       ],
-      "priority": 2,
-      "dependsOn": ["US-001"],
-      "sizing": "M",
+      "priority": 3,
+      "dependsOn": ["US-001", "US-002"],
+      "sizing": "S",
       "passes": true,
-      "notes": "Path A (active sub): subscriptions.update + provisioning. Path B (trial): checkout with billing_cycle_anchor. Both guards implemented."
+      "notes": "Thin adapter (12 lines) — imports handleTwilioIncoming from WhatsApp route."
     },
     {
       "id": "US-004",
-      "title": "Preview + remove AI add-on actions",
-      "description": "As a gestionnaire, I want to preview prorated costs before adding AI and remove the AI add-on with prorated credit so I have full control over my subscription.",
+      "title": "Adapt conversation engine for SMS channel",
+      "description": "As the system, I need the conversation engine to send shorter replies via SMS and track the channel in sessions",
       "acceptanceCriteria": [
-        "previewAiAddonAction(tier) returns prorated amount via stripe.invoices.createPreview()",
-        "removeAiAddonAction() removes AI item via stripe.subscriptionItems.del()",
-        "removeAiAddonAction() triggers deprovision after successful removal",
-        "Both actions have auth checks and proper error handling",
+        "Session created with correct channel value",
+        "AI system prompt includes 'respond concisely' instruction for SMS",
+        "Replies sent via correct channel (SMS or WhatsApp)",
+        "Routing flow works for SMS (disambiguation, unknown contact)",
         "Lint passes"
       ],
-      "priority": 2,
-      "dependsOn": ["US-001"],
+      "priority": 4,
+      "dependsOn": ["US-001", "US-002"],
       "sizing": "S",
       "passes": true,
-      "notes": "previewAiAddonAction uses invoices.createPreview. removeAiAddonAction handles single-item (cancel sub) vs multi-item (del item). Deprovision triggered after removal."
+      "notes": "9 sendWhatsAppMessage calls updated with channel param. createRoutingSession stores channel. buildSystemPrompt uses shorter lengthRule for SMS."
     },
     {
       "id": "US-005",
-      "title": "Webhook handler: items-based AI detection",
-      "description": "As the system, I want the Stripe webhook handler to detect AI items by scanning subscription items instead of metadata so that the single-subscription model works.",
+      "title": "Configure webhook + env + cleanup",
+      "description": "As a developer, I need the SMS webhook documented and the env vars updated",
       "acceptanceCriteria": [
-        "handleSubscriptionCreated/Updated scans items for isAiPrice() matches",
-        "AI item found → ensureAiProvisioned (idempotent)",
-        "AI item removed → ensureAiDeprovisioned (if was previously active)",
-        "Main item handled as before (quantity → lot sync)",
-        "Legacy metadata.addon_type fallback preserved for transition",
-        "Tier detection uses centralized getTierFromPriceId()",
-        "Lint passes"
+        ".env.example documents SMS webhook path",
+        "No lint errors",
+        "All existing tests pass"
       ],
-      "priority": 2,
-      "dependsOn": ["US-002"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "ensureAiProvisioned (idempotent) + ensureAiDeprovisioned added. Legacy metadata route preserved for pre-unified subs. Items-based detection in both created/updated."
-    },
-    {
-      "id": "US-006",
-      "title": "Unit tests: price helpers + action logic",
-      "description": "As a developer, I want integration tests covering the new billing helpers and action logic to ensure correctness before UI work.",
-      "acceptanceCriteria": [
-        "Tests for isAiPrice() and getTierFromPriceId() (positive + negative)",
-        "Tests for createAiCheckoutAction trial vs active paths (mocked Stripe)",
-        "Tests for removeAiAddonAction (mocked Stripe)",
-        "Tests for webhook AI item detection logic",
-        "All tests pass with npm test",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": ["US-003", "US-004", "US-005"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "21 new tests added to stripe-utils.test.ts. All 35 passing. Tests cover isAiPrice, isMainPrice, getTierFromPriceId, getIntervalFromAiPriceId, STRIPE_AI_PRICES structure."
-    },
-    {
-      "id": "US-007",
-      "title": "Trial auto-conversion: autoConvertTrialWithAi()",
-      "description": "As the system, I want the trial expiry cron to auto-add a main per-lot item when a team has AI active + >2 lots, so billing transitions seamlessly.",
-      "acceptanceCriteria": [
-        "autoConvertTrialWithAi(teamId) in subscription.service.ts",
-        "Finds AI Stripe subscription, adds main per-lot item if lotCount > FREE_TIER_LIMIT",
-        "No-op if lotCount <= FREE_TIER_LIMIT (free tier + AI allowed)",
-        "Updates subscriptions table status: trialing → active (or free_tier)",
-        "Trial expiry cron skips teams with active AI sub for standard transition",
-        "Sends confirmation email via SubscriptionEmailService",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": ["US-001", "US-002"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "autoConvertTrialWithAi in subscription.service.ts + cron pre-check for AI trial teams. Email notification on auto-conversion. Cron runs AI check before standard transitions."
-    },
-    {
-      "id": "US-008",
-      "title": "UI: billing interval toggle + confirmation modals",
-      "description": "As a gestionnaire, I want to choose monthly/annual for AI and see a confirmation modal with prorated amounts before activating, so I understand what I'm paying.",
-      "acceptanceCriteria": [
-        "Trial users see interval toggle (monthly/annual) above tier cards",
-        "Trial users see banner with trial end date and auto-conversion notice",
-        "Active subscribers: interval auto-detected from existing sub, no toggle",
-        "Active subscribers: confirmation modal shows prorated amount from previewAiAddonAction",
-        "Active AI: 'Resilier' button with confirmation modal showing prorated credit",
-        "All modals have loading states during Stripe API calls",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-003", "US-004"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "Interval toggle (month/year) for trial users with -17% badge. Trial banner with auto-conversion notice. Active subs: auto-detected interval, confirmation modal with proration preview from Stripe. Resilier button with AlertDialog. AiSubscriptionInfo extended with subscriptionStatus, trialEnd, billingInterval. Test mocks fixed for price.id."
-    },
-    {
-      "id": "US-009",
-      "title": "Settings page: enhanced compact AI card",
-      "description": "As a gestionnaire, I want a compact AI card on the settings page that shows my AI status at a glance with contextual CTAs.",
-      "acceptanceCriteria": [
-        "Not active: compact card with price anchor + CTA 'Decouvrir les plans'",
-        "Active: status badge, phone number, usage progress bar, conversations count",
-        "Active: link 'Gerer' to full AI settings page",
-        "Card uses existing settings-page layout patterns",
-        "Lint passes"
-      ],
-      "priority": 3,
+      "priority": 5,
       "dependsOn": ["US-003"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "AiAssistantCard component in settings-page.tsx. Active: green badge, phone, progress bar, conversation count. Inactive: price anchor 49eur + Decouvrir CTA. AI status fetched server-side in parametres/page.tsx via Promise.all with lots."
-    },
-    {
-      "id": "US-010",
-      "title": "Dashboard: AI tab always visible + empty state",
-      "description": "As a gestionnaire, I want to always see the AI tab in the dashboard (even with 0 conversations) so I can discover the feature.",
-      "acceptanceCriteria": [
-        "AI tab visible in task-type-segment.tsx regardless of count",
-        "Non-subscribed: empty state with conversion CTA linking to AI settings",
-        "Subscribed: existing AI conversation list behavior",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Removed hide condition from task-type-segment. Added isAiSubscribed prop to OperationsPageClient. Non-subscribed: Bot icon + CTA 'Decouvrir les plans' linking to /gestionnaire/parametres/assistant-ia. AI status fetched in async-operations-content via Promise.all."
-    },
-    {
-      "id": "US-011",
-      "title": "Env config + verifyAiCheckoutSession update",
-      "description": "As a developer, I want .env.example updated with annual AI prices and verifyAiCheckoutSession updated for single-subscription model.",
-      "acceptanceCriteria": [
-        "3 new env vars in .env.example: STRIPE_PRICE_AI_*_ANNUAL",
-        "verifyAiCheckoutSession finds AI price via isAiPrice() instead of items.data[0]",
-        "Legacy AI checkout sessions still handled",
-        "Lint passes"
-      ],
-      "priority": 1,
-      "dependsOn": ["US-001"],
       "sizing": "XS",
       "passes": true,
-      "notes": "LOW #16 done. aiPriceId extracted via find(isAiPrice) before DB updates."
+      "notes": "Updated .env.example with SMS webhook path + removed stale Meta WABA env vars. Lint: 0 new errors. Tests: pre-existing integration failures only."
     }
   ]
 }

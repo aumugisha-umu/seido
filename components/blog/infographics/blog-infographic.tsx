@@ -1,14 +1,15 @@
 'use client'
 
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
+import dynamic from 'next/dynamic'
 import type { InfographicConfig } from './types'
 
-const TimelineChart = lazy(() => import('./timeline-chart'))
-const ComparisonBars = lazy(() => import('./comparison-bars'))
-const FlowDecisionTree = lazy(() => import('./flow-decision-tree'))
-const ChecklistTracker = lazy(() => import('./checklist-tracker'))
-const StatHighlight = lazy(() => import('./stat-highlight'))
-const DataTable = lazy(() => import('./data-table'))
+const TimelineChart = dynamic(() => import('./timeline-chart'))
+const ComparisonBars = dynamic(() => import('./comparison-bars'))
+const FlowDecisionTree = dynamic(() => import('./flow-decision-tree'))
+const ChecklistTracker = dynamic(() => import('./checklist-tracker'))
+const StatHighlight = dynamic(() => import('./stat-highlight'))
+const DataTable = dynamic(() => import('./data-table'))
 
 interface BlogInfographicProps {
   config: InfographicConfig

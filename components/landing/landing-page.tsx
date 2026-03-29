@@ -21,6 +21,7 @@ import { CountUp } from '@/components/ui/count-up'
 import { Slider } from '@/components/ui/slider'
 import { DemoRequestForm } from './demo-request-form'
 import { LandingHeader } from './landing-header'
+import { HeroFlowVisual } from './hero-flow-visual'
 import { PricingCards } from '@/components/pricing-cards'
 import { BlogArticleCard } from '@/components/blog/blog-article-card'
 const TestimonialsSection = dynamic(
@@ -106,93 +107,79 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
             <LandingHeader showNav={true} />
 
             <main>
-            {/* Hero Section - Background Video with Overlay */}
-            <section className="relative z-10 min-h-[600px] md:min-h-[calc(100dvh-73px)] flex items-center justify-start overflow-hidden">
-                {/* Background Video - Desktop only, Image on mobile */}
-                <div className="absolute inset-0 z-0 bg-slate-950">
-                    {/* Mobile: Static gradient background */}
-                    <div className="block md:hidden absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
-                    
-                    {/* Desktop: Video background */}
-                    <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        preload="none"
-                        poster="/images/preview_image.webp"
-                        className="hidden md:block w-full h-full object-cover"
-                    >
-                        <source src="/videos/hero-video.webm" type="video/webm" />
-                    </video>
-                    
-                    {/* Gradient Overlay - Darker on left for text readability, transparent on right to show video */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-950/70 md:via-slate-950/60 to-slate-950/80 md:to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/60" />
-                </div>
-
+            {/* Hero Section — Flow Directionnel */}
+            <section className="relative z-10 min-h-[600px] md:min-h-[calc(100dvh-73px)] flex items-center overflow-hidden">
                 <div className="container mx-auto px-4 py-12 md:py-0 relative z-10">
-                    <div className="w-full lg:w-6/10">
+                    <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
 
-                        <h1 className="landing-display mb-6 md:mb-8 drop-shadow-2xl">
-                            <span className="block text-white">
-                                La gestion locative
-                            </span>
-                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-300 to-cyan-300 drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-                                en toute sérénité
-                            </span>
-                        </h1>
+                        {/* LEFT: Text content */}
+                        <div className="w-full lg:w-1/2 lg:max-w-[50%]">
+                            <h1 className="landing-display mb-6 md:mb-8">
+                                <span className="block text-white">
+                                    La gestion locative
+                                </span>
+                                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-300 to-cyan-300">
+                                    en toute sérénité
+                                </span>
+                            </h1>
 
-                        <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                            Chaque demande déclenche une boucle qui prenait des jours à terminer. <br/> SEIDO centralise et automatise, vous décidez en quelques clics.<br/><span className="font-bold">De 10h à 1h par personne, par semaine.</span>
-                        </p>
-                        
+                            <p className="landing-subtitle text-white/65 mb-6 md:mb-8 max-w-2xl leading-relaxed">
+                                Chaque demande déclenche une boucle qui prenait des jours.<br/>
+                                SEIDO centralise et automatise, vous décidez en quelques clics.<br/>
+                                <strong className="text-white/95 font-semibold">De 10h à 1h par personne, par semaine.</strong>
+                            </p>
 
-                        <div className="flex flex-col sm:flex-row gap-4 mb-4 md:mb-6 max-w-2xl">
-                            <Link href="/auth/signup">
-                                <Button size="lg" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg bg-white text-black hover:bg-white/90 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105">
-                                    Essayer gratuitement
+                            <div className="flex flex-col sm:flex-row gap-4 mb-4 md:mb-6 max-w-2xl">
+                                <Link href="/auth/signup">
+                                    <Button size="lg" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg bg-white text-black hover:bg-white/90 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105">
+                                        Essayer gratuitement
+                                    </Button>
+                                </Link>
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg border-white/30 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all hover:scale-105"
+                                    onClick={() => setShowDemoModal(true)}
+                                >
+                                    <Mail className="w-4 md:w-5 h-4 md:h-5 mr-2 md:mr-3" />
+                                    Voir SEIDO en action
                                 </Button>
-                            </Link>
-                            <Button
-                                size="lg"
-                                variant="outline"
-                                className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg border-white/30 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all hover:scale-105"
-                                onClick={() => setShowDemoModal(true)}
-                            >
-                                <Mail className="w-4 md:w-5 h-4 md:h-5 mr-2 md:mr-3" />
-                                Voir SEIDO en action
-                            </Button>
+                            </div>
+
+                            <div className="mb-2 md:mb-4 max-w-2xl">
+                                <a
+                                    href="#indexation"
+                                    className="inline-flex items-center gap-2 text-sm text-blue-300 hover:text-blue-200 transition-colors"
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        document.getElementById('indexation')?.scrollIntoView({ behavior: 'smooth' })
+                                    }}
+                                >
+                                    <Calculator className="w-4 h-4" />
+                                    Calculer mon indexation gratuitement
+                                    <ArrowRight className="w-3 h-3" />
+                                </a>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
+                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                    <span className="landing-caption text-white/80">Import excel/csv</span>
+                                </div>
+                                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
+                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                    <span className="landing-caption text-white/80">Zéro formation requise</span>
+                                </div>
+                                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
+                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                    <span className="landing-caption text-white/80">Portail locataires et prestataires</span>
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="mb-2 md:mb-4 max-w-2xl">
-                            <a
-                                href="#indexation"
-                                className="inline-flex items-center gap-2 text-sm text-blue-300 hover:text-blue-200 transition-colors"
-                                onClick={(e) => {
-                                    e.preventDefault()
-                                    document.getElementById('indexation')?.scrollIntoView({ behavior: 'smooth' })
-                                }}
-                            >
-                                <Calculator className="w-4 h-4" />
-                                Calculer mon indexation gratuitement
-                                <ArrowRight className="w-3 h-3" />
-                            </a>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
-                                <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                <span className="landing-caption text-white/80">Import excel/csv</span>
-                            </div>
-                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
-                                <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                <span className="landing-caption text-white/80">Zéro formation requise</span>
-                            </div>
-                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
-                                <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                <span className="landing-caption text-white/80">Portail locataires et prestataires</span>
-                            </div>
+                        {/* RIGHT: Flow visual animation */}
+                        <div className="hidden lg:flex flex-1 justify-center">
+                            <HeroFlowVisual />
                         </div>
                     </div>
                 </div>

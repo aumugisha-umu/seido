@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEIDO — Hero Flow Directionnel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #020617; color: white; overflow-x: hidden; }
+
+  .hero {
+    position: relative;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  /* Background */
+  .hero-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+  .hero-bg .g1 { position:absolute; top:-10%; left:-10%; width:500px; height:500px; background:rgba(59,130,246,0.12); border-radius:50%; filter:blur(120px); }
+  .hero-bg .g2 { position:absolute; bottom:-5%; right:15%; width:400px; height:400px; background:rgba(139,92,246,0.08); border-radius:50%; filter:blur(100px); }
+
+  .hero-container {
+    position: relative; z-index: 10;
+    width: 100%; max-width: 1200px; margin: 0 auto;
+    padding: 0 2rem;
+    display: flex; align-items: center; gap: 3rem;
+    min-height: 100dvh;
+  }
+
+  /* ═══ LEFT: Text ═══ */
+  .hero-text {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+  .hero-text h1 {
+    font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+    font-weight: 800; line-height: 1.1; margin-bottom: 1.2rem;
+    letter-spacing: -0.02em;
+  }
+  .hero-text h1 .accent {
+    background: linear-gradient(135deg, #60a5fa, #67e8f9);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero-text .subtitle {
+    font-size: clamp(0.95rem, 1.4vw, 1.05rem);
+    color: rgba(255,255,255,0.65); line-height: 1.7; margin-bottom: 2rem;
+  }
+  .hero-text .subtitle strong { color: rgba(255,255,255,0.95); font-weight: 600; }
+
+  .hero-ctas { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.5rem; }
+  .btn-primary {
+    display: inline-flex; align-items: center; padding: 0.85rem 2rem;
+    background: white; color: #020617; border-radius: 9999px;
+    font-weight: 600; font-size: 0.95rem; text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s; border: none; cursor: pointer;
+  }
+  .btn-primary:hover { transform: scale(1.04); box-shadow: 0 0 30px rgba(255,255,255,0.15); }
+  .btn-secondary {
+    display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.85rem 2rem;
+    background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); border-radius: 9999px;
+    font-weight: 500; font-size: 0.95rem; text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+
+  .trust-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .trust-badge {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.3rem 0.65rem; border-radius: 9999px;
+    border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);
+    font-size: 0.72rem; color: rgba(255,255,255,0.45);
+  }
+  .trust-badge svg { width: 12px; height: 12px; color: rgba(96,165,250,0.7); }
+
+  /* ═══ RIGHT: Flow Visual ═══ */
+  .hero-visual {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    position: relative;
+    padding: 2rem 0;
+  }
+
+  /* ─── Niveau 3: Input badges (petit, discret) ─── */
+  .input-sources {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    width: 260px;
+    margin-bottom: 1.2rem;
+  }
+  .source-badge {
+    display: flex; align-items: center; gap: 0.4rem;
+    padding: 0.4rem 0.7rem; border-radius: 8px;
+    font-size: 0.68rem; font-weight: 500;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.05);
+    opacity: 0; transform: translateY(-12px);
+    transition: all 0.6s cubic-bezier(0.22,1,0.36,1);
+    white-space: nowrap;
+  }
+  .source-badge.visible { opacity: 1; transform: translateY(0); }
+
+  .source-badge .s-ico {
+    width: 18px; height: 18px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; flex-shrink: 0;
+  }
+  .source-badge .s-text {
+    color: rgba(255,255,255,0.5);
+    overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .sb-wa { background: rgba(37,211,102,0.06); } .sb-wa .s-ico { background: rgba(37,211,102,0.15); } .sb-wa .s-text { color: rgba(37,211,102,0.6); }
+  .sb-em { background: rgba(239,68,68,0.06); } .sb-em .s-ico { background: rgba(239,68,68,0.15); } .sb-em .s-text { color: rgba(239,68,68,0.6); }
+  .sb-ph { background: rgba(168,85,247,0.06); } .sb-ph .s-ico { background: rgba(168,85,247,0.15); } .sb-ph .s-text { color: rgba(168,85,247,0.6); }
+  .sb-sm { background: rgba(251,191,36,0.06); } .sb-sm .s-ico { background: rgba(251,191,36,0.15); } .sb-sm .s-text { color: rgba(251,191,36,0.6); }
+
+  /* ─── Flow lines (input → AI) ─── */
+  .flow-lines {
+    position: relative;
+    width: 100px; height: 32px;
+    margin-bottom: 0;
+  }
+  .flow-line {
+    position: absolute;
+    width: 1px;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  .flow-line.visible { opacity: 1; }
+  .flow-line:nth-child(1) { left: 25%; background: linear-gradient(180deg, rgba(37,211,102,0.3), rgba(139,92,246,0.15)); }
+  .flow-line:nth-child(2) { left: 42%; background: linear-gradient(180deg, rgba(239,68,68,0.25), rgba(139,92,246,0.15)); }
+  .flow-line:nth-child(3) { left: 58%; background: linear-gradient(180deg, rgba(168,85,247,0.3), rgba(139,92,246,0.15)); }
+  .flow-line:nth-child(4) { left: 75%; background: linear-gradient(180deg, rgba(251,191,36,0.25), rgba(139,92,246,0.15)); }
+
+  /* Animated dots flowing down */
+  .flow-dot {
+    position: absolute;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    opacity: 0;
+  }
+  .flow-dot.visible {
+    animation: flowDown 1.8s ease-in-out infinite;
+  }
+  .flow-dot:nth-child(1) { left: 25%; background: #25D366; animation-delay: 0s; }
+  .flow-dot:nth-child(2) { left: 42%; background: #EF4444; animation-delay: 0.4s; }
+  .flow-dot:nth-child(3) { left: 58%; background: #A855F7; animation-delay: 0.8s; }
+  .flow-dot:nth-child(4) { left: 75%; background: #FBBF24; animation-delay: 1.2s; }
+
+  @keyframes flowDown {
+    0% { top: 0; opacity: 0; }
+    20% { opacity: 0.8; }
+    80% { opacity: 0.6; }
+    100% { top: 100%; opacity: 0; }
+  }
+
+  /* ─── Niveau 2: AI Node (moyen) ─── */
+  .ai-node {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1rem 0.5rem 0.5rem;
+    border-radius: 12px;
+    background: rgba(139,92,246,0.08);
+    border: 1px solid rgba(139,92,246,0.12);
+    margin: 0.4rem 0 0.6rem;
+    opacity: 0; transform: scale(0.9);
+    transition: all 0.8s cubic-bezier(0.22,1,0.36,1);
+  }
+  .ai-node.visible {
+    opacity: 1; transform: scale(1);
+  }
+  .ai-orb {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    background: radial-gradient(circle at 40% 35%, rgba(139,92,246,0.5), rgba(59,130,246,0.3) 60%, transparent);
+    box-shadow: 0 0 20px rgba(139,92,246,0.15);
+  }
+  .ai-orb img { width: 20px; height: 20px; object-fit: contain; filter: brightness(1.1); position: relative; z-index: 1; }
+  .ai-orb::before {
+    content: ''; position: absolute; inset: -3px; border-radius: 50%;
+    border: 1px solid transparent;
+    background: conic-gradient(from 0deg, rgba(96,165,250,0.4), rgba(139,92,246,0.4), rgba(59,130,246,0.2), rgba(96,165,250,0.4)) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    animation: spin 6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ai-label {
+    font-size: 0.7rem; font-weight: 600; color: rgba(167,139,250,0.7);
+    letter-spacing: 0.03em;
+  }
+  .ai-sublabel {
+    font-size: 0.58rem; color: rgba(255,255,255,0.3);
+    margin-top: 1px;
+  }
+
+  /* ─── Flow line (AI → output) ─── */
+  .flow-line-down {
+    width: 1px; height: 28px;
+    background: linear-gradient(180deg, rgba(139,92,246,0.2), rgba(96,165,250,0.15));
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    position: relative;
+  }
+  .flow-line-down.visible { opacity: 1; }
+  .flow-dot-down {
+    position: absolute;
+    left: -1px;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: #a78bfa;
+    opacity: 0;
+  }
+  .flow-dot-down.visible {
+    animation: flowDown 2s ease-in-out infinite;
+    animation-delay: 0.6s;
+  }
+
+  /* ─── Niveau 1: Output card (grand, focal) ─── */
+  .output-card {
+    width: 320px;
+    background: rgba(15,23,42,0.6);
+    border: 1px solid rgba(96,165,250,0.1);
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.02);
+    opacity: 0; transform: translateY(16px);
+    transition: all 1s cubic-bezier(0.22,1,0.36,1);
+  }
+  .output-card.visible { opacity: 1; transform: translateY(0); }
+
+  .oc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .oc-title-group { display: flex; align-items: center; gap: 0.5rem; }
+  .oc-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: rgba(96,165,250,0.1);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .oc-icon svg { width: 16px; height: 16px; }
+  .oc-title { font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.92); }
+  .oc-subtitle { font-size: 0.68rem; color: rgba(255,255,255,0.35); margin-top: 1px; }
+
+  .oc-status {
+    font-size: 0.62rem; font-weight: 600;
+    padding: 0.2rem 0.55rem; border-radius: 6px;
+    background: rgba(96,165,250,0.12); color: #60a5fa;
+  }
+
+  .oc-details {
+    display: flex; flex-direction: column; gap: 0.45rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .oc-row {
+    display: flex; align-items: center; gap: 0.5rem;
+    opacity: 0; transform: translateX(-6px);
+    transition: all 0.5s cubic-bezier(0.22,1,0.36,1);
+  }
+  .oc-row.visible { opacity: 1; transform: translateX(0); }
+
+  .oc-check {
+    width: 16px; height: 16px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .oc-check.done { background: rgba(52,211,153,0.12); }
+  .oc-check.done svg { color: #34d399; }
+  .oc-check.pending { background: rgba(251,191,36,0.12); }
+  .oc-check.pending svg { color: #fbbf24; }
+
+  .oc-row-text { font-size: 0.72rem; color: rgba(255,255,255,0.55); }
+  .oc-row-text strong { color: rgba(255,255,255,0.75); font-weight: 600; }
+
+  /* ─── Context enrichment chips ─── */
+  .oc-context {
+    display: flex; flex-direction: column; gap: 0.35rem;
+    padding-top: 0.6rem; margin-top: 0.1rem;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .oc-context-label {
+    font-size: 0.56rem; font-weight: 600;
+    color: rgba(96,165,250,0.4);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.1rem;
+  }
+  .oc-context-chips {
+    display: flex; flex-wrap: wrap; gap: 0.3rem;
+  }
+  .context-chip {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    padding: 0.2rem 0.5rem; border-radius: 6px;
+    font-size: 0.6rem; font-weight: 500;
+    opacity: 0; transform: translateX(16px);
+    transition: all 0.6s cubic-bezier(0.22,1,0.36,1);
+  }
+  .context-chip.visible { opacity: 1; transform: translateX(0); }
+  .context-chip .cc-ico {
+    width: 14px; height: 14px; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; flex-shrink: 0;
+  }
+  /* Document chip */
+  .cc-doc { background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.08); }
+  .cc-doc .cc-ico { background: rgba(59,130,246,0.12); }
+  .cc-doc .cc-text { color: rgba(96,165,250,0.6); }
+  /* Contact chip */
+  .cc-contact { background: rgba(52,211,153,0.06); border: 1px solid rgba(52,211,153,0.08); }
+  .cc-contact .cc-ico { background: rgba(52,211,153,0.12); }
+  .cc-contact .cc-text { color: rgba(52,211,153,0.6); }
+  /* History chip */
+  .cc-history { background: rgba(251,191,36,0.06); border: 1px solid rgba(251,191,36,0.08); }
+  .cc-history .cc-ico { background: rgba(251,191,36,0.12); }
+  .cc-history .cc-text { color: rgba(251,191,36,0.6); }
+
+  /* AI created badge */
+  .ai-created {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    margin-top: 0.6rem;
+    padding: 0.2rem 0.5rem; border-radius: 5px;
+    background: rgba(139,92,246,0.08);
+    border: 1px solid rgba(139,92,246,0.1);
+    font-size: 0.58rem; font-weight: 500; color: rgba(167,139,250,0.6);
+  }
+  .ai-created svg { width: 10px; height: 10px; }
+
+  /* ═══ MOBILE ═══ */
+  @media (max-width: 900px) {
+    .hero-container { flex-direction: column; gap: 2rem; padding-top: 5rem; }
+    .hero-text { flex: none; max-width: 100%; text-align: center; }
+    .hero-ctas { justify-content: center; }
+    .trust-badges { justify-content: center; }
+    .hero-visual { padding: 1rem 0 3rem; }
+  }
+
+  .after-hero { padding: 4rem 2rem; text-align: center; color: rgba(255,255,255,0.25); font-size: 0.75rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .source-badge, .ai-node, .output-card, .oc-row, .context-chip { transition: none !important; }
+    .ai-orb::before { animation: none; }
+    .flow-dot, .flow-dot-down { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-bg"><div class="g1"></div><div class="g2"></div></div>
+
+  <div class="hero-container">
+    <!-- LEFT: Text -->
+    <div class="hero-text">
+      <h1>
+        <span>La gestion locative</span><br/>
+        <span class="accent">en toute serenite</span>
+      </h1>
+      <p class="subtitle">
+        Chaque demande declenche une boucle qui prenait des jours.<br/>
+        SEIDO centralise et automatise, vous decidez en quelques clics.<br/>
+        <strong>De 10h a 1h par personne, par semaine.</strong>
+      </p>
+      <div class="hero-ctas">
+        <a href="#" class="btn-primary" onclick="event.preventDefault()">Essayer gratuitement</a>
+        <button class="btn-secondary" onclick="event.preventDefault()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+          Voir SEIDO en action
+        </button>
+      </div>
+      <div class="trust-badges">
+        <div class="trust-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Import excel/csv</div>
+        <div class="trust-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Zero formation requise</div>
+        <div class="trust-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Portail locataires</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Flow Visual -->
+    <div class="hero-visual">
+
+      <!-- Niveau 3: Input sources (petit, discret) -->
+      <div class="input-sources">
+        <div class="source-badge sb-wa" id="src0">
+          <div class="s-ico">💬</div>
+          <span class="s-text">Fuite sdb</span>
+        </div>
+        <div class="source-badge sb-em" id="src1">
+          <div class="s-ico">📧</div>
+          <span class="s-text">Devis plomberie</span>
+        </div>
+        <div class="source-badge sb-ph" id="src2">
+          <div class="s-ico">📞</div>
+          <span class="s-text">3 appels</span>
+        </div>
+        <div class="source-badge sb-sm" id="src3">
+          <div class="s-ico">📱</div>
+          <span class="s-text">Chauffage panne</span>
+        </div>
+      </div>
+
+      <!-- Flow lines (sources → AI) -->
+      <div class="flow-lines" id="flowLines">
+        <div class="flow-line" id="fl0"></div>
+        <div class="flow-line" id="fl1"></div>
+        <div class="flow-line" id="fl2"></div>
+        <div class="flow-line" id="fl3"></div>
+        <div class="flow-dot" id="fd0"></div>
+        <div class="flow-dot" id="fd1"></div>
+        <div class="flow-dot" id="fd2"></div>
+        <div class="flow-dot" id="fd3"></div>
+      </div>
+
+      <!-- Niveau 2: AI Node (moyen) -->
+      <div class="ai-node" id="aiNode">
+        <div class="ai-orb">
+          <img src="../../public/images/Logo/Picto_Seido_White.webp" alt="SEIDO" />
+        </div>
+        <div>
+          <div class="ai-label">SEIDO AI</div>
+          <div class="ai-sublabel">Analyse et organise</div>
+        </div>
+      </div>
+
+      <!-- Flow line (AI → output) -->
+      <div class="flow-line-down" id="flowDown">
+        <div class="flow-dot-down" id="fdDown"></div>
+      </div>
+
+      <!-- Niveau 1: Output card (grand, focal) -->
+      <div class="output-card" id="outputCard">
+        <div class="oc-header">
+          <div class="oc-title-group">
+            <div class="oc-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            </div>
+            <div>
+              <div class="oc-title">Fuite salle de bain</div>
+              <div class="oc-subtitle">Residence Les Marronniers · Apt 3B</div>
+            </div>
+          </div>
+          <div class="oc-status">Planifiee</div>
+        </div>
+        <div class="oc-details">
+          <div class="oc-row" id="row0">
+            <div class="oc-check done"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <span class="oc-row-text"><strong>Prestataire assigne</strong> · Marc Dufour</span>
+          </div>
+          <div class="oc-row" id="row1">
+            <div class="oc-check done"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <span class="oc-row-text"><strong>Locataire notifie</strong> · Emma Dubois</span>
+          </div>
+          <div class="oc-row" id="row2">
+            <div class="oc-check pending"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="1"/></svg></div>
+            <span class="oc-row-text"><strong>Rdv confirme</strong> · Lundi 14h</span>
+          </div>
+        </div>
+        <!-- Context enrichment: existing data pulled by SEIDO -->
+        <div class="oc-context">
+          <div class="oc-context-label">Contexte existant rattache</div>
+          <div class="oc-context-chips">
+            <div class="context-chip cc-doc" id="chip0">
+              <div class="cc-ico">📄</div>
+              <span class="cc-text">Bail Apt 3B</span>
+            </div>
+            <div class="context-chip cc-contact" id="chip1">
+              <div class="cc-ico">👤</div>
+              <span class="cc-text">Plombier habituel</span>
+            </div>
+            <div class="context-chip cc-history" id="chip2">
+              <div class="cc-ico">🔧</div>
+              <span class="cc-text">2 interventions passees</span>
+            </div>
+          </div>
+        </div>
+        <div class="ai-created">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/></svg>
+          Cree automatiquement par l'assistant IA
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="after-hero">
+  <p>Prototype SEIDO — Flow directionnel : inputs → IA → intervention organisee</p>
+</div>
+
+<script>
+// Single play animation — no loop, no hover toggle
+// Hierarchy: sources (300ms stagger) → lines → AI node → output card → details
+
+function animate() {
+  const delays = {
+    sources: [600, 750, 900, 1050],     // Niveau 3: staggered drop-in
+    lines: 1300,                         // Flow lines appear
+    dots: 1500,                          // Animated dots start
+    aiNode: 1700,                        // Niveau 2: AI node scales in
+    flowDown: 2200,                      // Line to output
+    dotDown: 2400,                       // Dot flowing to output
+    outputCard: 2600,                    // Niveau 1: output card slides up
+    rows: [3200, 3500, 3800],           // Detail rows stagger in
+    chips: [4100, 4300, 4500],           // Context chips slide in from right
+  };
+
+  // Sources
+  delays.sources.forEach((d, i) => {
+    setTimeout(() => document.getElementById('src' + i).classList.add('visible'), d);
+  });
+
+  // Flow lines
+  setTimeout(() => {
+    for (let i = 0; i < 4; i++) document.getElementById('fl' + i).classList.add('visible');
+  }, delays.lines);
+
+  // Flow dots
+  setTimeout(() => {
+    for (let i = 0; i < 4; i++) document.getElementById('fd' + i).classList.add('visible');
+  }, delays.dots);
+
+  // AI node
+  setTimeout(() => document.getElementById('aiNode').classList.add('visible'), delays.aiNode);
+
+  // Flow down
+  setTimeout(() => document.getElementById('flowDown').classList.add('visible'), delays.flowDown);
+  setTimeout(() => document.getElementById('fdDown').classList.add('visible'), delays.dotDown);
+
+  // Output card
+  setTimeout(() => document.getElementById('outputCard').classList.add('visible'), delays.outputCard);
+
+  // Detail rows
+  delays.rows.forEach((d, i) => {
+    setTimeout(() => document.getElementById('row' + i).classList.add('visible'), d);
+  });
+
+  // Context enrichment chips (slide in from right)
+  delays.chips.forEach((d, i) => {
+    setTimeout(() => document.getElementById('chip' + i).classList.add('visible'), d);
+  });
+}
+
+// Start on load with small initial delay
+setTimeout(animate, 400);
+</script>
+</body>
+</html>

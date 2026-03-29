@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle2, Sparkles, Phone, MessageSquare } from 'lucide-react'
+import { CheckCircle2, Sparkles, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -17,17 +17,12 @@ const AI_TIERS = [
     headline: 'WhatsApp uniquement',
     monthlyPrice: 49,
     annualPrice: 499,
-    minutes: 0,
-    conversations: 100,
-    topupPrice: '0,80',
-    topupConvPrice: '0,47',
-    hasVoice: false,
+    credits: 100,
     anchor: null,
     features: [
       'Assistant IA disponible 24h/24',
       'Demandes WhatsApp traitées automatiquement',
       'Interventions créées sans effort',
-      'Recharge automatique disponible',
     ],
     popular: false,
   },
@@ -36,35 +31,25 @@ const AI_TIERS = [
     headline: 'WhatsApp, SMS & voix',
     monthlyPrice: 99,
     annualPrice: 999,
-    minutes: 180,
-    conversations: 300,
-    topupPrice: '0,55',
-    topupConvPrice: '0,32',
-    hasVoice: true,
+    credits: 250,
     anchor: 'Tout Particulier, plus :',
     features: [
       'SMS pour locataires sans smartphone',
       'Appels vocaux entrants',
       'Instructions personnalisées par équipe',
-      'Recharge automatique disponible',
     ],
     popular: true,
   },
   {
     name: 'Agence',
     headline: 'Tous canaux + numéro dédié',
-    monthlyPrice: 199,
-    annualPrice: 1999,
-    minutes: 600,
-    conversations: 1000,
-    topupPrice: '0,33',
-    topupConvPrice: '0,19',
-    hasVoice: true,
+    monthlyPrice: 149,
+    annualPrice: 1499,
+    credits: 500,
     anchor: 'Tout Pro, plus :',
     features: [
       'Numéro dédié à votre agence',
-      'Emails triés et convertis en interventions',
-      'Recharge automatique disponible',
+      'Emails traités automatiquement',
       'Support prioritaire',
     ],
     popular: false,
@@ -132,28 +117,17 @@ export function AiPricingAddon({ billingInterval, className }: AiPricingAddonPro
               )}
               {!monthlyEquiv && <div className="mb-4" />}
 
-              {/* Quotas */}
-              <div className="space-y-2 mb-4">
+              {/* Credits quota */}
+              <div className="mb-4">
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
                   <MessageSquare className="w-4 h-4 text-violet-400 flex-shrink-0" />
                   <span className="text-sm text-white">
-                    <strong>{tier.conversations}</strong> conversations
-                  </span>
-                  <span className="text-xs text-white/50 ml-auto">
-                    +{tier.topupConvPrice}€/conv
+                    <strong>{tier.credits}</strong> crédits / mois
                   </span>
                 </div>
-                {tier.hasVoice && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
-                    <Phone className="w-4 h-4 text-violet-400 flex-shrink-0" />
-                    <span className="text-sm text-white">
-                      <strong>{tier.minutes} min</strong> d&apos;appels
-                    </span>
-                    <span className="text-xs text-white/50 ml-auto">
-                      +{tier.topupPrice}€/min
-                    </span>
-                  </div>
-                )}
+                <p className="text-xs text-white/40 mt-1.5 px-1">
+                  {tier.anchor ? '1 crédit = 1 conversation ou 1 appel' : '1 crédit = 1 conversation'}
+                </p>
               </div>
 
               {/* Features */}

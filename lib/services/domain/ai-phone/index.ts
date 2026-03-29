@@ -1,4 +1,3 @@
-export * from './telnyx-phone.service'
 export * from './elevenlabs-agent.service'
 export * from './phone-provisioning.service'
 export * from './call-transcript-analyzer.service'

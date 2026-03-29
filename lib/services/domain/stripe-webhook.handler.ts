@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import { SubscriptionRepository } from '../repositories/subscription.repository'
 import { StripeCustomerRepository } from '../repositories/stripe-customer.repository'
-import { FREE_TIER_LIMIT, STRIPE_AI_PRICES, type AiTier } from '@/lib/stripe'
+import { FREE_TIER_LIMIT, getTierFromPriceId, isAiPrice, type AiTier } from '@/lib/stripe'
 import { SubscriptionService, type SubscriptionStatus } from './subscription.service'
 import { logger } from '@/lib/logger'
 
@@ -181,24 +181,25 @@ export class StripeWebhookHandler {
       return { status: 400, message: 'Missing team_id in subscription metadata' }
     }
 
-    // Route AI add-on subscriptions to dedicated handler
-    if (subscription.metadata?.addon_type === 'ai_voice') {
+    // Legacy route: AI-only subscriptions with addon_type metadata (pre-unified model)
+    if (subscription.metadata?.addon_type === 'ai_voice' && !subscription.items?.data?.some(i => !isAiPrice(i.price.id))) {
       return this.handleAiSubscriptionCreatedOrUpdated(subscription, teamId)
     }
 
-    const item = subscription.items?.data?.[0]
-    const quantity = item?.quantity ?? 0
+    // Unified model: process main item + detect AI item
+    const mainItem = subscription.items?.data?.find(i => !isAiPrice(i.price.id))
+    const aiItem = subscription.items?.data?.find(i => isAiPrice(i.price.id))
+    const quantity = mainItem?.quantity ?? 0
 
     const status = SubscriptionService.mapStripeStatus(subscription.status)
-
-    // If subscription has a default payment method, mark it
     const hasPaymentMethod = !!subscription.default_payment_method
 
+    // Sync main subscription to DB (even if only AI item exists, we track the subscription)
     await this.subRepo.upsertByTeamId(teamId, {
       team_id: teamId,
       stripe_subscription_id: subscription.id,
       stripe_customer_id: typeof subscription.customer === 'string' ? subscription.customer : null,
-      price_id: item?.price?.id ?? null,
+      price_id: mainItem?.price?.id ?? null,
       status,
       subscribed_lots: quantity,
       current_period_start: subscription.current_period_start
@@ -211,9 +212,13 @@ export class StripeWebhookHandler {
       ...(hasPaymentMethod ? { payment_method_added: true } : {}),
     })
 
-    // Admin notification (non-blocking, .catch prevents unhandled rejection in serverless)
+    // Handle AI item if present
+    if (aiItem) {
+      await this.ensureAiProvisioned(teamId, subscription.id, aiItem.price.id)
+    }
+
     if (quantity > 0) {
-      void this.sendSubscriptionAdminNotification('change', teamId, 0, quantity, item?.price?.id ?? null).catch(() => {})
+      void this.sendSubscriptionAdminNotification('change', teamId, 0, quantity, mainItem?.price?.id ?? null).catch(() => {})
     }
 
     return { status: 200, message: 'Subscription created processed' }
@@ -222,8 +227,8 @@ export class StripeWebhookHandler {
   private async handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<WebhookResult> {
     const teamId = subscription.metadata?.team_id
 
-    // Route AI add-on subscriptions to dedicated handler
-    if (subscription.metadata?.addon_type === 'ai_voice') {
+    // Legacy route: AI-only subscriptions with addon_type metadata (pre-unified model)
+    if (subscription.metadata?.addon_type === 'ai_voice' && !subscription.items?.data?.some(i => !isAiPrice(i.price.id))) {
       const resolvedTeamId = teamId ?? await this.resolveAiTeamId(subscription.id)
       if (!resolvedTeamId) {
         return { status: 400, message: 'Cannot determine team_id for AI subscription update' }
@@ -239,16 +244,21 @@ export class StripeWebhookHandler {
         targetTeamId = existing.team_id
       }
     }
+    // Also try to resolve via AI phone numbers table
+    if (!targetTeamId) {
+      targetTeamId = await this.resolveAiTeamId(subscription.id)
+    }
 
     if (!targetTeamId) {
       return { status: 400, message: 'Cannot determine team_id for subscription update' }
     }
 
-    const item = subscription.items?.data?.[0]
-    const quantity = item?.quantity ?? 0
+    // Unified model: process main item + detect AI item changes
+    const mainItem = subscription.items?.data?.find(i => !isAiPrice(i.price.id))
+    const aiItem = subscription.items?.data?.find(i => isAiPrice(i.price.id))
+    const quantity = mainItem?.quantity ?? 0
     const status = SubscriptionService.mapStripeStatus(subscription.status)
 
-    // If subscription has a default payment method, mark it
     const hasPaymentMethod = !!subscription.default_payment_method
 
     // Capture old lots before upsert for admin notification delta
@@ -259,7 +269,7 @@ export class StripeWebhookHandler {
       team_id: targetTeamId,
       stripe_subscription_id: subscription.id,
       stripe_customer_id: typeof subscription.customer === 'string' ? subscription.customer : null,
-      price_id: item?.price?.id ?? null,
+      price_id: mainItem?.price?.id ?? null,
       status,
       subscribed_lots: quantity,
       current_period_start: subscription.current_period_start
@@ -278,9 +288,17 @@ export class StripeWebhookHandler {
       ...(hasPaymentMethod ? { payment_method_added: true } : {}),
     })
 
+    // Handle AI item: provision if present, deprovision if removed
+    if (aiItem) {
+      await this.ensureAiProvisioned(targetTeamId, subscription.id, aiItem.price.id)
+    } else {
+      // AI item was removed — check if it was previously active and deprovision
+      await this.ensureAiDeprovisioned(targetTeamId, subscription.id)
+    }
+
     // Admin notification — only when lot count actually changes
     if (quantity !== oldLots && quantity > 0) {
-      void this.sendSubscriptionAdminNotification('change', targetTeamId, oldLots, quantity, item?.price?.id ?? null).catch(() => {})
+      void this.sendSubscriptionAdminNotification('change', targetTeamId, oldLots, quantity, mainItem?.price?.id ?? null).catch(() => {})
     }
 
     return { status: 200, message: 'Subscription updated processed' }
@@ -438,6 +456,99 @@ export class StripeWebhookHandler {
   // ── AI Add-on Handlers ───────────────────────────────────────────────
 
   /**
+   * Ensures AI is provisioned for a team (idempotent).
+   * Called when an AI price item is detected on a subscription.
+   */
+  private async ensureAiProvisioned(teamId: string, subscriptionId: string, aiPriceId: string): Promise<void> {
+    const tier = this.detectAiTier(aiPriceId)
+
+    // Idempotence: check if already active
+    const { data: existing } = await this.supabase
+      .from('ai_phone_numbers')
+      .select('id, is_active, provisioning_status')
+      .eq('team_id', teamId)
+      .limit(1)
+      .maybeSingle()
+
+    if (existing?.is_active && existing.provisioning_status === 'active') {
+      // Already active — just update Stripe info
+      await this.supabase
+        .from('ai_phone_numbers')
+        .update({
+          stripe_ai_subscription_id: subscriptionId,
+          stripe_ai_price_id: aiPriceId,
+          ai_tier: tier,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('team_id', teamId)
+      return
+    }
+
+    // If provisioning is in progress, just update Stripe info without re-triggering
+    if (existing && !['pending', 'failed'].includes(existing.provisioning_status ?? 'pending')) {
+      await this.supabase
+        .from('ai_phone_numbers')
+        .update({
+          stripe_ai_subscription_id: subscriptionId,
+          stripe_ai_price_id: aiPriceId,
+          ai_tier: tier,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('team_id', teamId)
+      return
+    }
+
+    // Trigger provisioning
+    const { data: teamData } = await this.supabase
+      .from('teams')
+      .select('name')
+      .eq('id', teamId)
+      .single()
+
+    try {
+      const { provision } = await import('./ai-phone/phone-provisioning.service')
+      await provision(teamId, teamData?.name ?? 'Equipe')
+
+      await this.supabase
+        .from('ai_phone_numbers')
+        .update({
+          stripe_ai_subscription_id: subscriptionId,
+          stripe_ai_price_id: aiPriceId,
+          ai_tier: tier,
+        })
+        .eq('team_id', teamId)
+
+      logger.info({ teamId, tier }, '✅ [STRIPE-AI] Provisioning triggered via items detection')
+    } catch (provisionError) {
+      logger.error({ provisionError, teamId }, '❌ [STRIPE-AI] Provisioning failed')
+    }
+  }
+
+  /**
+   * Deprovisions AI if it was previously active but AI item is no longer on the subscription.
+   */
+  private async ensureAiDeprovisioned(teamId: string, subscriptionId: string): Promise<void> {
+    const { data: config } = await this.supabase
+      .from('ai_phone_numbers')
+      .select('id, is_active, stripe_ai_subscription_id')
+      .eq('team_id', teamId)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle()
+
+    // Only deprovision if the AI was on THIS subscription
+    if (!config || config.stripe_ai_subscription_id !== subscriptionId) return
+
+    try {
+      const { deprovision } = await import('./ai-phone/phone-provisioning.service')
+      await deprovision(teamId)
+      logger.info({ teamId }, '✅ [STRIPE-AI] Deprovisioned via items detection (AI item removed)')
+    } catch (deprovisionError) {
+      logger.error({ deprovisionError, teamId }, '⚠️ [STRIPE-AI] Deprovisioning failed (non-blocking)')
+    }
+  }
+
+  /**
    * Resolves team_id from an AI subscription's stripe_ai_subscription_id
    * (fallback when metadata is missing on updated/deleted events)
    */
@@ -455,9 +566,7 @@ export class StripeWebhookHandler {
    * Detects AI tier from Stripe price ID
    */
   private detectAiTier(priceId: string): AiTier {
-    if (priceId === STRIPE_AI_PRICES.equipe) return 'equipe'
-    if (priceId === STRIPE_AI_PRICES.agence) return 'agence'
-    return 'solo'
+    return getTierFromPriceId(priceId) ?? 'solo'
   }
 
   private async handleAiCheckoutCompleted(

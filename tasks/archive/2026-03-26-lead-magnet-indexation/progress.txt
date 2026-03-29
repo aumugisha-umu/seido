@@ -1,0 +1,67 @@
+# Progress Log — Lead Magnet: Calculateur d'Indexation de Loyer
+# Started: 2026-03-26
+# Stories: 8 total
+# Design: docs/Sales/lead-magnet-indexation-design.md
+---
+
+## 2026-03-26 — US-001: Health indices JSON + calculation engine
+- Created: lib/indexation/types.ts, calculate.ts, index.ts, health-indices.json
+- 195 monthly indices (2010-01 to 2026-03), base 2013=100
+- Discriminated union IndexationOutcome (success/error) for type-safe results
+- 3 region strategies: Brussels (correction factors), Wallonia (loyer adapté 2 phases), Flanders (permanent CF)
+- Commercial leases: standard formula, no PEB
+- Bail non enregistré: error for Wallonie/Bruxelles, allowed for Flandre
+- Tests: 23 passing (tests/unit/indexation/calculate.test.ts)
+- Learnings: JSON import works natively with resolveJsonModule:true
+
+## 2026-03-26 — US-002: Health indices update script
+- Created: scripts/update-health-indices.ts
+- Dual-source: NBB.Stat SDMX API (primary) + Statbel CSV (fallback)
+- Safe no-overwrite on failure (exit code 1, existing file preserved)
+- Merge strategy: new entries + updates, sorted chronologically
+
+## 2026-03-26 — US-003: DB migration — indexation_leads table
+- Created: supabase/migrations/20260326220000_create_indexation_leads.sql
+- Columns: id, email, type (CHECK), metadata, source, consent_given, ip_address, created_at, expires_at (24 months)
+- Indexes: expires_at (RGPD cleanup), type (analytics)
+- No RLS — service role only access
+
+## 2026-03-26 — US-004: API route POST /api/lead-magnet
+- Created: app/api/lead-magnet/route.ts
+- Zod validation (email, type enum, calcul, honeypot max 0, consent literal true)
+- Rate limiting: rateLimiters.public + getClientIdentifier()
+- Honeypot: silent 200 OK if filled (no DB insert, no email)
+- Insert via createServiceRoleSupabaseClient()
+- First public API route without getApiAuthContext() — security via rate limit + Zod + honeypot
+
+## 2026-03-26 — US-005: Lettre d'indexation email template
+- Created: emails/templates/lead-magnet/indexation-letter.tsx (React Email)
+- Added IndexationLetterEmailProps to emails/utils/types.ts
+- Updated route to use renderEmail() + IndexationLetterEmail
+- Template includes: result highlight, calculation details, pre-filled formal letter, disclaimer, CTA
+- Removed inline HTML builder from route
+
+## 2026-03-26 — US-006: Landing page indexation calculator section
+- Created: components/landing/sections/indexation-section.tsx (~470 lines)
+- Dynamic import in components/landing/landing-page.tsx
+- Full form: bail type, region, PEB, loyer, dates, bail non enregistré
+- Adaptive PEB options per region, hidden fields for commercial
+- Result accordion with 4 explanation sections
+- Email capture: 2 CTAs (lettre + portfolio), RGPD checkbox, honeypot
+- 8 apostrophe escapes fixed for lint
+
+## 2026-03-26 — US-007: Hero CTA button + JSON-LD FAQ schema
+- Hero CTA: Calculator icon + "Calculer mon indexation gratuitement" smooth-scroll to #indexation
+- 6 indexation FAQ questions added to data/faq.ts (ids 9-14, category 'indexation')
+- Topics: formule de calcul, impact PEB, différences régionales, bail commercial, bail non enregistré, automatisation SEIDO
+- FAQPage JSON-LD already wired via faq array mapping in app/page.tsx — no changes needed to json-ld.tsx
+- Learnings: single source of truth (data/faq.ts) drives both UI accordion and JSON-LD schema
+
+## 2026-03-26 — US-008: Blog SEO article — indexation loyer Belgique
+- Created: blog/articles/calculer-indexation-loyer-belgique.md (1532 words, 7 min read)
+- Hub: essentiel-immo-mars-2026
+- Structure: H1 with 2026, 6 H2 sections (definition, formule, indices, PEB, cas particuliers, FAQ)
+- PEB section covers all 3 regions with tables (Brussels factors, Wallonia adapted rent, Flanders permanent CF)
+- 2 CTA links to /#indexation (intro + closing)
+- 6 FAQ subsections (obligatoire, double indexation, renovation PEB, charges, indice sante, refus)
+- Disclaimer at bottom

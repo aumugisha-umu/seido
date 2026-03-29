@@ -1,0 +1,47 @@
+{
+  "project": "SEIDO",
+  "featureName": "Admin Invitations List + Resend",
+  "branchName": "preview",
+  "description": "Add a visible invitations section below the teams table in the admin dashboard. Shows pending + expired invitations with a 'Relancer' button that resends the invitation email and extends the expiry.",
+  "createdAt": "2026-03-28",
+  "prdSource": "brainstorming session",
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Server action: fetch pending/expired invitations",
+      "description": "As an admin, I want a server action that fetches all pending and expired invitations so the UI can display them.",
+      "acceptanceCriteria": [
+        "getInvitationsAction() returns invitations with status pending or expired",
+        "Expired status is computed at query time (pending + expires_at < now = expired)",
+        "Returns: id, email, first_name, last_name, status, expires_at, invited_at, team name",
+        "Ordered by invited_at DESC",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "UI: invitations section + relancer button",
+      "description": "As an admin, I want to see pending/expired invitations below the teams table with a Relancer button that resends the invitation.",
+      "acceptanceCriteria": [
+        "Invitations section visible below teams table with title 'Invitations en attente'",
+        "Table columns: Nom, Email, Statut (badge), Invite le, Expire le, Actions",
+        "Status badges: pending=blue, expired=red",
+        "Relancer button calls resendGestionnaireInvitationAction and shows toast",
+        "Stat card added for pending invitations count",
+        "Section hidden when no pending/expired invitations",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

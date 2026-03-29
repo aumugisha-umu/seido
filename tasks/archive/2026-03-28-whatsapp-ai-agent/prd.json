@@ -1,0 +1,131 @@
+{
+  "project": "SEIDO",
+  "featureName": "WhatsApp AI Agent (Core + Photos)",
+  "branchName": "preview",
+  "description": "AI WhatsApp agent that collects maintenance requests from tenants via WhatsApp (Twilio BSP), uses Claude Haiku 4.5 for guided conversation, handles photos, and creates SEIDO interventions automatically.",
+  "createdAt": "2026-03-27",
+  "prdSource": "docs/plans/2026-03-27-whatsapp-ai-agent.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Install twilio + DB migration (sessions + WhatsApp columns)",
+      "description": "As a developer, I want the twilio package installed and the DB schema extended with ai_whatsapp_sessions table + whatsapp columns on ai_phone_numbers, so the backend can persist WhatsApp conversation state.",
+      "acceptanceCriteria": [
+        "twilio package installed in node_modules",
+        "Migration creates ai_whatsapp_sessions table with: id, team_id, phone_number_id, contact_phone, status (CHECK: active/completed/expired/failed), messages (JSONB), extracted_data (JSONB), identified_user_id, intervention_id, language, last_message_at, created_at, updated_at",
+        "ai_phone_numbers extended with: whatsapp_enabled (boolean default false), twilio_whatsapp_number (text), twilio_account_sid (text)",
+        "RLS enabled on ai_whatsapp_sessions (SELECT for admin/gestionnaire only, writes via service_role)",
+        "Indexes on (team_id, contact_phone) WHERE active, last_message_at WHERE active, (team_id, created_at DESC)",
+        "updated_at trigger reuses update_ai_phone_updated_at()",
+        "npm run lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Migration already applied (db push --linked). Types regenerated."
+    },
+    {
+      "id": "US-002",
+      "title": "Twilio WhatsApp service (send, download, validate)",
+      "description": "As a developer, I want a thin service wrapping the Twilio SDK for sending WhatsApp messages, downloading media, and validating webhook signatures.",
+      "acceptanceCriteria": [
+        "lib/services/domain/ai-whatsapp/twilio-whatsapp.service.ts exports sendWhatsAppMessage(from, to, body) returning message SID",
+        "Exports downloadMedia(mediaUrl) returning { buffer, contentType } with Basic auth",
+        "Exports validateWebhookSignature(url, params, signature) using twilio.validateRequest()",
+        "Lazy singleton Twilio client (not instantiated at import time)",
+        "lib/services/domain/ai-whatsapp/index.ts re-exports all",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Lazy singleton, sendWhatsAppMessage, downloadMedia, validateWebhookSignature"
+    },
+    {
+      "id": "US-003",
+      "title": "Webhook POST handler (receive, validate, route, defer)",
+      "description": "As the system, I want the WhatsApp webhook POST handler to parse Twilio form data, validate the signature, identify the team, and defer processing to after().",
+      "acceptanceCriteria": [
+        "app/api/webhooks/whatsapp/route.ts POST handler parses application/x-www-form-urlencoded (formData)",
+        "Validates Twilio signature via X-Twilio-Signature header + validateWebhookSignature()",
+        "Identifies team by matching 'To' number against ai_phone_numbers.twilio_whatsapp_number",
+        "Returns 200 with empty TwiML <Response></Response> immediately",
+        "Defers heavy work to after() which calls handleIncomingWhatsApp()",
+        "Returns 200 even on errors (Twilio retries on non-2xx)",
+        "Existing GET handler unchanged",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "formData parser, Twilio signature validation, after() defer, console→logger in GET"
+    },
+    {
+      "id": "US-004",
+      "title": "Conversation engine (Claude AI + sessions + photos)",
+      "description": "As a tenant messaging on WhatsApp, I want the AI to manage a guided 4-step conversation (identify, describe, confirm, close), handle my photos via Claude vision, and persist the session state.",
+      "acceptanceCriteria": [
+        "lib/services/domain/ai-whatsapp/conversation-engine.service.ts exports handleIncomingWhatsApp()",
+        "lib/services/domain/ai-whatsapp/types.ts exports IncomingWhatsAppMessage, SessionExtractedData, ConversationMessage, ClaudeResponse",
+        "Session created on first message, reused within 2h window for same contact+team",
+        "Claude Haiku 4.5 called via generateText() + Output.object() with Zod schema (AI SDK 6.x pattern)",
+        "Structured output: { text, conversation_complete, extracted_data }",
+        "Fallback response if structured output fails",
+        "Photos: downloaded from Twilio MediaUrl0, stored in Supabase Storage documents bucket, base64 sent to Claude as multimodal image",
+        "Reply sent via sendWhatsAppMessage()",
+        "Session updated in DB after each message (messages array, extracted_data, status)",
+        "When conversation_complete=true, calls createInterventionFromSession()",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-003"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Session mgmt, Claude Haiku 4.5, Output.object(), photo handling, multimodal vision"
+    },
+    {
+      "id": "US-005",
+      "title": "Create intervention from session (3-step pattern + notifications)",
+      "description": "As a gestionnaire, I want completed WhatsApp conversations to automatically create interventions with proper assignments and threads, so I see them in my dashboard.",
+      "acceptanceCriteria": [
+        "lib/services/domain/ai-whatsapp/intervention-creator.service.ts exports createInterventionFromSession()",
+        "Uses InterventionRepository.create() with skipInitialSelect: true (RLS pattern)",
+        "Intervention fields: source='whatsapp_ai', creation_source='whatsapp_ai', created_by=identifiedUserId (nullable)",
+        "Step 2: Creates intervention_assignments for tenant (if identified) + ALL team gestionnaires",
+        "Step 3: Creates conversation_threads (group + tenant_to_managers) + conversation_participants",
+        "Tenant matched by phone via normalizePhoneE164 (reused from ai-phone)",
+        "Building matched by address (fuzzy best-effort)",
+        "Transcript saved in ai_phone_calls with channel='whatsapp_text', elevenlabs_conversation_id='wa-{sessionId}'",
+        "createInterventionNotification() called for push + email",
+        "Session updated with intervention_id and identified_user_id",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-004"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "3-step pattern: InterventionRepo.create + assignments + threads. normalizePhoneE164 reused."
+    },
+    {
+      "id": "US-006",
+      "title": "Manual provisioning + lint validation",
+      "description": "As a developer, I want documentation and a SQL seed for enabling WhatsApp on a test team, plus full lint validation of all new code.",
+      "acceptanceCriteria": [
+        "DEV_WHATSAPP_PHONE_NUMBER documented in .env.example",
+        "SQL seed documented in plan for enabling WhatsApp on a team (UPDATE ai_phone_numbers SET whatsapp_enabled=true)",
+        "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WEBHOOK_URL added to .env.example",
+        "npm run lint passes on ALL new files",
+        "No any types, no console.log in production code"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-005"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "TWILIO_* + DEV_WHATSAPP_PHONE_NUMBER in .env.example. Zero any/console.log."
+    }
+  ]
+}

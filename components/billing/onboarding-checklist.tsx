@@ -156,7 +156,7 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
   }, [progressProp, isTrialing])
 
   useEffect(() => {
-    if (sessionStorage.getItem(DISMISS_KEY) === 'true') {
+    if (localStorage.getItem(DISMISS_KEY) === 'true') {
       setDismissed(true)
     }
     try {
@@ -225,7 +225,7 @@ export function OnboardingChecklist({ className, progress: progressProp, isTrial
   }
 
   const handleDismiss = () => {
-    sessionStorage.setItem(DISMISS_KEY, 'true')
+    localStorage.setItem(DISMISS_KEY, 'true')
     setDismissed(true)
   }
 

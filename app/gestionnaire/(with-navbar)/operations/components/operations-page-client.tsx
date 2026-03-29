@@ -7,17 +7,22 @@ import { Button } from '@/components/ui/button'
 import { PageActions } from '@/components/page-actions'
 import { TaskTypeSegment, type TaskType } from '@/components/operations/task-type-segment'
 import { RemindersNavigator } from '@/components/operations/reminders-navigator'
+import { WhatsAppTriageNavigator } from '@/components/operations/whatsapp-triage-navigator'
+import { AiAssistantEmptyState } from '@/components/operations/ai-assistant-empty-state'
 import { InterventionsPageClient } from '../../interventions/interventions-page-client'
 import { useReminderActions } from '@/hooks/use-reminder-actions'
 import { useNavigationPending } from '@/hooks/use-navigation-pending'
 import { useSubscription } from '@/hooks/use-subscription'
 import type { ReminderWithRelations } from '@/lib/types/reminder.types'
+import type { WhatsAppTriageItem } from '@/app/actions/whatsapp-triage-actions'
 
 interface OperationsPageClientProps {
   initialInterventions: Record<string, unknown>[]
   initialInterventionTotal: number
   initialInterventionHasMore: boolean
   reminders: ReminderWithRelations[]
+  whatsappTriageItems?: WhatsAppTriageItem[]
+  isAiSubscribed?: boolean
   teamId: string
   userId: string
   pageSize: number
@@ -28,6 +33,8 @@ export function OperationsPageClient({
   initialInterventionTotal,
   initialInterventionHasMore,
   reminders,
+  whatsappTriageItems = [],
+  isAiSubscribed = false,
   teamId,
   userId,
   pageSize,
@@ -38,7 +45,10 @@ export function OperationsPageClient({
   const { isPending: isNavigatingIntervention, navigate: navigateIntervention } = useNavigationPending()
   const { isPending: isNavigatingReminder, navigate: navigateReminder } = useNavigationPending()
   const { isReadOnly, loading: subscriptionLoading } = useSubscription()
-  const initialType = (searchParams.get('type') as TaskType) || 'intervention'
+  const urlTypeParam = searchParams.get('type')
+  const validTypes: TaskType[] = ['assistant_ia', 'intervention', 'rappel']
+  const urlType = validTypes.includes(urlTypeParam as TaskType) ? (urlTypeParam as TaskType) : null
+  const initialType = urlType || (whatsappTriageItems.length > 0 ? 'assistant_ia' : 'intervention')
   const [activeType, setActiveType] = useState<TaskType>(initialType)
 
   const handleTypeChange = (type: TaskType) => {
@@ -79,12 +89,21 @@ export function OperationsPageClient({
         <TaskTypeSegment
           activeType={activeType}
           onTypeChange={handleTypeChange}
+          assistantIaCount={whatsappTriageItems.length}
           interventionCount={initialInterventionTotal}
           reminderCount={reminders.length}
         />
       </div>
 
-      {activeType === 'intervention' ? (
+      {activeType === 'assistant_ia' ? (
+        <div className="flex-1 flex flex-col layout-container">
+          {!isAiSubscribed && whatsappTriageItems.length === 0 ? (
+            <AiAssistantEmptyState />
+          ) : (
+            <WhatsAppTriageNavigator items={whatsappTriageItems} />
+          )}
+        </div>
+      ) : activeType === 'intervention' ? (
         <InterventionsPageClient
           initialInterventions={initialInterventions}
           teamId={teamId}

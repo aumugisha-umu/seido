@@ -1,13 +1,14 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { Wrench, Bell } from 'lucide-react'
+import { Wrench, Bell, Bot } from 'lucide-react'
 
-export type TaskType = 'intervention' | 'rappel'
+export type TaskType = 'assistant_ia' | 'intervention' | 'rappel'
 
 interface TaskTypeSegmentProps {
   activeType: TaskType
   onTypeChange: (type: TaskType) => void
+  assistantIaCount?: number
   interventionCount?: number
   reminderCount?: number
   className?: string
@@ -19,6 +20,12 @@ const segments: {
   icon: typeof Wrench
   activeClasses: string
 }[] = [
+  {
+    type: 'assistant_ia',
+    label: 'Assistant IA',
+    icon: Bot,
+    activeClasses: 'bg-emerald-600 text-white dark:bg-emerald-500',
+  },
   {
     type: 'intervention',
     label: 'Interventions',
@@ -36,11 +43,13 @@ const segments: {
 export function TaskTypeSegment({
   activeType,
   onTypeChange,
+  assistantIaCount,
   interventionCount,
   reminderCount,
   className,
 }: TaskTypeSegmentProps) {
   const counts: Record<TaskType, number | undefined> = {
+    assistant_ia: assistantIaCount,
     intervention: interventionCount,
     rappel: reminderCount,
   }
@@ -74,7 +83,9 @@ export function TaskTypeSegment({
                   'inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-semibold min-w-[1.25rem]',
                   isActive
                     ? 'bg-white/20 text-inherit'
-                    : 'bg-background text-foreground'
+                    : type === 'assistant_ia'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-background text-foreground'
                 )}
               >
                 {count}

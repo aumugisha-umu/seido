@@ -26,6 +26,8 @@ import { UnreadMessagesSection } from "@/components/dashboards/shared/unread-mes
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { TaskTypeSegment, type TaskType } from "@/components/operations/task-type-segment"
 import { RemindersNavigator } from "@/components/operations/reminders-navigator"
+import { WhatsAppTriageNavigator } from "@/components/operations/whatsapp-triage-navigator"
+import { AiAssistantEmptyState } from "@/components/operations/ai-assistant-empty-state"
 import { useReminderActions } from "@/hooks/use-reminder-actions"
 import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { TrialUpgradeModal } from "@/components/billing/trial-upgrade-modal"
@@ -38,6 +40,7 @@ import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
 import type { UnreadThread } from "@/lib/services/repositories/conversation-repository"
 import type { ReminderStats, ReminderWithRelations } from "@/lib/types/reminder.types"
+import type { WhatsAppTriageItem } from "@/app/actions/whatsapp-triage-actions"
 // Bank module hidden until Tink app is approved in production
 // import type { BankWidgetsSectionProps } from "@/components/bank/dashboard-bank-widgets"
 // import { BankWidgetsSection } from "@/components/bank/dashboard-bank-widgets"
@@ -67,10 +70,12 @@ interface ManagerDashboardProps {
     unreadThreadsTotalCount?: number
     reminderStats?: ReminderStats
     reminders?: ReminderWithRelations[]
+    whatsappTriageItems?: WhatsAppTriageItem[]
+    isAiSubscribed?: boolean
     // bankData?: BankWidgetsSectionProps  // Bank module hidden until Tink approved
 }
 
-export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount, reminderStats, reminders = [] }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, tenantCount, contractStats, interventions: initialInterventions, pendingCount, unreadThreads, unreadThreadsTotalCount, reminderStats, reminders = [], whatsappTriageItems = [], isAiSubscribed = false }: ManagerDashboardProps) {
     const router = useRouter()
     const { handleStartReminder, handleCompleteReminder, handleCancelReminder } = useReminderActions()
     // Local state for interventions (enables realtime updates)
@@ -140,8 +145,10 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Operations tab state (Interventions vs Reminders)
-    const [activeOperationType, setActiveOperationType] = useState<TaskType>('intervention')
+    // Operations tab state (Assistant IA vs Interventions vs Reminders)
+    const [activeOperationType, setActiveOperationType] = useState<TaskType>(
+        whatsappTriageItems.length > 0 ? 'assistant_ia' : 'intervention'
+    )
 
     // Scroll-to-interventions + focus animation state
     const interventionsRef = useRef<HTMLDivElement>(null)
@@ -290,11 +297,18 @@ export function ManagerDashboardV2({ stats, tenantCount, contractStats, interven
                     <TaskTypeSegment
                         activeType={activeOperationType}
                         onTypeChange={setActiveOperationType}
+                        assistantIaCount={whatsappTriageItems.length}
                         interventionCount={interventions.length}
                         reminderCount={reminders.length}
                     />
 
-                    {activeOperationType === 'intervention' ? (
+                    {activeOperationType === 'assistant_ia' ? (
+                        !isAiSubscribed && whatsappTriageItems.length === 0 ? (
+                            <AiAssistantEmptyState />
+                        ) : (
+                            <WhatsAppTriageNavigator items={whatsappTriageItems} />
+                        )
+                    ) : activeOperationType === 'intervention' ? (
                         <InterventionsNavigator
                             interventions={interventions}
                             userContext="gestionnaire"

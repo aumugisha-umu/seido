@@ -36,12 +36,41 @@ export const STRIPE_PRICES = {
 // Free tier: 1-2 lots = free forever
 export const FREE_TIER_LIMIT = 2
 
-// AI Add-on Price IDs (flat-rate monthly)
+// AI Add-on Price IDs — nested by tier + billing interval
 export const STRIPE_AI_PRICES = {
-  solo: process.env.STRIPE_PRICE_AI_SOLO ?? '',
-  equipe: process.env.STRIPE_PRICE_AI_EQUIPE ?? '',
-  agence: process.env.STRIPE_PRICE_AI_AGENCE ?? '',
+  solo:   { month: process.env.STRIPE_PRICE_AI_SOLO ?? '',   year: process.env.STRIPE_PRICE_AI_SOLO_ANNUAL ?? '' },
+  equipe: { month: process.env.STRIPE_PRICE_AI_EQUIPE ?? '', year: process.env.STRIPE_PRICE_AI_EQUIPE_ANNUAL ?? '' },
+  agence: { month: process.env.STRIPE_PRICE_AI_AGENCE ?? '', year: process.env.STRIPE_PRICE_AI_AGENCE_ANNUAL ?? '' },
 } as const
+
+export type BillingInterval = 'month' | 'year'
+
+// All AI price IDs (for quick lookup)
+export const AI_PRICE_IDS = new Set(
+  Object.values(STRIPE_AI_PRICES).flatMap(t => [t.month, t.year]).filter(Boolean)
+)
+
+export const isAiPrice = (priceId: string): boolean => AI_PRICE_IDS.has(priceId)
+
+export const isMainPrice = (priceId: string): boolean =>
+  priceId === STRIPE_PRICES.annual || priceId === STRIPE_PRICES.monthly
+
+export function getTierFromPriceId(priceId: string): AiTier | null {
+  for (const [tier, prices] of Object.entries(STRIPE_AI_PRICES)) {
+    if (prices.month === priceId || prices.year === priceId) {
+      return tier as AiTier
+    }
+  }
+  return null
+}
+
+export function getIntervalFromAiPriceId(priceId: string): BillingInterval | null {
+  for (const prices of Object.values(STRIPE_AI_PRICES)) {
+    if (prices.month === priceId) return 'month'
+    if (prices.year === priceId) return 'year'
+  }
+  return null
+}
 
 // AI tier included minutes & top-up pricing
 export const AI_TIER_CONFIG = {

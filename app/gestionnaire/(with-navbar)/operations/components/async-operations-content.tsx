@@ -9,6 +9,8 @@ import { createServerInterventionService, createServerReminderService } from '@/
 import { OperationsPageClient } from './operations-page-client'
 import { logger } from '@/lib/logger'
 import type { ReminderWithRelations } from '@/lib/types/reminder.types'
+import { getWhatsAppTriageItems, type WhatsAppTriageItem } from '@/app/actions/whatsapp-triage-actions'
+import { getAiSubscriptionStatus } from '@/app/actions/ai-subscription-actions'
 
 const INITIAL_PAGE_SIZE = 50
 
@@ -36,16 +38,20 @@ export async function AsyncOperationsContent({
   let total = 0
   let hasMore = false
   let reminders: ReminderWithRelations[] = []
+  let whatsappTriageItems: WhatsAppTriageItem[] = []
+  let isAiSubscribed = false
 
   try {
     if (isConsolidatedView && activeTeamIds.length > 1) {
       logger.info(`[OPERATIONS] Consolidated view - fetching from ${activeTeamIds.length} teams`)
 
-      const [interventionResults, remindersResult] = await Promise.all([
+      const [interventionResults, remindersResult, waTriageResult, aiResult] = await Promise.all([
         Promise.all(
           activeTeamIds.map(teamId => interventionService.getByTeam(teamId, {}))
         ),
         reminderService.getByTeam(team.id),
+        getWhatsAppTriageItems(),
+        getAiSubscriptionStatus().catch(() => null),
       ])
 
       interventions = interventionResults
@@ -54,15 +60,19 @@ export async function AsyncOperationsContent({
       total = interventions.length
       hasMore = false
       reminders = remindersResult
+      whatsappTriageItems = waTriageResult
+      isAiSubscribed = !!aiResult?.success && !!aiResult.data?.isActive
 
       logger.info(`[OPERATIONS] Consolidated: ${interventions.length} interventions, ${reminders.length} reminders`)
     } else {
-      const [interventionResult, remindersResult] = await Promise.all([
+      const [interventionResult, remindersResult, waTriageResult, aiResult] = await Promise.all([
         interventionService.getByTeamPaginated(team.id, {
           limit: INITIAL_PAGE_SIZE,
           offset: 0,
         }),
         reminderService.getByTeam(team.id),
+        getWhatsAppTriageItems(),
+        getAiSubscriptionStatus().catch(() => null),
       ])
 
       if (interventionResult.success && interventionResult.data) {
@@ -71,6 +81,8 @@ export async function AsyncOperationsContent({
         hasMore = interventionResult.hasMore
       }
       reminders = remindersResult
+      whatsappTriageItems = waTriageResult
+      isAiSubscribed = !!aiResult?.success && !!aiResult.data?.isActive
 
       logger.info(`[OPERATIONS] Loaded ${interventions.length}/${total} interventions, ${reminders.length} reminders`)
     }
@@ -84,6 +96,8 @@ export async function AsyncOperationsContent({
       initialInterventionTotal={total}
       initialInterventionHasMore={hasMore}
       reminders={reminders}
+      whatsappTriageItems={whatsappTriageItems}
+      isAiSubscribed={isAiSubscribed}
       teamId={team.id}
       userId={profile.id}
       pageSize={INITIAL_PAGE_SIZE}

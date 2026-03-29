@@ -139,7 +139,7 @@ Commit message format: `type(scope): description` — types: feat, fix, refactor
 | `.claude/memory-bank/projectbrief.md` | Pour contexte global |
 | `.claude/memory-bank/progress.md` | Pour suivi projet |
 
-Rules auto-loaded from `.claude/rules/*.md`: intervention-rules, database-rules, ui-rules, code-quality, testing-rules, seido-reference, feature-reference.
+Rules auto-loaded from `.claude/rules/*.md`: intervention-rules, database-rules, ui-rules, code-quality, testing-rules, seido-reference, feature-reference, design-system-rules, design-evaluation-criteria.
 Commands: `/sync-memory` (quick sync) | `/update-memory` (full update)
 
 ---
@@ -176,7 +176,7 @@ npm run test:e2e:debug                 # E2E with Playwright inspector
 
 **Code Craftsmanship:** Applied automatically during all code writing. Full checklist: `.claude/skills/sp-simplify/craftsmanship-standards.md`
 **Parallel Execution:** See `sp-dispatching-parallel-agents` skill for full protocol. Key rule: worktrees branch from CURRENT branch, not main.
-**Design Quality:** Anti-AI-slop criteria: `docs/design/design-evaluation-criteria.md`
+**Design Quality:** Anti-AI-slop criteria: `.claude/rules/design-evaluation-criteria.md` (auto-loaded) + component hierarchy: `.claude/rules/design-system-rules.md`
 
 ---
 

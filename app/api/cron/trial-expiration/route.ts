@@ -14,6 +14,7 @@ import { getSubscriptionEmailService } from '@/lib/services/domain/subscription-
 import { createAdminNotificationService } from '@/lib/services/domain/admin-notification/admin-notification.service'
 import { FREE_TIER_LIMIT } from '@/lib/stripe'
 import { chunkArray } from '@/lib/utils/array-utils'
+import { createServiceRoleSubscriptionService } from '@/lib/services/domain/subscription-helpers'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -37,7 +38,74 @@ export async function GET(request: Request) {
     const now = new Date()
     let transitioned = 0
 
+    // ── Auto-convert trialing teams with active AI subscriptions ────────
+    // These teams have payment methods (via AI checkout) but their subscriptions
+    // table may still show payment_method_added = false
+    const { data: aiTrialSubs } = await supabase
+      .from('subscriptions')
+      .select('id, team_id, teams!inner(id, name)')
+      .eq('status', 'trialing')
+      .lt('trial_end', now.toISOString())
+
+    if (aiTrialSubs && aiTrialSubs.length > 0) {
+      const subService = createServiceRoleSubscriptionService()
+
+      for (const sub of aiTrialSubs) {
+        // Check if this team has an active AI subscription
+        const { data: aiConfig } = await supabase
+          .from('ai_phone_numbers')
+          .select('stripe_ai_subscription_id')
+          .eq('team_id', sub.team_id)
+          .eq('is_active', true)
+          .not('stripe_ai_subscription_id', 'is', null)
+          .limit(1)
+          .maybeSingle()
+
+        if (aiConfig?.stripe_ai_subscription_id) {
+          try {
+            const result = await subService.autoConvertTrialWithAi(
+              sub.team_id,
+              aiConfig.stripe_ai_subscription_id,
+            )
+
+            // Send confirmation email
+            const { data: members } = await supabase
+              .from('team_members')
+              .select('user_id, users!inner(email, first_name)')
+              .eq('team_id', sub.team_id)
+              .eq('role', 'admin')
+              .is('left_at', null)
+              .limit(1)
+
+            const member = members?.[0]
+            const teamName = (sub.teams as { name: string })?.name || 'Votre equipe'
+
+            if (member?.users?.email && result.mainItemAdded) {
+              const emailSvc = getSubscriptionEmailService()
+              await emailSvc.sendSubscriptionActivated(member.users.email, {
+                firstName: member.users.first_name || 'Gestionnaire',
+                teamName,
+                plan: 'monthly',
+                lotCount: 0,
+                amountHT: 0,
+                nextRenewalDate: '',
+              })
+            }
+
+            transitioned++
+            logger.info(
+              { teamId: sub.team_id, status: result.status, mainItemAdded: result.mainItemAdded },
+              '[CRON-TRIAL-EXP] Auto-converted AI trial team',
+            )
+          } catch (autoConvertError) {
+            logger.error({ error: autoConvertError, teamId: sub.team_id }, '[CRON-TRIAL-EXP] Auto-conversion failed')
+          }
+        }
+      }
+    }
+
     // Find expired trials WITHOUT payment method (Stripe auto-converts those with payment)
+    // Exclude teams that were already handled by auto-conversion above
     const { data: subs, error } = await supabase
       .from('subscriptions')
       .select('*, teams!inner(id, name)')

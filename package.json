@@ -126,9 +126,9 @@
     "swr": "^2.3.6",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
-    "telnyx": "^6.5.0",
     "uuid": "^13.0.0",
     "web-push": "^3.6.7",
+    "whatsapp-cloud-api-types": "^1.0.1",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^3.25.76"
   },

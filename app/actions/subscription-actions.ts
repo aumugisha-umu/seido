@@ -14,7 +14,7 @@ import {
   createSubscriptionService,
   createServiceRoleSubscriptionService,
 } from '@/lib/services/domain/subscription-helpers'
-import { getStripe, STRIPE_PRICES } from '@/lib/stripe'
+import { getStripe, STRIPE_PRICES, isAiPrice } from '@/lib/stripe'
 import { SubscriptionService, type SubscriptionInfo, type UpgradePreview, type CanAddPropertyResult, type AccessibleLotIds } from '@/lib/services/domain/subscription.service'
 import { logger } from '@/lib/logger'
 
@@ -46,13 +46,7 @@ interface ActionResult<T = unknown> {
 // Helpers
 // =============================================================================
 
-function getBaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_SITE_URL
-    || process.env.NEXT_PUBLIC_APP_URL
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-    || 'http://localhost:3000'
-  return url.replace(/\/+$/, '')
-}
+import { getBaseUrl } from '@/lib/utils/base-url'
 
 // =============================================================================
 // Actions
@@ -346,7 +340,8 @@ export async function verifyCheckoutSession(
     // after a successful checkout, regardless of webhook delivery.
     const subscription = session.subscription as import('stripe').default.Subscription | null
     if (subscription?.id) {
-      const item = subscription.items?.data?.[0]
+      // Find the main (non-AI) item for subscription sync
+      const item = subscription.items?.data?.find(i => !isAiPrice(i.price.id)) ?? subscription.items?.data?.[0]
       const quantity = item?.quantity ?? 0
 
       const serviceClient = createServiceRoleSupabaseClient()
@@ -371,7 +366,7 @@ export async function verifyCheckoutSession(
       // Map Stripe status to DB status (single source of truth)
       const dbStatus = SubscriptionService.mapStripeStatus(subscription.status)
 
-      // Stripe API: current_period_start/end are on the subscription item (items.data[0]), not always on subscription root.
+      // Stripe API: current_period_start/end are on the subscription item, not always on subscription root.
       const itemPeriodStart = (item as { current_period_start?: number } | undefined)?.current_period_start
       const itemPeriodEnd = (item as { current_period_end?: number } | undefined)?.current_period_end
       let periodStartIso: string | null = (subscription.current_period_start ?? itemPeriodStart)
@@ -381,11 +376,11 @@ export async function verifyCheckoutSession(
         ? new Date((subscription.current_period_end ?? itemPeriodEnd)! * 1000).toISOString()
         : null
 
-      // Expanded session.subscription can omit period dates; fetch full subscription and read from items.data[0].
+      // Expanded session.subscription can omit period dates; fetch full subscription and read from main item.
       if (subscription.id && periodStartIso == null && periodEndIso == null) {
         try {
           const fullSub = await stripe.subscriptions.retrieve(subscription.id)
-          const fullItem = fullSub.items?.data?.[0] as { current_period_start?: number; current_period_end?: number } | undefined
+          const fullItem = (fullSub.items?.data?.find(i => !isAiPrice(i.price.id)) ?? fullSub.items?.data?.[0]) as { current_period_start?: number; current_period_end?: number } | undefined
           const rawStart = fullSub.current_period_start ?? fullItem?.current_period_start
           const rawEnd = fullSub.current_period_end ?? fullItem?.current_period_end
           periodStartIso = rawStart ? new Date(rawStart * 1000).toISOString() : null

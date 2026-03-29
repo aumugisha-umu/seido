@@ -1,24 +1,25 @@
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { logger } from '@/lib/logger'
-import * as telnyx from './telnyx-phone.service'
 import * as elevenlabs from './elevenlabs-agent.service'
 
 // ============================================================================
 // Types
 // ============================================================================
 
+export type ProvisioningStatus = 'pending' | 'purchasing' | 'active' | 'failed'
+
 export interface ProvisioningResult {
   phoneNumber: string
-  telnyxPhoneNumberId: string
-  elevenlabsAgentId: string
-  elevenlabsPhoneNumberId: string
+  elevenlabsAgentId: string | null
+  elevenlabsPhoneNumberId: string | null
   aiPhoneNumberId: string
+  provisioningStatus: ProvisioningStatus
 }
 
 export class ProvisioningError extends Error {
   constructor(
     message: string,
-    public readonly phase: 'telnyx' | 'elevenlabs_agent' | 'elevenlabs_number' | 'elevenlabs_assign' | 'database',
+    public readonly phase: 'purchase' | 'database',
     public readonly originalError?: Error
   ) {
     super(message)
@@ -27,20 +28,14 @@ export class ProvisioningError extends Error {
 }
 
 // ============================================================================
-// Manual provisioning (dev mode)
+// Manual provisioning (dev mode — uses env vars, no external API calls)
 // ============================================================================
 
 const provisionManual = async (teamId: string): Promise<ProvisioningResult> => {
-  const phoneNumber = process.env.DEV_PHONE_NUMBER
-  const agentId = process.env.DEV_ELEVENLABS_AGENT_ID
-  const phoneId = process.env.DEV_ELEVENLABS_PHONE_ID
-
-  if (!phoneNumber || !agentId || !phoneId) {
-    throw new ProvisioningError(
-      'DEV_PHONE_NUMBER, DEV_ELEVENLABS_AGENT_ID, and DEV_ELEVENLABS_PHONE_ID must be set in manual mode',
-      'database'
-    )
-  }
+  const whatsappNumber = process.env.DEV_WHATSAPP_PHONE_NUMBER
+  const phoneNumber = process.env.DEV_PHONE_NUMBER ?? whatsappNumber ?? ''
+  const agentId = process.env.DEV_ELEVENLABS_AGENT_ID ?? null
+  const phoneId = process.env.DEV_ELEVENLABS_PHONE_ID ?? null
 
   const supabase = createServiceRoleSupabaseClient()
 
@@ -52,8 +47,11 @@ const provisionManual = async (teamId: string): Promise<ProvisioningResult> => {
         phone_number: phoneNumber,
         elevenlabs_agent_id: agentId,
         elevenlabs_phone_number_id: phoneId,
-        telnyx_connection_id: process.env.TELNYX_SIP_CONNECTION_ID ?? null,
         is_active: true,
+        whatsapp_enabled: true,
+        whatsapp_number: whatsappNumber ?? null,
+        meta_phone_number_id: null,
+        provisioning_status: 'active' as ProvisioningStatus,
       },
       { onConflict: 'team_id' }
     )
@@ -68,128 +66,131 @@ const provisionManual = async (teamId: string): Promise<ProvisioningResult> => {
   }
 
   logger.info(
-    { teamId, phoneNumber, mode: 'manual' },
-    '✅ [PROVISIONING] Manual provisioning complete'
+    { teamId, phoneNumber, whatsappNumber, mode: 'manual' },
+    '[PROVISIONING] Manual provisioning complete'
   )
 
   return {
     phoneNumber,
-    telnyxPhoneNumberId: 'dev-manual',
     elevenlabsAgentId: agentId,
     elevenlabsPhoneNumberId: phoneId,
     aiPhoneNumberId: data.id,
+    provisioningStatus: 'active',
   }
 }
 
 // ============================================================================
 // Auto provisioning (production)
+// Flow: Buy Twilio number with SMS webhook → set active
+// WhatsApp Sender approval happens via Twilio Console (async, out of band)
 // ============================================================================
 
 const provisionAuto = async (
   teamId: string,
-  teamName: string,
+  _teamName: string,
   customInstructions?: string | null
 ): Promise<ProvisioningResult> => {
-  let telnyxResult: Awaited<ReturnType<typeof telnyx.searchAndPurchase>> | null = null
-  let agentResult: elevenlabs.ElevenLabsAgent | null = null
-  let phoneResult: elevenlabs.ElevenLabsPhoneNumber | null = null
+  const supabase = createServiceRoleSupabaseClient()
+
+  // ─── Idempotence guard ────────────────────────────────────────
+  const { data: existing } = await supabase
+    .from('ai_phone_numbers')
+    .select('id, phone_number, provisioning_status')
+    .eq('team_id', teamId)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing && existing.provisioning_status !== 'pending' && existing.provisioning_status !== 'failed') {
+    logger.info(
+      { teamId, status: existing.provisioning_status },
+      '[PROVISIONING] Already in progress or complete — skipping'
+    )
+    return {
+      phoneNumber: existing.phone_number,
+      elevenlabsAgentId: null,
+      elevenlabsPhoneNumberId: null,
+      aiPhoneNumberId: existing.id,
+      provisioningStatus: existing.provisioning_status as ProvisioningStatus,
+    }
+  }
+
+  // ─── Create or update DB record ───────────────────────────────
+  const { data: record, error: dbError } = await supabase
+    .from('ai_phone_numbers')
+    .upsert(
+      {
+        team_id: teamId,
+        phone_number: '',
+        is_active: true,
+        whatsapp_enabled: true,
+        custom_instructions: customInstructions ?? null,
+        provisioning_status: 'purchasing' as ProvisioningStatus,
+        provisioning_error: null,
+      },
+      { onConflict: 'team_id' }
+    )
+    .select('id')
+    .single()
+
+  if (dbError || !record) {
+    throw new ProvisioningError(`DB insert failed: ${dbError?.message ?? 'no data'}`, 'database')
+  }
+
+  const recordId = record.id
+
+  const setStatus = async (status: ProvisioningStatus, error?: string) => {
+    await supabase
+      .from('ai_phone_numbers')
+      .update({
+        provisioning_status: status,
+        provisioning_error: error ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', recordId)
+  }
 
   try {
-    // Step 1: Search + purchase Belgian number
-    logger.info({ teamId, teamName }, '📞 [PROVISIONING] Step 1/4: Searching & purchasing number')
-    telnyxResult = await telnyx.searchAndPurchase(teamId)
+    // ─── Step 1: Buy Twilio number ────────────────────────────────
+    const { searchAvailableNumbers, purchaseNumber } = await import('./twilio-number.service')
 
-    // Step 2: Create ElevenLabs agent
-    logger.info({ teamId }, '🤖 [PROVISIONING] Step 2/4: Creating ElevenLabs agent')
-    agentResult = await elevenlabs.createAgent(teamName, customInstructions)
-
-    // Step 3: Import number into ElevenLabs
-    logger.info({ teamId }, '📱 [PROVISIONING] Step 3/4: Importing number into ElevenLabs')
-    phoneResult = await elevenlabs.importPhoneNumber(
-      telnyxResult.phoneNumber,
-      `SEIDO - ${teamName}`
-    )
-
-    // Step 4: Assign agent to number (separate PATCH required)
-    logger.info({ teamId }, '🔗 [PROVISIONING] Step 4/4: Assigning agent to number')
-    await elevenlabs.assignAgentToNumber(phoneResult.phone_number_id, agentResult.agent_id)
-
-    // Step 5: Save to database
-    const supabase = createServiceRoleSupabaseClient()
-    const { data, error } = await supabase
-      .from('ai_phone_numbers')
-      .upsert(
-        {
-          team_id: teamId,
-          phone_number: telnyxResult.phoneNumber,
-          telnyx_connection_id: process.env.TELNYX_SIP_CONNECTION_ID ?? null,
-          telnyx_phone_number_id: telnyxResult.phoneNumberId,
-          elevenlabs_agent_id: agentResult.agent_id,
-          elevenlabs_phone_number_id: phoneResult.phone_number_id,
-          custom_instructions: customInstructions ?? null,
-          is_active: true,
-        },
-        { onConflict: 'team_id' }
-      )
-      .select('id')
-      .single()
-
-    if (error || !data) {
-      throw new ProvisioningError(
-        `DB insert failed: ${error?.message ?? 'no data'}`,
-        'database'
-      )
+    const available = await searchAvailableNumbers('BE', 1)
+    if (available.length === 0) {
+      await setStatus('failed', 'Aucun numero disponible en Belgique')
+      throw new ProvisioningError('No numbers available', 'purchase')
     }
 
+    const purchased = await purchaseNumber(available[0].phoneNumber)
+
+    // ─── Step 2: Update DB record → active ────────────────────────
+    await supabase
+      .from('ai_phone_numbers')
+      .update({
+        phone_number: purchased.phoneNumber,
+        whatsapp_number: purchased.phoneNumber,
+        twilio_number_sid: purchased.sid,
+        provisioning_status: 'active' as ProvisioningStatus,
+        provisioning_error: null,
+      })
+      .eq('id', recordId)
+
     logger.info(
-      { teamId, phoneNumber: telnyxResult.phoneNumber, agentId: agentResult.agent_id, mode: 'auto' },
-      '✅ [PROVISIONING] Auto provisioning complete'
+      { teamId, phoneNumber: purchased.phoneNumber },
+      '[PROVISIONING] Number purchased and activated'
     )
 
     return {
-      phoneNumber: telnyxResult.phoneNumber,
-      telnyxPhoneNumberId: telnyxResult.phoneNumberId,
-      elevenlabsAgentId: agentResult.agent_id,
-      elevenlabsPhoneNumberId: phoneResult.phone_number_id,
-      aiPhoneNumberId: data.id,
+      phoneNumber: purchased.phoneNumber,
+      elevenlabsAgentId: null,
+      elevenlabsPhoneNumberId: null,
+      aiPhoneNumberId: recordId,
+      provisioningStatus: 'active',
     }
+
   } catch (error) {
-    // Rollback chain: reverse order of successful steps
-    logger.error({ teamId, error }, '❌ [PROVISIONING] Failed — starting rollback')
-
-    if (phoneResult) {
-      try {
-        await elevenlabs.deletePhoneNumber(phoneResult.phone_number_id)
-        logger.info({ phoneNumberId: phoneResult.phone_number_id }, '🔄 [ROLLBACK] ElevenLabs number deleted')
-      } catch (rollbackErr) {
-        logger.error({ rollbackErr }, '⚠️ [ROLLBACK] Failed to delete ElevenLabs number')
-      }
+    if (!(error instanceof ProvisioningError)) {
+      await setStatus('failed', error instanceof Error ? error.message : 'Erreur inattendue')
     }
-
-    if (agentResult) {
-      try {
-        await elevenlabs.deleteAgent(agentResult.agent_id)
-        logger.info({ agentId: agentResult.agent_id }, '🔄 [ROLLBACK] ElevenLabs agent deleted')
-      } catch (rollbackErr) {
-        logger.error({ rollbackErr }, '⚠️ [ROLLBACK] Failed to delete ElevenLabs agent')
-      }
-    }
-
-    if (telnyxResult) {
-      try {
-        await telnyx.releaseNumber(telnyxResult.phoneNumberId)
-        logger.info({ phoneNumberId: telnyxResult.phoneNumberId }, '🔄 [ROLLBACK] Telnyx number released')
-      } catch (rollbackErr) {
-        logger.error({ rollbackErr }, '⚠️ [ROLLBACK] Failed to release Telnyx number')
-      }
-    }
-
-    if (error instanceof ProvisioningError) throw error
-    throw new ProvisioningError(
-      `Provisioning failed: ${error instanceof Error ? error.message : String(error)}`,
-      'telnyx',
-      error instanceof Error ? error : undefined
-    )
+    throw error
   }
 }
 
@@ -198,16 +199,15 @@ const provisionAuto = async (
 // ============================================================================
 
 /**
- * Provisions a complete AI phone setup for a team.
- * Manual mode: uses DEV_* env vars, no external API calls.
- * Auto mode: full Telnyx + ElevenLabs provisioning with rollback.
+ * Provisions a complete AI assistant setup for a team.
+ * Manual mode: instant (env vars). Auto mode: buy Twilio number → active.
  */
 export const provision = async (
   teamId: string,
   teamName: string,
   customInstructions?: string | null
 ): Promise<ProvisioningResult> => {
-  const mode = process.env.AI_PHONE_PROVISIONING ?? 'manual'
+  const mode = process.env.AI_WHATSAPP_PROVISIONING ?? 'manual'
 
   logger.info({ teamId, teamName, mode }, '🚀 [PROVISIONING] Starting')
 
@@ -219,20 +219,17 @@ export const provision = async (
 }
 
 /**
- * Deprovisions a team's AI phone setup.
- * Manual mode: soft-deletes DB record only.
- * Auto mode: deletes ElevenLabs resources + releases Telnyx number + soft-deletes DB.
+ * Deprovisions a team's AI assistant setup.
+ * Releases Twilio number + ElevenLabs resources + soft-deletes DB.
  */
 export const deprovision = async (teamId: string): Promise<void> => {
   const supabase = createServiceRoleSupabaseClient()
-  const mode = process.env.AI_PHONE_PROVISIONING ?? 'manual'
+  const mode = process.env.AI_WHATSAPP_PROVISIONING ?? 'manual'
 
-  // Fetch current config
   const { data: config } = await supabase
     .from('ai_phone_numbers')
     .select('*')
     .eq('team_id', teamId)
-    .limit(1)
     .single()
 
   if (!config) {
@@ -241,6 +238,16 @@ export const deprovision = async (teamId: string): Promise<void> => {
   }
 
   if (mode === 'auto') {
+    // Release Twilio number
+    if (config.twilio_number_sid) {
+      try {
+        const { releaseNumber } = await import('./twilio-number.service')
+        await releaseNumber(config.twilio_number_sid)
+      } catch (err) {
+        logger.error({ err }, '⚠️ [DEPROVISION] Failed to release Twilio number')
+      }
+    }
+
     // Delete ElevenLabs phone number
     if (config.elevenlabs_phone_number_id) {
       try {
@@ -258,21 +265,16 @@ export const deprovision = async (teamId: string): Promise<void> => {
         logger.error({ err }, '⚠️ [DEPROVISION] Failed to delete ElevenLabs agent')
       }
     }
-
-    // Release Telnyx number
-    if (config.telnyx_phone_number_id) {
-      try {
-        await telnyx.releaseNumber(config.telnyx_phone_number_id)
-      } catch (err) {
-        logger.error({ err }, '⚠️ [DEPROVISION] Failed to release Telnyx number')
-      }
-    }
   }
 
   // Deactivate in DB (soft delete)
   await supabase
     .from('ai_phone_numbers')
-    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .update({
+      is_active: false,
+      provisioning_status: 'pending' as ProvisioningStatus,
+      updated_at: new Date().toISOString(),
+    })
     .eq('team_id', teamId)
 
   logger.info({ teamId, mode }, '✅ [DEPROVISION] Complete')
@@ -287,9 +289,8 @@ export const updateCustomInstructions = async (
   customInstructions: string
 ): Promise<void> => {
   const supabase = createServiceRoleSupabaseClient()
-  const mode = process.env.AI_PHONE_PROVISIONING ?? 'manual'
+  const mode = process.env.AI_WHATSAPP_PROVISIONING ?? 'manual'
 
-  // Update DB
   const { data: config } = await supabase
     .from('ai_phone_numbers')
     .update({ custom_instructions: customInstructions, updated_at: new Date().toISOString() })
@@ -297,7 +298,6 @@ export const updateCustomInstructions = async (
     .select('elevenlabs_agent_id')
     .single()
 
-  // Update ElevenLabs agent in production
   if (mode === 'auto' && config?.elevenlabs_agent_id) {
     await elevenlabs.updateAgent(config.elevenlabs_agent_id, teamName, customInstructions)
   }

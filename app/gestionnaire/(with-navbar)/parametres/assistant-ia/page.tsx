@@ -12,18 +12,8 @@ import {
   getAiSubscriptionStatus,
   type AiSubscriptionInfo,
 } from '@/app/actions/ai-subscription-actions'
+import { PageSkeleton } from '@/components/ui/page-skeleton'
 import { AssistantIaSettingsClient } from './assistant-ia-settings-client'
-
-function LoadingFallback() {
-  return (
-    <div className="layout-padding">
-      <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-20 gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        <p className="text-lg text-muted-foreground">Chargement...</p>
-      </div>
-    </div>
-  )
-}
 
 export default async function AssistantIaPage() {
   await getServerAuthContext('gestionnaire')
@@ -42,10 +32,15 @@ export default async function AssistantIaPage() {
         customInstructions: null,
         autoTopup: false,
         stripeSubscriptionId: null,
+        provisioningStatus: null,
+        provisioningError: null,
+        subscriptionStatus: null,
+        trialEnd: null,
+        billingInterval: null,
       }
 
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<PageSkeleton variant="cards" />}>
       <AssistantIaSettingsClient subscriptionInfo={subscriptionInfo} />
     </Suspense>
   )

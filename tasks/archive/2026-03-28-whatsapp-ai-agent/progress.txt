@@ -1,0 +1,59 @@
+# Progress Log — WhatsApp AI Agent (Core + Photos)
+# Started: 2026-03-27
+# Stories: 6 total — ALL COMPLETE
+# Design: docs/plans/2026-03-27-whatsapp-ai-agent.md
+# Architecture: Twilio WhatsApp BSP + Claude Haiku 4.5 + AI SDK 6.x
+---
+
+## US-001: Install twilio + DB migration ✅
+- npm install twilio (v5.x)
+- Migration 20260327210000: ai_whatsapp_sessions table + whatsapp columns on ai_phone_numbers
+- RLS: SELECT for admin/gestionnaire, writes via service_role
+- 3 indexes, updated_at trigger reuses update_ai_phone_updated_at()
+- Files: package.json, supabase/migrations/20260327210000_create_whatsapp_sessions.sql
+
+## US-002: Twilio WhatsApp service ✅
+- sendWhatsAppMessage(), sendWhatsAppMediaMessage(), downloadMedia(), validateWebhookSignature()
+- Lazy singleton Twilio client
+- Files: lib/services/domain/ai-whatsapp/twilio-whatsapp.service.ts, index.ts
+
+## US-003: Webhook POST handler ✅
+- Parses Twilio x-www-form-urlencoded, validates signature, identifies team
+- Returns 200 TwiML immediately, defers to after()
+- GET handler preserved, console→logger fix
+- File: app/api/webhooks/whatsapp/route.ts
+
+## US-004: Conversation engine + Claude AI + photos ✅
+- Session management: create/load, 2h timeout, max 30 messages
+- Claude Haiku 4.5 via generateText() + Output.object() (AI SDK 6.x)
+- Zod schema: { text, conversation_complete, extracted_data }
+- Photos: Twilio download → Supabase Storage → Claude multimodal vision
+- 4-step script: identify → describe → confirm → close
+- Files: conversation-engine.service.ts, types.ts
+
+## US-005: Create intervention + notifications ✅
+- 3-step pattern: InterventionRepository.create(skipInitialSelect) → assignments → threads
+- Tenant matching via normalizePhoneE164 (reused from ai-phone)
+- Building matching by address (fuzzy best-effort)
+- Unified log in ai_phone_calls (channel: whatsapp_text)
+- createInterventionNotification() for push + email
+- File: intervention-creator.service.ts
+
+## US-006: Manual provisioning + lint ✅
+- TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WEBHOOK_URL in .env.example
+- DEV_WHATSAPP_PHONE_NUMBER documented
+- Zero any types, zero console.log in production code
+- npm run lint passes on all new files
+
+---
+
+## 2026-03-28 — IPI Brussels Agents Scraping & Cold Calling Enrichment
+- Scraped: 1960 agents from 182 IPI listing pages (Playwright + fetch)
+- Enriched: 4 axes — websites (830 sites), Google reviews (50 companies), Immoweb (50), BCE/KBO (50)
+- Output: 1243 companies scored (0-100), 1749 agent rows in CSV
+- Tiers: 123 Tier A (hot), 614 Tier B (warm), 437 Tier C (cool), 69 Tier D (low)
+- Files: scripts/scrape-ipi-listing.mjs, enrich-websites.mjs, merge-final.mjs, audit-prospects.mjs
+- Output: docs/sales/PROSPECTS_QUALIFIES_BRUXELLES.md + .csv + _prospects_scored.json
+- Learnings: 11 new (AGENTS.md #207-#217) — scraping pipeline, fuzzy matching, phone cleaning, resume capability
+- Key incident: premature intermediate file deletion → full rebuild required
+- Audit: Grade A — 21/21 checks passed

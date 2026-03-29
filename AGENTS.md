@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-26
-**Total Learnings:** 206
+**Last Updated:** 2026-03-28
+**Total Learnings:** 224
 
 ---
 
@@ -1515,6 +1515,140 @@
 **Example:** `data/faq.ts` → `app/page.tsx` (JSON-LD) + `components/landing/sections/faq-section.tsx` (UI)
 **When to Use:** Any content that appears in both UI and structured data (FAQ, reviews, products, events)
 **Added:** 2026-03-26 | **Source:** Lead magnet indexation calculator — US-007
+
+---
+
+### Web Scraping & Data Enrichment
+
+#### Learning #207: Never delete intermediate files before final audit passes
+**Problem:** After generating enriched prospects (MD+CSV), intermediate enrichment JSON files were deleted. When the audit found issues (HTML entities, invalid emails), fixing required those files — forcing a complete rebuild from scratch (~30 min lost).
+**Solution:** Keep all intermediate files (`_enrichment_*.json`, `_prospects_scored.json`) until the audit script passes Grade A. Only clean up after confirmed validation. Add a `--cleanup` flag to the merge script instead of manual deletion.
+**Example:** `scripts/merge-final.mjs` loads 4 enrichment JSONs → `scripts/audit-prospects.mjs` validates → only then delete
+**When to Use:** Any multi-step data pipeline where outputs depend on intermediate results
+**Added:** 2026-03-28 | **Source:** IPI Brussels agents scraping & enrichment campaign
+
+#### Learning #208: Verify column alignment with sample output before full scrape
+**Problem:** A sub-agent regenerating the website enrichment parsed the IPI statut column ("Courtier titulaire") instead of site_web, producing 980 garbage URLs like `"https://Courtier"`. All 980 entries showed `site_active: false` and `error: timeout`.
+**Solution:** After parsing, log 5 sample entries immediately and verify column content makes sense. For table parsing: `console.log('Samples:', agents.slice(0,5).map(a => ({id:a.id, site_web:a.site_web, statut:a.statut})))`. Abort early if samples look wrong.
+**Example:** `scripts/enrich-websites.mjs:29` — destructured `[nom, id, entreprise, adresse, tel, email, siteWeb, statut]`
+**When to Use:** Any HTML table or MD table parsing, especially when dispatching to sub-agents
+**Added:** 2026-03-28 | **Source:** IPI website enrichment regeneration failure
+
+#### Learning #209: HTML entity decoding is mandatory post-scrape
+**Problem:** Company names from IPI contained `&amp;` (→ &), `&#039;` (→ '), `&quot;` (→ ") because HTML was parsed without entity decoding. "LATOUR &amp; PETIT" appeared in output files.
+**Solution:** Apply `decodeEntities()` recursively to ALL string fields immediately after parsing HTML. Function: `str.replace(/&amp;/g, '&').replace(/&#039;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>')`. Apply to the parsed object with a `deepDecode()` recursive helper.
+**Example:** `scripts/merge-final.mjs:11-23` — `decodeEntities()` + `deepDecode()`
+**When to Use:** Any time data is extracted from HTML source (scraping, RSS, API responses with HTML fragments)
+**Added:** 2026-03-28 | **Source:** IPI agents audit — encoding pass
+
+#### Learning #210: Belgian phone number cleaning pipeline
+**Problem:** IPI phone fields contain multiple formats: `+32 (2) 123 45 67`, `02/217.00.32`, double prefix `+32 (4) +32483534308` (from concatenated fields), and empty parens `+32 () `.
+**Solution:** Multi-step `cleanPhone()`: (1) convert old format `0X/XXX.XX.XX` → `+32 X XXX XX XX`, (2) extract from double prefix via regex `\+32\s*\(\d\)\s*(\+32\d+)`, (3) strip parentheses and normalize spaces. Validate with `isValidPhone`: must start with `+32`, contain only digits/spaces, minimum 11 chars without spaces.
+**Example:** `scripts/merge-final.mjs:28-38` — `cleanPhone()` function
+**When to Use:** Any Belgian data source with phone numbers (IPI, BCE, Immoweb, LinkedIn)
+**Added:** 2026-03-28 | **Source:** IPI audit — 12 invalid phones fixed
+
+#### Learning #211: Fuzzy company name matching needs multiple normalization passes
+**Problem:** Enrichment data from different sources (Google, Immoweb, BCE) uses slightly different company names. "LATOUR & PETIT" vs "Latour & Petit SA" vs "latour petit" would not match with simple normalization.
+**Solution:** Build a multi-key lookup map: (1) lowercase + strip legal suffixes (SA/SRL/NV/BV/SPRL/BVBA), (2) raw lowercase, (3) index by agent IDs when available. For audit validation: also compare with HTML entity variants and quote variants (`"` vs `&quot;`).
+**Example:** `scripts/merge-final.mjs:58-70` — `matchCompany()` with `norm()` helper
+**When to Use:** Merging data from multiple sources about the same Belgian companies
+**Added:** 2026-03-28 | **Source:** IPI enrichment merge — fuzzy matching
+
+#### Learning #212: Software detection false positives from HTML attributes
+**Problem:** Searching for "sap" in page HTML matched 423 sites — but it was hitting HTML attributes like `data-sap-ui`, `sap-icon`, not actual SAP software usage. Similarly, "immoweb" matched portal links, not the company using Immoweb internally.
+**Solution:** Filter known false-positive keywords from software detection: exclude 'sap' entirely (too common in HTML). For other tools, check context: only match in visible text or known meta tags, not in HTML attributes/class names.
+**Example:** `scripts/merge-final.mjs:157` — `.filter(s => s !== 'sap')`
+**When to Use:** Any web scraping that detects software/technology from HTML content
+**Added:** 2026-03-28 | **Source:** IPI website enrichment — SAP false positive analysis
+
+#### Learning #213: Hallucination detection patterns must account for domain conventions
+**Problem:** Audit regex `/^[A-Z][a-z]+ [A-Z][a-z]+ (Properties|Real Estate)$/` flagged 16 Belgian companies as "AI hallucinations" — but "Hermanns Real Estate", "Ricci Real Estate", etc. are legitimate Belgian agencies. The pattern was too aggressive.
+**Solution:** Only flag truly generic AI-sounding combinations (Vertex/Summit/Pinnacle/Apex + Properties). Real estate companies legitimately use English naming in Belgium. Cross-reference flagged names against the source data (IPI agent IDs) before marking as hallucinated.
+**Example:** `scripts/audit-prospects.mjs:143-146` — narrowed hallucination patterns
+**When to Use:** Any data validation that checks for AI-generated content in domain-specific datasets
+**Added:** 2026-03-28 | **Source:** IPI audit — false positive hallucination detection
+
+#### Learning #214: Resume capability is essential for long-running scrapes
+**Problem:** Scraping 830 websites takes ~5 minutes. If the script crashes at 600/830, you lose all progress and must restart from zero.
+**Solution:** Save intermediate results as a JSON map keyed by ID. On startup, load existing results and filter out already-processed entries: `const toProcess = withSite.filter(a => !results[a.id])`. Save every N items (20-50). This makes the script idempotent and resumable.
+**Example:** `scripts/enrich-websites.mjs:155-165` — resume logic with `existsSync` + filter
+**When to Use:** Any batch processing over 100 items or taking more than 2 minutes
+**Added:** 2026-03-28 | **Source:** IPI website enrichment — 830 sites with resume
+
+#### Learning #215: Batch fetch with concurrency control prevents IP bans
+**Problem:** Fetching 830 websites sequentially takes too long (~30 min). But unlimited parallel requests triggers rate limiting and IP bans.
+**Solution:** Use batch parallelism: `Promise.all` on batches of 5 + 1.5s delay between batches. This gives ~160 req/min — fast enough (~5 min total) but respectful. For aggressive targets (Immoweb, Google), reduce to batches of 2-3 with 3-5s delays.
+**Example:** `scripts/enrich-websites.mjs:171-197` — BATCH_SIZE=5, DELAY_MS=1500
+**When to Use:** Any HTTP scraping or API calls over 50 targets
+**Added:** 2026-03-28 | **Source:** IPI website enrichment — zero bans on 830 requests
+
+#### Learning #216: Multi-axis enrichment architecture — independent axes + merge
+**Problem:** Enriching 1200+ companies from 4 different sources (websites, Google, Immoweb, BCE) is too slow sequentially and too complex in a single script.
+**Solution:** Design each enrichment axis as an independent script producing a JSON file. Run them in parallel (separate agents/processes). Then a merge script loads all JSONs, matches by company name/ID, scores, and generates final output. Each axis is independently re-runnable without affecting others.
+**Example:** `scripts/enrich-websites.mjs` + `scripts/merge-final.mjs` — 4 input JSONs → scored MD+CSV+JSON
+**When to Use:** Any data enrichment from 3+ sources, or when enrichment takes more than 5 minutes total
+**Added:** 2026-03-28 | **Source:** IPI Brussels campaign — 4-axis enrichment architecture
+
+#### Learning #217: 1-row-per-contact CSV beats grouped CSV for CRM import
+**Problem:** First CSV format had 1 row per company with all agent names concatenated in a single field (`"Agent1; Agent2; Agent3"`). This makes it impossible to filter by individual phone/email or assign specific agents to sales reps.
+**Solution:** Explode to 1 row per agent with their individual data (name, phone, email, statut, address, IPI profile URL). Repeat company-level enrichment data on each row. This duplicates enrichment data but makes every row independently actionable for cold calling.
+**Example:** `scripts/merge-final.mjs:378-400` — CSV loop iterates `p.agentsRaw` not just `prospects`
+**When to Use:** Any CRM-targeted export where the unit of action (call/email) is a person, not a company
+**Added:** 2026-03-28 | **Source:** IPI prospects CSV — user feedback on grouped format
+
+---
+
+### Claude Code Harness & Agent Ecosystem
+
+#### Learning #218: Background agents cannot write outside the project sandbox
+**Problem:** When dispatching background agents (via `Agent` tool with `run_in_background: true`) to write files in a directory outside the main project's working directory, the agents fail silently — `Write` and `Bash` tools are sandboxed to the project root. Two background agents tasked with writing 10 files to `umumentum-ai-starter-kit/` (while main context was `seido-app/`) both returned permission denied errors.
+**Solution:** Write files directly from the main conversation context (which has broader permissions when the target dir is listed as an additional working directory), NOT via background agents. Background agents inherit the project sandbox, not the broader multi-directory permissions. Use background agents only for research/analysis tasks that don't need cross-directory writes.
+**Example:** `umumentum-ai-starter-kit/.claude/agents/*.md` — 4 agent files written directly after background agent failure
+**When to Use:** Any multi-project workflow where Agent tool targets files outside `cwd`
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit creation — sandbox discovery
+
+#### Learning #219: settings.local.json hooks require async stdin pattern on Windows
+**Problem:** Claude Code hooks (`PreToolUse`, `PostToolUse`, etc.) in `settings.local.json` receive input via stdin as a JSON blob. On Windows, synchronous `fs.readFileSync('/dev/stdin')` doesn't work. Using `process.stdin.on('data')` with `process.stdin.resume()` is required, but the hook must handle the case where stdin data arrives in chunks.
+**Solution:** Use `process.stdin.resume(); process.stdin.on('data', chunk => { ... })` pattern. Accumulate chunks, JSON.parse on `end` event. For blocking hooks (PreToolUse), use `process.exit(2)` to block and `process.exit(0)` to allow. Hook scripts must be pure Node.js — no dependencies.
+**Example:** `umumentum-ai-starter-kit/.claude/scripts/block-dangerous-commands.js` — async stdin + exit(2) block pattern
+**When to Use:** Writing any Claude Code hook script that needs to read tool input on Windows
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — hook scripts porting from SEIDO
+
+#### Learning #220: Agent quality scales with Example Output sections, not instruction length
+**Problem:** Analysis of 2500+ GitHub repos with Claude Code agents showed that agent effectiveness doesn't correlate with instruction verbosity. Agents with long "Do this, don't do that" lists performed worse than shorter agents with concrete Example Output sections showing exactly what good output looks like.
+**Solution:** Every agent file MUST include an `## Example Output` section with a realistic, complete example of the expected deliverable. This anchors the agent's behavior more than rules. Keep instructions concise (responsibilities, process, what NOT to do) and let the example do the heavy lifting.
+**Example:** `umumentum-ai-starter-kit/.claude/agents/feature-evaluator.md` — full evaluation report example with scores, file:line references, verdict
+**When to Use:** Writing or reviewing any agent definition (`.claude/agents/*.md`)
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit design — GitHub repos analysis
+
+#### Learning #221: GAN evaluation pattern — separate context eliminates self-evaluation bias
+**Problem:** When the same agent implements AND evaluates code, it consistently rates its own work 8-9/10 (confirmation bias). Code review within the same context is performative — the agent "remembers" its design decisions and rationalizes them.
+**Solution:** Run feature evaluation in a SEPARATE agent context (feature-evaluator agent dispatched fresh, with no access to implementation conversation). Score on 3 weighted axes: Security (40%), Patterns (30%), Design Quality (30%). Start at 10, apply penalties. The evaluator reads only the code, not the implementation rationale. This is the GAN (Generative Adversarial Network) pattern applied to code quality.
+**Example:** `umumentum-ai-starter-kit/.claude/agents/feature-evaluator.md` — 3-axis scoring with penalty table, `.claude/skills/sp-evaluate/SKILL.md` — orchestrates the evaluation
+**When to Use:** After any feature implementation, before merge. Auto-invoked by sp-ralph Step 6.
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — quality coverage analysis
+
+#### Learning #222: Design system must be scaffolded at project creation, not retrofitted
+**Problem:** In SEIDO, the design system (component hierarchy, design tokens, anti-slop criteria) was introduced after 100+ components already existed. Retrofitting required auditing every component for duplicate patterns, hardcoded values, and inconsistent hierarchy. Multiple custom card/stat/metric components existed that should have been one reusable composite.
+**Solution:** Scaffold 3 design system artifacts during project creation: (1) `design-system-rules.md` with 5-level component hierarchy (Primitives → Composites → Features → Templates → Pages), (2) `design-evaluation-criteria.md` with anti-AI-slop scoring, (3) design tokens in Tailwind config. The ui-designer agent and frontend-developer agent both reference these from day 1.
+**Example:** `umumentum-ai-starter-kit/.claude/rules/design-system-rules.md` + `design-evaluation-criteria.md` — created during sp-onboarding Phase 2
+**When to Use:** Starting any new project, or retrofitting an existing one that lacks design governance
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — design system from SEIDO retrospective
+
+#### Learning #223: Anti-AI-slop scoring prevents generic AI-generated UI patterns
+**Problem:** AI-generated UIs follow predictable patterns: centered hero with gradient, uniform card grid, loading spinners everywhere, blank empty states, hardcoded colors. These "AI-slop" patterns make every AI-built app look identical and unprofessional.
+**Solution:** Score UI against specific anti-slop criteria with penalties: generic hero layout (-2), uniform card grid without visual hierarchy (-2), loading spinner instead of skeleton (-2), blank empty state (-2), hardcoded colors/spacing (-2). Award bonuses (+1) for contextual design that reflects the specific domain. Target: 7+/10 for all new UI. The `design-evaluation-criteria.md` file encodes these as a rubric for the feature-evaluator agent.
+**Example:** `umumentum-ai-starter-kit/.claude/rules/design-evaluation-criteria.md` — Layout, Component, Interaction, Color, Typography slop categories
+**When to Use:** Evaluating any AI-generated UI, or writing prompts for UI generation
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — SEIDO UX/UI patterns formalized
+
+#### Learning #224: Skill content > skill quantity — 6 empty skills are worse than 3 complete ones
+**Problem:** Initially created 13 skill directories but only wrote content for 7. The 6 empty `SKILL.md` files gave the appearance of coverage but provided zero guidance to agents. An agent invoking `sp-tdd` would get an empty file and fall back to generic behavior.
+**Solution:** Never create a skill directory without immediately writing meaningful content. Each SKILL.md needs at minimum: Overview, When to Use, Process (step-by-step), Example Output, and What NOT to Do. If you can't write the content now, don't create the directory — it's misleading. Batch-write skills in a single session rather than creating shells.
+**Example:** `umumentum-ai-starter-kit/.claude/skills/sp-tdd/SKILL.md` — 185 lines with Red-Green-Refactor cycle, test patterns, quality checklist
+**When to Use:** Creating or reviewing any Claude Code skill structure
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — empty skill files caused background agent re-work
 
 ---
 

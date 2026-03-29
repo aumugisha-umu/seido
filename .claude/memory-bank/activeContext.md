@@ -306,5 +306,7 @@ Multi-channel AI triage for gestionnaire dashboard. 3 channels (WhatsApp, Phone,
 ---
 
 ## Files Recently Modified
-### 2026-03-29 19:53:25 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/auth/set-password/page.tsx`
+### 2026-03-29 21:59:56 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/supabase/migrations/20260329213626_add_conversation_tracking_and_consumption_rpcs.sql`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/services/domain/ai-consumption/consumption-engine.service.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/gestionnaire/(with-navbar)/parametres/assistant-ia/ai-active-subscription.tsx`

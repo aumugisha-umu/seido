@@ -668,48 +668,15 @@ async function processPostCallAsync(
     logger.warn({ error: emailError }, '⚠️ [ELEVENLABS-WH] Email recap failed (non-blocking)')
   }
 
-  // ─── 12. Update Usage Counter (atomic upsert via RPC) ──────────
+  // ─── 12. Update Usage Counter (consumption engine with cross-deduction) ──
   try {
-    const currentMonth = new Date().toISOString().slice(0, 7) + '-01' // YYYY-MM-01
     const minutesUsed = durationSeconds ? Math.ceil(durationSeconds / 60) : 1
-
-    // Atomic upsert: INSERT ... ON CONFLICT DO UPDATE with SQL addition
-    const { error: upsertError } = await supabase.rpc('upsert_ai_phone_usage', {
-      p_team_id: teamId,
-      p_month: currentMonth,
-      p_minutes: minutesUsed,
-    })
-
-    if (upsertError) {
-      // Fallback to non-atomic if RPC doesn't exist yet
-      logger.warn({ error: upsertError }, '⚠️ [ELEVENLABS-WH] RPC upsert failed, using fallback')
-      const { data: existingUsage } = await supabase
-        .from('ai_phone_usage')
-        .select('id, minutes_used, calls_count')
-        .eq('team_id', teamId)
-        .eq('month', currentMonth)
-        .limit(1)
-        .maybeSingle()
-
-      if (existingUsage) {
-        await supabase
-          .from('ai_phone_usage')
-          .update({
-            minutes_used: (Number(existingUsage.minutes_used) || 0) + minutesUsed,
-            calls_count: (existingUsage.calls_count || 0) + 1,
-          })
-          .eq('id', existingUsage.id)
-      } else {
-        await supabase.from('ai_phone_usage').insert({
-          team_id: teamId,
-          month: currentMonth,
-          minutes_used: minutesUsed,
-          calls_count: 1,
-        })
-      }
-    }
-
-    logger.info({ teamId, minutesUsed }, '✅ [ELEVENLABS-WH] Usage updated')
+    const { recordVoiceUsage } = await import('@/lib/services/domain/ai-consumption/consumption-engine.service')
+    const usageResult = await recordVoiceUsage(teamId, minutesUsed)
+    logger.info(
+      { teamId, minutesUsed, ...usageResult },
+      '✅ [ELEVENLABS-WH] Usage updated (consumption engine)',
+    )
   } catch (usageError) {
     logger.warn({ error: usageError }, '⚠️ [ELEVENLABS-WH] Usage update failed (non-blocking)')
   }

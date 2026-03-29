@@ -72,11 +72,14 @@ export function getIntervalFromAiPriceId(priceId: string): BillingInterval | nul
   return null
 }
 
-// AI tier included minutes & top-up pricing
+// AI tier included quotas & top-up pricing
+// Ratio: 1 minute = 5/3 conversations (universal across tiers)
+export const CONV_PER_MIN = 5 / 3
+
 export const AI_TIER_CONFIG = {
-  solo: { minutes: 60, price: 4900, topupPrice: 5000, topupMinutes: 100 },
-  equipe: { minutes: 180, price: 9900, topupPrice: 4000, topupMinutes: 100 },
-  agence: { minutes: 500, price: 14900, topupPrice: 3000, topupMinutes: 100 },
+  solo:   { minutes: 60,  conversations: 100,  price: 4900,  topupPrice: 800,  topupMinutes: 10, topupConversations: 17 },
+  equipe: { minutes: 180, conversations: 300,  price: 9900,  topupPrice: 550,  topupMinutes: 10, topupConversations: 17 },
+  agence: { minutes: 600, conversations: 1000, price: 19900, topupPrice: 330,  topupMinutes: 10, topupConversations: 17 },
 } as const
 
 export type AiTier = keyof typeof AI_TIER_CONFIG

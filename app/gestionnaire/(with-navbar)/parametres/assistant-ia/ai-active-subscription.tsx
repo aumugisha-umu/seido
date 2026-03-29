@@ -46,7 +46,7 @@ import {
   removeAiAddonAction,
   type AiSubscriptionInfo,
 } from '@/app/actions/ai-subscription-actions'
-import { TOPUP_PRICES, MAX_INSTRUCTIONS_LENGTH } from './ai-constants'
+import { TOPUP_PRICES, TOPUP_PACK, MAX_INSTRUCTIONS_LENGTH } from './ai-constants'
 
 export function ActiveSubscription({
   subscriptionInfo,
@@ -64,11 +64,16 @@ export function ActiveSubscription({
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
 
-  // Usage calculations
-  const usagePercent = subscriptionInfo.minutesIncluded > 0
-    ? (subscriptionInfo.minutesUsed / subscriptionInfo.minutesIncluded) * 100
+  // Usage calculations — dual counters (minutes + conversations)
+  const totalMinutes = subscriptionInfo.minutesIncluded + subscriptionInfo.topupMinutesAdded
+  const totalConversations = subscriptionInfo.conversationsIncluded + subscriptionInfo.topupConversationsAdded
+
+  const minutesPercent = totalMinutes > 0
+    ? Math.min((subscriptionInfo.minutesUsed / totalMinutes) * 100, 100)
     : 0
-  const clampedPercent = Math.min(usagePercent, 100)
+  const conversationsPercent = totalConversations > 0
+    ? Math.min((subscriptionInfo.conversationsUsed / totalConversations) * 100, 100)
+    : 0
 
   const getUsageColor = (percent: number): string => {
     if (percent >= 80) return 'bg-destructive'
@@ -76,11 +81,9 @@ export function ActiveSubscription({
     return ''
   }
 
-  const usageColorClass = getUsageColor(usagePercent)
-
   const topupPrice = subscriptionInfo.tier
     ? TOPUP_PRICES[subscriptionInfo.tier]
-    : 50
+    : 8
 
   // Handlers
   const handleSaveInstructions = () => {
@@ -187,7 +190,7 @@ export function ActiveSubscription({
             </CardContent>
           </Card>
 
-          {/* Usage Card */}
+          {/* Usage Card — Dual counters */}
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
@@ -195,28 +198,64 @@ export function ActiveSubscription({
                 <CardTitle>Utilisation ce mois</CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {subscriptionInfo.minutesUsed} / {subscriptionInfo.minutesIncluded} conversations utilisees
-                  </span>
-                  <span className="font-medium">
-                    {Math.round(clampedPercent)}%
-                  </span>
-                </div>
-                <div className="relative">
-                  <Progress value={clampedPercent} className="h-3" />
-                  {usageColorClass && (
-                    <div
-                      className={`absolute top-0 left-0 h-3 rounded-full transition-all ${usageColorClass}`}
-                      style={{ width: `${clampedPercent}%` }}
-                    />
-                  )}
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {subscriptionInfo.callsCount} conversation{subscriptionInfo.callsCount !== 1 ? 's' : ''} ce mois
+            <CardContent className="space-y-4" data-testid="usage-card">
+              {/* Conversations progress */}
+              {(() => {
+                const convColor = getUsageColor(conversationsPercent)
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        Conversations
+                      </span>
+                      <span className="font-medium">
+                        {Math.round(subscriptionInfo.conversationsUsed)} / {Math.round(totalConversations)}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Progress value={conversationsPercent} className="h-3" />
+                      {convColor && (
+                        <div
+                          className={`absolute top-0 left-0 h-3 rounded-full transition-all ${convColor}`}
+                          style={{ width: `${conversationsPercent}%` }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Minutes progress */}
+              {(() => {
+                const minColor = getUsageColor(minutesPercent)
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Phone className="h-3.5 w-3.5" />
+                        Minutes d&apos;appels
+                      </span>
+                      <span className="font-medium">
+                        {Math.round(subscriptionInfo.minutesUsed)} / {Math.round(totalMinutes)}
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <Progress value={minutesPercent} className="h-3" />
+                      {minColor && (
+                        <div
+                          className={`absolute top-0 left-0 h-3 rounded-full transition-all ${minColor}`}
+                          style={{ width: `${minutesPercent}%` }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Proportionality info */}
+              <p className="text-xs text-muted-foreground border-t pt-3">
+                1 minute d&apos;appel = 1,67 conversations. Les quotas evoluent ensemble proportionnellement.
               </p>
             </CardContent>
           </Card>
@@ -275,7 +314,7 @@ export function ActiveSubscription({
                     Recharge automatique
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Ajouter automatiquement 100 conversations quand le quota est atteint
+                    Recharger automatiquement quand le quota est atteint ({TOPUP_PACK.minutes} min + {TOPUP_PACK.conversations} conv pour {topupPrice}&euro;)
                   </p>
                 </div>
                 <Switch
@@ -284,6 +323,7 @@ export function ActiveSubscription({
                   onCheckedChange={handleToggleAutoTopup}
                   disabled={isPending}
                   aria-label="Activer la recharge automatique"
+                  data-testid="auto-topup-switch"
                 />
               </div>
 
@@ -292,9 +332,9 @@ export function ActiveSubscription({
               {/* Manual Top-up */}
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Recharger des conversations</p>
+                  <p className="text-sm font-medium">Recharger un pack</p>
                   <p className="text-xs text-muted-foreground">
-                    Ajouter 100 conversations supplementaires pour {topupPrice}&euro;
+                    {TOPUP_PACK.minutes} minutes + {TOPUP_PACK.conversations} conversations pour {topupPrice}&euro;
                   </p>
                 </div>
                 <Button
@@ -302,6 +342,7 @@ export function ActiveSubscription({
                   size="sm"
                   disabled={isPending}
                   onClick={handleTopup}
+                  data-testid="manual-topup-button"
                 >
                   <CreditCard className="h-4 w-4 mr-2" />
                   {isPending ? 'Chargement...' : 'Recharger'}

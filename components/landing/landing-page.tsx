@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
@@ -23,6 +24,8 @@ import { DemoRequestForm } from './demo-request-form'
 import { LandingHeader } from './landing-header'
 import { HeroFlowVisual } from './hero-flow-visual'
 import { PricingCards } from '@/components/pricing-cards'
+import { AiPricingAddon } from './ai-pricing-addon'
+import type { BillingInterval } from '@/lib/stripe'
 import { BlogArticleCard } from '@/components/blog/blog-article-card'
 const TestimonialsSection = dynamic(
     () => import('./sections/testimonials-section').then(mod => ({ default: mod.TestimonialsSection })),
@@ -93,6 +96,7 @@ interface LandingPageProps {
 export function LandingPage({ latestArticles = [] }: LandingPageProps) {
     const [showDemoModal, setShowDemoModal] = useState(false)
     const [lotCount, setLotCount] = useState(3)
+    const [billingInterval, setBillingInterval] = useState<BillingInterval>('year')
 
     return (
         <div className="min-h-screen bg-slate-950 text-white selection:bg-purple-500 selection:text-white">
@@ -640,10 +644,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
             <TestimonialsSection />
 
-            {/* Pricing - Gradient Borders */}
-            < section id="pricing" className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-pricing" >
+            {/* Pricing */}
+            <section id="pricing" className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-pricing">
                 <FadeIn>
-                    <div className="text-center max-w-3xl mx-auto mb-16">
+                    <div className="text-center max-w-3xl mx-auto mb-12">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/30 mb-6">
                             <span className="relative flex h-2 w-2">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
@@ -667,6 +671,44 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                 <p className="landing-caption font-semibold text-white">1-2 biens ?</p>
                                 <p className="landing-caption text-white/60">Gratuit à vie <span className="text-blue-400">(hors IA et API externes)</span></p>
                             </div>
+                        </div>
+                    </div>
+                </FadeIn>
+
+                {/* Billing toggle */}
+                <FadeIn delay={0}>
+                    <div className="flex justify-center mb-10">
+                        <div className="inline-flex items-center gap-1 p-1 rounded-full bg-white/5 border border-white/10">
+                            <button
+                                onClick={() => setBillingInterval('month')}
+                                className={cn(
+                                    "px-5 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                                    billingInterval === 'month'
+                                        ? "bg-white text-slate-950 shadow-lg"
+                                        : "text-white/60 hover:text-white"
+                                )}
+                            >
+                                Mensuel
+                            </button>
+                            <button
+                                onClick={() => setBillingInterval('year')}
+                                className={cn(
+                                    "px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2",
+                                    billingInterval === 'year'
+                                        ? "bg-white text-slate-950 shadow-lg"
+                                        : "text-white/60 hover:text-white"
+                                )}
+                            >
+                                Annuel
+                                <span className={cn(
+                                    "px-2 py-0.5 rounded-full text-xs font-semibold",
+                                    billingInterval === 'year'
+                                        ? "bg-green-500 text-white"
+                                        : "bg-green-500/20 text-green-400"
+                                )}>
+                                    -17%
+                                </span>
+                            </button>
                         </div>
                     </div>
                 </FadeIn>
@@ -717,17 +759,25 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                     </div>
                 </FadeIn>
 
-                {/* Pricing Cards */}
-                <FadeIn delay={150}>
+                {/* Gestion card */}
+                <FadeIn delay={100}>
                     <PricingCards
                         variant="dark"
                         lotCount={lotCount}
+                        billingInterval={billingInterval}
                         className="max-w-4xl mx-auto"
                     />
                 </FadeIn>
 
+                {/* AI Addon */}
+                <FadeIn delay={200}>
+                    <AiPricingAddon
+                        billingInterval={billingInterval}
+                        className="max-w-5xl mx-auto"
+                    />
+                </FadeIn>
 
-            </section >
+            </section>
 
             {/* Contact Section */}
             < section id="contact" className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-contact" >

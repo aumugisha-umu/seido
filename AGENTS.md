@@ -1699,6 +1699,20 @@
 **When to Use:** Any decorative CSS animation on a landing/marketing page
 **Added:** 2026-03-29 | **Source:** Landing hero /simplify efficiency review
 
+#### Learning #232: Stale React context in setTimeout after Supabase auth state change
+**Problem:** `set-password/page.tsx` used `user?.role` (from `useAuth()` context) inside a `setTimeout` fired 1.5s after `supabase.auth.updateUser()`. The `user` variable was a stale closure — `updateUser()` triggers `onAuthStateChange` which re-fetches the profile asynchronously, but the closure still held the old reference. When `user` was null at setTimeout execution, redirect went to `/auth/login` instead of the dashboard.
+**Solution:** Capture `user.role` into a local variable BEFORE any async work (`const capturedRole = user?.role`). Add a fallback chain: captured role → current context → API profile fetch → safe default. Never rely on React context values inside delayed callbacks after auth mutations.
+**Example:** `app/auth/set-password/page.tsx:230` — `capturedRole` captured before `updateUser()`
+**When to Use:** Any code that reads `useAuth()` values inside `setTimeout`, `Promise.then`, or `requestAnimationFrame` after calling `supabase.auth.updateUser/signIn/signOut`
+**Added:** 2026-03-29 | **Source:** set-password blocking bug — "Configuration..." spinner stuck after submission
+
+#### Learning #233: ADD CONSTRAINT CHECK validates ALL existing rows — clean stale data first
+**Problem:** Migration `20260329155205_add_source_check_constraint` added `CHECK (source IN ('web_form', 'whatsapp_ai', 'sms_ai', 'phone_ai'))` to `interventions` table. 7 existing rows had `source = 'web'` (legacy value). The CHECK constraint validated all rows on creation, failing the entire migration.
+**Solution:** Always include a retroactive cleanup statement BEFORE `ADD CONSTRAINT CHECK`: `UPDATE table SET column = NULL WHERE column NOT IN (allowed_values)`. Or use `NOT VALID` to skip existing row validation (then `VALIDATE CONSTRAINT` later). Check existing data with `SELECT DISTINCT column FROM table` before writing the migration.
+**Example:** `supabase/migrations/20260329155205_add_source_check_constraint.sql`
+**When to Use:** Any migration adding CHECK constraints to tables with existing data — especially enum-like columns that may have legacy values
+**Added:** 2026-03-29 | **Source:** Production migration failure on `interventions.source` column
+
 ---
 
 ## How to Add a Learning

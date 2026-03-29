@@ -63,3 +63,13 @@
 - Blog: changed author from "Equipe Seido" to "Arthur Umugisha" across 24 articles
 - Learnings: #229 (staggered animation pattern), #230 (CSS transform axis matching), #231 (finite animation iterations)
 - Files: hero-flow-visual.tsx (NEW), hero-flow.css (NEW), landing-page.tsx, globals.css, hero-final.html, 24x blog articles
+
+## 2026-03-29 23:30 — Operations Card Harmonization + Set-Password Fix
+- Implemented: Harmonized 3 operation card types (triage, intervention, reminder) — consistent hover lift, Eye button, click-to-detail behavior
+- Added AI source filtering in Operations > Interventions tab (2-layer: server initial + client loadMore)
+- Custom WhatsApp SVG icon + Smartphone icon for SMS — channel differentiation in triage cards
+- Fixed set-password redirect blocking: stale React closure on user?.role inside setTimeout after updateUser()
+- Fix: capture role before async ops, add DB-backed fallback chain, remove misleading finally{setIsLoading(false)}
+- Production migration fix: CHECK constraint on source column failed due to 7 legacy 'web' rows → cleaned + repair
+- Learnings: #232 (stale closure in setTimeout after auth change), #233 (ADD CONSTRAINT CHECK validates existing rows)
+- Files: whatsapp-triage-card.tsx, reminder-card.tsx, intervention-card.tsx, triage-shared.ts, whatsapp-icon.tsx (NEW), async-operations-content.tsx, interventions-page-client.tsx, set-password/page.tsx

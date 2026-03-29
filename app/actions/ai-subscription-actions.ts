@@ -26,6 +26,10 @@ export interface AiSubscriptionInfo {
   phoneNumber: string | null
   minutesUsed: number
   minutesIncluded: number
+  conversationsUsed: number
+  conversationsIncluded: number
+  topupMinutesAdded: number
+  topupConversationsAdded: number
   callsCount: number
   customInstructions: string | null
   autoTopup: boolean
@@ -259,6 +263,10 @@ export async function getAiSubscriptionStatus(): Promise<ActionResult<AiSubscrip
           phoneNumber: null,
           minutesUsed: 0,
           minutesIncluded: 0,
+          conversationsUsed: 0,
+          conversationsIncluded: 0,
+          topupMinutesAdded: 0,
+          topupConversationsAdded: 0,
           callsCount: 0,
           customInstructions: null,
           autoTopup: false,
@@ -272,11 +280,11 @@ export async function getAiSubscriptionStatus(): Promise<ActionResult<AiSubscrip
       }
     }
 
-    // Fetch current month usage
+    // Fetch current month usage (includes conversation tracking columns)
     const currentMonth = new Date().toISOString().slice(0, 7) + '-01'
     const { data: usage } = await supabase
       .from('ai_phone_usage')
-      .select('minutes_used, calls_count')
+      .select('minutes_used, calls_count, conversations_used, conversations_included, minutes_included, topup_minutes_added, topup_conversations_added')
       .eq('team_id', auth.team.id)
       .eq('month', currentMonth)
       .limit(1)
@@ -293,6 +301,10 @@ export async function getAiSubscriptionStatus(): Promise<ActionResult<AiSubscrip
         phoneNumber: config.whatsapp_number ?? config.phone_number,
         minutesUsed: Number(usage?.minutes_used ?? 0),
         minutesIncluded: tierConfig.minutes,
+        conversationsUsed: Number(usage?.conversations_used ?? 0),
+        conversationsIncluded: tierConfig.conversations,
+        topupMinutesAdded: Number(usage?.topup_minutes_added ?? 0),
+        topupConversationsAdded: Number(usage?.topup_conversations_added ?? 0),
         callsCount: usage?.calls_count ?? 0,
         customInstructions: config.custom_instructions,
         autoTopup: config.auto_topup,
@@ -522,7 +534,7 @@ export async function createAiTopupAction(): Promise<ActionResult<{ url: string 
     const stripe = getStripe()
     const baseUrl = getBaseUrl()
 
-    // Create one-time checkout for top-up
+    // Create one-time checkout for top-up (mixed pack: minutes + conversations)
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'payment',
@@ -530,14 +542,15 @@ export async function createAiTopupAction(): Promise<ActionResult<{ url: string 
         team_id: auth.team.id,
         addon_type: 'ai_voice_topup',
         topup_minutes: String(tierConfig.topupMinutes),
+        topup_conversations: String(tierConfig.topupConversations),
       },
       line_items: [{
         price_data: {
           currency: 'eur',
           unit_amount: tierConfig.topupPrice,
           product_data: {
-            name: `Recharge ${tierConfig.topupMinutes} minutes — Assistant IA`,
-            description: `Pack de ${tierConfig.topupMinutes} minutes supplementaires pour l'assistant IA`,
+            name: `Recharge ${tierConfig.topupMinutes} min + ${tierConfig.topupConversations} conv — Assistant IA`,
+            description: `Pack de ${tierConfig.topupMinutes} minutes + ${tierConfig.topupConversations} conversations supplementaires`,
           },
         },
         quantity: 1,

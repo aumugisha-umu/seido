@@ -63,7 +63,16 @@ export const completeSession = async (
     }
   }
 
-  // ─── 3. Append conversation summary to mapping history ──────────
+  // ─── 3. Record conversation usage (consumption engine) ──────────
+  try {
+    const { recordConversationUsage } = await import('@/lib/services/domain/ai-consumption/consumption-engine.service')
+    await recordConversationUsage(session.team_id, 1)
+    logger.info({ teamId: session.team_id }, `${logPrefix} Conversation usage recorded`)
+  } catch (err) {
+    logger.warn({ err }, `${logPrefix} Conversation usage tracking failed (non-blocking)`)
+  }
+
+  // ─── 4. Append conversation summary to mapping history ──────────
   try {
     await appendConversationSummary(supabase, session.contact_phone, session.team_id, {
       date: new Date().toISOString().slice(0, 10),

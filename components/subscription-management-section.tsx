@@ -84,6 +84,7 @@ export function SubscriptionManagementSection({
           disabled
           showButtons={false}
           lotCount={lotCount}
+          billingInterval="year"
         />
 
         {/* Message d'info */}

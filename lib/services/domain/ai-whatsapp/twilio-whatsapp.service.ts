@@ -111,6 +111,40 @@ export const downloadMedia = async (mediaUrl: string): Promise<{
 }
 
 // ============================================================================
+// Disambiguation: text-based quick reply for multi-team tenants
+// ============================================================================
+
+export const sendDisambiguationMessage = async (
+  fromNumber: string,
+  to: string,
+  options: Array<{ id: string; label: string }>
+): Promise<string> => {
+  const optionsList = options
+    .map((opt, i) => `${i + 1}. ${opt.label}`)
+    .join('\n')
+
+  const body = `Bonjour ! Vous êtes lié à plusieurs gestionnaires.\nPour quelle adresse souhaitez-vous signaler un problème ?\n\n${optionsList}\n\nRépondez avec le numéro correspondant.`
+
+  return sendWhatsAppMessage(fromNumber, to, body)
+}
+
+/**
+ * Parse a tenant's reply to a disambiguation message.
+ * Returns the 0-indexed option index, or null if the reply is not a valid choice.
+ */
+export const parseDisambiguationReply = (
+  body: string,
+  optionCount: number
+): number | null => {
+  const trimmed = body.trim()
+  const num = parseInt(trimmed, 10)
+  if (!isNaN(num) && num >= 1 && num <= optionCount) {
+    return num - 1
+  }
+  return null
+}
+
+// ============================================================================
 // Re-export Twilio signature validation
 // ============================================================================
 

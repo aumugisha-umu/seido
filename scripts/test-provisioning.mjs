@@ -188,24 +188,41 @@ async function pollSenderStatus(senderSid, maxSeconds = 300) {
 // ============================================================================
 
 async function upsertPhoneRecord(supabase, phoneNumber, status, extra = {}) {
-  const { data, error } = await supabase
+  const fields = {
+    team_id: TEAM_ID,
+    phone_number: phoneNumber,
+    whatsapp_number: phoneNumber,
+    is_active: true,
+    whatsapp_enabled: true,
+    provisioning_status: status,
+    provisioning_error: null,
+    meta_phone_number_id: null,
+    ...extra,
+  }
+
+  // Check if record exists (UNIQUE on team_id was dropped)
+  const { data: existing } = await supabase
     .from('ai_phone_numbers')
-    .upsert(
-      {
-        team_id: TEAM_ID,
-        phone_number: phoneNumber,
-        whatsapp_number: phoneNumber,
-        is_active: true,
-        whatsapp_enabled: true,
-        provisioning_status: status,
-        provisioning_error: null,
-        meta_phone_number_id: null,
-        ...extra,
-      },
-      { onConflict: 'team_id' }
-    )
     .select('id')
-    .single()
+    .eq('team_id', TEAM_ID)
+    .limit(1)
+    .maybeSingle()
+
+  let data, error
+  if (existing) {
+    ({ data, error } = await supabase
+      .from('ai_phone_numbers')
+      .update(fields)
+      .eq('id', existing.id)
+      .select('id')
+      .single())
+  } else {
+    ({ data, error } = await supabase
+      .from('ai_phone_numbers')
+      .insert(fields)
+      .select('id')
+      .single())
+  }
 
   if (error) throw new Error(`DB upsert failed: ${error.message}`)
   log('DB', `Record upserted (status=${status})`, { id: data.id })

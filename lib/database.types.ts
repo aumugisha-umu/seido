@@ -320,14 +320,14 @@ export type Database = {
           elevenlabs_phone_number_id: string | null
           id: string
           is_active: boolean
+          meta_phone_number_id: string | null
           phone_number: string
+          provisioning_error: string | null
+          provisioning_status: string
           stripe_ai_price_id: string | null
           stripe_ai_subscription_id: string | null
           stripe_subscription_id: string | null
           team_id: string
-          meta_phone_number_id: string | null
-          provisioning_error: string | null
-          provisioning_status: string
           telnyx_connection_id: string | null
           telnyx_phone_number_id: string | null
           twilio_account_sid: string | null
@@ -5040,14 +5040,14 @@ export type Database = {
           id?: string
           invitation_token?: string | null
           invited_at?: string
-          invited_by?: string
+          invited_by?: string | null
           last_name?: string | null
           provider_category?:
             | Database["public"]["Enums"]["provider_category"]
             | null
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["invitation_status"]
-          team_id?: string
+          team_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }

@@ -1,3 +1,10 @@
+export type IdentificationMethod =
+  | 'phone_match'
+  | 'address_match'
+  | 'agency_match'
+  | 'disambiguation'
+  | 'orphan'
+
 export interface IncomingWhatsAppMessage {
   from: string
   to: string
@@ -6,10 +13,13 @@ export interface IncomingWhatsAppMessage {
   mediaUrl: string | null
   mediaContentType: string | null
   contactName: string | null
-  teamId: string
-  phoneNumberId: string
+  teamId: string | null
+  phoneNumberId: string | null
   phoneNumber: string
   customInstructions: string | null
+  identifiedUserId?: string | null
+  identifiedVia: IdentificationMethod
+  candidateTeams?: Array<{ teamId: string; userId: string }>
 }
 
 export interface SessionExtractedData {
@@ -32,4 +42,24 @@ export interface ClaudeResponse {
   text: string
   conversation_complete: boolean
   extracted_data?: Partial<SessionExtractedData>
+}
+
+// ============================================================================
+// Routing state machine (unknown contact flow)
+// ============================================================================
+
+export type RoutingState =
+  | 'awaiting_address'
+  | 'resolving_address'
+  | 'awaiting_agency'
+  | 'awaiting_disambiguation'
+  | 'resolving_disambiguation'
+  | 'resolved'
+  | 'orphan'
+
+export interface RoutingMetadata {
+  routing_state: RoutingState
+  original_message?: string
+  candidate_teams?: Array<{ teamId: string; userId: string }>
+  disambiguation_options?: Array<{ teamId: string; label: string }>
 }

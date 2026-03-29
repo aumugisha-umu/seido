@@ -2,7 +2,7 @@
 title: "Fausses fiches de paie locataire : annulation du bail"
 slug: "fausses-fiches-paie-annulation-bail"
 date: "2026-01-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Legislation"
 tags: ["fausses fiches de paie", "dol", "annulation bail", "candidature locative", "verification locataire", "juge de paix", "gestionnaire immobilier"]
 description: "Jugement J.P. Lennik 2024 : un bail peut etre annule retroactivement si le locataire a fourni de fausses fiches de paie. Bons reflexes pour les gestionnaires avant et apres la signature."

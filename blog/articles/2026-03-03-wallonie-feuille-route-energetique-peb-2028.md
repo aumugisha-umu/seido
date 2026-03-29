@@ -2,7 +2,7 @@
 title: "PEB Wallonie 2028 : la feuille de route energetique pour les bailleurs"
 slug: "wallonie-feuille-route-energetique-peb-2028"
 date: "2026-03-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Energie"
 tags: ["PEB", "wallonie", "renovation energetique", "chaudiere mazout", "prime Habitation", "Renopack", "obligation renovation"]
 description: "La Wallonie impose une renovation energetique obligatoire des 2028 en cas de vente. Tableau complet des echeances PEB, fin du mazout et evolution des aides financieres."

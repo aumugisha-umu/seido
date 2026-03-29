@@ -2,7 +2,7 @@
 title: "Moratoire hivernal Bruxelles : valide par la Cour constitutionnelle"
 slug: "moratoire-hivernal-cour-constitutionnelle"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Legislation"
 tags: ["moratoire hivernal", "bruxelles", "expulsion locative", "cour constitutionnelle", "fonds indemnisation"]
 description: "La Cour constitutionnelle valide le moratoire hivernal bruxellois (arret 131/2025). Calendrier, fonds d'indemnisation et procedure pour les bailleurs en 2026."

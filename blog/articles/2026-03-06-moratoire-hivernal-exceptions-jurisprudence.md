@@ -2,7 +2,7 @@
 title: "Moratoire hivernal : deux jugements confirment que le droit n'est pas absolu"
 slug: "moratoire-hivernal-exceptions-jurisprudence"
 date: "2026-03-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Legislation"
 tags: ["moratoire hivernal", "expulsion locataire", "arriere loyer", "juge de paix", "bruxelles", "bail", "procedure judiciaire"]
 description: "Deux juges de paix bruxellois en 2025 ont valide la renonciation au moratoire hivernal dans des accords ecrits. Comment rediger un accord de paiement protecteur."

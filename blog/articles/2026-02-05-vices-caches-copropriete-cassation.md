@@ -2,7 +2,7 @@
 title: "Vices caches en copropriete : l'arret Cassation decembre 2025"
 slug: "vices-caches-copropriete-cassation"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Legislation"
 tags: ["vices caches", "copropriete", "cour de cassation", "association des coproprietaires", "syndic"]
 description: "Arret Cassation 12 decembre 2025 : l'ACP ne peut pas agir pour les vices caches a la place des coproprietaires. Ce que les gestionnaires et syndics doivent savoir."

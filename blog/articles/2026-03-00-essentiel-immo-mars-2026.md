@@ -2,7 +2,7 @@
 title: "L'essentiel immo #3 — Mars 2026"
 slug: "essentiel-immo-mars-2026"
 date: "2026-03-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "L'essentiel immo"
 tags: ["recap mensuel", "gestion immobiliere"]
 description: "DPR bruxelloise, suppression deduction interets, PEB Wallonie 2028, offre locative en chute de 27% : tout ce que les gestionnaires doivent retenir de mars 2026."

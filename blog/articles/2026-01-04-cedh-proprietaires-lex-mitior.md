@@ -2,7 +2,7 @@
 title: "CEDH proprietaires belges : la loi plus douce s'applique"
 slug: "cedh-proprietaires-lex-mitior"
 date: "2026-01-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Legislation"
 tags: ["CEDH", "urbanisme", "infraction urbanistique", "lex mitior", "permis de batir", "propriétaires", "jurisprudence belge"]
 description: "Arret CEDH Wulffaert c. Belgique (juillet 2025) : une infraction urbanistique perd sa qualification si une loi ulterieure exempte ces travaux. Ce que cela change pour les proprietaires belges."

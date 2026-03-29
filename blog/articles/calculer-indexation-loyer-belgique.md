@@ -2,7 +2,7 @@
 title: "Indexation du loyer en Belgique : comment calculer votre nouveau loyer en 2026"
 slug: "calculer-indexation-loyer-belgique"
 date: "2026-03-26"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Gestion locative"
 tags: ["indexation loyer", "belgique", "calcul indexation", "PEB", "indice sante", "bruxelles", "wallonie", "flandre", "bail", "gestionnaire immobilier"]
 description: "Guide complet pour calculer l'indexation de votre loyer en Belgique en 2026. Formule officielle, impact du certificat PEB par region, baux commerciaux, baux non enregistres et calculateur gratuit."

@@ -2,7 +2,7 @@
 title: "Grille des loyers Bruxelles : 75% des loyers au-dessus"
 slug: "grille-loyers-bruxelles-deconnexion"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Marche immobilier"
 tags: ["grille des loyers", "bruxelles", "loyer de reference", "commission paritaire locative", "gestion locative"]
 description: "75% des loyers bruxellois depassent la grille de reference. Ce que les chiffres Smartblock 2025 signifient pour les gestionnaires et proprietaires-bailleurs."

@@ -2,7 +2,7 @@
 title: "Renovation energetique en copropriete : 8 ans et 3 sources"
 slug: "renovation-energetique-copropriete-chiffres"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Energie"
 tags: ["renovation energetique", "copropriete", "syndic reno support", "financement", "peb", "federia"]
 description: "8 ans entre la reflexion et le chantier, 3 sources de financement, 100-180 EUR/mois par appartement. Les vrais chiffres de la renovation energetique en copropriete."

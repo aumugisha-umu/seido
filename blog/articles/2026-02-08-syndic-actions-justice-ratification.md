@@ -2,7 +2,7 @@
 title: "Syndic et actions en justice : l'AG doit ratifier"
 slug: "syndic-actions-justice-ratification"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Copropriete"
 tags: ["syndic", "copropriete", "assemblee generale", "action en justice", "ratification", "article 3.92"]
 description: "Le syndic ne peut pas engager une action en justice sans ratification de l'AG. Exceptions, consequences et procedure : ce que la jurisprudence 2025-2026 impose aux gestionnaires."

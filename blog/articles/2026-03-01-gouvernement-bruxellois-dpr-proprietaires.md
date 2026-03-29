@@ -2,7 +2,7 @@
 title: "Nouveau gouvernement bruxellois : ce que la DPR change pour les bailleurs"
 slug: "gouvernement-bruxellois-dpr-proprietaires"
 date: "2026-03-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Legislation"
 tags: ["gouvernement bruxellois", "DPR", "bruxelles", "bailleurs", "permis urbanisme", "DLUU", "droits enregistrement"]
 description: "Apres 614 jours sans gouvernement, la DPR bruxelloise fixe le cap pour les proprietaires-bailleurs : grille des loyers, DLUU, permis urbanisme divises par deux."

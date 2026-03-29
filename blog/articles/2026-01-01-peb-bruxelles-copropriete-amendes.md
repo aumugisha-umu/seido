@@ -2,7 +2,7 @@
 title: "PEB Bruxelles copropriete : amendes jusqu'a 62 500 EUR"
 slug: "peb-bruxelles-copropriete-amendes"
 date: "2026-01-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Energie"
 tags: ["PEB", "bruxelles", "copropriete", "renovation energetique", "amende PEB", "expert PEB", "gestionnaire immobilier"]
 description: "Amendes PEB jusqu'a 62 500 EUR par copropriete a Bruxelles : dates butoirs 2033 et 2043, calcul des penalites, nouvelles tables climatiques et ce que les gestionnaires doivent faire maintenant."

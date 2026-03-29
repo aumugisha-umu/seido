@@ -2,7 +2,7 @@
 title: "Succession immobiliere Wallonie 2028 : droits divises par 2"
 slug: "succession-immobiliere-wallonie-2028"
 date: "2026-01-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Fiscalite"
 tags: ["succession", "wallonie", "droits de succession", "transmission patrimoine", "donation immobiliere", "fiscalite immobiliere", "gestionnaire immobilier"]
 description: "Droits de succession en Wallonie divises par 2 a partir de 2028 : taux de 12 a 15% en ligne directe, 7 strategies de transmission et comparatif Bruxelles-France-Luxembourg."

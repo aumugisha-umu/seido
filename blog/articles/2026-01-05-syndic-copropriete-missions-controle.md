@@ -2,7 +2,7 @@
 title: "Syndic de copropriete : missions, pouvoirs et controle"
 slug: "syndic-copropriete-missions-controle"
 date: "2026-01-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Copropriete"
 tags: ["syndic", "copropriete", "loi copropriete", "assemblee generale", "conseil de copropriete", "gestionnaire immobilier", "ACP"]
 description: "30 ans apres la loi fondatrice de 1994 : rappel complet des 3 missions du syndic, ses pouvoirs reels, les organes de controle, et ce que les coproprietaires sont en droit d'exiger."

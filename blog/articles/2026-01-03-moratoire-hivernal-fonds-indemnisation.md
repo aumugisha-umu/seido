@@ -2,7 +2,7 @@
 title: "Moratoire hivernal Bruxelles : fonds indemnisation bailleur"
 slug: "moratoire-hivernal-fonds-indemnisation"
 date: "2026-01-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Legislation"
 tags: ["moratoire hivernal", "bruxelles", "fonds indemnisation", "loyers impayes", "expulsion locative", "bailleur", "gestionnaire immobilier"]
 description: "Loyers impayes pendant le moratoire hivernal bruxellois ? Le Fonds regional de solidarite indemnise les bailleurs — conditions, delais et procedure pour ne pas passer a cote."

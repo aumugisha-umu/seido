@@ -2,7 +2,7 @@
 title: "Fibre optique en copropriete : droits et obligations du syndic"
 slug: "fibre-optique-copropriete"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Copropriete"
 tags: ["fibre optique", "copropriete", "syndic", "telecom", "infofibre"]
 description: "Le syndic peut-il refuser la fibre optique en copropriete ? Droits des operateurs, obligations du syndic, mutualisation : ce que la loi prevoit vraiment."

@@ -2,7 +2,7 @@
 title: "Taxes comportementales immobilier : comment les contester efficacement"
 slug: "taxes-comportementales-immobilier"
 date: "2026-03-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Fiscalite"
 tags: ["taxe inoccupation", "taxe comportementale", "contestation fiscale", "ombudsman", "SNPC", "commune", "proprietaire"]
 description: "Taxe d'inoccupation jusqu'a 24.000 EUR/an, 4.000 EUR pour facade defraichie : les taxes comportementales explosent. Comment reagir et contester ces impositions."

@@ -2,7 +2,7 @@
 title: "Precompte immobilier Bruxelles : +118% en 10 ans"
 slug: "precompte-immobilier-bruxelles-explosion"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Fiscalite"
 tags: ["precompte immobilier", "bruxelles", "additionnels communaux", "fiscalite immobiliere", "proprietaire bailleur"]
 description: "Saint-Josse : +118% de precompte immobilier en 10 ans. Le tableau complet des 10 communes bruxelloises et ce que les gestionnaires doivent surveiller."

@@ -2,7 +2,7 @@
 title: "Barometre Federia 2025 : loyers en hausse, offre locative en chute de 27%"
 slug: "barometre-federia-offre-locative"
 date: "2026-03-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Marche immobilier"
 tags: ["barometre locatif", "federia", "offre locative", "loyers bruxelles", "CIB", "marche locatif", "bailleur prive"]
 description: "Le barometre Federia-CIB 2025 confirme une chute de 27% des nouveaux baux en 4 ans. Loyers : +3,7% a Bruxelles, +5,4% en Wallonie. Ce que ca signifie pour les gestionnaires."

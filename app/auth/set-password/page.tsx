@@ -227,6 +227,11 @@ export default function SetPasswordPage() {
       return
     }
 
+    // ✅ CORRECTIF: Capturer le rôle AVANT les opérations async
+    // user?.role vient de useAuth() — après updateUser(), le contexte React peut
+    // ne pas avoir rafraîchi, causant un redirect vers /auth/login au lieu du dashboard
+    const capturedRole = user?.role
+
     try {
       logger.info("🔐 [SET-PASSWORD] Updating user password...")
 
@@ -237,78 +242,98 @@ export default function SetPasswordPage() {
       if (updateError) {
         logger.error("❌ [SET-PASSWORD] Error updating password:", updateError.message)
         setError("Erreur lors de la définition du mot de passe : " + updateError.message)
-      } else {
-        logger.info("✅ [SET-PASSWORD] Password set successfully")
-
-        // ✅ ÉTAPE 1: Marquer password_set à true en base de données
-        try {
-          const response = await fetch('/api/update-user-profile', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password_set: true })
-          })
-
-          if (response.ok) {
-            logger.info("✅ [SET-PASSWORD] password_set marked as true in database")
-          } else {
-            logger.warn("⚠️ [SET-PASSWORD] Failed to update password_set in database")
-          }
-        } catch (dbError) {
-          logger.warn("⚠️ [SET-PASSWORD] Error updating password_set:", dbError)
-        }
-
-        // ✅ ÉTAPE 2: Mettre à jour statut invitation si applicable
-        try {
-          const invitationResponse = await fetch('/api/accept-invitation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          })
-
-          if (invitationResponse.ok) {
-            logger.info("✅ [SET-PASSWORD] Invitation marked as accepted")
-          } else {
-            logger.warn("⚠️ [SET-PASSWORD] Failed to update invitation status (non-blocking)")
-          }
-        } catch (invError) {
-          logger.warn("⚠️ [SET-PASSWORD] Error updating invitation:", invError)
-        }
-
-        // Admin signup notification (fire-and-forget, non-blocking)
-        fetch('/api/internal/admin-signup-notification', { method: 'POST' }).catch(() => {})
-
-        // ✅ CORRECTIF (2025-10-07): Attendre propagation Supabase
-        logger.info("⏳ [SET-PASSWORD] Waiting for session propagation...")
-        await new Promise(resolve => setTimeout(resolve, 500))
-
-        // Vérifier que la session est bien mise à jour
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) {
-          logger.error("❌ [SET-PASSWORD] Session lost after password update")
-          setError("Session perdue. Veuillez vous reconnecter.")
-          setIsLoading(false)
-          return
-        }
-
-        logger.info("✅ [SET-PASSWORD] Session still valid after password update")
-
-        setIsCompleted(true)
-        setError("")
-
-        // ✅ CORRECTIF (2025-10-07): Hard redirect avec window.location (bypass Next.js cache)
-        setTimeout(() => {
-          if (user?.role) {
-            const dashboardPath = `/${user.role}/dashboard`
-            logger.info("🔄 [SET-PASSWORD] Hard redirect to dashboard:", dashboardPath)
-            window.location.href = dashboardPath  // Hard redirect au lieu de router.push
-          } else {
-            window.location.href = '/auth/login'
-          }
-        }, 1500)  // Augmenté à 1.5s pour laisser temps à la session de se propager
+        setIsLoading(false)
+        return
       }
+
+      logger.info("✅ [SET-PASSWORD] Password set successfully")
+
+      // ✅ ÉTAPE 1: Marquer password_set à true en base de données
+      try {
+        const response = await fetch('/api/update-user-profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password_set: true })
+        })
+
+        if (response.ok) {
+          logger.info("✅ [SET-PASSWORD] password_set marked as true in database")
+        } else {
+          logger.warn("⚠️ [SET-PASSWORD] Failed to update password_set in database")
+        }
+      } catch (dbError) {
+        logger.warn("⚠️ [SET-PASSWORD] Error updating password_set:", dbError)
+      }
+
+      // ✅ ÉTAPE 2: Mettre à jour statut invitation si applicable
+      try {
+        const invitationResponse = await fetch('/api/accept-invitation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+
+        if (invitationResponse.ok) {
+          logger.info("✅ [SET-PASSWORD] Invitation marked as accepted")
+        } else {
+          logger.warn("⚠️ [SET-PASSWORD] Failed to update invitation status (non-blocking)")
+        }
+      } catch (invError) {
+        logger.warn("⚠️ [SET-PASSWORD] Error updating invitation:", invError)
+      }
+
+      // Admin signup notification (fire-and-forget, non-blocking)
+      fetch('/api/internal/admin-signup-notification', { method: 'POST' }).catch(() => {})
+
+      // Attendre propagation Supabase
+      logger.info("⏳ [SET-PASSWORD] Waiting for session propagation...")
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Vérifier que la session est bien mise à jour
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        logger.error("❌ [SET-PASSWORD] Session lost after password update")
+        setError("Session perdue. Veuillez vous reconnecter.")
+        setIsLoading(false)
+        return
+      }
+
+      logger.info("✅ [SET-PASSWORD] Session still valid after password update")
+
+      // ✅ CORRECTIF: Déterminer le rôle de façon fiable
+      // Priorité: rôle capturé au submit > rôle actuel du contexte > fallback DB
+      let redirectRole = capturedRole || user?.role
+      if (!redirectRole) {
+        // Dernier recours: fetch le profil depuis la session
+        try {
+          const profileRes = await fetch('/api/get-user-profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ authUserId: session.user.id })
+          })
+          if (profileRes.ok) {
+            const profileData = await profileRes.json()
+            redirectRole = profileData.user?.role
+          }
+        } catch {
+          logger.warn("⚠️ [SET-PASSWORD] Failed to fetch role from profile API")
+        }
+      }
+
+      setIsCompleted(true)
+      setError("")
+
+      // ✅ CORRECTIF: Hard redirect avec rôle fiable — pas de setIsLoading(false)
+      // car la page affiche désormais l'écran de succès (isCompleted=true)
+      const dashboardPath = redirectRole
+        ? `/${redirectRole}/dashboard`
+        : '/gestionnaire/dashboard'  // Fallback safe — middleware redirigera si mauvais rôle
+      logger.info("🔄 [SET-PASSWORD] Hard redirect to dashboard:", dashboardPath)
+      setTimeout(() => {
+        window.location.href = dashboardPath
+      }, 1500)
     } catch (error) {
       logger.error("❌ [SET-PASSWORD] Unexpected error:", error)
       setError("Une erreur inattendue s'est produite. Veuillez réessayer.")
-    } finally {
       setIsLoading(false)
     }
   }
@@ -363,13 +388,10 @@ export default function SetPasswordPage() {
           </div>
           <Button
             onClick={() => {
-              if (user?.role) {
-                const dashboardPath = `/${user.role}/dashboard`
-                logger.info("🔄 [SET-PASSWORD] Manual redirect to dashboard:", dashboardPath)
-                window.location.href = dashboardPath
-              } else {
-                window.location.href = '/auth/login'
-              }
+              const role = user?.role || 'gestionnaire'
+              const dashboardPath = `/${role}/dashboard`
+              logger.info("🔄 [SET-PASSWORD] Manual redirect to dashboard:", dashboardPath)
+              window.location.href = dashboardPath
             }}
             className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
           >

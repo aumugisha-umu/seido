@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { JsonLd } from '@/components/seo/json-ld'
 import { getArticleBySlug, getArticlesByHub, getAllSlugs } from '@/lib/blog'
 import { BlogMarkdown } from '@/components/blog/blog-markdown'
+import { BlogInfographic } from '@/components/blog/infographics'
 
 interface BlogArticlePageProps {
   params: Promise<{ slug: string }>
@@ -196,6 +197,13 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
             </span>
           </div>
         </header>
+
+        {/* Infographic — above article content */}
+        {article.infographic && (
+          <div className="max-w-4xl mx-auto mb-8">
+            <BlogInfographic config={article.infographic} />
+          </div>
+        )}
 
         {/* Article content */}
         <article className="max-w-4xl mx-auto">

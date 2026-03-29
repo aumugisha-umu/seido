@@ -1,0 +1,31 @@
+# Progress Log — SMS Agent — Conversational AI via SMS
+# Started: 2026-03-29
+# Stories: 5 total
+---
+
+## US-001: Add channel field to types + sessions DB ✅
+- Migration: supabase/migrations/20260329084439_add_channel_to_sessions.sql
+- Types: lib/services/domain/ai-whatsapp/types.ts (MessageChannel type)
+- Lint: 0 new errors
+
+## US-002: Adapt twilio-whatsapp.service for SMS ✅
+- Modified: lib/services/domain/ai-whatsapp/twilio-whatsapp.service.ts
+- Added formatPhone() helper, channel param on all send functions
+- Lint: 0 new errors
+
+## US-003: Create SMS webhook /api/webhooks/sms ✅
+- Created: app/api/webhooks/sms/route.ts (12 lines, thin adapter)
+- Reuses handleTwilioIncoming from WhatsApp route
+- Lint: 0 new errors
+
+## US-004: Adapt conversation engine for SMS channel ✅
+- Modified: lib/services/domain/ai-whatsapp/conversation-engine.service.ts
+- 9 sendWhatsAppMessage calls updated with message.channel
+- createRoutingSession now stores channel
+- buildSystemPrompt: shorter lengthRule for SMS (160 char segments)
+- Lint: 0 new errors
+
+## US-005: Configure webhook + env + cleanup ✅
+- Modified: .env.example — added SMS webhook path, removed stale Meta WABA vars
+- Lint: 0 new errors
+- Tests: 781 passed, 7 failed (pre-existing integration failures)

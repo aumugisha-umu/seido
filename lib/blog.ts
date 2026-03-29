@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
 import { unstable_cache } from 'next/cache'
+import type { InfographicConfig } from '@/components/blog/infographics/types'
 
 const ARTICLES_DIR = path.join(process.cwd(), 'blog', 'articles')
 
@@ -30,6 +31,7 @@ export interface ArticleMeta {
   reading_time: string
   type: string
   hub: string
+  infographic?: InfographicConfig
 }
 
 export interface Article extends ArticleMeta {
@@ -57,6 +59,7 @@ const parseArticleFile = (filename: string): Article | null => {
     reading_time: calculateReadingTime(content),
     type: data.type || 'article',
     hub: data.hub || '',
+    infographic: data.infographic || undefined,
     content,
   }
 }

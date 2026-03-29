@@ -9,6 +9,27 @@ description: "Guide complet pour calculer l'indexation de votre loyer en Belgiqu
 reading_time: "7 min"
 type: "article"
 hub: "essentiel-immo-mars-2026"
+infographic:
+  type: "data-table"
+  data:
+    title: "Facteur correctif PEB par region (2026)"
+    caption: "Impact du certificat energetique sur l'indexation du loyer"
+    headers: ["PEB/EPC", "Bruxelles", "Wallonie", "Flandre"]
+    rows:
+      - cells: ["A a C", "100%", "100%", "100%"]
+        highlight: true
+        color: "green"
+      - cells: ["D", "100%", "Loyer adapte", "97,5%"]
+      - cells: ["E", "Correctif variable", "Loyer adapte", "95%"]
+        highlight: true
+        color: "amber"
+      - cells: ["F", "Correctif restrictif", "Loyer adapte", "90%"]
+        highlight: true
+        color: "red"
+      - cells: ["G", "Correctif restrictif", "Loyer adapte", "—"]
+        highlight: true
+        color: "red"
+    footer: "Sources : ordonnance BXL 14/10/2022, decret wallon 19/10/2022, decreet Flandre 10/03/2023"
 ---
 
 # Comment calculer l'indexation de votre loyer en Belgique (2026)

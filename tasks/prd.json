@@ -1,92 +1,60 @@
 {
   "project": "SEIDO",
-  "featureName": "SMS Agent — Conversational AI via SMS",
+  "featureName": "ElevenLabs Voice Integration — Shared Twilio Number",
   "branchName": "preview",
-  "description": "Extend the WhatsApp AI conversation engine to support SMS. Same flow (routing by sender phone, AI triage, intervention creation) but via SMS channel. Reuse 90% of existing code by adding a channel field.",
+  "description": "Inbound voice calls to shared Twilio number routed to ElevenLabs conversational AI. Pre-call routing via phone_team_mappings injects team name, caller info, and conversation history as dynamic variables. Unknown callers get a generic agent that collects everything vocally. Post-call webhook already handles intervention creation.",
   "createdAt": "2026-03-29",
   "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Add channel field to types + sessions DB",
-      "description": "As the system, I need a channel discriminator so the engine knows whether to reply via SMS or WhatsApp",
+      "title": "Voice webhook endpoint",
+      "description": "As the system, I want a POST /api/webhooks/voice endpoint that receives inbound Twilio voice calls, validates the signature, does pre-call routing, calls ElevenLabs register-call API, and returns TwiML to Twilio.",
       "acceptanceCriteria": [
-        "channel column added to ai_whatsapp_sessions (default 'whatsapp')",
-        "IncomingWhatsAppMessage type has channel: 'whatsapp' | 'sms'",
-        "Types regenerated",
-        "Lint passes"
-      ],
-      "priority": 1,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "Migration 20260329084439. MessageChannel type + channel field on IncomingWhatsAppMessage."
-    },
-    {
-      "id": "US-002",
-      "title": "Adapt twilio-whatsapp.service for SMS",
-      "description": "As the system, I need the message sending service to handle both SMS and WhatsApp so replies go through the right channel",
-      "acceptanceCriteria": [
-        "sendMessage() adds whatsapp: prefix only when channel is 'whatsapp'",
-        "SMS replies have no prefix on From/To",
-        "Existing WhatsApp flow unchanged",
+        "POST /api/webhooks/voice returns TwiML XML response",
+        "Twilio signature validation (reuses existing validateTwilioSignature)",
+        "Pre-call lookup via phone_team_mappings → gets team_id, user info",
+        "Calls ElevenLabs register-call with agent_id + dynamic_variables",
+        "Unknown callers get generic agent (no dynamic context)",
         "Lint passes"
       ],
       "priority": 2,
-      "dependsOn": ["US-001"],
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Full voice webhook with pre-call routing. Reuses lookupMappings, runIdentificationCascade, getConversationHistory, getTeamName from existing services. Parallel fetches for team name + user name + address + history. ElevenLabs register-call via raw fetch (no SDK). Graceful fallback TwiML with French Say + Hangup on errors."
+    },
+    {
+      "id": "US-002",
+      "title": "ElevenLabs agent prompt with dynamic variables",
+      "description": "As the system, I want the ElevenLabs agent system prompt to use dynamic variable placeholders so the voice agent can personalize greetings with caller name, team name, address, and conversation history.",
+      "acceptanceCriteria": [
+        "SYSTEM_PROMPT_TEMPLATE uses {{caller_name}}, {{caller_address}}, {{conversation_history}} placeholders",
+        "4-scenario ETAPE 1 (like WhatsApp): name+address known, only name known, only address known, nothing known",
+        "Conversation history section injected when available",
+        "first_message uses dynamic team_name variable",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "formatPhone() helper. All send functions accept optional channel param with default 'whatsapp'."
+      "notes": "Dynamic variable placeholders in SYSTEM_PROMPT_TEMPLATE. buildSystemPrompt only handles custom_instructions (static). team_name/caller_name/caller_address/conversation_history left as {{}} for ElevenLabs runtime resolution. first_message uses {{team_name}}. updateAgent/createAgent signatures simplified. Callers updated."
     },
     {
       "id": "US-003",
-      "title": "Create SMS webhook /api/webhooks/sms",
-      "description": "As a tenant, I want to send an SMS to report a maintenance issue so I can use the AI assistant without WhatsApp",
+      "title": "Environment config + .env.example",
+      "description": "As a developer, I want ELEVENLABS_AGENT_ID documented in .env.example so the voice webhook knows which shared agent to use.",
       "acceptanceCriteria": [
-        "POST /api/webhooks/sms receives Twilio SMS webhooks",
-        "Twilio signature validated (X-Twilio-Signature)",
-        "Routing by sender phone (same as WhatsApp)",
-        "Message passed to conversation engine with channel='sms'",
-        "Returns TwiML 200 response",
+        "ELEVENLABS_AGENT_ID added to .env.example with description",
+        "Voice webhook URL documented in .env.example comments",
         "Lint passes"
       ],
-      "priority": 3,
-      "dependsOn": ["US-001", "US-002"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Thin adapter (12 lines) — imports handleTwilioIncoming from WhatsApp route."
-    },
-    {
-      "id": "US-004",
-      "title": "Adapt conversation engine for SMS channel",
-      "description": "As the system, I need the conversation engine to send shorter replies via SMS and track the channel in sessions",
-      "acceptanceCriteria": [
-        "Session created with correct channel value",
-        "AI system prompt includes 'respond concisely' instruction for SMS",
-        "Replies sent via correct channel (SMS or WhatsApp)",
-        "Routing flow works for SMS (disambiguation, unknown contact)",
-        "Lint passes"
-      ],
-      "priority": 4,
-      "dependsOn": ["US-001", "US-002"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "9 sendWhatsAppMessage calls updated with channel param. createRoutingSession stores channel. buildSystemPrompt uses shorter lengthRule for SMS."
-    },
-    {
-      "id": "US-005",
-      "title": "Configure webhook + env + cleanup",
-      "description": "As a developer, I need the SMS webhook documented and the env vars updated",
-      "acceptanceCriteria": [
-        ".env.example documents SMS webhook path",
-        "No lint errors",
-        "All existing tests pass"
-      ],
-      "priority": 5,
-      "dependsOn": ["US-003"],
+      "priority": 2,
+      "dependsOn": [],
       "sizing": "XS",
       "passes": true,
-      "notes": "Updated .env.example with SMS webhook path + removed stale Meta WABA env vars. Lint: 0 new errors. Tests: pre-existing integration failures only."
+      "notes": "Added ELEVENLABS_API_KEY, ELEVENLABS_AGENT_ID, TELNYX_SIP_USERNAME/PASSWORD, voice webhook URL comment. Grouped under 🎙️ ELEVENLABS VOICE AI section."
     }
   ]
 }

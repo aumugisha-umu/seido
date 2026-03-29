@@ -9,6 +9,63 @@ description: "La Wallonie impose une renovation energetique obligatoire des 2028
 reading_time: "7 min"
 type: "article"
 hub: "essentiel-immo-mars-2026"
+infographic:
+  type: "timeline"
+  data:
+    title: "Echeances PEB Wallonie"
+    milestones:
+      - date: "2026"
+        label: "Mazout interdit (neuf)"
+        detail: "Depuis le 1er janvier 2026"
+        color: "amber"
+        icon: "alert"
+        actions:
+          - "Verifier qu'aucun projet neuf en cours ne prevoit une chaudiere mazout"
+          - "Privilegier la pompe a chaleur ou le gaz pour les nouvelles installations"
+      - date: "Oct. 2026"
+        label: "Fin prime Habitation"
+        detail: "Derniere demande le 30 sept."
+        color: "red"
+        icon: "clock"
+        actions:
+          - "Introduire toutes les demandes de prime Habitation avant le 30 septembre 2026"
+          - "Lister les travaux eligibles (isolation, toiture, chassis) et obtenir les devis maintenant"
+          - "Verifier les conditions d'eligibilite Renopack pour les travaux non couverts"
+      - date: "2028"
+        label: "Vente : PEB D obligatoire"
+        detail: "Renovation dans les 5 ans"
+        color: "amber"
+        icon: "calendar"
+        actions:
+          - "Commander un certificat PEB a jour pour chaque bien wallon susceptible d'etre vendu"
+          - "Identifier les biens sous PEB D et planifier les travaux prioritaires (isolation, vitrage)"
+          - "Integrer le cout de mise en conformite dans l'evaluation de la valeur de revente"
+      - date: "2031"
+        label: "PEB F min. + fin mazout"
+        detail: "Remplacement interdit par mazout"
+        color: "red"
+        icon: "alert"
+        actions:
+          - "Inventorier toutes les chaudieres mazout du portefeuille et estimer leur duree de vie restante"
+          - "Planifier le remplacement anticipe par pompe a chaleur ou chaudiere gaz avant 2031"
+          - "Isoler les biens PEB G pour atteindre le seuil PEB F minimum avant l'echeance"
+      - date: "2036"
+        label: "Vente : PEB B"
+        detail: "PEB E min. parc existant"
+        color: "red"
+        icon: "alert"
+        actions:
+          - "Etablir un plan de renovation pluriannuel pour atteindre PEB E sur tout le parc"
+          - "Prioriser les biens les plus energivores pour etaler l'investissement"
+          - "Evaluer les biens difficiles a renover et envisager la cession avant 2036"
+      - date: "2050"
+        label: "PEB B pour tout le parc"
+        detail: "Objectif final"
+        color: "green"
+        icon: "check"
+        actions:
+          - "Integrer l'objectif PEB B dans chaque decision d'achat ou de renovation"
+          - "Documenter les performances energetiques et les travaux realises pour chaque bien"
 ---
 
 # Wallonie : la nouvelle feuille de route energetique qui va changer la donne pour les bailleurs

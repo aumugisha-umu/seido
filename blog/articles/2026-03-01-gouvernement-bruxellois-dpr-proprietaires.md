@@ -9,6 +9,45 @@ description: "Apres 614 jours sans gouvernement, la DPR bruxelloise fixe le cap 
 reading_time: "6 min"
 type: "article"
 hub: "essentiel-immo-mars-2026"
+infographic:
+  type: "timeline"
+  data:
+    title: "Chronologie DPR Bruxelles"
+    milestones:
+      - date: "Juin 2024"
+        label: "Elections regionales"
+        detail: "Debut de 614 jours sans gouvernement"
+        color: "amber"
+        icon: "calendar"
+        actions:
+          - "Suivre les negotiations de coalition"
+          - "Reporter les projets sensibles aux permis"
+      - date: "Fev. 2026"
+        label: "Gouvernement forme"
+        detail: "Coalition MR-PS-Engages-Vooruit"
+        color: "green"
+        icon: "check"
+        actions:
+          - "Lire la DPR complete (section immobilier)"
+          - "Anticiper la grille indicative des loyers"
+          - "Verifier l'impact DLUU sur vos biens"
+      - date: "2027"
+        label: "Prime BE-HOME doublee"
+        detail: "De 160 a 320 EUR/an"
+        color: "blue"
+        icon: "calendar"
+        actions:
+          - "Demander la prime pour vos locataires eligibles"
+          - "Integrer le montant dans le calcul de rendement"
+      - date: "2029"
+        label: "Droits enregistrement"
+        detail: "Plafond releve a 800 000 EUR"
+        color: "blue"
+        icon: "calendar"
+        actions:
+          - "Evaluer les opportunites d'acquisition"
+          - "Comparer les abattements avant/apres reforme"
+          - "Planifier les achats au-dela du plafond actuel"
 ---
 
 # Nouveau gouvernement bruxellois : ce que la DPR prevoit pour les proprietaires et les bailleurs

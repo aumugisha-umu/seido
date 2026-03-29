@@ -37,10 +37,11 @@ export interface CallClaudeOptions {
   extractedData: SessionExtractedData
   image?: { base64: string; contentType: string }
   channel?: MessageChannel
+  conversationHistory?: string | null
 }
 
 export const callClaude = async (opts: CallClaudeOptions): Promise<ClaudeResponse> => {
-  const systemPrompt = buildSystemPrompt(opts.teamName, opts.customInstructions, opts.extractedData, opts.channel ?? 'whatsapp')
+  const systemPrompt = buildSystemPrompt(opts.teamName, opts.customInstructions, opts.extractedData, opts.channel ?? 'whatsapp', opts.conversationHistory)
 
   // Build AI SDK messages from conversation history
   const aiMessages = opts.messages.map((m) => {
@@ -90,7 +91,8 @@ const buildSystemPrompt = (
   teamName: string,
   customInstructions: string | null,
   extractedData: SessionExtractedData,
-  channel: MessageChannel = 'whatsapp'
+  channel: MessageChannel = 'whatsapp',
+  conversationHistory?: string | null
 ): string => {
   const channelName = channel === 'sms' ? 'SMS' : 'WhatsApp'
   const lengthRule = channel === 'sms'
@@ -106,21 +108,31 @@ Tu collectes les informations necessaires pour creer une demande d'intervention 
 ${lengthRule}
 - Tu reponds dans la langue du locataire (francais, neerlandais ou anglais).
 - Si tu ne comprends pas, demande de reformuler.
-- Propose d'envoyer une photo quand c'est pertinent (fuite, degat, casse).
+${channel === 'sms'
+    ? '- Ne propose PAS d\'envoyer de photo par SMS (non supporte). Si une photo est utile, suggere d\'envoyer via WhatsApp au meme numero.'
+    : '- Propose d\'envoyer une photo quand c\'est pertinent (fuite, degat, casse).'}
 - Si le locataire mentionne un danger (gaz, incendie, inondation), dis immediatement : "Si vous etes en danger, appelez le 112." puis continue avec urgence "urgente".
+- Si le locataire demande le suivi d'une demande existante, reponds : "Pour suivre vos demandes et communiquer directement avec votre gestionnaire, rendez-vous sur votre compte sur seido-app.com." Ne cree PAS de nouvelle intervention dans ce cas.
+- Si le locataire repond "terminer", "fermer", "c'est tout" ou equivalent, confirme la cloture avec un message court ("Parfait, votre demande est enregistree. Bonne journee !") et mets conversation_complete a true.
 - Si le locataire parle d'un sujet hors-intervention, redirige poliment.
 - Si le locataire envoie une note vocale, reponds : "Je ne peux pas ecouter les messages vocaux pour le moment. Pourriez-vous decrire votre probleme par ecrit ? Merci !"
 
-## Script (4 etapes)
-ETAPE 1 — IDENTIFICATION : Demande le nom complet et l'adresse du logement.
+## Script (4 etapes)${
+    extractedData.pre_identified && extractedData.caller_name
+    ? `\nETAPE 1 — IDENTIFICATION : Le nom et l'adresse sont deja connus. Salue l'utilisateur par son prenom et passe DIRECTEMENT a l'etape 2.`
+    : extractedData.pre_identified
+    ? `\nETAPE 1 — IDENTIFICATION : L'adresse est deja connue (pre-identifiee). Demande UNIQUEMENT le nom complet. Ne redemande PAS l'adresse.`
+    : extractedData.caller_name
+    ? `\nETAPE 1 — IDENTIFICATION : Le nom est deja connu. Demande UNIQUEMENT l'adresse du logement.`
+    : `\nETAPE 1 — IDENTIFICATION : Demande le nom complet et l'adresse du logement.`}
 ETAPE 2 — DESCRIPTION : "Quel est le probleme ?" + propose une photo.
 ETAPE 3 — CONFIRMATION : Resume (nom, adresse, probleme) et demande confirmation.
-ETAPE 4 — CLOTURE : Confirme l'enregistrement, remercie. Met conversation_complete a true.
+ETAPE 4 — ENREGISTREMENT : Confirme que la demande est bien notee. Dis que la conversation reste ouverte 30 minutes pour envoyer des photos ou informations supplementaires, OU qu'il peut repondre "terminer" pour cloturer directement.
 
 ## Format de reponse
 TOUJOURS repondre avec un objet JSON :
 - text: le message a envoyer
-- conversation_complete: true uniquement apres confirmation a l'etape 3
+- conversation_complete: true apres confirmation a l'etape 3 (signale que les donnees sont collectees)
 - extracted_data: donnees extraites de ce message (cumulatif)`
 
   if (extractedData.caller_name || extractedData.address || extractedData.problem_description) {
@@ -133,6 +145,10 @@ TOUJOURS repondre avec un objet JSON :
 
   if (customInstructions) {
     prompt += `\n\n## Instructions specifiques de l'equipe\n${customInstructions}`
+  }
+
+  if (conversationHistory) {
+    prompt += `\n\n## Historique du contact\n${conversationHistory}\n\n## Comportement avec historique\nCe contact t'a deja ecrit. Lors de ton PREMIER message :\n- Utilise OBLIGATOIREMENT son prenom (voir "Nom connu" ci-dessus) pour le saluer\n- Mentionne le nom de l'agence (${teamName}) pour rappeler le contexte\n- Mentionne brievement sa derniere demande (probleme + adresse si connue)\n- Demande si son nouveau message concerne cette demande ou un autre probleme\n- Exemple : "Rebonjour Arthur ! Ici l'assistant de ${teamName}. La derniere fois vous nous aviez contactes pour [probleme] a [adresse]. Votre message concerne ce meme sujet ou un autre probleme ?"\nApres cette premiere interaction, continue normalement avec le script 4 etapes.`
   }
 
   return prompt
@@ -151,7 +167,8 @@ export const getTeamName = async (
     .from('teams')
     .select('name')
     .eq('id', teamId)
-    .single()
+    .limit(1)
+    .maybeSingle()
   return data?.name ?? 'Votre gestionnaire'
 }
 

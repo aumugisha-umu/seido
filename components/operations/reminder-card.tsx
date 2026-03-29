@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, memo } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ import {
   Home,
   User,
   Bell,
+  Eye,
   Flame,
   MapPin,
 } from 'lucide-react'
@@ -76,6 +78,7 @@ export const ReminderCard = memo(function ReminderCard({
   onComplete,
   onCancel,
 }: ReminderCardProps) {
+  const router = useRouter()
   const overdue = isReminderOverdue(reminder)
   const status = reminder.status as ReminderStatus
   const priority = reminder.priority as ReminderPriority
@@ -137,24 +140,25 @@ export const ReminderCard = memo(function ReminderCard({
       className={cn(
         "group relative bg-card dark:bg-white/5 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-none",
         "transition-all duration-300 border border-border dark:border-white/10",
-        "hover:border-primary/30 flex flex-col h-full dark:backdrop-blur-sm",
+        "hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-md flex flex-col h-full dark:backdrop-blur-sm cursor-pointer",
       )}
+      onClick={() => router.push(reminderUrl)}
     >
       {/* Header: Icon + (Title + Badges) + dot menu */}
       <div className="flex items-start gap-3 mb-3">
         {/* Icon circle — priority-colored like InterventionTypeIcon */}
         <div
           className={cn(
-            "flex items-center justify-center w-12 h-12 rounded-xl text-white shadow-md flex-shrink-0",
+            "flex items-center justify-center w-11 h-11 rounded-xl text-white flex-shrink-0",
             REMINDER_ICON_BG_COLORS[priority]
           )}
         >
-          <Bell className="h-6 w-6" />
+          <Bell className="h-5 w-5" />
         </div>
 
         {/* Title + Badges container */}
         <div className="flex-1 min-w-0">
-          <Link href={reminderUrl} className="block">
+          <Link href={reminderUrl} className="block" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-pointer">
               {reminder.title}
               {hasRecurrence && (
@@ -197,6 +201,20 @@ export const ReminderCard = memo(function ReminderCard({
             )}
           </div>
         </div>
+
+        {/* Eye button — quick access to details */}
+        <Button
+          variant="outline"
+          size="icon"
+          asChild
+          className="flex-shrink-0 h-9 w-9 border-border/60 bg-muted/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-accent"
+          title="Voir les details"
+        >
+          <Link href={reminderUrl} onClick={(e) => e.stopPropagation()}>
+            <Eye className="h-5 w-5" aria-hidden="true" />
+            <span className="sr-only">Voir les details</span>
+          </Link>
+        </Button>
 
         {/* Dot menu */}
         {(status === 'en_attente' || status === 'en_cours') && (

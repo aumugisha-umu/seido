@@ -9,6 +9,26 @@ description: "Jugement J.P. Lennik 2024 : un bail peut etre annule retroactiveme
 reading_time: "5 min"
 type: "article"
 hub: "essentiel-immo-janvier-2026"
+infographic:
+  type: "data-table"
+  data:
+    title: "Fausses fiches de paie — reflexes avant et apres signature"
+    headers: ["Moment", "Action", "Objectif"]
+    rows:
+      - cells: ["Avant signature", "Verifier coherence fiches de paie", "Detection anomalies"]
+        highlight: true
+        color: "blue"
+      - cells: ["Avant signature", "Confirmer employeur via BCE", "Validation source"]
+      - cells: ["Avant signature", "Croiser fiches et extraits de compte", "Coherence des flux"]
+      - cells: ["Avant signature", "Conserver copie de tous les documents", "Preuve en cas de litige"]
+      - cells: ["Apres signature", "Rassembler les preuves", "Constitution du dossier"]
+        highlight: true
+        color: "amber"
+      - cells: ["Apres signature", "Envoyer un recommande", "Respect du contradictoire"]
+      - cells: ["Apres signature", "Saisir le juge de paix rapidement", "Limiter les pertes"]
+        highlight: true
+        color: "red"
+    footer: "Source : J.P. Lennik, 31 janvier 2024 — annulation du bail pour dol"
 ---
 
 # Fausses fiches de paie : quand la tromperie d'un locataire annule le bail

@@ -1,6 +1,13 @@
 import { logger } from '@/lib/logger'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
-import { sendWhatsAppMessage, sendDisambiguationMessage, parseDisambiguationReply } from './twilio-whatsapp.service'
+import {
+  sendWhatsAppMessage,
+  sendDisambiguationMessage,
+  parseDisambiguationReply,
+} from './twilio-whatsapp.service'
+import {
+  createOrUpdateMapping,
+} from './phone-mapping.service'
 import { detectLanguage } from './claude-ai.service'
 import type {
   IncomingWhatsAppMessage,
@@ -10,7 +17,7 @@ import type {
 } from './types'
 
 // ============================================================================
-// Session lookup (shared with conversation-engine)
+// Session lookup (shared with conversation-engine + selection flows)
 // ============================================================================
 
 const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000 // 2 hours
@@ -207,6 +214,11 @@ const handleUnknownContactFlow = async (
       }
 
       await resolveRoutingSession(supabase, session.id, matchedTeamId, 'address_match')
+      await createOrUpdateMapping(supabase, {
+        contactPhone: message.from,
+        teamId: matchedTeamId,
+        source: 'address_match',
+      })
       logger.info({ sessionId: session.id, teamId: matchedTeamId }, '[WA-ROUTING] Address matched')
       return true
     }
@@ -254,6 +266,11 @@ const handleUnknownContactFlow = async (
       }
 
       await resolveRoutingSession(supabase, session.id, matchedTeamId, 'agency_match')
+      await createOrUpdateMapping(supabase, {
+        contactPhone: message.from,
+        teamId: matchedTeamId,
+        source: 'agency_match',
+      })
       logger.info({ sessionId: session.id, teamId: matchedTeamId }, '[WA-ROUTING] Agency matched')
       return true
     }
@@ -269,6 +286,11 @@ const handleUnknownContactFlow = async (
       }
 
       await resolveRoutingSession(supabase, session.id, fallbackTeamId, 'orphan')
+      await createOrUpdateMapping(supabase, {
+        contactPhone: message.from,
+        teamId: fallbackTeamId,
+        source: 'orphan',
+      })
       logger.info({ sessionId: session.id, teamId: fallbackTeamId }, '[WA-ROUTING] No team match — routed to admin team')
       return true
     }
@@ -299,6 +321,11 @@ const handleUnknownContactFlow = async (
       message.identifiedVia = 'orphan'
 
       await resolveRoutingSession(supabase, session.id, fallbackTeamId, 'orphan')
+      await createOrUpdateMapping(supabase, {
+        contactPhone: message.from,
+        teamId: fallbackTeamId,
+        source: 'orphan',
+      })
       logger.info({ sessionId: session.id, teamId: fallbackTeamId }, '[WA-ROUTING] Orphan session resolved to admin team')
       return true
     }
@@ -310,9 +337,11 @@ const handleUnknownContactFlow = async (
   return false
 }
 
-// ─── Routing session helpers ─────────────────────────────────────────────────
+// ============================================================================
+// Routing session helpers (exported for selection flows)
+// ============================================================================
 
-const createRoutingSession = async (
+export const createRoutingSession = async (
   supabase: ReturnType<typeof createServiceRoleSupabaseClient>,
   message: IncomingWhatsAppMessage
 ) => {
@@ -343,7 +372,7 @@ const createRoutingSession = async (
   return data
 }
 
-const updateRoutingSession = async (
+export const updateRoutingSession = async (
   supabase: ReturnType<typeof createServiceRoleSupabaseClient>,
   sessionId: string,
   routing: RoutingMetadata,
@@ -365,7 +394,7 @@ const updateRoutingSession = async (
   }
 }
 
-const resolveRoutingSession = async (
+export const resolveRoutingSession = async (
   supabase: ReturnType<typeof createServiceRoleSupabaseClient>,
   sessionId: string,
   teamId: string,
@@ -426,9 +455,9 @@ const matchBuildingByAddress = async (
   return match?.team_id ?? null
 }
 
-// ─── Agency name matching ────────────────────────────────────────────────────
+// ─── Agency name matching (exported for team-selection-flow) ─────────────────
 
-const matchTeamByName = async (
+export const matchTeamByName = async (
   supabase: ReturnType<typeof createServiceRoleSupabaseClient>,
   agencyName: string
 ): Promise<string | null> => {
@@ -461,7 +490,8 @@ export const fetchTeamAddresses = async (
     supabase
       .from('buildings_active')
       .select('team_id, addresses(street, city, postal_code)')
-      .in('team_id', teamIds),
+      .in('team_id', teamIds)
+      .limit(50),
     supabase
       .from('teams')
       .select('id, name')

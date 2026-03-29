@@ -9,6 +9,22 @@ description: "PEB Bruxelles amendes 62 500 EUR, succession Wallonie droits divis
 reading_time: "3 min"
 type: "hub"
 hub: ""
+infographic:
+  type: "stat-highlight"
+  data:
+    title: "Chiffres cles de janvier 2026"
+    stats:
+      - value: 62500
+        prefix: "€"
+        label: "Amende max PEB par copropriete"
+        color: "red"
+      - value: 2
+        label: "Echeances PEB (2033 et 2043)"
+        color: "amber"
+      - value: 50
+        suffix: "%"
+        label: "Reduction droits succession Wallonie 2028"
+        color: "green"
 ---
 
 # L'essentiel immo #1 — Janvier 2026

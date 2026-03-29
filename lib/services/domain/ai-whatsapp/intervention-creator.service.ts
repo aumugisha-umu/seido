@@ -15,6 +15,7 @@ interface CreateInterventionInput {
   contactPhone: string
   identifiedUserId: string | null
   language: string
+  channel?: string
 }
 
 // ============================================================================
@@ -24,7 +25,7 @@ interface CreateInterventionInput {
 export const createInterventionFromSession = async (
   input: CreateInterventionInput
 ): Promise<string | null> => {
-  const { sessionId, teamId, extractedData, messages, contactPhone, language } = input
+  const { sessionId, teamId, extractedData, messages, contactPhone, language, channel } = input
   const supabase = createServiceRoleSupabaseClient()
 
   // ─── 1. Try to match tenant by phone (scoped to team) ──────────
@@ -53,11 +54,17 @@ export const createInterventionFromSession = async (
     }
   }
 
-  // ─── 2. Try to match building by address (best-effort) ─────────
+  // ─── 2. Match building/lot ──────────────────────────────────────
   let buildingId: string | null = null
-  const lotId: string | null = null
+  let lotId: string | null = null
 
-  if (extractedData.address) {
+  if (extractedData.pre_identified && (extractedData.lot_id || extractedData.building_id)) {
+    // Pre-identified from property selection → use directly, skip fuzzy match
+    lotId = extractedData.lot_id ?? null
+    buildingId = extractedData.building_id ?? null
+    logger.info({ lotId, buildingId }, '[WA-INTERVENTION] Using pre-identified property')
+  } else if (extractedData.address) {
+    // Fuzzy address matching (existing behavior)
     const { data: buildings } = await supabase
       .from('buildings')
       .select('id, addresses!inner(street, city)')
@@ -68,7 +75,6 @@ export const createInterventionFromSession = async (
     if (buildings?.length) {
       const normalizedAddress = extractedData.address.toLowerCase()
       const match = buildings.find((b) => {
-        // Supabase !inner join returns object, but types may say array
         const addr = b.addresses as unknown as { street: string; city: string } | null
         if (!addr) return false
         return normalizedAddress.includes(addr.street.toLowerCase())
@@ -83,21 +89,22 @@ export const createInterventionFromSession = async (
     .map(m => `[${m.role === 'user' ? 'Locataire' : 'IA'}] ${m.content}`)
     .join('\n')
 
+  const channelLabel = channel === 'sms' ? 'SMS' : 'WhatsApp'
   const title = extractedData.problem_description
-    ? `[WhatsApp] ${extractedData.problem_description.slice(0, 100)}`
-    : '[WhatsApp] Demande via WhatsApp'
+    ? `[${channelLabel}] ${extractedData.problem_description.slice(0, 100)}`
+    : `[${channelLabel}] Demande via ${channelLabel}`
 
   const descriptionParts = [
     extractedData.problem_description,
     '',
-    '--- Details WhatsApp ---',
+    `--- Details ${channelLabel} ---`,
     `Signale par : ${identifiedUserName}`,
     contactPhone ? `Telephone : ${contactPhone}` : null,
     extractedData.address ? `Adresse : ${extractedData.address}` : null,
     `Urgence : ${extractedData.urgency ?? 'normale'}`,
     extractedData.additional_notes ? `\nNotes : ${extractedData.additional_notes}` : null,
     '',
-    '--- Conversation WhatsApp ---',
+    `--- Conversation ${channelLabel} ---`,
     transcript,
   ].filter(Boolean).join('\n')
 
@@ -110,7 +117,8 @@ export const createInterventionFromSession = async (
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   const randomSuffix = Math.random().toString(36).substring(2, 5).toUpperCase()
-  const reference = `WA-${year}${month}${day}-${randomSuffix}`
+  const refPrefix = channel === 'sms' ? 'SMS' : 'WA'
+  const reference = `${refPrefix}-${year}${month}${day}-${randomSuffix}`
 
   const interventionResult = await interventionRepo.create(
     {
@@ -123,8 +131,8 @@ export const createInterventionFromSession = async (
       building_id: buildingId,
       lot_id: lotId,
       status: 'demande',
-      source: 'whatsapp_ai',
-      creation_source: 'whatsapp_ai',
+      source: channel === 'sms' ? 'sms_ai' : 'whatsapp_ai',
+      creation_source: channel === 'sms' ? 'sms_ai' : 'whatsapp_ai',
       created_by: identifiedUserId,
     },
     { skipInitialSelect: true }
@@ -153,10 +161,10 @@ export const createInterventionFromSession = async (
           if (error) logger.warn({ error }, '[WA-INTERVENTION] Failed to assign tenant (non-blocking)')
         })
       : Promise.resolve(),
-    // 2b: Query team managers (parallel with tenant assignment)
+    // 2b: Query team managers — include 'admin' role (team admins are gestionnaires)
     supabase.from('team_members').select('user_id')
       .eq('team_id', teamId)
-      .eq('role', 'gestionnaire')
+      .in('role', ['gestionnaire', 'admin'])
       .is('left_at', null),
   ])
 
@@ -224,7 +232,47 @@ export const createInterventionFromSession = async (
     logger.warn({ error: threadError }, '[WA-INTERVENTION] Thread creation failed (non-blocking)')
   }
 
-  // ─── 4. Session update + audit log (parallel — independent writes)
+  // ─── 4. Attach media files as intervention documents ────────────
+  const mediaUrls = extractedData.media_urls ?? []
+  if (mediaUrls.length > 0) {
+    try {
+      const uploaderId = identifiedUserId ?? teamManagers?.[0]?.user_id
+      if (uploaderId) {
+        const docInserts = mediaUrls.map((storagePath, i) => {
+          const filename = storagePath.split('/').pop() ?? `photo-${i + 1}.jpg`
+          const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg'
+          const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' }
+          return {
+            intervention_id: interventionId,
+            team_id: teamId,
+            storage_path: storagePath,
+            storage_bucket: 'documents',
+            filename,
+            original_filename: filename,
+            mime_type: mimeMap[ext] ?? 'image/jpeg',
+            file_size: 0, // actual size not tracked during upload
+            document_type: 'photo_avant' as const,
+            uploaded_by: uploaderId,
+            description: `Photo envoyee via WhatsApp/SMS`,
+          }
+        })
+
+        const { error: docError } = await supabase
+          .from('intervention_documents')
+          .insert(docInserts)
+
+        if (docError) {
+          logger.warn({ error: docError }, '[WA-INTERVENTION] Failed to link media documents')
+        } else {
+          logger.info({ count: docInserts.length, interventionId }, '[WA-INTERVENTION] Media documents linked')
+        }
+      }
+    } catch (err) {
+      logger.warn({ err }, '[WA-INTERVENTION] Media document linking failed (non-blocking)')
+    }
+  }
+
+  // ─── 5. Session update + audit log (parallel — independent writes)
   const [sessionUpdateResult, callLogResult] = await Promise.all([
     supabase.from('ai_whatsapp_sessions').update({
       intervention_id: interventionId,
@@ -236,7 +284,7 @@ export const createInterventionFromSession = async (
       phone_number_id: null,
       elevenlabs_conversation_id: `wa-${sessionId}`,
       caller_phone: contactPhone ?? null,
-      channel: 'whatsapp_text',
+      channel: channel ?? 'whatsapp',
       identified_user_id: identifiedUserId,
       intervention_id: interventionId,
       transcript,
@@ -254,7 +302,7 @@ export const createInterventionFromSession = async (
     logger.warn({ error: callLogResult.error }, '[WA-INTERVENTION] Call log insert failed')
   }
 
-  // ─── 5. Notify gestionnaire (push + email) ─────────────────────
+  // ─── 6. Notify gestionnaire (push + email) ─────────────────────
   try {
     const { createInterventionNotification } = await import('@/app/actions/notification-actions')
     await createInterventionNotification(interventionId)

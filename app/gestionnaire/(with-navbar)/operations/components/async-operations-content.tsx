@@ -11,6 +11,7 @@ import { logger } from '@/lib/logger'
 import type { ReminderWithRelations } from '@/lib/types/reminder.types'
 import { getWhatsAppTriageItems, type WhatsAppTriageItem } from '@/app/actions/whatsapp-triage-actions'
 import { getAiSubscriptionStatus } from '@/app/actions/ai-subscription-actions'
+import { AI_SOURCES } from '@/lib/services/domain/ai-whatsapp/types'
 
 const INITIAL_PAGE_SIZE = 50
 
@@ -90,10 +91,15 @@ export async function AsyncOperationsContent({
     logger.error('[ASYNC-OPERATIONS] Error fetching data', { error })
   }
 
+  // Filter out AI-sourced interventions — they appear in "Assistant IA" triage tab only
+  const regularInterventions = interventions.filter(
+    i => !AI_SOURCES.includes((i as { source?: string }).source as typeof AI_SOURCES[number])
+  )
+
   return (
     <OperationsPageClient
-      initialInterventions={interventions}
-      initialInterventionTotal={total}
+      initialInterventions={regularInterventions}
+      initialInterventionTotal={regularInterventions.length}
       initialInterventionHasMore={hasMore}
       reminders={reminders}
       whatsappTriageItems={whatsappTriageItems}

@@ -9,6 +9,29 @@ description: "Taxe d'inoccupation jusqu'a 24.000 EUR/an, 4.000 EUR pour facade d
 reading_time: "7 min"
 type: "article"
 hub: "essentiel-immo-mars-2026"
+infographic:
+  type: "checklist"
+  data:
+    title: "Contestation d'une taxe comportementale"
+    items:
+      - label: "Demander un rendez-vous en presentiel"
+        status: "required"
+        detail: "Avec l'agent ou fonctionnaire responsable"
+      - label: "Envoyer un recommande avec accuse de reception"
+        status: "required"
+        detail: "Dans les 30 jours — creer une trace opposable"
+      - label: "Verifier les regimes d'exemption locaux"
+        status: "warning"
+        detail: "Travaux, succession, litige — variable par commune"
+      - label: "Rassembler le dossier documentaire"
+        status: "required"
+        detail: "Photos, baux, permis, factures, echanges"
+      - label: "Contester aupres des instances competentes"
+        status: "info"
+        detail: "Fonctionnaire-delegue, ombudsman ou tribunaux"
+      - label: "Faire appel a un avocat specialise"
+        status: "info"
+        detail: "Indispensable si taxe > 5.000 EUR"
 ---
 
 # Taxes comportementales sur l'immobilier : quand la fiscalite devient punitive

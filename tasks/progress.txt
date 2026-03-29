@@ -1,31 +1,65 @@
-# Progress Log — SMS Agent — Conversational AI via SMS
+# Progress Log — ElevenLabs Voice + AI Triage Redesign
 # Started: 2026-03-29
-# Stories: 5 total
+# Stories: 3 voice + triage redesign
 ---
 
-## US-001: Add channel field to types + sessions DB ✅
-- Migration: supabase/migrations/20260329084439_add_channel_to_sessions.sql
-- Types: lib/services/domain/ai-whatsapp/types.ts (MessageChannel type)
-- Lint: 0 new errors
+## US-002: ElevenLabs agent prompt with dynamic variables ✅
+- SYSTEM_PROMPT_TEMPLATE: 4 dynamic variables (team_name, caller_name, caller_address, conversation_history) + custom_instructions
+- 4-scenario ETAPE 1 matching WhatsApp pattern
+- buildSystemPrompt() simplified: only replaces {{custom_instructions}} (static at agent creation)
+- first_message uses {{team_name}} for runtime resolution
+- updateAgent/createAgent signatures cleaned (removed teamName param)
+- Callers updated: phone-provisioning.service.ts, ai-subscription-actions.ts
+- Files: elevenlabs-agent.service.ts, phone-provisioning.service.ts, ai-subscription-actions.ts
 
-## US-002: Adapt twilio-whatsapp.service for SMS ✅
-- Modified: lib/services/domain/ai-whatsapp/twilio-whatsapp.service.ts
-- Added formatPhone() helper, channel param on all send functions
-- Lint: 0 new errors
+## US-003: Environment config + .env.example ✅
+- Added ELEVENLABS_API_KEY + ELEVENLABS_AGENT_ID to .env.example
+- Added TELNYX_SIP_USERNAME/PASSWORD (SIP trunk for ElevenLabs ↔ Telnyx)
+- Documented voice webhook URL: POST /api/webhooks/voice
+- Files: .env.example
 
-## US-003: Create SMS webhook /api/webhooks/sms ✅
-- Created: app/api/webhooks/sms/route.ts (12 lines, thin adapter)
-- Reuses handleTwilioIncoming from WhatsApp route
-- Lint: 0 new errors
+## US-001: Voice webhook endpoint ✅
+- POST /api/webhooks/voice — full inbound voice call handler
+- Twilio signature validation (reuses validateTwilioSignature)
+- Pre-call routing: lookupMappings → runIdentificationCascade → phone_team_mappings
+- Known caller: parallel fetch (teamName, callerName, callerAddress, conversationHistory)
+- Unknown caller: generic agent with default team_name="Votre gestionnaire"
+- ElevenLabs register-call API: POST /v1/convai/twilio/register-call with dynamic_variables
+- TwiML passthrough: ElevenLabs returns TwiML, we proxy to Twilio
+- Graceful fallback: French <Say> + <Hangup> on any error
+- Files: app/api/webhooks/voice/route.ts (NEW)
 
-## US-004: Adapt conversation engine for SMS channel ✅
-- Modified: lib/services/domain/ai-whatsapp/conversation-engine.service.ts
-- 9 sendWhatsAppMessage calls updated with message.channel
-- createRoutingSession now stores channel
-- buildSystemPrompt: shorter lengthRule for SMS (160 char segments)
-- Lint: 0 new errors
+## 2026-03-29 15:00 — Telnyx removal + ElevenLabs webhook fixes ✅
+- Removed all Telnyx code (importPhoneNumber, assignAgentToNumber, SIP config)
+- Fixed post-call webhook: team identification via resolvePhoneMappings (not agent_id lookup)
+- Fixed caller phone extraction: metadata.phone_call.external_number (not body.from_number)
+- Added caller_phone as dynamic variable fallback in voice webhook
+- Files: elevenlabs-agent.service.ts, app/api/webhooks/elevenlabs/route.ts, app/api/webhooks/voice/route.ts
 
-## US-005: Configure webhook + env + cleanup ✅
-- Modified: .env.example — added SMS webhook path, removed stale Meta WABA vars
-- Lint: 0 new errors
-- Tests: 781 passed, 7 failed (pre-existing integration failures)
+## 2026-03-29 16:00 — AI Triage Card Redesign ✅
+- Data layer: triage query now uses source IN (whatsapp_ai, sms_ai, phone_ai) instead of type = demande_whatsapp
+- Dashboard filter: AI-sourced interventions excluded from Interventions tab (regularInterventions)
+- Card redesign: channel icons (WhatsApp green/Phone blue/SMS purple), badges, dot menu, Traite/Rejeter buttons
+- Navigator: ContentNavigator with channel sub-tabs (Toutes/WhatsApp/Appels/SMS), search, view switcher
+- List view: sortable table with channel, contact+badges, description, address, date, inline actions
+- Files: whatsapp-triage-actions.ts, async-dashboard-content.tsx, whatsapp-triage-card.tsx, whatsapp-triage-navigator.tsx, whatsapp-triage-list-view.tsx (NEW)
+
+## 2026-03-29 17:00 — Simplify pass ✅
+- Extracted AI_SOURCES to shared constant in lib/services/domain/ai-whatsapp/types.ts (was defined 3x)
+- Extracted CHANNEL_CONFIG to components/operations/triage-shared.ts (was duplicated in card + list)
+- Extracted useTriageActions hook to components/operations/use-triage-actions.ts (was duplicated)
+- Dashboard: filter once + reuse (was filtering twice)
+- Added source field to Intervention interface (removed as any casts)
+- Single-pass channel grouping in navigator (was 3 separate .filter() calls)
+- Files: types.ts, triage-shared.ts (NEW), use-triage-actions.ts (NEW), service-types.ts, whatsapp-triage-card.tsx, whatsapp-triage-list-view.tsx, whatsapp-triage-navigator.tsx, async-dashboard-content.tsx
+
+## 2026-03-29 22:00 — Landing Hero: Flow Directionnel Animation
+- Implemented: Replaced video background hero with animated flow visual (inputs→AI→intervention card)
+- Prototyped in HTML first (docs/prototypes/hero-final.html), then converted to React component
+- Component: HeroFlowVisual (React.memo, CSS transitions + JS setTimeout sequencing)
+- CSS: hero-flow.css with 6 animation classes (drop, scale, slide-up/left/right, fade)
+- Context enrichment: chips showing existing data pulled by SEIDO (documents, contacts, history)
+- /simplify fixes: split CSS transform per axis, limit flow dots to 3 iterations, add React.memo
+- Blog: changed author from "Equipe Seido" to "Arthur Umugisha" across 24 articles
+- Learnings: #229 (staggered animation pattern), #230 (CSS transform axis matching), #231 (finite animation iterations)
+- Files: hero-flow-visual.tsx (NEW), hero-flow.css (NEW), landing-page.tsx, globals.css, hero-final.html, 24x blog articles

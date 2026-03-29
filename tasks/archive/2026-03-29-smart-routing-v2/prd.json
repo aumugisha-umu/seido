@@ -1,0 +1,195 @@
+{
+  "project": "SEIDO",
+  "featureName": "Smart Routing v2 — Persistent Phone→Team Mapping",
+  "branchName": "preview",
+  "description": "Persistent phone_team_mappings table as routing cache. All channels (WhatsApp, SMS, voice) share the same mapping. Property-aware context for tenants/owners, intervention context for providers, multi-team disambiguation.",
+  "createdAt": "2026-03-29",
+  "prdSource": "docs/plans/2026-03-29-smart-routing-v2-design.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Migration: phone_team_mappings table + indexes + RLS + backfill",
+      "description": "As the system, I need a persistent table to cache phone→team associations so returning contacts are auto-routed without re-identification",
+      "acceptanceCriteria": [
+        "Table phone_team_mappings created with columns: id, contact_phone, team_id, user_id, user_role, source, last_used_at, created_at",
+        "UNIQUE constraint on (contact_phone, team_id)",
+        "Indexes on contact_phone and team_id",
+        "RLS: gestionnaire/admin SELECT for their team",
+        "Backfill from ai_whatsapp_sessions (completed, team_id NOT NULL)",
+        "Backfill from ai_phone_calls (team_id NOT NULL, caller_phone NOT NULL)",
+        "Types regenerated (npm run supabase:types)",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Migration 20260329105518. Table + UNIQUE + 2 indexes + RLS (is_team_manager) + backfill from sessions+calls. CHECK constraints on source and user_role. Types regenerated."
+    },
+    {
+      "id": "US-002",
+      "title": "phone-mapping.service.ts: CRUD + lookup + property/intervention queries",
+      "description": "As the system, I need a service layer for phone_team_mappings with lookup, create/update, property fetching, and provider intervention fetching",
+      "acceptanceCriteria": [
+        "lookupMappings(phone): returns all mappings for a phone number",
+        "createOrUpdateMapping(phone, teamId, userId?, role?, source): upsert with last_used_at",
+        "touchMapping(phone, teamId): update last_used_at only",
+        "fetchUserProperties(userId, teamId): returns lots/buildings via lot_contacts + building_contacts + addresses",
+        "fetchProviderInterventions(userId, teamId): returns active interventions assigned to provider",
+        "deleteStaleMappings(phone, teamId): removes mapping when user left team",
+        "All queries use lots.team_id (NOT NULL) not lot_contacts.team_id (nullable)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "New file phone-mapping.service.ts (~480 lines). 10 exported functions. runIdentificationCascade covers team_members(all roles) → lot_contacts → building_contacts → supplier_contracts. verifyMappingFreshness handles 7-day staleness check."
+    },
+    {
+      "id": "US-003",
+      "title": "Webhook refactor: mapping lookup replaces team_members as primary routing",
+      "description": "As a returning contact, I want to be automatically routed to the same team without re-identification so my experience is seamless",
+      "acceptanceCriteria": [
+        "Step 1: lookup phone_team_mappings (primary) instead of team_members",
+        "Step 2: first-contact cascade if 0 mappings (team_members ALL roles + lot_contacts + building_contacts + supplier_contracts)",
+        "team_members query no longer filters .eq('role', 'locataire') — matches ALL roles",
+        "Mapping created after every successful identification",
+        "Session fallback (step 3b) removed — replaced by persistent mapping",
+        "1 mapping → auto-route, 2+ → defer to routing flow",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Webhook refactored: 4-branch → 3-branch (mapping/multi/unknown). Session fallback removed. Cascade creates mappings immediately. mappingUserRole field added to IncomingWhatsAppMessage type. normalizePhoneE164 import moved to phone-mapping.service."
+    },
+    {
+      "id": "US-004",
+      "title": "Property selection flow for tenants/owners",
+      "description": "As a known tenant with multiple properties, I want to be asked which property my message concerns so the intervention is correctly linked",
+      "acceptanceCriteria": [
+        "RoutingState extended with 'awaiting_property_selection'",
+        "RoutingMetadata extended with property_options, selected_lot_id, selected_building_id",
+        "0 properties → normal conversation",
+        "1 property → confirmation question ('Votre message concerne [address]?')",
+        "2+ properties → numbered list + 'Autre chose' option",
+        "Selected property pre-fills extracted_data.lot_id/building_id/pre_identified",
+        "SMS messages condensed (shorter labels)",
+        "Invalid reply → retry (max 2) then normal conversation",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Types extended: RoutingState + RoutingMetadata + SessionExtractedData (lot_id, building_id, pre_identified). handlePropertySelectionFlow in routing-flow.service.ts: 0 props→skip, 1→OUI/NON confirm, 2+→numbered list+Autre. sendPropertySelectionMessage + parseConfirmationReply in twilio-whatsapp.service.ts. SMS labels condensed (60 chars). Max 2 retries then skip. Wired in conversation-engine after routing, before session load."
+    },
+    {
+      "id": "US-005",
+      "title": "Intervention selection flow for providers (MVP)",
+      "description": "As a known provider, I want to see my active interventions when I message so I can reference the right one",
+      "acceptanceCriteria": [
+        "RoutingState extended with 'awaiting_intervention_selection'",
+        "RoutingMetadata extended with intervention_options",
+        "0 active interventions → normal conversation",
+        "1+ active interventions → numbered list with reference + description + address",
+        "Selected intervention pre-fills building_id/lot_id from the intervention",
+        "MVP: provider always creates NEW intervention (no thread reply)",
+        "Lint passes"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "RoutingState + RoutingMetadata extended. InterventionOption now includes buildingId/lotId. handleInterventionSelectionFlow in routing-flow.service.ts. sendInterventionSelectionMessage in twilio-whatsapp.service.ts (SMS condensed). Last option = 'Nouveau problème' → skip pre-fill. Max 2 retries. Reuses createPropertySession, clearPropertyState, resolvePropertyState helpers. Wired in conversation-engine after property selection."
+    },
+    {
+      "id": "US-006",
+      "title": "Multi-team selection from mappings",
+      "description": "As a contact linked to 2+ teams, I want to choose which team I'm writing to so my message reaches the right agency",
+      "acceptanceCriteria": [
+        "RoutingState extended with 'awaiting_team_selection'",
+        "Teams sorted by last_used_at DESC",
+        "Numbered list with team names",
+        "Selection → update last_used_at → continue to property/intervention flow",
+        "'Autre' option → ask for agency name → create new mapping if match",
+        "Lint passes"
+      ],
+      "priority": 6,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "RoutingState: +awaiting_team_selection, +awaiting_team_agency. handleTeamSelectionFlow replaces old disambiguation for multi-mapping. sendTeamSelectionMessage shows team names. Autre → awaiting_team_agency → matchTeamByName → createOrUpdateMapping. touchMapping on selection. Conversation-engine: team selection runs BEFORE routing (multi-mapping intercept)."
+    },
+    {
+      "id": "US-007",
+      "title": "Pre-identified property in conversation engine + Claude prompt",
+      "description": "As the AI, I need to know which property was pre-selected so I can reference it in conversation and skip address collection",
+      "acceptanceCriteria": [
+        "SessionExtractedData extended with lot_id, building_id, pre_identified",
+        "Claude system prompt includes property info when pre_identified=true",
+        "AI skips ETAPE 1 (address collection) when property pre-identified",
+        "Conversation engine passes pre-identified data through to session",
+        "Lint passes"
+      ],
+      "priority": 7,
+      "dependsOn": ["US-004"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "SessionExtractedData already extended in US-004. buildSystemPrompt: conditional ETAPE 1 — if pre_identified, only ask name (skip address). fetchPreIdentifiedAddress in conversation-engine: queries lot (with apt number) or building for address. Address pre-filled in sessionExtracted before Claude call."
+    },
+    {
+      "id": "US-008",
+      "title": "Pre-identified property in intervention creator",
+      "description": "As the system, I need to use the pre-identified lot/building directly instead of fuzzy matching so interventions are correctly linked",
+      "acceptanceCriteria": [
+        "When extracted_data.pre_identified=true, use lot_id/building_id directly",
+        "Skip fuzzy address matching when pre-identified",
+        "Fallback to fuzzy match when not pre-identified (existing behavior)",
+        "Lint passes"
+      ],
+      "priority": 8,
+      "dependsOn": ["US-007"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Step 2 in intervention-creator: if pre_identified, use lot_id/building_id directly. Else fallback to fuzzy address matching. lotId changed from const to let."
+    },
+    {
+      "id": "US-009",
+      "title": "ElevenLabs webhook: upsert mapping after voice call",
+      "description": "As a caller who used the voice agent, I want my phone number remembered so next time I use WhatsApp/SMS I'm auto-routed",
+      "acceptanceCriteria": [
+        "After tenant identification (step 4), upsert phone_team_mappings",
+        "Mapping created with source='voice_call'",
+        "If caller phone is null, skip mapping (graceful)",
+        "Lint passes"
+      ],
+      "priority": 9,
+      "dependsOn": ["US-002"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Step 4b added after tenant identification: createOrUpdateMapping(source='voice_call'). Guarded by callerPhone && teamId. Dynamic import for tree-shaking. Non-blocking try/catch."
+    },
+    {
+      "id": "US-010",
+      "title": "Mapping lifecycle: staleness check + update after session",
+      "description": "As the system, I need to keep mappings fresh by updating user_id/role after sessions complete and checking for stale team memberships",
+      "acceptanceCriteria": [
+        "After session complete with identified_user_id: update mapping user_id/user_role if null",
+        "On routing: if mapping.last_used_at > 7 days, verify team_members.left_at IS NULL",
+        "If user left team: delete mapping, re-run cascade",
+        "If role changed: update user_role in mapping",
+        "Mapping creation on first-contact also happens in routing-flow after address_match/agency_match/orphan resolution",
+        "Lint passes"
+      ],
+      "priority": 10,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Post-session enrichment: createOrUpdateMapping after conversation_complete (if identified_user_id). Routing-flow: createOrUpdateMapping after each resolveRoutingSession (address_match, agency_match, orphan x2). Staleness already implemented in US-002 (verifyMappingFreshness) and called in US-003 (webhook)."
+    }
+  ]
+}

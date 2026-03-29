@@ -3396,6 +3396,57 @@ export type Database = {
           },
         ]
       }
+      phone_team_mappings: {
+        Row: {
+          contact_phone: string
+          conversation_history: Json
+          created_at: string
+          id: string
+          last_used_at: string
+          source: string
+          team_id: string
+          user_id: string | null
+          user_role: string | null
+        }
+        Insert: {
+          contact_phone: string
+          conversation_history?: Json
+          created_at?: string
+          id?: string
+          last_used_at?: string
+          source?: string
+          team_id: string
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Update: {
+          contact_phone?: string
+          conversation_history?: Json
+          created_at?: string
+          id?: string
+          last_used_at?: string
+          source?: string
+          team_id?: string
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_team_mappings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_team_mappings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       property_documents: {
         Row: {
           building_id: string | null

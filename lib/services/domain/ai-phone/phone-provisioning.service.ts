@@ -262,7 +262,6 @@ export const deprovision = async (teamId: string): Promise<void> => {
  */
 export const updateCustomInstructions = async (
   teamId: string,
-  teamName: string,
   customInstructions: string
 ): Promise<void> => {
   const supabase = createServiceRoleSupabaseClient()
@@ -277,7 +276,7 @@ export const updateCustomInstructions = async (
     .maybeSingle()
 
   if (mode === 'auto' && config?.elevenlabs_agent_id) {
-    await elevenlabs.updateAgent(config.elevenlabs_agent_id, teamName, customInstructions)
+    await elevenlabs.updateAgent(config.elevenlabs_agent_id, customInstructions)
   }
 
   logger.info({ teamId, mode }, '[PROVISIONING] Custom instructions updated')

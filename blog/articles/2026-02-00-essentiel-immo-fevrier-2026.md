@@ -9,6 +9,23 @@ description: "Grille des loyers deconnectee, precompte +118% a Saint-Josse, mora
 reading_time: "3 min"
 type: "hub"
 hub: ""
+infographic:
+  type: "stat-highlight"
+  data:
+    title: "Chiffres cles de fevrier 2026"
+    stats:
+      - value: 75
+        suffix: "%"
+        label: "Loyers bruxellois au-dessus de la grille"
+        color: "red"
+      - value: 118
+        suffix: "%"
+        label: "Hausse precompte Saint-Josse en 10 ans"
+        color: "amber"
+      - value: 8
+        suffix: " ans"
+        label: "Duree moyenne renovation en copropriete"
+        color: "blue"
 ---
 
 # L'essentiel immo #2 — Fevrier 2026

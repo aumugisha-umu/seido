@@ -1,0 +1,42 @@
+[
+  {
+    "company": "BNP Paribas Real Estate",
+    "commune": "Ixelles",
+    "google_maps_url": null,
+    "google_rating": 3.5,
+    "google_review_count": 25,
+    "error": null
+  },
+  {
+    "company": "GGG Real Estate",
+    "commune": "Uccle",
+    "google_maps_url": null,
+    "google_rating": 3.5,
+    "google_review_count": 13,
+    "error": null
+  },
+  {
+    "company": "Immo JPL",
+    "commune": "Uccle",
+    "google_maps_url": null,
+    "google_rating": 2.9,
+    "google_review_count": 15,
+    "error": null
+  },
+  {
+    "company": "immo gestion syndic",
+    "commune": "Uccle",
+    "google_maps_url": null,
+    "google_rating": 3,
+    "google_review_count": 12,
+    "error": null
+  },
+  {
+    "company": "ADAL SRL",
+    "commune": "Woluwe-Saint-Lambert",
+    "google_maps_url": null,
+    "google_rating": 4,
+    "google_review_count": 20,
+    "error": null
+  }
+]

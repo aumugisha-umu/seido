@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-28
-**Total Learnings:** 224
+**Last Updated:** 2026-03-29
+**Total Learnings:** 231
 
 ---
 
@@ -1643,12 +1643,61 @@
 **When to Use:** Evaluating any AI-generated UI, or writing prompts for UI generation
 **Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — SEIDO UX/UI patterns formalized
 
+#### Learning #225: Filter AI-sourced interventions by `source` column, not `type`
+**Problem:** The triage query used `type = 'demande_whatsapp'` to find AI-created interventions. But phone_ai interventions have real types like 'plomberie' or 'electricite' (extracted by AI during the call). This caused phone-originated interventions to be invisible in the triage queue.
+**Solution:** Filter by `source IN ('whatsapp_ai', 'sms_ai', 'phone_ai')` — the `source` column is the reliable discriminator for AI-created interventions, not `type`. Export `AI_SOURCES` as a shared constant from `lib/services/domain/ai-whatsapp/types.ts` to avoid duplication across files.
+**Example:** `app/actions/whatsapp-triage-actions.ts:60` — `.in('source', AI_SOURCES)`
+**When to Use:** Any query filtering for AI-sourced vs human-sourced interventions
+**Added:** 2026-03-29 | **Source:** AI triage card redesign — phone interventions missing from triage
+
+#### Learning #226: ElevenLabs post-call webhook metadata structure for Twilio-registered calls
+**Problem:** The ElevenLabs post-call webhook `metadata` payload has an undocumented structure for Twilio-registered calls. The caller phone is NOT at `phone_call.body.from_number` (that path doesn't exist). The team identification via `ai_phone_numbers.elevenlabs_agent_id` lookup fails in shared-agent architecture (single agent ID for all teams).
+**Solution:** For Twilio-registered calls: caller phone is at `metadata.phone_call.external_number`. Agent number is at `metadata.phone_call.agent_number`. Call type is `metadata.phone_call.type === 'twilio'`. As fallback, pass `caller_phone` as a dynamic variable during `register-call` and read it from `conversation_initiation_client_data.dynamic_variables.caller_phone`. For team identification, use `resolvePhoneMappings(callerPhone)` via `phone_team_mappings` table instead of agent ID lookup.
+**Example:** `app/api/webhooks/elevenlabs/route.ts:250-260` — metadata extraction with fallback chain
+**When to Use:** Working with ElevenLabs Conversational AI webhooks + Twilio integration
+**Added:** 2026-03-29 | **Source:** ElevenLabs voice integration — debug metadata dump revealed actual structure
+
+#### Learning #227: Card + ListView pairs should share actions via a hook, not copy-paste
+**Problem:** When creating a card view and list view for the same entity (triage items), action handlers (mark handled, reject, convert to intervention, convert to reminder) were copy-pasted between components. Both had identical `useTransition` + server action + toast patterns, leading to 6 duplicated functions.
+**Solution:** Extract a `useEntityActions(item, onRemoved)` hook that returns all action handlers + `isPending` state. Both card and list view import the same hook. Also extract shared config (channel icons/colors) to a `triage-shared.ts` constants file. This DRYs up ~60 lines per component.
+**Example:** `components/operations/use-triage-actions.ts` — shared hook; `components/operations/triage-shared.ts` — shared CHANNEL_CONFIG
+**When to Use:** Any time you create card + list view pairs for the same entity type
+**Added:** 2026-03-29 | **Source:** AI triage card redesign — /simplify review caught the duplication
+
+#### Learning #228: TypeScript interface must mirror DB columns used in runtime filters
+**Problem:** The `Intervention` interface in `service-types.ts` was missing the `source` field even though the DB column existed and was used at runtime. This forced `(i as any).source` casts in the dashboard filter, hiding the field from type checking and IDE autocomplete.
+**Solution:** When adding a DB column that will be read in TypeScript code, ALWAYS add it to the corresponding TypeScript interface immediately. Check `lib/database.types.ts` (generated) for the column definition, then add it to the domain interface in `service-types.ts`. This is especially important for filter/discriminator columns used in `.filter()` or `.includes()` checks.
+**Example:** `lib/services/core/service-types.ts:191` — `source?: string | null` added to `Intervention`
+**When to Use:** After any migration that adds a column used for filtering or branching logic
+**Added:** 2026-03-29 | **Source:** AI triage card redesign — /simplify review caught `as any` casts
+
 #### Learning #224: Skill content > skill quantity — 6 empty skills are worse than 3 complete ones
 **Problem:** Initially created 13 skill directories but only wrote content for 7. The 6 empty `SKILL.md` files gave the appearance of coverage but provided zero guidance to agents. An agent invoking `sp-tdd` would get an empty file and fall back to generic behavior.
 **Solution:** Never create a skill directory without immediately writing meaningful content. Each SKILL.md needs at minimum: Overview, When to Use, Process (step-by-step), Example Output, and What NOT to Do. If you can't write the content now, don't create the directory — it's misleading. Batch-write skills in a single session rather than creating shells.
 **Example:** `umumentum-ai-starter-kit/.claude/skills/sp-tdd/SKILL.md` — 185 lines with Red-Green-Refactor cycle, test patterns, quality checklist
 **When to Use:** Creating or reviewing any Claude Code skill structure
 **Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — empty skill files caused background agent re-work
+
+#### Learning #229: Staggered entrance animation pattern — CSS classes + JS timing + React.memo
+**Problem:** Needed a sequential entrance animation (11 elements appearing over 4.5s) in a React component. Options: (A) 11 useState + 11 conditional classes = excessive re-renders, (B) CSS-only animation-delay = no control over sequencing between groups, (C) JS setTimeout + classList = imperative but performant.
+**Solution:** Use a hybrid pattern: CSS defines the transitions (hidden→visible states), JS `setTimeout` controls sequencing, `data-*` attributes target elements. Structure: (1) CSS file (`hero-flow.css`) with animation classes (`hero-animate-drop`, `hero-animate-scale`, `hero-animate-slide-up`, `hero-animate-slide-left`, `hero-animate-slide-right`, `hero-animate-fade`) each defining the hidden state (opacity:0 + transform offset). (2) Single `.hero-visible` class toggles to visible state — split per animation axis to avoid transform conflicts. (3) JS `useEffect` with `setTimeout` array + cleanup. (4) `animatedRef` prevents double-animation in React StrictMode. (5) `React.memo()` prevents re-renders from parent state. (6) `prefers-reduced-motion` check shows all elements immediately.
+**Example:** `components/landing/hero-flow-visual.tsx` + `app/styles/hero-flow.css` — full pattern
+**When to Use:** Any multi-element sequential entrance animation in React (landing pages, onboarding, feature tours)
+**Added:** 2026-03-29 | **Source:** Landing hero flow directionnel — inputs→AI→intervention animation
+
+#### Learning #230: CSS transform visible states must match their animation axis
+**Problem:** Combined `transform: translate(0) scale(1)` as the visible state for ALL animation types. This works visually but is fragile — `hero-animate-slide-left` uses `translateX(-6px)` but gets reset with `translate(0)` which implicitly zeros both X and Y axes. If a future animation combines translateX + translateY, this breaks silently.
+**Solution:** Split visible-state selectors per animation type: `translateY(0)` for drop/slide-up, `translateX(0)` for slide-left/slide-right, `scale(1)` for scale. Each visible state resets only the axis its hidden state modified.
+**Example:** `app/styles/hero-flow.css:43-56` — separate selectors per animation type
+**When to Use:** Any CSS transition system with multiple animation types sharing a visible class
+**Added:** 2026-03-29 | **Source:** Landing hero /simplify review — CSS transform conflict
+
+#### Learning #231: Limit CSS infinite animations to N iterations on landing pages
+**Problem:** Flow dots used `animation: heroFlowDown 1.8s ease-in-out infinite` — 4 dots × infinite loop = continuous GPU compositing even when user has scrolled past the hero. On lower-end devices, this wastes 15-20% CPU indefinitely.
+**Solution:** Use `animation-iteration-count: 3` (or any finite number) instead of `infinite`. 3 loops (~5.4s) is enough to convey "data flowing" visually, then the CPU is freed. For truly infinite animations, add an IntersectionObserver to pause/resume with `animation-play-state: paused` when off-screen.
+**Example:** `app/styles/hero-flow.css:63` — `animation: heroFlowDown 1.8s ease-in-out 3`
+**When to Use:** Any decorative CSS animation on a landing/marketing page
+**Added:** 2026-03-29 | **Source:** Landing hero /simplify efficiency review
 
 ---
 

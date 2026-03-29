@@ -9,6 +9,56 @@ description: "La Cour constitutionnelle valide le moratoire hivernal bruxellois 
 reading_time: "5 min"
 type: "article"
 hub: "essentiel-immo-fevrier-2026"
+infographic:
+  type: "timeline"
+  data:
+    title: "Calendrier moratoire hivernal 2026"
+    milestones:
+      - date: "Mai-Juin"
+        label: "Saisir le juge de paix"
+        detail: "Procedure a lancer au plus tard"
+        color: "blue"
+        icon: "calendar"
+        actions:
+          - "Deposer la requete aupres du juge de paix pour les locataires en defaut depuis 2+ mois"
+          - "Rassembler les preuves d'impayes (releves bancaires, recommandes, mises en demeure)"
+          - "Verifier que le bail est enregistre avant d'introduire la procedure"
+      - date: "15 aout"
+        label: "Jugement d'expulsion"
+        detail: "Date limite pour execution avant hiver"
+        color: "amber"
+        icon: "clock"
+        actions:
+          - "Mandater l'huissier pour executer le jugement avant le 1er novembre"
+          - "Prevenir le proprietaire du calendrier et des couts d'execution"
+          - "Preparer le bien pour une remise en location rapide apres expulsion"
+      - date: "15 sept."
+        label: "Demande indemnisation"
+        detail: "Fonds regional de solidarite"
+        color: "green"
+        icon: "check"
+        actions:
+          - "Introduire la demande d'indemnisation aupres du Fonds regional avant la date limite"
+          - "Joindre le jugement, les preuves d'impayes et les mises en demeure au dossier"
+          - "Verifier les conditions d'eligibilite (bail enregistre, jugement valide)"
+      - date: "1er nov."
+        label: "Debut moratoire"
+        detail: "Expulsions suspendues"
+        color: "red"
+        icon: "alert"
+        actions:
+          - "Envoyer une mise en demeure formelle a tout locataire defaillant des le 1er novembre"
+          - "Documenter chaque mois de non-paiement (releves de compte, courriers recommandes)"
+          - "Negocier un plan de paiement ecrit incluant une clause de renonciation au moratoire"
+      - date: "15 mars"
+        label: "Fin moratoire"
+        detail: "Expulsions reprennent"
+        color: "green"
+        icon: "check"
+        actions:
+          - "Relancer immediatement l'execution du jugement d'expulsion aupres de l'huissier"
+          - "Deposer la demande d'indemnisation pour le moratoire ecoule (delai : 15 septembre)"
+          - "Evaluer les dossiers en cours et lancer les procedures pour le cycle suivant"
 ---
 
 # Moratoire hivernal bruxellois : la Cour constitutionnelle valide le dispositif

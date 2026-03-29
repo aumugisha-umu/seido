@@ -29,6 +29,7 @@ import { loadMultiTeamData, createTeamNameMap } from "@/lib/multi-team-helpers"
 import { ManagerDashboardV2 } from "@/components/dashboards/manager/manager-dashboard-v2"
 import { getWhatsAppTriageItems, type WhatsAppTriageItem } from '@/app/actions/whatsapp-triage-actions'
 import { getAiSubscriptionStatus } from '@/app/actions/ai-subscription-actions'
+import { AI_SOURCES } from '@/lib/services/domain/ai-whatsapp/types'
 
 // ✅ PERF: React cache() deduplicates service creation within a single request render tree.
 // If the layout or other server components call the same factories, they reuse this instance.
@@ -90,6 +91,7 @@ export async function AsyncDashboardContent({
   }
 
   let allInterventions: InterventionWithRelations[] = []
+  let regularInterventions: InterventionWithRelations[] = []
   let pendingActionsCount = 0
 
   try {
@@ -242,12 +244,17 @@ export async function AsyncDashboardContent({
     allInterventions = allInterventions
       .sort((a, b) => (new Date(b.created_at ?? '').getTime() || 0) - (new Date(a.created_at ?? '').getTime() || 0))
 
-    const transformedInterventions = allInterventions.map((intervention: any) => ({
-      ...intervention,
-      reference: intervention.reference || `INT-${intervention.id.slice(0, 8)}`,
-      urgency: intervention.urgency || intervention.priority || 'normale',
-      type: intervention.intervention_type || 'autre'
-    }))
+    // Filter out AI-sourced interventions — they appear in "Assistant IA" triage tab only
+    regularInterventions = allInterventions.filter(
+      i => !AI_SOURCES.includes(i.source as typeof AI_SOURCES[number])
+    )
+    const transformedInterventions = regularInterventions
+      .map((intervention) => ({
+        ...intervention,
+        reference: intervention.reference || `INT-${intervention.id.slice(0, 8)}`,
+        urgency: intervention.urgency || intervention.priority || 'normale',
+        type: intervention.intervention_type || 'autre'
+      }))
     pendingActionsCount = filterPendingActions(transformedInterventions, 'gestionnaire').length
 
   } catch (error) {
@@ -310,7 +317,7 @@ export async function AsyncDashboardContent({
       stats={stats}
       tenantCount={tenantCount}
       contractStats={contractStats}
-      interventions={allInterventions}
+      interventions={regularInterventions}
       pendingCount={pendingActionsCount}
       unreadThreads={unreadThreads?.threads}
       unreadThreadsTotalCount={unreadThreads?.totalCount}

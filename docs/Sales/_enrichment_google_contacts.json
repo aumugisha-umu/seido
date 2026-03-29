@@ -1,0 +1,57 @@
+[
+  {
+    "name": "BNP Paribas Real Estate",
+    "normalizedName": "bnp paribas real estate",
+    "commune": "Ixelles",
+    "phone": null,
+    "rating": null,
+    "reviewCount": null,
+    "address": null,
+    "website": null,
+    "error": "captcha"
+  },
+  {
+    "name": "GGG Real Estate",
+    "normalizedName": "ggg real estate",
+    "commune": "Uccle",
+    "phone": null,
+    "rating": null,
+    "reviewCount": null,
+    "address": null,
+    "website": null,
+    "error": "captcha"
+  },
+  {
+    "name": "Immo JPL",
+    "normalizedName": "immo jpl",
+    "commune": "Uccle",
+    "phone": null,
+    "rating": null,
+    "reviewCount": null,
+    "address": null,
+    "website": null,
+    "error": "captcha"
+  },
+  {
+    "name": "immo gestion syndic",
+    "normalizedName": "immo gestion syndic",
+    "commune": "Uccle",
+    "phone": null,
+    "rating": null,
+    "reviewCount": null,
+    "address": null,
+    "website": null,
+    "error": "captcha"
+  },
+  {
+    "name": "ADAL SRL",
+    "normalizedName": "adal",
+    "commune": "Woluwe-Saint-Lambert",
+    "phone": null,
+    "rating": null,
+    "reviewCount": null,
+    "address": null,
+    "website": null,
+    "error": "captcha"
+  }
+]

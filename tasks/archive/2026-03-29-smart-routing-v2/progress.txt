@@ -1,0 +1,109 @@
+# Progress Log — Smart Routing v2 — Persistent Phone→Team Mapping
+# Started: 2026-03-29
+# Stories: 10 total
+# Design: docs/plans/2026-03-29-smart-routing-v2-design.md
+---
+
+## US-001: Migration: phone_team_mappings + indexes + RLS + backfill [1/10]
+- Created: supabase/migrations/20260329105518_create_phone_team_mappings.sql
+- 8 columns, UNIQUE(contact_phone, team_id), 2 indexes, CHECK constraints
+- RLS: is_team_manager() for SELECT, service role for writes
+- Backfill from ai_whatsapp_sessions + ai_phone_calls
+- Types regenerated: lib/database.types.ts
+- Lint: 0 errors
+
+## US-002: phone-mapping.service.ts: CRUD + lookup + queries [2/10]
+- Created: lib/services/domain/ai-whatsapp/phone-mapping.service.ts (~480 lines)
+- 10 functions: lookupMappings, createOrUpdateMapping, touchMapping, deleteMapping, verifyMappingFreshness, fetchUserProperties, fetchProviderInterventions, runIdentificationCascade
+- Cascade: team_members(ALL roles) → lot_contacts → building_contacts → supplier_contracts
+- Properties: lot_contacts + building_contacts in parallel, dedup by building
+- Staleness: 7-day threshold, verifies team_members.left_at
+- Lint: 0 errors
+
+## US-003: Webhook refactor: mapping as primary routing [3/10]
+- Modified: app/api/webhooks/whatsapp/route.ts (complete rewrite of routing logic)
+- Modified: lib/services/domain/ai-whatsapp/types.ts (added mappingUserRole)
+- Removed: team_members locataire-only lookup, session-based fallback
+- Added: lookupMappings → verifyFreshness → cascade fallback → createMapping
+- 3-branch routing: 1 mapping (auto-route) | 2+ (disambiguation) | 0 (unknown)
+- Lint: 0 errors
+
+## US-004: Property selection flow for tenants/owners [4/10]
+- Modified: lib/services/domain/ai-whatsapp/types.ts
+  - RoutingState: +awaiting_property_selection
+  - RoutingMetadata: +property_options, selected_lot_id, selected_building_id, property_retry_count
+  - SessionExtractedData: +lot_id, building_id, pre_identified
+- Modified: lib/services/domain/ai-whatsapp/twilio-whatsapp.service.ts
+  - +sendPropertySelectionMessage (1 prop: OUI/NON confirm, 2+: numbered list + Autre)
+  - +parseConfirmationReply (OUI/NON/JA/NEEN for trilingual support)
+  - SMS labels condensed to 60 chars
+- Modified: lib/services/domain/ai-whatsapp/routing-flow.service.ts (~180 lines added)
+  - +handlePropertySelectionFlow (exported): 0 props→skip, 1→confirm, 2+→list
+  - +handlePropertyReply: parses confirmation or numbered reply
+  - +createPropertySession, clearPropertyState, resolvePropertyState, bumpPropertyRetry
+  - Max 2 retries then skip to normal conversation
+  - Original message restored after selection (like disambiguation)
+- Modified: lib/services/domain/ai-whatsapp/conversation-engine.service.ts
+  - Step 0.5: property selection between routing and session load
+  - If pending → return, if selected → session has pre_identified data
+- Lint: 0 errors
+
+## US-005: Intervention selection flow for providers (MVP) [5/10]
+- Modified: lib/services/domain/ai-whatsapp/types.ts
+  - RoutingState: +awaiting_intervention_selection
+  - RoutingMetadata: +intervention_options, intervention_retry_count
+- Modified: lib/services/domain/ai-whatsapp/phone-mapping.service.ts
+  - InterventionOption: +buildingId, +lotId
+  - fetchProviderInterventions query: +building_id, +lot_id
+- Modified: lib/services/domain/ai-whatsapp/twilio-whatsapp.service.ts
+  - +sendInterventionSelectionMessage (numbered list + "Nouveau problème")
+- Modified: lib/services/domain/ai-whatsapp/routing-flow.service.ts
+  - +handleInterventionSelectionFlow, +handleInterventionReply, +bumpInterventionRetry
+- Modified: conversation-engine.service.ts: +intervention selection after property
+- MVP: always creates NEW intervention (no thread reply)
+- Lint: 0 errors
+
+## US-006: Multi-team selection from mappings [6/10]
+- Modified: types.ts: +awaiting_team_selection, +awaiting_team_agency
+- Modified: twilio-whatsapp.service.ts: +sendTeamSelectionMessage
+- Modified: routing-flow.service.ts: +handleTeamSelectionFlow, +handleTeamReply, +handleTeamAgencyReply
+  - Team names fetched from teams table, sorted by mapping last_used_at
+  - "Autre" → agency name prompt → matchTeamByName → createOrUpdateMapping
+  - touchMapping on selection to update last_used_at
+- Modified: conversation-engine.service.ts: team selection runs BEFORE routing
+- Lint: 0 errors
+
+## US-007: Pre-identified property in conversation engine + Claude prompt [7/10]
+- Modified: claude-ai.service.ts: conditional ETAPE 1 based on pre_identified
+  - If pre_identified: "L'adresse est deja connue. Demande UNIQUEMENT le nom."
+  - If not: standard "Demande le nom et l'adresse"
+- Modified: conversation-engine.service.ts:
+  - +fetchPreIdentifiedAddress: queries lot (apt+building addr) or building
+  - Pre-fills sessionExtracted.address before Claude call
+- SessionExtractedData already extended in US-004 (lot_id, building_id, pre_identified)
+- Lint: 0 errors
+
+## US-008: Pre-identified property in intervention creator [8/10]
+- Modified: intervention-creator.service.ts
+  - Step 2: if pre_identified → use lot_id/building_id directly (skip fuzzy match)
+  - Else: existing fuzzy address matching (unchanged)
+  - lotId changed from const to let
+- Lint: 0 errors
+
+## US-009: ElevenLabs webhook upsert mapping after voice call [9/10]
+- Modified: app/api/webhooks/elevenlabs/route.ts
+  - Step 4b: createOrUpdateMapping(source='voice_call') after tenant identification
+  - Guarded: if callerPhone && teamId (skip gracefully otherwise)
+  - Dynamic import, non-blocking try/catch
+- Lint: 0 errors
+
+## US-010: Mapping lifecycle: staleness + enrichment + routing-flow creation [10/10]
+- Modified: conversation-engine.service.ts
+  - Step 9: post-session mapping enrichment (createOrUpdateMapping if identified_user_id)
+- Modified: routing-flow.service.ts
+  - createOrUpdateMapping after address_match resolveRoutingSession
+  - createOrUpdateMapping after agency_match resolveRoutingSession
+  - createOrUpdateMapping after orphan resolveRoutingSession (x2)
+- Staleness: already in US-002 (verifyMappingFreshness) + US-003 (webhook call)
+- Lint: 0 errors
+

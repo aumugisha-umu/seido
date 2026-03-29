@@ -1,10 +1,10 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Reminder Recurrence UX + Intervention/Reminder Reclassification + Intervention Planner shared component
+**Objectif:** AI Triage UX + ElevenLabs Voice Integration + Multi-Channel Dashboard
 **Branch:** `preview`
-**Sprint:** Operations Polish + Wizard Improvements (Mar 2026)
-**Derniere analyse:** Centralize email config (EMAIL_CONFIG single source of truth) — 2026-03-25
+**Sprint:** AI Assistant Polish (Mar 2026)
+**Derniere analyse:** AI triage card redesign + /simplify pass — 2026-03-29
 
 ---
 
@@ -233,7 +233,7 @@ draft -> pending -> sent -> accepted (terminal positif)
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **194** |
+| **AGENTS.md Learnings** | **228** |
 | **Unit tests** | **652** (45 files) |
 | **Blog articles** | **23** |
 | **Retrospectives** | **55** |
@@ -259,16 +259,41 @@ draft -> pending -> sent -> accepted (terminal positif)
 *Derniere mise a jour: 2026-03-25 (Email config centralization + compound)
 *Focus: Complete remaining PRD stories for reminder recurrence UX
 
-## Prochaines Etapes (updated 2026-03-25)
+## COMPLETE: AI Triage Redesign + ElevenLabs Voice Fixes (2026-03-29)
+
+Multi-channel AI triage for gestionnaire dashboard. 3 channels (WhatsApp, Phone, SMS) unified into a single triage tab.
+
+### Key Changes
+- **Telnyx removed**: All SIP trunk code and config deleted, Twilio-only architecture
+- **ElevenLabs webhook fixes**: Team identification via phone_team_mappings (not agent_id), caller phone from metadata.phone_call.external_number
+- **Triage data layer**: Query uses `source IN (whatsapp_ai, sms_ai, phone_ai)` instead of `type = demande_whatsapp`
+- **Dashboard filter**: AI-sourced interventions excluded from Interventions tab, only in Assistant IA tab
+- **Card redesign**: Channel icons (green/blue/purple), urgency+type badges, dot menu, Traite/Rejeter buttons
+- **Navigator**: ContentNavigator with sub-tabs (Toutes/WhatsApp/Appels/SMS), search, view switcher (cards/list)
+- **List view**: Sortable table with channel, contact, description, address, date, inline actions
+- **Simplify pass**: Shared AI_SOURCES constant, CHANNEL_CONFIG, useTriageActions hook, source on Intervention interface
+
+### New Files
+- `components/operations/triage-shared.ts` — shared channel config
+- `components/operations/use-triage-actions.ts` — shared actions hook
+- `components/operations/whatsapp-triage-list-view.tsx` — sortable list view
+- `app/api/webhooks/voice/route.ts` — inbound voice call handler
+- `app/api/cron/close-ai-sessions/route.ts` — session cleanup cron
+
+**Learnings:** AGENTS.md #225-228
+
+---
+
+## Prochaines Etapes (updated 2026-03-29)
 
 ### Immediat
-- [ ] Complete remaining PRD stories for reminder recurrence UX (7 stories in tasks/prd.json)
-- [ ] Test intervention planner in supplier contract wizard end-to-end
-- [ ] Bank Module: Apply migration to linked DB + regenerate types
+- [ ] Test AI triage in browser (cards, list view, filters, search, channel tabs)
+- [ ] Test ElevenLabs voice pipeline end-to-end (call → triage card)
+- [ ] Complete remaining PRD stories for reminder recurrence UX
 
 ### Court terme
 - [ ] Dead revalidation cleanup (68 dead revalidatePath/revalidateTag calls)
-- [ ] AI Intervention Agent Phase 1 (8 stories)
+- [ ] Conversation engine parallelization (4 independent DB lookups run sequentially)
 - [ ] Bank Module Phase 2 (bulk reconciliation, auto-linking rules UI)
 
 ## COMPLETE: Email Domain Fix + Config Centralization (2026-03-25)
@@ -281,5 +306,6 @@ draft -> pending -> sent -> accepted (terminal positif)
 ---
 
 ## Files Recently Modified
-### 2026-03-29 10:38:49 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/plans/2026-03-29-smart-routing-v2-design.md`
+### 2026-03-29 18:34:43 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/operations/triage-shared.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/icons/whatsapp-icon.tsx`

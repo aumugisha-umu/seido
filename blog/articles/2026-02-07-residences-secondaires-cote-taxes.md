@@ -9,6 +9,28 @@ description: "La Cour de cassation casse les arrets de Gand sur les taxes de res
 reading_time: "5 min"
 type: "article"
 hub: "essentiel-immo-fevrier-2026"
+infographic:
+  type: "comparison-bars"
+  data:
+    title: "Taxe residence secondaire — statut juridique (2026)"
+    items:
+      - label: "Taxe provinciale FO"
+        value: 100
+        suffix: "% annulee"
+        color: "green"
+        highlight: true
+      - label: "Taxe Knokke"
+        value: 50
+        suffix: "% incertain"
+        color: "amber"
+      - label: "Taxe Coxyde"
+        value: 50
+        suffix: "% incertain"
+        color: "amber"
+      - label: "Autres communes"
+        value: 25
+        suffix: "% a surveiller"
+        color: "red"
 ---
 
 # Residences secondaires a la Cote belge : la Cour de cassation rebat les cartes

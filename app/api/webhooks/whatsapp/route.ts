@@ -2,7 +2,10 @@ import { NextRequest, after } from 'next/server'
 import { logger } from '@/lib/logger'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { validateTwilioSignature } from '@/lib/services/domain/ai-phone/twilio-number.service'
-import { normalizePhoneE164 } from '@/lib/services/domain/ai-phone/call-transcript-analyzer.service'
+import {
+  resolvePhoneMappings,
+  touchMapping,
+} from '@/lib/services/domain/ai-whatsapp/phone-mapping.service'
 import type { IncomingWhatsAppMessage, MessageChannel } from '@/lib/services/domain/ai-whatsapp/types'
 
 // ============================================================================
@@ -15,8 +18,6 @@ const twimlResponse = (status = 200) =>
 // ============================================================================
 // Shared routing logic (used by both WhatsApp and SMS webhooks)
 // ============================================================================
-
-type UserRecord = { id: string; first_name: string | null; last_name: string | null }
 
 export async function handleTwilioIncoming(
   request: NextRequest,
@@ -63,55 +64,11 @@ export async function handleTwilioIncoming(
       return twimlResponse(403)
     }
 
-    // ─── Step 3: Route by sender phone (shared number model) ─────────
+    // ─── Step 3: Route via phone_team_mappings (with freshness check) ─
     const supabase = createServiceRoleSupabaseClient()
-    const normalizedFrom = normalizePhoneE164(from)
+    const mappings = await resolvePhoneMappings(supabase, from, { checkFreshness: true })
 
-    const { data: teamMatches } = await supabase
-      .from('team_members')
-      .select('team_id, users!inner(id, first_name, last_name, phone)')
-      .eq('role', 'locataire')
-      .is('left_at', null)
-      .eq('users.phone', normalizedFrom)
-
-    let matches = teamMatches ?? []
-
-    if (matches.length === 0 && normalizedFrom !== from) {
-      const { data: rawMatches } = await supabase
-        .from('team_members')
-        .select('team_id, users!inner(id, first_name, last_name, phone)')
-        .eq('role', 'locataire')
-        .is('left_at', null)
-        .eq('users.phone', from)
-      matches = rawMatches ?? []
-    }
-
-    // ─── Step 3b: Session-based fallback (routing continuity) ───────
-    // If user is not in team_members but has an active session with a resolved
-    // team (from previous address/agency routing), reuse that team to avoid
-    // restarting the routing flow on every message.
-    let sessionFallback: { team_id: string; identified_via: string | null } | null = null
-    if (matches.length === 0) {
-      const { data: existingSession } = await supabase
-        .from('ai_whatsapp_sessions')
-        .select('team_id, identified_via')
-        .eq('contact_phone', from)
-        .eq('status', 'active')
-        .not('team_id', 'is', null)
-        .order('last_message_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      if (existingSession?.team_id) {
-        sessionFallback = existingSession as { team_id: string; identified_via: string | null }
-        logger.info(
-          { from, teamId: sessionFallback.team_id, via: sessionFallback.identified_via, channel },
-          `${logPrefix} Session-based fallback — reusing resolved team`
-        )
-      }
-    }
-
-    // ─── Step 4: Build message and defer processing ────────────────
+    // ─── Step 4: Build message and defer processing ──────────────────
     const sharedNumber = process.env.SEIDO_WHATSAPP_NUMBER ?? to
 
     const deferProcessing = (messageData: IncomingWhatsAppMessage) => {
@@ -139,57 +96,39 @@ export async function handleTwilioIncoming(
       channel,
     }
 
-    if (matches.length === 1) {
-      const teamId = matches[0].team_id
-      const user = matches[0].users as unknown as UserRecord
+    if (mappings.length === 1) {
+      // ─── Single mapping → auto-route ───────────────────────────────
+      const mapping = mappings[0]
 
-      const { data: aiConfig } = await supabase
-        .from('ai_phone_numbers')
-        .select('id, custom_instructions')
-        .eq('team_id', teamId)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle()
-
-      deferProcessing({
-        ...baseMessage,
-        teamId,
-        phoneNumberId: aiConfig?.id ?? null,
-        customInstructions: aiConfig?.custom_instructions ?? null,
-        identifiedUserId: user.id,
-        identifiedVia: 'phone_match',
-      })
-
-      logger.info(
-        { from, teamId, identifiedVia: 'phone_match', channel, duration: Date.now() - startTime },
-        `${logPrefix} Accepted — direct route`
-      )
-
-    } else if (sessionFallback) {
-      // Routing already resolved in a previous message — continue in same team
-      const { data: aiConfig } = await supabase
-        .from('ai_phone_numbers')
-        .select('id, custom_instructions')
-        .eq('team_id', sessionFallback.team_id)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle()
+      const [{ data: aiConfig }] = await Promise.all([
+        supabase
+          .from('ai_phone_numbers')
+          .select('id, custom_instructions')
+          .eq('team_id', mapping.team_id)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle(),
+        // Touch mapping to keep it fresh
+        touchMapping(supabase, from, mapping.team_id),
+      ])
 
       deferProcessing({
         ...baseMessage,
-        teamId: sessionFallback.team_id,
+        teamId: mapping.team_id,
         phoneNumberId: aiConfig?.id ?? null,
         customInstructions: aiConfig?.custom_instructions ?? null,
-        identifiedUserId: null,
-        identifiedVia: (sessionFallback.identified_via as IncomingWhatsAppMessage['identifiedVia']) ?? 'phone_match',
+        identifiedUserId: mapping.user_id,
+        identifiedVia: mapping.source as IncomingWhatsAppMessage['identifiedVia'],
+        mappingUserRole: mapping.user_role,
       })
 
       logger.info(
-        { from, teamId: sessionFallback.team_id, identifiedVia: 'session_continuity', channel, duration: Date.now() - startTime },
-        `${logPrefix} Accepted — session continuity`
+        { from, teamId: mapping.team_id, identifiedVia: mapping.source, userId: mapping.user_id, channel, duration: Date.now() - startTime },
+        `${logPrefix} Accepted — mapping route`
       )
 
-    } else if (matches.length > 1) {
+    } else if (mappings.length > 1) {
+      // ─── Multiple mappings → team selection needed ─────────────────
       deferProcessing({
         ...baseMessage,
         teamId: null,
@@ -197,18 +136,19 @@ export async function handleTwilioIncoming(
         customInstructions: null,
         identifiedUserId: null,
         identifiedVia: 'disambiguation',
-        candidateTeams: matches.map(m => ({
+        candidateTeams: mappings.map(m => ({
           teamId: m.team_id,
-          userId: (m.users as unknown as UserRecord).id,
+          userId: m.user_id ?? '',
         })),
       })
 
       logger.info(
-        { from, teamCount: matches.length, channel, duration: Date.now() - startTime },
-        `${logPrefix} Accepted — disambiguation needed`
+        { from, teamCount: mappings.length, channel, duration: Date.now() - startTime },
+        `${logPrefix} Accepted — multi-team disambiguation`
       )
 
     } else {
+      // ─── No mapping, no cascade match → unknown contact ────────────
       deferProcessing({
         ...baseMessage,
         teamId: null,

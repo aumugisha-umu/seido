@@ -9,6 +9,57 @@ description: "Amendes PEB jusqu'a 62 500 EUR par copropriete a Bruxelles : dates
 reading_time: "6 min"
 type: "article"
 hub: "essentiel-immo-janvier-2026"
+infographic:
+  type: "timeline"
+  data:
+    title: "Calendrier PEB Bruxelles coproprietes"
+    milestones:
+      - date: "2027"
+        label: "Nouvelles tables climatiques"
+        detail: "Scores ameliores de 1-2 classes"
+        color: "blue"
+        icon: "calendar"
+        actions:
+          - "Commander un nouveau certificat PEB"
+          - "Comparer l'ancien et le nouveau score"
+          - "Identifier les lots qui changent de classe"
+      - date: "2027"
+        label: "Reforme PV en PEB"
+        detail: "Solaire deduit de l'electrique seul"
+        color: "amber"
+        icon: "alert"
+        actions:
+          - "Voter l'audit energetique en AG"
+          - "Verifier l'impact sur les panneaux solaires communs"
+      - date: "2033"
+        label: "F/G interdit"
+        detail: "Amende jusqu'a 31 250 EUR/apt"
+        color: "red"
+        icon: "alert"
+        actions:
+          - "Isoler toiture et facades avant 2032"
+          - "Remplacer la chaudiere fossile"
+          - "Installer ventilation double flux"
+          - "Atteindre minimum classe E pour chaque lot"
+      - date: "2043"
+        label: "D/E interdit"
+        detail: "Seuil abaisse a 150 kWh/m2/an"
+        color: "red"
+        icon: "alert"
+        actions:
+          - "Planifier la 2e phase de renovation"
+          - "Objectif : classe C minimum"
+          - "Etudier pompe a chaleur + panneaux solaires"
+          - "Constituer le fonds de reserve travaux"
+    zones:
+      - from: 0
+        to: 1
+        label: "Preparation"
+        color: "blue"
+      - from: 2
+        to: 3
+        label: "Sanctions"
+        color: "red"
 ---
 
 # PEB a Bruxelles : les coproprietaires bientot co-responsables des passoires energetiques

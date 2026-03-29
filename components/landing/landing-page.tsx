@@ -146,20 +146,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                 </Button>
                             </div>
 
-                            <div className="mb-2 md:mb-4 max-w-2xl">
-                                <a
-                                    href="#indexation"
-                                    className="inline-flex items-center gap-2 text-sm text-blue-300 hover:text-blue-200 transition-colors"
-                                    onClick={(e) => {
-                                        e.preventDefault()
-                                        document.getElementById('indexation')?.scrollIntoView({ behavior: 'smooth' })
-                                    }}
-                                >
-                                    <Calculator className="w-4 h-4" />
-                                    Calculer mon indexation gratuitement
-                                    <ArrowRight className="w-3 h-3" />
-                                </a>
-                            </div>
+                            
 
                             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
                                 <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
@@ -174,6 +161,21 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     <CheckCircle2 className="h-4 w-4 text-blue-300" />
                                     <span className="landing-caption text-white/80">Portail locataires et prestataires</span>
                                 </div>
+                            </div>
+
+                            <div className="mb-2 md:mb-4 max-w-2xl">
+                                <a
+                                    href="#indexation"
+                                    className="inline-flex items-center gap-2 text-sm text-blue-300 hover:text-blue-200 transition-colors"
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        document.getElementById('indexation')?.scrollIntoView({ behavior: 'smooth' })
+                                    }}
+                                >
+                                    <Calculator className="w-4 h-4" />
+                                    Calculer mon indexation gratuitement
+                                    <ArrowRight className="w-3 h-3" />
+                                </a>
                             </div>
                         </div>
 

@@ -9,12 +9,6 @@ export interface ElevenLabsAgent {
   name: string
 }
 
-export interface ElevenLabsPhoneNumber {
-  phone_number_id: string
-  phone_number: string
-  agent_id: string | null
-}
-
 export class ElevenLabsProvisioningError extends Error {
   constructor(
     message: string,
@@ -22,8 +16,6 @@ export class ElevenLabsProvisioningError extends Error {
       | 'CREATE_AGENT_FAILED'
       | 'UPDATE_AGENT_FAILED'
       | 'DELETE_AGENT_FAILED'
-      | 'IMPORT_NUMBER_FAILED'
-      | 'ASSIGN_AGENT_FAILED'
       | 'DELETE_NUMBER_FAILED'
       | 'API_ERROR',
     public readonly details?: Record<string, unknown>
@@ -41,14 +33,12 @@ const ELEVENLABS_API_BASE = 'https://api.elevenlabs.io/v1'
 
 const getConfig = () => ({
   apiKey: process.env.ELEVENLABS_API_KEY ?? '',
-  sipUsername: process.env.TELNYX_SIP_USERNAME ?? '',
-  sipPassword: process.env.TELNYX_SIP_PASSWORD ?? '',
 })
 
-const elevenLabsFetch = async <T>(
+async function elevenLabsRequest(
   path: string,
   options: RequestInit = {}
-): Promise<T> => {
+): Promise<Response> {
   const { apiKey } = getConfig()
   if (!apiKey) {
     throw new ElevenLabsProvisioningError('ELEVENLABS_API_KEY not configured', 'API_ERROR')
@@ -77,16 +67,40 @@ const elevenLabsFetch = async <T>(
     )
   }
 
+  return response
+}
+
+/** Fetch ElevenLabs API and parse JSON response. */
+const elevenLabsFetch = async <T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const response = await elevenLabsRequest(path, options)
   const text = await response.text()
   return text ? (JSON.parse(text) as T) : ({} as T)
+}
+
+/** Fetch ElevenLabs API and return raw text (for TwiML responses). */
+const elevenLabsFetchRaw = async (
+  path: string,
+  options: RequestInit = {}
+): Promise<string> => {
+  const response = await elevenLabsRequest(path, options)
+  return response.text()
 }
 
 // ============================================================================
 // System Prompt Template
 // ============================================================================
 
-const SYSTEM_PROMPT_TEMPLATE = `Tu es un assistant telephonique de prise de demandes d'intervention pour
-{{team_name}}.
+// Dynamic variables injected at call registration time by the voice webhook:
+// {{team_name}}             — agency name (always set, fallback: "Votre gestionnaire")
+// {{caller_name}}           — caller's name if known (empty string if unknown)
+// {{caller_address}}        — caller's address if known (empty string if unknown)
+// {{conversation_history}}  — summary of previous conversations (empty string if none)
+// {{custom_instructions}}   — team-specific instructions (empty string if none)
+
+const SYSTEM_PROMPT_TEMPLATE = `Tu es un assistant telephonique de prise de demandes d'intervention pour {{team_name}}.
 
 ## Ton role
 Tu collectes les informations necessaires pour creer une demande d'intervention
@@ -102,19 +116,17 @@ ni de decision sur l'urgence ou le prestataire.
 - Si le locataire mentionne un danger (gaz, incendie, inondation), dis
   immediatement : "Si vous etes en danger, appelez le 112." puis continue la prise
   de demande avec urgence "urgente".
-
-## Adaptation mode texte (WhatsApp)
-Si la conversation est par texte (pas par telephone) :
-- Tes reponses sont plus concises (1 phrase par tour suffit).
-- Pas de backchannels vocaux ("Je comprends", "D'accord") — va droit au but.
-- A l'ETAPE 2, apres la description du probleme, demande : "Avez-vous une photo
-  du probleme ? Vous pouvez l'envoyer ici." (une seule fois, ne pas insister).
-- Quand tu as collecte toutes les informations (etape 4), utilise le tool
-  "End conversation" pour cloturer la session.
+- Si le locataire demande le suivi d'une demande existante, dis : "Pour suivre
+  vos demandes et communiquer avec votre gestionnaire, rendez-vous sur votre
+  compte sur seido-app.com." Ne cree PAS de nouvelle intervention.
 
 ## Script
 ETAPE 1 — IDENTIFICATION
-Demande le nom complet et l'adresse du logement.
+Si le nom "{{caller_name}}" et l'adresse "{{caller_address}}" sont deja connus,
+salue l'utilisateur par son prenom et passe DIRECTEMENT a l'etape 2.
+Si seul le nom "{{caller_name}}" est connu, demande UNIQUEMENT l'adresse.
+Si seule l'adresse "{{caller_address}}" est connue, demande UNIQUEMENT le nom.
+Si rien n'est connu, demande le nom complet et l'adresse du logement.
 
 ETAPE 2 — DESCRIPTION DU PROBLEME
 "Quel est le probleme que vous souhaitez signaler ?"
@@ -124,7 +136,7 @@ Et selon la situation decrite, demander plus de precisions pour que le
 gestionnaire ait une vue complete du probleme.
 
 ETAPE 3 — CONFIRMATION
-Lis un resume de ce que tu as note (nom, adresse, message) et demande :
+Lis un resume de ce que tu as note (nom, adresse, probleme) et demande :
 "Est-ce que c'est correct ?"
 Si non, demande ce qu'il faut corriger et reconfirme.
 Si oui, demande : "Y a-t-il autre chose a preciser ?" Si le locataire ajoute
@@ -134,16 +146,23 @@ ETAPE 4 — CLOTURE
 "Votre demande a bien ete enregistree. Votre gestionnaire sera notifie et
 traitera votre demande au plus vite. Bonne journee, au revoir !"
 
+{{conversation_history}}
 {{custom_instructions}}`
 
 /**
- * Builds the system prompt with team name and optional custom instructions.
+ * Builds the system prompt for agent creation.
+ *
+ * Dynamic variables ({{team_name}}, {{caller_name}}, {{caller_address}},
+ * {{conversation_history}}) are LEFT as placeholders — ElevenLabs resolves
+ * them at call registration time via `dynamic_variables`.
+ *
+ * Only {{custom_instructions}} is replaced here because it's baked into
+ * the agent config at creation/update time.
  */
 export const buildSystemPrompt = (
-  teamName: string,
   customInstructions?: string | null
 ): string => {
-  let prompt = SYSTEM_PROMPT_TEMPLATE.replace('{{team_name}}', teamName)
+  let prompt = SYSTEM_PROMPT_TEMPLATE
 
   if (customInstructions?.trim()) {
     prompt = prompt.replace(
@@ -169,7 +188,7 @@ export const createAgent = async (
   teamName: string,
   customInstructions?: string | null
 ): Promise<ElevenLabsAgent> => {
-  const systemPrompt = buildSystemPrompt(teamName, customInstructions)
+  const systemPrompt = buildSystemPrompt(customInstructions)
 
   const payload = {
     name: `SEIDO - ${teamName}`,
@@ -181,7 +200,7 @@ export const createAgent = async (
           temperature: 0.2,
           max_tokens: 150,
         },
-        first_message: `Bonjour, vous avez contacte ${teamName}. Je suis l'assistant vocal pour les demandes d'intervention. Comment puis-je vous aider ?`,
+        first_message: 'Bonjour, vous avez contacte {{team_name}}. Je suis l\'assistant vocal pour les demandes d\'intervention. Comment puis-je vous aider ?',
         language: 'fr',
       },
       tts: {
@@ -229,10 +248,9 @@ export const createAgent = async (
  */
 export const updateAgent = async (
   agentId: string,
-  teamName: string,
   customInstructions?: string | null
 ): Promise<void> => {
-  const systemPrompt = buildSystemPrompt(teamName, customInstructions)
+  const systemPrompt = buildSystemPrompt(customInstructions)
 
   try {
     await elevenLabsFetch(`/convai/agents/${agentId}`, {
@@ -278,90 +296,6 @@ export const deleteAgent = async (agentId: string): Promise<void> => {
 }
 
 /**
- * Imports a phone number into ElevenLabs via SIP trunk.
- * Uses POST /v1/convai/phone-numbers (NOT /create — deprecated July 2025).
- * SIP config: inbound_trunk + outbound_trunk (NOT inbound_trunk_config/provider_config).
- */
-export const importPhoneNumber = async (
-  phoneNumber: string,
-  label: string
-): Promise<ElevenLabsPhoneNumber> => {
-  const { sipUsername, sipPassword } = getConfig()
-
-  const payload = {
-    phone_number: phoneNumber.replace('+', ''),
-    label,
-    provider: 'sip_trunk',
-    inbound_trunk: {
-      media_encryption: 'disabled',
-    },
-    outbound_trunk: {
-      address: 'sip.telnyx.com',
-      transport: 'tls',
-      media_encryption: 'disabled',
-      credentials: {
-        username: sipUsername,
-        password: sipPassword,
-      },
-    },
-  }
-
-  logger.info({ phoneNumber, label }, '📞 [ELEVENLABS] Importing phone number')
-
-  let result: { phone_number_id: string; phone_number: string }
-  try {
-    result = await elevenLabsFetch<{ phone_number_id: string; phone_number: string }>(
-      '/convai/phone-numbers',
-      { method: 'POST', body: JSON.stringify(payload) }
-    )
-  } catch (error) {
-    throw new ElevenLabsProvisioningError(
-      `Failed to import phone number ${phoneNumber}`,
-      'IMPORT_NUMBER_FAILED',
-      { phoneNumber, originalError: error instanceof Error ? error.message : String(error) }
-    )
-  }
-
-  logger.info(
-    { phoneNumberId: result.phone_number_id, phoneNumber },
-    '[ELEVENLABS] Phone number imported'
-  )
-
-  return {
-    phone_number_id: result.phone_number_id,
-    phone_number: result.phone_number,
-    agent_id: null,
-  }
-}
-
-/**
- * Assigns an agent to a phone number.
- * MUST be a separate PATCH call — create does NOT accept agent_id.
- */
-export const assignAgentToNumber = async (
-  phoneNumberId: string,
-  agentId: string
-): Promise<void> => {
-  try {
-    await elevenLabsFetch(`/convai/phone-numbers/${phoneNumberId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ agent_id: agentId }),
-    })
-
-    logger.info(
-      { phoneNumberId, agentId },
-      '[ELEVENLABS] Agent assigned to phone number'
-    )
-  } catch (error) {
-    throw new ElevenLabsProvisioningError(
-      `Failed to assign agent ${agentId} to number ${phoneNumberId}`,
-      'ASSIGN_AGENT_FAILED',
-      { phoneNumberId, agentId, originalError: error instanceof Error ? error.message : String(error) }
-    )
-  }
-}
-
-/**
  * Deletes a phone number from ElevenLabs.
  */
 export const deletePhoneNumber = async (phoneNumberId: string): Promise<void> => {
@@ -378,4 +312,29 @@ export const deletePhoneNumber = async (phoneNumberId: string): Promise<void> =>
       { phoneNumberId, originalError: error instanceof Error ? error.message : String(error) }
     )
   }
+}
+
+/**
+ * Registers an inbound Twilio call with ElevenLabs and returns TwiML.
+ * The returned XML is passed directly to Twilio as the webhook response.
+ * Dynamic variables are resolved by ElevenLabs against the agent's prompt template.
+ */
+export const registerTwilioCall = async (
+  agentId: string,
+  fromNumber: string,
+  toNumber: string,
+  dynamicVariables: Record<string, string>
+): Promise<string> => {
+  return elevenLabsFetchRaw('/convai/twilio/register-call', {
+    method: 'POST',
+    body: JSON.stringify({
+      agent_id: agentId,
+      from_number: fromNumber,
+      to_number: toNumber,
+      direction: 'inbound',
+      conversation_initiation_client_data: {
+        dynamic_variables: dynamicVariables,
+      },
+    }),
+  })
 }

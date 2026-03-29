@@ -9,6 +9,47 @@ description: "DPR bruxelloise, suppression deduction interets, PEB Wallonie 2028
 reading_time: "3 min"
 type: "hub"
 hub: ""
+infographic:
+  type: "timeline"
+  data:
+    title: "Temps forts mars 2026"
+    milestones:
+      - date: "13 fev."
+        label: "Gouvernement bruxellois"
+        detail: "DPR apres 614 jours de blocage"
+        color: "green"
+        icon: "check"
+        actions:
+          - "Suivre les arretes d'execution de la DPR bruxelloise (grille des loyers, primes BE-HOME)"
+          - "Anticiper la simplification des permis d'urbanisme pour planifier vos travaux"
+          - "Verifier l'eligibilite de vos biens bruxellois a la prime BE-HOME doublee"
+      - date: "11 dec. 2025"
+        label: "Feuille de route PEB Wallonie"
+        detail: "Obligation renovation des 2028"
+        color: "amber"
+        icon: "calendar"
+        actions:
+          - "Commander un audit energetique pour chaque bien wallon du portefeuille"
+          - "Planifier les travaux de renovation avant les echeances 2028 (PEB D en cas de vente)"
+          - "Demander les primes Habitation avant leur suppression en octobre 2026"
+      - date: "1er jan. 2025"
+        label: "Suppression deduction interets"
+        detail: "Effet retroactif — recours SNPC"
+        color: "red"
+        icon: "alert"
+        actions:
+          - "Verifier l'impact sur vos credits hypothecaires locatifs et recalculer la rentabilite"
+          - "Rejoindre le recours collectif du SNPC si vous etes concerne (snpc.be)"
+          - "Adapter votre declaration fiscale 2025 en consequence"
+      - date: "2025"
+        label: "Offre locative -27%"
+        detail: "Barometre Federia-CIB"
+        color: "red"
+        icon: "alert"
+        actions:
+          - "Comparer vos loyers actuels au barometre Federia pour identifier les sous-evaluations"
+          - "Revoir les conditions de renouvellement des baux en cours a la hausse si justifie"
+          - "Securiser vos locataires fiables avec des conditions competitives pour eviter la vacance"
 ---
 
 # L'essentiel immo #3 — Mars 2026

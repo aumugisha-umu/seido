@@ -112,6 +112,7 @@ export function OperationsPageClient({
           initialHasMore={initialInterventionHasMore}
           pageSize={pageSize}
           hidePageActions
+          excludeAiSources
         />
       ) : (
         <div className="flex-1 flex flex-col layout-container">

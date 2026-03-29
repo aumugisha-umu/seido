@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEIDO — 4 Versions Comparaison</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #020617; color: white; overflow-x: hidden; }
+
+  /* ═══ NAV ═══ */
+  .top-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 0.4rem;
+    padding: 0.6rem 0.5rem;
+    background: rgba(2,6,23,0.92); backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .top-nav button {
+    padding: 0.4rem 0.9rem; border-radius: 9999px;
+    border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.5); font-size: 0.72rem; font-weight: 500;
+    cursor: pointer; transition: all 0.25s; white-space: nowrap;
+  }
+  .top-nav button.active {
+    background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.5); color: white;
+  }
+  .top-nav button:hover:not(.active) { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.7); }
+
+  /* ═══ HERO (minimal) ═══ */
+  .hero {
+    min-height: 50vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #020617, #0f172a, #020617);
+    padding-top: 4rem;
+  }
+  .hero-content { text-align: center; max-width: 650px; padding: 1.5rem; }
+  .hero h1 { font-size: clamp(1.8rem,4.5vw,3rem); font-weight: 700; line-height: 1.15; margin-bottom: 0.8rem; }
+  .hero h1 span { background: linear-gradient(135deg,#60a5fa,#67e8f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { font-size: 1rem; color: rgba(255,255,255,0.65); margin-bottom: 1.5rem; }
+  .hero .cta { display:inline-block; padding:0.75rem 1.75rem; background:white; color:#020617; border-radius:9999px; font-weight:600; font-size:0.95rem; text-decoration:none; transition:transform 0.2s; }
+  .hero .cta:hover { transform:scale(1.05); }
+  .scroll-hint { text-align:center; padding:0.5rem; color:rgba(255,255,255,0.25); font-size:0.75rem; animation: bounce 2s infinite; }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
+
+  /* ═══ STAGE WRAPPER ═══ */
+  .stage-wrap { display: none; }
+  .stage-wrap.active { display: block; }
+  .stage-label {
+    text-align: center; padding: 2rem 1rem 0.3rem;
+  }
+  .stage-label h2 { font-size: 1.2rem; color: rgba(255,255,255,0.45); font-weight: 400; }
+  .stage-label .badge {
+    display: inline-block; margin-top: 0.4rem; padding: 0.15rem 0.6rem;
+    border-radius: 9999px; font-size: 0.65rem; font-weight: 500;
+    border: 1px solid rgba(139,92,246,0.25); color: #a78bfa;
+    background: rgba(139,92,246,0.08);
+  }
+  .hover-hint { text-align:center; padding:0.3rem; color:rgba(255,255,255,0.25); font-size:0.7rem; }
+
+  /* ═══ ANIMATION STAGE (CSS versions) ═══ */
+  .css-stage {
+    position: relative; width: 100%; max-width: 1100px; margin: 0 auto;
+    height: 70vh; min-height: 480px; overflow: hidden; perspective: 1200px; cursor: pointer;
+  }
+
+  /* ═══ THREE.JS STAGE ═══ */
+  .three-stage {
+    position: relative; width: 100%; max-width: 1100px; margin: 0 auto;
+    height: 70vh; min-height: 480px; overflow: hidden; cursor: pointer;
+  }
+  .three-stage canvas { display: block; width: 100%; height: 100%; }
+
+  /* HTML overlay for output cards inside Three.js scene */
+  .three-overlay {
+    position: absolute; inset: 0; pointer-events: none; z-index: 10;
+  }
+  .three-overlay .output-panel { pointer-events: auto; }
+
+  /* ═══ SHARED: CHAOS ELEMENTS ═══ */
+  .chaos-el {
+    position: absolute; display: flex; align-items: center; gap: 0.45rem;
+    padding: 0.5rem 0.8rem; border-radius: 11px; font-size: 0.73rem; font-weight: 500;
+    white-space: nowrap; backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 3px 14px rgba(0,0,0,0.25);
+    z-index: 5; will-change: transform, opacity;
+  }
+  .chaos-el .ico {
+    width: 24px; height: 24px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; flex-shrink: 0;
+  }
+  .chaos-el.wa { background: rgba(37,211,102,0.1); }
+  .chaos-el.wa .ico { background: rgba(37,211,102,0.2); }
+  .chaos-el.sm { background: rgba(251,191,36,0.1); }
+  .chaos-el.sm .ico { background: rgba(251,191,36,0.2); }
+  .chaos-el.em { background: rgba(239,68,68,0.1); }
+  .chaos-el.em .ico { background: rgba(239,68,68,0.2); }
+  .chaos-el.ph { background: rgba(168,85,247,0.1); }
+  .chaos-el.ph .ico { background: rgba(168,85,247,0.2); }
+  .chaos-el.dc { background: rgba(251,146,60,0.1); }
+  .chaos-el.dc .ico { background: rgba(251,146,60,0.2); }
+
+  /* ═══ BRAIN NODE ═══ */
+  .brain-node {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); z-index: 10;
+    display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+    transition: all 1.8s cubic-bezier(0.22,1,0.36,1);
+  }
+  .brain-orb {
+    width: 76px; height: 76px; border-radius: 50%; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brain-orb::before {
+    content: ''; position: absolute; inset: -5px; border-radius: 50%;
+    border: 1.5px solid transparent;
+    background: conic-gradient(from 0deg, rgba(96,165,250,0.5), rgba(139,92,246,0.5), rgba(59,130,246,0.3), rgba(96,165,250,0.5)) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    animation: spin 8s linear infinite;
+  }
+  .brain-orb::after {
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(139,92,246,0.6), rgba(59,130,246,0.4) 40%, rgba(96,165,250,0.2) 70%, transparent);
+    box-shadow: 0 0 40px rgba(139,92,246,0.2), 0 0 80px rgba(59,130,246,0.12), inset 0 0 25px rgba(139,92,246,0.15);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .brain-orb svg {
+    position: relative; z-index: 2; width: 28px; height: 28px;
+    color: rgba(255,255,255,0.85); filter: drop-shadow(0 0 6px rgba(139,92,246,0.4));
+  }
+  .brain-label { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5); }
+
+  /* ═══ OUTPUT PANEL ═══ */
+  .output-panel {
+    position: absolute; bottom: 6%; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 0.5rem; z-index: 6;
+  }
+  .output-row {
+    display: flex; align-items: center; gap: 0.65rem;
+    padding: 0.6rem 1rem; border-radius: 11px;
+    background: rgba(15,23,42,0.75); border: 1px solid rgba(96,165,250,0.1);
+    backdrop-filter: blur(14px); box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    min-width: 300px; opacity: 0; transform: translateY(16px);
+    transition: all 0.8s cubic-bezier(0.22,1,0.36,1);
+  }
+  .output-row .sbar { width: 3px; height: 26px; border-radius: 2px; flex-shrink: 0; }
+  .output-row .sbar.g { background: #34d399; box-shadow: 0 0 5px rgba(52,211,153,0.4); }
+  .output-row .sbar.b { background: #60a5fa; box-shadow: 0 0 5px rgba(96,165,250,0.4); }
+  .output-row .sbar.v { background: #a78bfa; box-shadow: 0 0 5px rgba(167,139,250,0.4); }
+  .output-row .ri { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; background: rgba(96,165,250,0.08); }
+  .output-row .rt { display: flex; flex-direction: column; gap: 1px; }
+  .output-row .rt .t { font-size: 0.78rem; font-weight: 600; color: white; }
+  .output-row .rt .s { font-size: 0.65rem; color: rgba(255,255,255,0.4); }
+
+  /* ═══ SOURCE BADGES (for option B — ring becomes badges on output rows) ═══ */
+  .source-badges {
+    display: flex; gap: 3px; margin-left: auto; flex-shrink: 0;
+  }
+  .source-badges .sb {
+    width: 20px; height: 20px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; opacity: 0.6;
+  }
+  .sb.wa-bg { background: rgba(37,211,102,0.15); }
+  .sb.sm-bg { background: rgba(251,191,36,0.15); }
+  .sb.em-bg { background: rgba(239,68,68,0.15); }
+  .sb.ph-bg { background: rgba(168,85,247,0.15); }
+  .sb.dc-bg { background: rgba(251,146,60,0.15); }
+
+  /* ═══ ORBIT ICONS (option B) ═══ */
+  .orbit-icon {
+    position: absolute; width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; z-index: 8; pointer-events: none;
+    backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.06);
+    opacity: 0; transition: opacity 1s;
+  }
+  .orbit-icon.wa-o { background: rgba(37,211,102,0.12); }
+  .orbit-icon.sm-o { background: rgba(251,191,36,0.12); }
+  .orbit-icon.em-o { background: rgba(239,68,68,0.12); }
+  .orbit-icon.ph-o { background: rgba(168,85,247,0.12); }
+  .orbit-icon.dc-o { background: rgba(251,146,60,0.12); }
+
+  /* ═══ GHOST TRAILS (option D) ═══ */
+  .ghost-trails { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .ghost-trails path {
+    fill: none; stroke-width: 2; stroke-linecap: round;
+    opacity: 0; transition: opacity 1.5s, stroke-dashoffset 2s;
+  }
+
+  /* ═══ PULSE ═══ */
+  .pulse-ring {
+    position: absolute; top: 50%; left: 50%; width: 76px; height: 76px;
+    border-radius: 50%; border: 1px solid rgba(139,92,246,0.2);
+    z-index: 9; pointer-events: none; opacity: 0;
+  }
+  @keyframes pulse-anim {
+    0% { transform: translate(-50%,-50%) scale(1); opacity: 0.25; }
+    100% { transform: translate(-50%,-50%) scale(3.5); opacity: 0; }
+  }
+
+  /* ═══ BG GLOWS ═══ */
+  .bg-glow { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; transition: opacity 2s, transform 2s; }
+  .cg1 { width: 250px; height: 250px; background: rgba(217,119,6,0.1); top: 15%; left: 10%; }
+  .cg2 { width: 200px; height: 200px; background: rgba(239,68,68,0.07); bottom: 18%; right: 10%; }
+  .og  { width: 450px; height: 450px; background: rgba(139,92,246,0.08); top: 50%; left: 50%; transform: translate(-50%,-50%); opacity: 0; }
+
+  /* ═══ PARTICLES ═══ */
+  .particle { position: absolute; border-radius: 50%; pointer-events: none; z-index: 1; }
+
+  /* ═══ FOOTER ═══ */
+  .proto-footer { text-align: center; padding: 2.5rem 1rem; color: rgba(255,255,255,0.2); font-size: 0.7rem; }
+  .proto-footer code { background: rgba(255,255,255,0.04); padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.65rem; }
+
+  .section-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(139,92,246,0.12), transparent); margin: 1.5rem 10%; }
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <button class="active" onclick="show('css-b')">CSS + Orbite (B)</button>
+  <button onclick="show('css-d')">CSS + Trails (D)</button>
+  <button onclick="show('three-b')">Three.js + Orbite (B)</button>
+  <button onclick="show('three-d')">Three.js + Trails (D)</button>
+</nav>
+
+<section class="hero">
+  <div class="hero-content">
+    <h1>La gestion locative <br/><span>en toute serenite</span></h1>
+    <p>Chaque demande declenche une boucle qui prenait des jours. SEIDO centralise et automatise.</p>
+    <a href="#" class="cta" onclick="event.preventDefault()">Essayer gratuitement</a>
+  </div>
+</section>
+<div class="scroll-hint">Scrollez pour comparer</div>
+
+<!-- ═══════════════════════════════════════
+     1. CSS + OPTION B (Orbit ring)
+     ═══════════════════════════════════════ -->
+<div class="stage-wrap active" id="wrap-css-b">
+  <div class="stage-label">
+    <h2>Version 1 — CSS + Orbite d'icones</h2>
+    <div class="badge">Framer Motion — 0 KB supplementaire</div>
+  </div>
+  <div class="hover-hint">Hover = chaos | Leave = ordre + icones en orbite</div>
+  <div class="css-stage" id="s-css-b"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     2. CSS + OPTION D (Ghost trails)
+     ═══════════════════════════════════════ -->
+<div class="stage-wrap" id="wrap-css-d">
+  <div class="stage-label">
+    <h2>Version 2 — CSS + Ghost Trails</h2>
+    <div class="badge">Framer Motion — 0 KB supplementaire</div>
+  </div>
+  <div class="hover-hint">Hover = chaos | Leave = ordre + traces colorees</div>
+  <div class="css-stage" id="s-css-d"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     3. THREE.JS + OPTION B (Orbit ring)
+     ═══════════════════════════════════════ -->
+<div class="stage-wrap" id="wrap-three-b">
+  <div class="stage-label">
+    <h2>Version 3 — Three.js + Orbite d'icones</h2>
+    <div class="badge">React Three Fiber — +140 KB lazy (bloom, particules 3D, parallax camera)</div>
+  </div>
+  <div class="hover-hint">Hover = chaos | Leave = ordre + orbite 3D</div>
+  <div class="three-stage" id="s-three-b">
+    <div class="three-overlay" id="overlay-three-b"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     4. THREE.JS + OPTION D (Ghost trails)
+     ═══════════════════════════════════════ -->
+<div class="stage-wrap" id="wrap-three-d">
+  <div class="stage-label">
+    <h2>Version 4 — Three.js + Ghost Trails</h2>
+    <div class="badge">React Three Fiber — +140 KB lazy (bloom, particules 3D, parallax camera)</div>
+  </div>
+  <div class="hover-hint">Hover = chaos | Leave = ordre + traces lumineuses 3D</div>
+  <div class="three-stage" id="s-three-d">
+    <div class="three-overlay" id="overlay-three-d"></div>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+<div class="proto-footer">
+  <p>Prototype SEIDO — 4 versions</p>
+  <p style="margin-top:0.4rem"><code>hover</code> chaos | <code>leave</code> ordre | Autoplay au scroll (3s chaos → transition → ordre)</p>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// ═══════════════════════════════════════════
+// CHAOS DATA — shared across all versions
+// ═══════════════════════════════════════════
+const CHAOS_ITEMS = [
+  { cls: 'wa', ico: '💬', txt: 'WhatsApp: Fuite sdb apt 3B', x: 7, y: 10, r: -8, color: '#25D366' },
+  { cls: 'em', ico: '📧', txt: 'Re: Re: Devis plomberie', x: 56, y: 5, r: 5, color: '#EF4444' },
+  { cls: 'ph', ico: '📞', txt: '3 appels manques', x: 80, y: 16, r: -6, color: '#A855F7' },
+  { cls: 'sm', ico: '📱', txt: 'SMS: Chauffage en panne', x: 4, y: 48, r: 7, color: '#FBBF24' },
+  { cls: 'dc', ico: '📄', txt: 'facture_v3_FINAL.pdf', x: 11, y: 76, r: -5, color: '#FB923C' },
+  { cls: 'wa', ico: '💬', txt: 'Photo: degat des eaux', x: 76, y: 67, r: 9, color: '#25D366' },
+  { cls: 'em', ico: '📧', txt: 'Urgent: cle perdue', x: 82, y: 40, r: -4, color: '#EF4444' },
+  { cls: 'sm', ico: '📱', txt: 'Quand passe le technicien?', x: 40, y: 83, r: 6, color: '#FBBF24' },
+];
+
+const OUTPUT_ROWS = [
+  { sbar: 'g', ico: '🔧', title: 'Intervention planifiee', sub: 'Plomberie — Apt 3B — Lundi 14h', sources: ['wa','ph','em'] },
+  { sbar: 'b', ico: '🔔', title: 'Rappel automatique envoye', sub: 'Prestataire + locataire notifies — RDV J-1', sources: ['sm','wa'] },
+  { sbar: 'v', ico: '📋', title: 'Documents archives et lies', sub: 'Devis, facture, photos — rattaches', sources: ['dc','em'] },
+];
+
+const BRAIN_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V11h3a3 3 0 0 1 3 3v1.5c0 1-.5 1.9-1.3 2.5.8.6 1.3 1.5 1.3 2.5V22M12 2a4 4 0 0 0-4 4c0 1.5.8 2.8 2 3.5V11H7a3 3 0 0 0-3 3v1.5c0 1 .5 1.9 1.3 2.5C4.5 18.6 4 19.5 4 20.5V22"/><circle cx="12" cy="6" r="1"/><circle cx="8" cy="17" r="1"/><circle cx="16" cy="17" r="1"/><path d="M12 11v4"/></svg>`;
+
+const SRC_ICON_MAP = { wa: '💬', sm: '📱', em: '📧', ph: '📞', dc: '📄' };
+const SRC_BG_MAP = { wa: 'wa-o', sm: 'sm-o', em: 'em-o', ph: 'ph-o', dc: 'dc-o' };
+const SRC_BADGE_MAP = { wa: 'wa-bg', sm: 'sm-bg', em: 'em-bg', ph: 'ph-bg', dc: 'dc-bg' };
+const SRC_COLOR_MAP = { wa: '#25D366', sm: '#FBBF24', em: '#EF4444', ph: '#A855F7', dc: '#FB923C' };
+
+// ═══════════════════════════════════════════
+// CSS STAGE BUILDER
+// ═══════════════════════════════════════════
+class CSSStage {
+  constructor(containerId, mode) { // mode: 'orbit' | 'trails'
+    this.container = document.getElementById(containerId);
+    this.mode = mode;
+    this.state = 'idle';
+    this.hasPlayed = false;
+    this.floatAnims = [];
+    this.orbitAnims = [];
+    this._build();
+    this._setupEvents();
+  }
+
+  _build() {
+    // BG glows
+    this.container.innerHTML = `
+      <div class="bg-glow cg1"></div><div class="bg-glow cg2"></div><div class="bg-glow og"></div>
+    `;
+
+    // Chaos elements
+    this.chaosEls = [];
+    CHAOS_ITEMS.forEach((item, i) => {
+      const el = document.createElement('div');
+      el.className = `chaos-el ${item.cls}`;
+      el.dataset.cx = item.x; el.dataset.cy = item.y; el.dataset.cr = item.r;
+      el.innerHTML = `<div class="ico">${item.ico}</div><span>${item.txt}</span>`;
+      el.style.left = item.x + '%'; el.style.top = item.y + '%';
+      el.style.transform = `rotate(${item.r}deg)`;
+      this.container.appendChild(el);
+      this.chaosEls.push(el);
+    });
+
+    // Brain node
+    const bn = document.createElement('div'); bn.className = 'brain-node';
+    bn.innerHTML = `<div class="brain-orb">${BRAIN_SVG}</div><span class="brain-label">SEIDO AI</span>`;
+    this.container.appendChild(bn);
+    this.brainNode = bn;
+
+    // Pulse rings
+    for (let i = 0; i < 3; i++) {
+      const pr = document.createElement('div'); pr.className = 'pulse-ring';
+      this.container.appendChild(pr);
+    }
+    this.pulseRings = this.container.querySelectorAll('.pulse-ring');
+
+    // Mode-specific: orbit icons or ghost trails SVG
+    if (this.mode === 'orbit') {
+      this.orbitIcons = [];
+      const uniqueTypes = [...new Set(CHAOS_ITEMS.map(c => c.cls))];
+      uniqueTypes.forEach((cls, i) => {
+        const oi = document.createElement('div');
+        oi.className = `orbit-icon ${SRC_BG_MAP[cls]}`;
+        oi.innerHTML = SRC_ICON_MAP[cls];
+        this.container.appendChild(oi);
+        this.orbitIcons.push({ el: oi, cls, angle: (Math.PI * 2 / uniqueTypes.length) * i });
+      });
+    } else {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'ghost-trails');
+      svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
+      this.container.appendChild(svg);
+      this.trailsSvg = svg;
+    }
+
+    // Output panel
+    const op = document.createElement('div'); op.className = 'output-panel';
+    OUTPUT_ROWS.forEach(row => {
+      const badges = this.mode === 'orbit'
+        ? `<div class="source-badges">${row.sources.map(s => `<div class="sb ${SRC_BADGE_MAP[s]}">${SRC_ICON_MAP[s]}</div>`).join('')}</div>`
+        : '';
+      op.innerHTML += `
+        <div class="output-row">
+          <div class="sbar ${row.sbar}"></div>
+          <div class="ri">${row.ico}</div>
+          <div class="rt"><div class="t">${row.title}</div><div class="s">${row.sub}</div></div>
+          ${badges}
+        </div>`;
+    });
+    this.container.appendChild(op);
+    this.outputRows = op.querySelectorAll('.output-row');
+    this.outputPanel = op;
+
+    // Particles
+    for (let i = 0; i < 20; i++) {
+      const p = document.createElement('div'); p.className = 'particle';
+      p.style.left = Math.random()*100+'%'; p.style.top = Math.random()*100+'%';
+      const sz = 2+Math.random()*2; p.style.width = p.style.height = sz+'px';
+      p.style.background = `rgba(139,92,246,${0.06+Math.random()*0.1})`;
+      p.animate([
+        {transform:'translate(0,0)',opacity:0.08},
+        {transform:`translate(${-12+Math.random()*24}px,${-12+Math.random()*24}px)`,opacity:0.2},
+        {transform:'translate(0,0)',opacity:0.08}
+      ],{duration:4000+Math.random()*3000,iterations:Infinity,delay:Math.random()*3000,easing:'ease-in-out'});
+      this.container.appendChild(p);
+    }
+
+    // Set initial state
+    this.brainNode.style.opacity = '0.4';
+    this.brainNode.style.transform = 'translate(-50%,-50%) scale(0.7)';
+  }
+
+  _setupEvents() {
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !this.hasPlayed) {
+        this.hasPlayed = true; this.state = 'chaos'; this._startFloat();
+        setTimeout(() => { if (this.state === 'chaos') this._toOrder(); }, 3000);
+      }
+    }, { threshold: 0.25 });
+    obs.observe(this.container);
+
+    this.container.addEventListener('mouseenter', () => { if (this.state === 'order') this._toChaos(); });
+    this.container.addEventListener('mouseleave', () => { if (this.state === 'chaos' && this.hasPlayed) this._toOrder(); });
+  }
+
+  _startFloat() {
+    this._stopFloat();
+    this.chaosEls.forEach((el, i) => {
+      const d = 3500+Math.random()*2000, dx = 10+Math.random()*14, dy = 10+Math.random()*14;
+      const br = parseFloat(el.dataset.cr);
+      const a = el.animate([
+        {transform:`rotate(${br}deg) translate(0,0)`},
+        {transform:`rotate(${br+4}deg) translate(${dx}px,${-dy}px)`},
+        {transform:`rotate(${br-4}deg) translate(${-dx}px,${dy}px)`},
+        {transform:`rotate(${br}deg) translate(0,0)`}
+      ],{duration:d,iterations:Infinity,easing:'ease-in-out',delay:i*180});
+      this.floatAnims.push(a);
+    });
+  }
+  _stopFloat() { this.floatAnims.forEach(a=>a.cancel()); this.floatAnims=[]; }
+
+  _toOrder() {
+    if (this.state === 'transitioning') return;
+    this.state = 'transitioning';
+    this._stopFloat();
+
+    const rect = this.container.getBoundingClientRect();
+    const cx = rect.width/2, cy = rect.height/2;
+
+    // Phase 1: converge (staggered)
+    this.chaosEls.forEach((el,i) => {
+      const er = el.getBoundingClientRect();
+      const ex = er.left-rect.left+er.width/2, ey = er.top-rect.top+er.height/2;
+      const dx = cx-ex, dy = cy-ey;
+      el.style.transition = `all ${1.4+i*0.1}s cubic-bezier(0.22,1,0.36,1)`;
+      el.style.transform = `translate(${dx}px,${dy}px) scale(0.35) rotate(0deg)`;
+      el.style.opacity = '0.25';
+    });
+
+    // Phase 2: brain activates
+    setTimeout(() => {
+      this.brainNode.style.transition = 'all 1.2s cubic-bezier(0.22,1,0.36,1)';
+      this.brainNode.style.transform = 'translate(-50%,-50%) scale(1.15)';
+      this.brainNode.style.opacity = '1';
+      this.brainNode.style.filter = 'drop-shadow(0 0 20px rgba(139,92,246,0.4))';
+    }, 800);
+
+    // Phase 3: chaos disappears
+    setTimeout(() => {
+      this.chaosEls.forEach(el => { el.style.opacity = '0'; });
+    }, 1800);
+
+    // Phase 4: brain settles, show output + mode-specific
+    setTimeout(() => {
+      this.brainNode.style.transform = 'translate(-50%,-50%) scale(1)';
+      this.brainNode.style.filter = 'drop-shadow(0 0 10px rgba(139,92,246,0.2))';
+
+      // Glows
+      this.container.querySelector('.cg1').style.opacity = '0';
+      this.container.querySelector('.cg2').style.opacity = '0';
+      this.container.querySelector('.og').style.opacity = '1';
+      this.container.querySelector('.og').style.transform = 'translate(-50%,-50%) scale(1.3)';
+
+      // Output rows stagger
+      this.outputRows.forEach((row,i) => {
+        setTimeout(() => { row.style.opacity = '1'; row.style.transform = 'translateY(0)'; }, i*220);
+      });
+
+      // Pulse rings
+      this.pulseRings.forEach((pr,i) => { pr.style.animation = `pulse-anim 3s cubic-bezier(0,0.2,0.8,1) ${i*1}s infinite`; });
+
+      // Mode-specific
+      if (this.mode === 'orbit') this._startOrbit();
+      else this._showTrails();
+
+      this.state = 'order';
+    }, 2600);
+  }
+
+  _toChaos() {
+    if (this.state === 'transitioning') return;
+    this.state = 'transitioning';
+
+    // Hide output
+    this.outputRows.forEach(r => { r.style.opacity = '0'; r.style.transform = 'translateY(16px)'; });
+    this.pulseRings.forEach(pr => { pr.style.animation = 'none'; });
+    this.brainNode.style.transform = 'translate(-50%,-50%) scale(0.7)';
+    this.brainNode.style.opacity = '0.4';
+    this.brainNode.style.filter = 'none';
+
+    this.container.querySelector('.og').style.opacity = '0';
+
+    if (this.mode === 'orbit') this._stopOrbit();
+    else this._hideTrails();
+
+    setTimeout(() => {
+      this.container.querySelector('.cg1').style.opacity = '1';
+      this.container.querySelector('.cg2').style.opacity = '1';
+      this.chaosEls.forEach((el,i) => {
+        el.style.transition = `all ${1.1+i*0.07}s cubic-bezier(0.34,1.56,0.64,1)`;
+        el.style.transform = `rotate(${el.dataset.cr}deg)`;
+        el.style.opacity = '1';
+      });
+      this._startFloat();
+      this.state = 'chaos';
+    }, 350);
+  }
+
+  _startOrbit() {
+    this._stopOrbit();
+    const rect = this.container.getBoundingClientRect();
+    const cx = rect.width/2, cy = rect.height/2, radius = 70;
+
+    this.orbitIcons.forEach(oi => { oi.el.style.opacity = '0.7'; });
+
+    let t = 0;
+    const loop = () => {
+      t += 0.008;
+      this.orbitIcons.forEach(oi => {
+        const a = oi.angle + t;
+        oi.el.style.left = (cx + Math.cos(a)*radius - 14) + 'px';
+        oi.el.style.top = (cy + Math.sin(a)*radius - 14) + 'px';
+      });
+      this._orbitRaf = requestAnimationFrame(loop);
+    };
+    loop();
+  }
+  _stopOrbit() {
+    if (this._orbitRaf) cancelAnimationFrame(this._orbitRaf);
+    if (this.orbitIcons) this.orbitIcons.forEach(oi => { oi.el.style.opacity = '0'; });
+  }
+
+  _showTrails() {
+    const svg = this.trailsSvg;
+    svg.innerHTML = '';
+    const rect = this.container.getBoundingClientRect();
+    const cx = rect.width/2, cy = rect.height/2;
+
+    CHAOS_ITEMS.forEach((item, i) => {
+      const ex = rect.width * item.x / 100;
+      const ey = rect.height * item.y / 100;
+      const mx = (cx+ex)/2 + (Math.random()-0.5)*60;
+      const my = (cy+ey)/2 + (Math.random()-0.5)*60;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${ex} ${ey} Q ${mx} ${my} ${cx} ${cy}`);
+      path.style.stroke = item.color;
+      path.style.strokeWidth = '1.5';
+      path.style.opacity = '0';
+      path.style.strokeDasharray = '6 4';
+
+      // Animate dash
+      const len = path.getTotalLength ? 200 : 200;
+      path.style.strokeDasharray = len;
+      path.style.strokeDashoffset = len;
+
+      svg.appendChild(path);
+
+      setTimeout(() => {
+        path.style.transition = 'opacity 0.8s, stroke-dashoffset 2s ease-out';
+        path.style.opacity = '0.25';
+        path.style.strokeDashoffset = '0';
+      }, i * 120);
+    });
+  }
+  _hideTrails() {
+    if (this.trailsSvg) {
+      this.trailsSvg.querySelectorAll('path').forEach(p => { p.style.opacity = '0'; });
+    }
+  }
+}
+
+// ═══════════════════════════════════════════
+// THREE.JS STAGE BUILDER
+// ═══════════════════════════════════════════
+class ThreeStage {
+  constructor(containerId, overlayId, mode) {
+    this.container = document.getElementById(containerId);
+    this.overlay = document.getElementById(overlayId);
+    this.mode = mode; // 'orbit' | 'trails'
+    this.state = 'idle';
+    this.hasPlayed = false;
+    this.mouse = { x: 0, y: 0 };
+    this.chaosCards = []; // DOM elements in overlay
+    this.floatAnims = [];
+    this._initThree();
+    this._buildOverlay();
+    this._setupEvents();
+    this._animate();
+  }
+
+  _initThree() {
+    const w = this.container.clientWidth, h = this.container.clientHeight;
+
+    // Scene
+    this.scene = new THREE.Scene();
+
+    // Camera
+    this.camera = new THREE.PerspectiveCamera(50, w/h, 0.1, 100);
+    this.camera.position.set(0, 0, 12);
+    this.targetCamX = 0; this.targetCamY = 0;
+
+    // Renderer
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.setSize(w, h);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setClearColor(0x020617, 1);
+    this.container.insertBefore(this.renderer.domElement, this.overlay);
+
+    // Bloom
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(w,h), 0.8, 0.4, 0.85);
+    bloom.threshold = 0.2;
+    bloom.strength = 1.2;
+    bloom.radius = 0.6;
+    this.composer.addPass(bloom);
+    this.bloom = bloom;
+
+    // Brain sphere
+    const brainGeo = new THREE.SphereGeometry(0.8, 64, 64);
+    const brainMat = new THREE.MeshStandardMaterial({
+      color: 0x6B5CE7,
+      emissive: 0x4338CA,
+      emissiveIntensity: 0.6,
+      roughness: 0.3,
+      metalness: 0.5,
+    });
+    this.brainMesh = new THREE.Mesh(brainGeo, brainMat);
+    this.brainMesh.scale.set(0.5, 0.5, 0.5);
+    this.scene.add(this.brainMesh);
+
+    // Brain glow (larger transparent sphere)
+    const glowGeo = new THREE.SphereGeometry(1.2, 32, 32);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: 0x8B5CF6,
+      transparent: true,
+      opacity: 0.08,
+    });
+    this.brainGlow = new THREE.Mesh(glowGeo, glowMat);
+    this.brainGlow.scale.set(0.5, 0.5, 0.5);
+    this.scene.add(this.brainGlow);
+
+    // Orbit ring (torus)
+    const torusGeo = new THREE.TorusGeometry(1.3, 0.015, 16, 100);
+    const torusMat = new THREE.MeshBasicMaterial({ color: 0x60A5FA, transparent: true, opacity: 0.3 });
+    this.orbitRing = new THREE.Mesh(torusGeo, torusMat);
+    this.orbitRing.rotation.x = Math.PI / 2.5;
+    this.orbitRing.scale.set(0.5, 0.5, 0.5);
+    this.scene.add(this.orbitRing);
+
+    // Second ring
+    const torus2Geo = new THREE.TorusGeometry(1.6, 0.01, 16, 100);
+    const torus2Mat = new THREE.MeshBasicMaterial({ color: 0x8B5CF6, transparent: true, opacity: 0.15 });
+    this.orbitRing2 = new THREE.Mesh(torus2Geo, torus2Mat);
+    this.orbitRing2.rotation.x = Math.PI / 3;
+    this.orbitRing2.rotation.y = Math.PI / 4;
+    this.orbitRing2.scale.set(0.5, 0.5, 0.5);
+    this.scene.add(this.orbitRing2);
+
+    // Particles (3D)
+    const pCount = 200;
+    const pGeo = new THREE.BufferGeometry();
+    const pPos = new Float32Array(pCount * 3);
+    for (let i = 0; i < pCount; i++) {
+      pPos[i*3] = (Math.random()-0.5)*16;
+      pPos[i*3+1] = (Math.random()-0.5)*10;
+      pPos[i*3+2] = (Math.random()-0.5)*8;
+    }
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    const pMat = new THREE.PointsMaterial({ color: 0x60A5FA, size: 0.04, transparent: true, opacity: 0.4 });
+    this.particles = new THREE.Points(pGeo, pMat);
+    this.scene.add(this.particles);
+
+    // Chaos representation: small glowing spheres in 3D
+    this.chaosSpheres = [];
+    CHAOS_ITEMS.forEach((item, i) => {
+      const col = new THREE.Color(item.color);
+      const sg = new THREE.SphereGeometry(0.12, 16, 16);
+      const sm = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7 });
+      const mesh = new THREE.Mesh(sg, sm);
+      // Position in 3D space (map 2D % to 3D coordinates)
+      const x3d = (item.x / 100 - 0.5) * 10;
+      const y3d = -(item.y / 100 - 0.5) * 6;
+      const z3d = (Math.random() - 0.5) * 3;
+      mesh.position.set(x3d, y3d, z3d);
+      mesh.userData = { basePos: mesh.position.clone(), color: item.color, cls: item.cls };
+      this.scene.add(mesh);
+      this.chaosSpheres.push(mesh);
+    });
+
+    // Trail lines (for mode D) — line from each chaos sphere to center
+    if (this.mode === 'trails') {
+      this.trailLines = [];
+      CHAOS_ITEMS.forEach((item, i) => {
+        const col = new THREE.Color(item.color);
+        const points = [];
+        const sp = this.chaosSpheres[i].userData.basePos;
+        // Curved path via quadratic bezier approximation
+        const segments = 30;
+        for (let t = 0; t <= 1; t += 1/segments) {
+          const mx = sp.x * 0.5 + (Math.random()-0.5)*1;
+          const my = sp.y * 0.5 + (Math.random()-0.5)*0.5;
+          const px = sp.x * (1-t) * (1-t) + mx * 2 * t * (1-t) + 0 * t * t;
+          const py = sp.y * (1-t) * (1-t) + my * 2 * t * (1-t) + 0 * t * t;
+          const pz = sp.z * (1-t);
+          points.push(new THREE.Vector3(px, py, pz));
+        }
+        const geo = new THREE.BufferGeometry().setFromPoints(points);
+        const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0 });
+        const line = new THREE.Line(geo, mat);
+        this.scene.add(line);
+        this.trailLines.push(line);
+      });
+    }
+
+    // Orbit mini spheres (for mode B)
+    if (this.mode === 'orbit') {
+      this.orbitSpheres = [];
+      const uniqueTypes = [...new Set(CHAOS_ITEMS.map(c => c.cls))];
+      uniqueTypes.forEach((cls, i) => {
+        const col = new THREE.Color(SRC_COLOR_MAP[cls]);
+        const sg = new THREE.SphereGeometry(0.08, 12, 12);
+        const sm = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0 });
+        const mesh = new THREE.Mesh(sg, sm);
+        mesh.userData = { angle: (Math.PI * 2 / uniqueTypes.length) * i, radius: 1.5 };
+        this.scene.add(mesh);
+        this.orbitSpheres.push(mesh);
+      });
+    }
+
+    // Lights
+    const ambient = new THREE.AmbientLight(0x404060, 0.5);
+    this.scene.add(ambient);
+    const point = new THREE.PointLight(0x8B5CF6, 2, 10);
+    point.position.set(0, 0, 3);
+    this.scene.add(point);
+    this.pointLight = point;
+    const point2 = new THREE.PointLight(0x3B82F6, 1, 8);
+    point2.position.set(-3, 2, 2);
+    this.scene.add(point2);
+
+    // Resize
+    window.addEventListener('resize', () => {
+      const nw = this.container.clientWidth, nh = this.container.clientHeight;
+      this.camera.aspect = nw/nh;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(nw, nh);
+      this.composer.setSize(nw, nh);
+    });
+  }
+
+  _buildOverlay() {
+    // Chaos card DOM elements
+    CHAOS_ITEMS.forEach((item, i) => {
+      const el = document.createElement('div');
+      el.className = `chaos-el ${item.cls}`;
+      el.style.position = 'absolute';
+      el.dataset.cx = item.x; el.dataset.cy = item.y; el.dataset.cr = item.r;
+      el.innerHTML = `<div class="ico">${item.ico}</div><span>${item.txt}</span>`;
+      el.style.left = item.x + '%'; el.style.top = item.y + '%';
+      el.style.transform = `rotate(${item.r}deg)`;
+      this.overlay.appendChild(el);
+      this.chaosCards.push(el);
+    });
+
+    // Brain label (DOM)
+    const bl = document.createElement('div');
+    bl.className = 'brain-node';
+    bl.style.pointerEvents = 'none';
+    bl.innerHTML = `<div style="width:76px;height:76px;"></div><span class="brain-label">SEIDO AI</span>`;
+    this.overlay.appendChild(bl);
+    this.brainLabel = bl;
+
+    // Output panel
+    const op = document.createElement('div'); op.className = 'output-panel';
+    OUTPUT_ROWS.forEach(row => {
+      const badges = this.mode === 'orbit'
+        ? `<div class="source-badges">${row.sources.map(s => `<div class="sb ${SRC_BADGE_MAP[s]}">${SRC_ICON_MAP[s]}</div>`).join('')}</div>`
+        : '';
+      op.innerHTML += `
+        <div class="output-row">
+          <div class="sbar ${row.sbar}"></div>
+          <div class="ri">${row.ico}</div>
+          <div class="rt"><div class="t">${row.title}</div><div class="s">${row.sub}</div></div>
+          ${badges}
+        </div>`;
+    });
+    this.overlay.appendChild(op);
+    this.outputRows = op.querySelectorAll('.output-row');
+  }
+
+  _setupEvents() {
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !this.hasPlayed) {
+        this.hasPlayed = true; this.state = 'chaos'; this._startFloat();
+        setTimeout(() => { if (this.state === 'chaos') this._toOrder(); }, 3000);
+      }
+    }, { threshold: 0.2 });
+    obs.observe(this.container);
+
+    this.container.addEventListener('mouseenter', () => { if (this.state === 'order') this._toChaos(); });
+    this.container.addEventListener('mouseleave', () => { if (this.state === 'chaos' && this.hasPlayed) this._toOrder(); });
+
+    this.container.addEventListener('mousemove', e => {
+      const rect = this.container.getBoundingClientRect();
+      this.mouse.x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    });
+  }
+
+  _startFloat() {
+    this._stopFloat();
+    this.chaosCards.forEach((el, i) => {
+      const d = 3500+Math.random()*2000, dx = 10+Math.random()*14, dy = 10+Math.random()*14;
+      const br = parseFloat(el.dataset.cr);
+      const a = el.animate([
+        {transform:`rotate(${br}deg) translate(0,0)`},
+        {transform:`rotate(${br+4}deg) translate(${dx}px,${-dy}px)`},
+        {transform:`rotate(${br-4}deg) translate(${-dx}px,${dy}px)`},
+        {transform:`rotate(${br}deg) translate(0,0)`}
+      ],{duration:d,iterations:Infinity,easing:'ease-in-out',delay:i*180});
+      this.floatAnims.push(a);
+    });
+  }
+  _stopFloat() { this.floatAnims.forEach(a=>a.cancel()); this.floatAnims=[]; }
+
+  _toOrder() {
+    if (this.state === 'transitioning') return;
+    this.state = 'transitioning';
+    this._stopFloat();
+    this._targetBrainScale = 1.0;
+    this._targetBloom = 1.8;
+
+    const rect = this.container.getBoundingClientRect();
+    const cx = rect.width/2, cy = rect.height/2;
+
+    // DOM chaos converge
+    this.chaosCards.forEach((el,i) => {
+      const er = el.getBoundingClientRect();
+      const ex = er.left-rect.left+er.width/2, ey = er.top-rect.top+er.height/2;
+      el.style.transition = `all ${1.4+i*0.1}s cubic-bezier(0.22,1,0.36,1)`;
+      el.style.transform = `translate(${cx-ex}px,${cy-ey}px) scale(0.3) rotate(0deg)`;
+      el.style.opacity = '0.2';
+    });
+
+    // 3D chaos spheres converge
+    this.chaosSpheres.forEach((mesh, i) => {
+      this._animateMeshTo(mesh, new THREE.Vector3(0,0,0), 0.15, 1500 + i*100);
+    });
+
+    // Chaos disappear
+    setTimeout(() => {
+      this.chaosCards.forEach(el => { el.style.opacity = '0'; });
+      this.chaosSpheres.forEach(m => { m.material.opacity = 0; });
+    }, 1800);
+
+    // Brain + output
+    setTimeout(() => {
+      this._targetBloom = 1.2;
+      this.pointLight.intensity = 3;
+
+      this.outputRows.forEach((row,i) => {
+        setTimeout(() => { row.style.opacity='1'; row.style.transform='translateY(0)'; }, i*220);
+      });
+
+      if (this.mode === 'orbit' && this.orbitSpheres) {
+        this.orbitSpheres.forEach(m => { m.material.opacity = 0.7; });
+        this._orbitActive = true;
+      }
+      if (this.mode === 'trails' && this.trailLines) {
+        this.trailLines.forEach((line, i) => {
+          setTimeout(() => { line.material.opacity = 0.3; }, i * 100);
+        });
+      }
+
+      this.state = 'order';
+    }, 2600);
+  }
+
+  _toChaos() {
+    if (this.state === 'transitioning') return;
+    this.state = 'transitioning';
+    this._targetBrainScale = 0.5;
+    this._targetBloom = 0.8;
+    this.pointLight.intensity = 2;
+
+    this.outputRows.forEach(r => { r.style.opacity='0'; r.style.transform='translateY(16px)'; });
+
+    if (this.mode === 'orbit' && this.orbitSpheres) {
+      this.orbitSpheres.forEach(m => { m.material.opacity = 0; });
+      this._orbitActive = false;
+    }
+    if (this.mode === 'trails' && this.trailLines) {
+      this.trailLines.forEach(line => { line.material.opacity = 0; });
+    }
+
+    setTimeout(() => {
+      this.chaosCards.forEach((el,i) => {
+        el.style.transition = `all ${1.1+i*0.07}s cubic-bezier(0.34,1.56,0.64,1)`;
+        el.style.transform = `rotate(${el.dataset.cr}deg)`;
+        el.style.opacity = '1';
+      });
+      this.chaosSpheres.forEach((mesh, i) => {
+        mesh.material.opacity = 0.7;
+        this._animateMeshTo(mesh, mesh.userData.basePos.clone(), 0.12, 1200 + i*80);
+      });
+      this._startFloat();
+      this.state = 'chaos';
+    }, 350);
+  }
+
+  _animateMeshTo(mesh, target, scale, duration) {
+    const start = mesh.position.clone();
+    const startTime = performance.now();
+    const tick = () => {
+      const t = Math.min((performance.now() - startTime) / duration, 1);
+      const e = 1 - Math.pow(1 - t, 3); // ease out cubic
+      mesh.position.lerpVectors(start, target, e);
+      if (scale !== undefined) {
+        const s = THREE.MathUtils.lerp(mesh.scale.x, scale, e);
+        mesh.scale.set(s, s, s);
+      }
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  _animate() {
+    const clock = new THREE.Clock();
+    const loop = () => {
+      requestAnimationFrame(loop);
+      const t = clock.getElapsedTime();
+
+      // Camera parallax
+      this.camera.position.x += (this.mouse.x * 0.8 - this.camera.position.x) * 0.03;
+      this.camera.position.y += (this.mouse.y * 0.5 - this.camera.position.y) * 0.03;
+      this.camera.lookAt(0, 0, 0);
+
+      // Brain rotation
+      this.brainMesh.rotation.y = t * 0.3;
+      this.brainMesh.rotation.x = Math.sin(t * 0.5) * 0.1;
+
+      // Brain scale
+      const ts = this._targetBrainScale || 0.5;
+      this.brainMesh.scale.lerp(new THREE.Vector3(ts,ts,ts), 0.03);
+      this.brainGlow.scale.lerp(new THREE.Vector3(ts*1.5,ts*1.5,ts*1.5), 0.03);
+
+      // Rings
+      this.orbitRing.rotation.z = t * 0.4;
+      this.orbitRing.scale.lerp(this.brainMesh.scale.clone().multiplyScalar(1.3), 0.03);
+      this.orbitRing2.rotation.z = -t * 0.25;
+      this.orbitRing2.scale.lerp(this.brainMesh.scale.clone().multiplyScalar(1.6), 0.03);
+
+      // Bloom intensity
+      if (this._targetBloom) this.bloom.strength += (this._targetBloom - this.bloom.strength) * 0.02;
+
+      // Brain emissive pulse
+      this.brainMesh.material.emissiveIntensity = 0.6 + Math.sin(t * 2) * 0.15;
+
+      // Particles slow drift
+      this.particles.rotation.y = t * 0.02;
+      this.particles.rotation.x = Math.sin(t * 0.1) * 0.05;
+
+      // Chaos spheres float in chaos state
+      if (this.state === 'chaos') {
+        this.chaosSpheres.forEach((m, i) => {
+          m.position.x = m.userData.basePos.x + Math.sin(t * 0.8 + i) * 0.3;
+          m.position.y = m.userData.basePos.y + Math.cos(t * 0.6 + i * 1.5) * 0.2;
+        });
+      }
+
+      // Orbit spheres in order state (mode B)
+      if (this._orbitActive && this.orbitSpheres) {
+        this.orbitSpheres.forEach(m => {
+          const a = m.userData.angle + t * 0.5;
+          const r = m.userData.radius * (this._targetBrainScale || 0.5);
+          m.position.set(Math.cos(a) * r, Math.sin(a) * r * 0.6, Math.sin(a) * r * 0.3);
+        });
+      }
+
+      this.composer.render();
+    };
+    loop();
+    this._targetBrainScale = 0.5;
+    this._targetBloom = 0.8;
+  }
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+const stages = {
+  'css-b': new CSSStage('s-css-b', 'orbit'),
+  'css-d': new CSSStage('s-css-d', 'trails'),
+};
+
+// Lazy-init Three.js stages only when shown
+let threeInited = { 'three-b': false, 'three-d': false };
+let threeStages = {};
+
+function show(id) {
+  document.querySelectorAll('.stage-wrap').forEach(w => w.classList.remove('active'));
+  document.getElementById('wrap-' + id).classList.add('active');
+  document.querySelectorAll('.top-nav button').forEach((b,i) => {
+    const ids = ['css-b','css-d','three-b','three-d'];
+    b.classList.toggle('active', ids[i] === id);
+  });
+
+  // Lazy init Three.js
+  if (id === 'three-b' && !threeInited['three-b']) {
+    threeInited['three-b'] = true;
+    threeStages['three-b'] = new ThreeStage('s-three-b', 'overlay-three-b', 'orbit');
+  }
+  if (id === 'three-d' && !threeInited['three-d']) {
+    threeInited['three-d'] = true;
+    threeStages['three-d'] = new ThreeStage('s-three-d', 'overlay-three-d', 'trails');
+  }
+
+  // Re-trigger if needed
+  const stage = stages[id] || threeStages[id];
+  if (stage && !stage.hasPlayed) {
+    stage.hasPlayed = true;
+    stage.state = 'chaos';
+    if (stage._startFloat) stage._startFloat();
+    setTimeout(() => { if (stage.state === 'chaos') stage._toOrder ? stage._toOrder() : stage.transitionTo?.('order'); }, 3000);
+  }
+}
+
+// Expose globally
+window.show = show;
+</script>
+</body>
+</html>

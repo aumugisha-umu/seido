@@ -9,6 +9,23 @@ description: "Arret Cassation 12 decembre 2025 : l'ACP ne peut pas agir pour les
 reading_time: "5 min"
 type: "article"
 hub: "essentiel-immo-fevrier-2026"
+infographic:
+  type: "data-table"
+  data:
+    title: "Garantie decennale vs vices caches en copropriete"
+    caption: "Apres l'arret Cassation du 12 decembre 2025"
+    headers: ["Critere", "Garantie decennale", "Vices caches"]
+    rows:
+      - cells: ["Base legale", "Art. 1792 Code civil", "Art. 1641-1649 Code civil"]
+      - cells: ["Qui peut agir", "ACP pour parties communes", "Coproprietaires individuellement"]
+        highlight: true
+        color: "red"
+      - cells: ["Delai d'action", "10 ans depuis reception", "Bref delai depuis decouverte"]
+        highlight: true
+        color: "amber"
+      - cells: ["Responsable", "Architecte + entrepreneur", "Vendeur ou promoteur"]
+      - cells: ["Type de defaut", "Solidite de la construction", "Defaut cache rendant impropre"]
+    footer: "Source : Cour de cassation, 12 decembre 2025 (ref. C.24.0179.F)"
 ---
 
 # Vices caches en copropriete : la Cour de cassation fixe les limites de l'ACP

@@ -9,6 +9,45 @@ description: "Droits de succession en Wallonie divises par 2 a partir de 2028 : 
 reading_time: "7 min"
 type: "article"
 hub: "essentiel-immo-janvier-2026"
+infographic:
+  type: "comparison-bars"
+  data:
+    title: "Droits de succession — taux max ligne directe (> 250 000 EUR)"
+    items:
+      - label: "France"
+        value: 45
+        suffix: "%"
+        color: "red"
+        highlight: true
+      - label: "Bruxelles"
+        value: 30
+        suffix: "%"
+        color: "red"
+      - label: "Wallonie (2026-2027)"
+        value: 30
+        suffix: "%"
+        color: "amber"
+      - label: "Flandre"
+        value: 27
+        suffix: "%"
+        color: "amber"
+      - label: "Pays-Bas"
+        value: 20
+        suffix: "%"
+        color: "blue"
+      - label: "Wallonie (2028+)"
+        value: 15
+        suffix: "%"
+        color: "green"
+        highlight: true
+      - label: "Italie"
+        value: 4
+        suffix: "%"
+        color: "green"
+      - label: "Luxembourg"
+        value: 0
+        suffix: "%"
+        color: "green"
 ---
 
 # Succession immobiliere en Wallonie : les droits divises par deux en 2028

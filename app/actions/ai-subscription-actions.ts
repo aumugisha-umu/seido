@@ -446,7 +446,7 @@ export async function updateAiCustomInstructionsAction(
     }
 
     const { updateCustomInstructions } = await import('@/lib/services/domain/ai-phone/phone-provisioning.service')
-    await updateCustomInstructions(auth.team.id, auth.team.name, instructions)
+    await updateCustomInstructions(auth.team.id, instructions)
 
     return { success: true }
   } catch (error) {

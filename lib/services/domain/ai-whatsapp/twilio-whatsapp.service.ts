@@ -112,6 +112,103 @@ export const parseDisambiguationReply = (
 }
 
 // ============================================================================
+// Property selection: confirmation (1 property) or numbered list (2+)
+// ============================================================================
+
+export const sendPropertySelectionMessage = async (
+  fromNumber: string,
+  to: string,
+  properties: Array<{ label: string }>,
+  channel: MessageChannel = 'whatsapp'
+): Promise<string> => {
+  const isSms = channel === 'sms'
+
+  if (properties.length === 1) {
+    const prop = properties[0]
+    const body = isSms
+      ? `Votre message concerne ${prop.label} ? OUI/NON`
+      : `Votre message concerne *${prop.label}* ?\n\nRépondez *OUI* ou *NON*.`
+    return sendWhatsAppMessage(fromNumber, to, body, channel)
+  }
+
+  const list = properties
+    .map((p, i) => `${i + 1}. ${isSms ? p.label.slice(0, 60) : p.label}`)
+    .join('\n')
+
+  const otherIndex = properties.length + 1
+  const otherLabel = isSms ? 'Autre' : 'Autre chose'
+
+  const body = isSms
+    ? `Quel logement ?\n${list}\n${otherIndex}. ${otherLabel}\nRepondez avec le numero.`
+    : `Quel logement concerne votre message ?\n\n${list}\n${otherIndex}. ${otherLabel}\n\nRépondez avec le numéro.`
+
+  return sendWhatsAppMessage(fromNumber, to, body, channel)
+}
+
+/**
+ * Parse a confirmation reply (OUI/NON).
+ * Returns true for yes, false for no, null for unrecognized.
+ */
+export const parseConfirmationReply = (body: string): boolean | null => {
+  const trimmed = body.trim().toLowerCase()
+  if (['oui', 'yes', 'o', 'y', '1', 'ok', 'ouais', 'ja'].includes(trimmed)) return true
+  if (['non', 'no', 'n', '2', 'nee', 'neen'].includes(trimmed)) return false
+  return null
+}
+
+// ============================================================================
+// Intervention selection: numbered list for providers
+// ============================================================================
+
+export const sendInterventionSelectionMessage = async (
+  fromNumber: string,
+  to: string,
+  interventions: Array<{ label: string }>,
+  channel: MessageChannel = 'whatsapp'
+): Promise<string> => {
+  const isSms = channel === 'sms'
+
+  const list = interventions
+    .map((iv, i) => `${i + 1}. ${isSms ? iv.label.slice(0, 60) : iv.label}`)
+    .join('\n')
+
+  const newIndex = interventions.length + 1
+  const newLabel = isSms ? 'Nouveau probleme' : 'Nouveau problème'
+
+  const body = isSms
+    ? `Vos interventions actives :\n${list}\n${newIndex}. ${newLabel}\nRepondez avec le numero.`
+    : `Vos interventions actives :\n\n${list}\n${newIndex}. ${newLabel}\n\nRépondez avec le numéro correspondant.`
+
+  return sendWhatsAppMessage(fromNumber, to, body, channel)
+}
+
+// ============================================================================
+// Team selection: numbered list for multi-team contacts
+// ============================================================================
+
+export const sendTeamSelectionMessage = async (
+  fromNumber: string,
+  to: string,
+  teams: Array<{ label: string }>,
+  channel: MessageChannel = 'whatsapp'
+): Promise<string> => {
+  const isSms = channel === 'sms'
+
+  const list = teams
+    .map((t, i) => `${i + 1}. ${t.label}`)
+    .join('\n')
+
+  const otherIndex = teams.length + 1
+  const otherLabel = isSms ? 'Autre' : 'Autre agence'
+
+  const body = isSms
+    ? `Plusieurs gestionnaires :\n${list}\n${otherIndex}. ${otherLabel}\nRepondez avec le numero.`
+    : `Vous êtes lié à plusieurs gestionnaires.\n\n${list}\n${otherIndex}. ${otherLabel}\n\nRépondez avec le numéro.`
+
+  return sendWhatsAppMessage(fromNumber, to, body, channel)
+}
+
+// ============================================================================
 // Re-export Twilio signature validation
 // ============================================================================
 

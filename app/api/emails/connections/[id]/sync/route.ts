@@ -42,8 +42,8 @@ export async function POST(
         const result = await syncService.syncConnection(connection as unknown as any);
 
         return NextResponse.json({ success: true, result });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Sync error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }

@@ -2,13 +2,69 @@
 title: "Precompte immobilier Bruxelles : +118% en 10 ans"
 slug: "precompte-immobilier-bruxelles-explosion"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Fiscalite"
 tags: ["precompte immobilier", "bruxelles", "additionnels communaux", "fiscalite immobiliere", "proprietaire bailleur"]
 description: "Saint-Josse : +118% de precompte immobilier en 10 ans. Le tableau complet des 10 communes bruxelloises et ce que les gestionnaires doivent surveiller."
 reading_time: "5 min"
 type: "article"
 hub: "essentiel-immo-fevrier-2026"
+infographic:
+  type: "comparison-bars"
+  data:
+    title: "Hausse reelle du precompte immobilier (2016-2026)"
+    items:
+      - label: "Saint-Josse"
+        value: 118
+        suffix: "%"
+        prefix: "+"
+        color: "red"
+        highlight: true
+      - label: "Molenbeek"
+        value: 79
+        suffix: "%"
+        prefix: "+"
+        color: "red"
+      - label: "Berchem-Ste-Agathe"
+        value: 75
+        suffix: "%"
+        prefix: "+"
+        color: "amber"
+      - label: "Ganshoren"
+        value: 70
+        suffix: "%"
+        prefix: "+"
+        color: "amber"
+      - label: "Woluwe-St-Lambert"
+        value: 70
+        suffix: "%"
+        prefix: "+"
+        color: "amber"
+      - label: "Saint-Gilles"
+        value: 68
+        suffix: "%"
+        prefix: "+"
+        color: "amber"
+      - label: "Anderlecht"
+        value: 67
+        suffix: "%"
+        prefix: "+"
+        color: "blue"
+      - label: "Forest"
+        value: 67
+        suffix: "%"
+        prefix: "+"
+        color: "blue"
+      - label: "Uccle"
+        value: 64
+        suffix: "%"
+        prefix: "+"
+        color: "blue"
+      - label: "Schaerbeek"
+        value: 62
+        suffix: "%"
+        prefix: "+"
+        color: "blue"
 ---
 
 # Precompte immobilier a Bruxelles : l'explosion silencieuse des additionnels communaux

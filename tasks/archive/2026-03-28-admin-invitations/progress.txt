@@ -1,0 +1,4 @@
+# Progress Log — Admin Invitations List + Resend
+# Started: 2026-03-28
+# Stories: 2 total
+---

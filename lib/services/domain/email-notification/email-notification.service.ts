@@ -136,14 +136,6 @@ export class EmailNotificationService {
       case 'status_changed':
         return this.sendInterventionStatusChangedBatch(interventionId, options.statusChange, filterOptions)
 
-      case 'approved':
-      case 'rejected':
-        logger.warn(
-          { interventionId, eventType },
-          `⚠️ [EMAIL-NOTIFICATION] Event type '${eventType}' not yet implemented`
-        )
-        return { success: true, sentCount: 0, failedCount: 0, results: [] }
-
       default:
         logger.warn(
           { interventionId, eventType },
@@ -433,21 +425,6 @@ export class EmailNotificationService {
     logger.info({ interventionId, ...result, timing }, '✅ [EMAIL-NOTIFICATION] Status changed batch finished')
 
     return result
-  }
-
-  /**
-   * @deprecated Use sendInterventionEmails with statusChange context
-   */
-  async sendInterventionStatusChangeBatch(
-    interventionId: string,
-    oldStatus: string,
-    newStatus: string
-  ): Promise<EmailBatchResult> {
-    logger.warn(
-      { interventionId, oldStatus, newStatus },
-      '⚠️ [EMAIL-NOTIFICATION] sendInterventionStatusChangeBatch is deprecated'
-    )
-    return { success: true, sentCount: 0, failedCount: 0, results: [] }
   }
 
   // ══════════════════════════════════════════════════════════════

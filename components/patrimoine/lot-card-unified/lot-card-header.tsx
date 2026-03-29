@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { getLotCategoryConfig, type LotCategory } from "@/lib/lot-types"
+import { getPebColorClasses } from "@/lib/utils/peb-colors"
 import type { LotCardHeaderProps, LotCardBadgesProps, LotData, LotContact, BaseContact } from "./types"
 
 // ============================================================================
@@ -225,6 +226,16 @@ export function LotCardBadges({
           {categoryConfig.label}
         </Badge>
       )}
+
+      {/* PEB rating badge */}
+      {lot.peb_rating && (() => {
+        const pebColors = getPebColorClasses(lot.peb_rating)
+        return (
+          <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${pebColors.bg} ${pebColors.text} border ${pebColors.border}`}>
+            PEB {lot.peb_rating}
+          </span>
+        )
+      })()}
 
       {/* Occupation status badge */}
       <Badge

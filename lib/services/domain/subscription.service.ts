@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import { SubscriptionRepository } from '../repositories/subscription.repository'
 import { StripeCustomerRepository } from '../repositories/stripe-customer.repository'
-import { FREE_TIER_LIMIT, TRIAL_DAYS, STRIPE_PRICES } from '@/lib/stripe'
+import { FREE_TIER_LIMIT, TRIAL_DAYS, STRIPE_PRICES, isAiPrice } from '@/lib/stripe'
 import { logger } from '@/lib/logger'
 
 // =============================================================================
@@ -316,9 +316,9 @@ export class SubscriptionService {
       return { success: false }
     }
 
-    // Fetch current Stripe subscription to get item ID
+    // Fetch current Stripe subscription — find the main (non-AI) item
     const stripeSub = await this.stripe.subscriptions.retrieve(sub.stripe_subscription_id)
-    const item = stripeSub.items.data[0]
+    const item = stripeSub.items.data.find(i => !isAiPrice(i.price.id))
     if (!item) {
       return { success: false }
     }
@@ -377,7 +377,7 @@ export class SubscriptionService {
 
     try {
       const stripeSub = await this.stripe.subscriptions.retrieve(sub.stripe_subscription_id)
-      const item = stripeSub.items.data[0]
+      const item = stripeSub.items.data.find(i => !isAiPrice(i.price.id))
       const currentQuantity = item?.quantity ?? 0
       const newQuantity = currentQuantity + additionalLots
 
@@ -465,6 +465,54 @@ export class SubscriptionService {
     })
   }
 
+  // ── autoConvertTrialWithAi ────────────────────────────────────────────
+
+  /**
+   * Auto-converts a trialing team with an active AI subscription.
+   * If lotCount > FREE_TIER_LIMIT: adds main per-lot item to the existing AI subscription.
+   * If lotCount <= FREE_TIER_LIMIT: AI continues alone on free tier.
+   * Returns the new subscription status.
+   */
+  async autoConvertTrialWithAi(
+    teamId: string,
+    aiStripeSubscriptionId: string,
+  ): Promise<{ status: SubscriptionStatus; mainItemAdded: boolean }> {
+    const { data: actualLots } = await this.subscriptionRepo.getLotCount(teamId)
+
+    if (actualLots <= FREE_TIER_LIMIT) {
+      // Free tier + AI — no main item needed
+      await this.subscriptionRepo.updateByTeamId(teamId, {
+        status: 'free_tier',
+        stripe_subscription_id: aiStripeSubscriptionId,
+        payment_method_added: true,
+      })
+      return { status: 'free_tier', mainItemAdded: false }
+    }
+
+    // Add main per-lot item to existing AI subscription
+    const stripeSub = await this.stripe.subscriptions.retrieve(aiStripeSubscriptionId)
+    // In auto-conversion, this sub only has the AI item — find any item for interval detection
+    const anyItem = stripeSub.items.data[0]
+    const interval = anyItem?.price?.recurring?.interval === 'month' ? 'month' : 'year'
+    const mainPriceId = interval === 'year' ? STRIPE_PRICES.annual : STRIPE_PRICES.monthly
+
+    await this.stripe.subscriptions.update(aiStripeSubscriptionId, {
+      items: [{ price: mainPriceId, quantity: actualLots }],
+      proration_behavior: 'always_invoice',
+    })
+
+    // Update subscriptions table
+    await this.subscriptionRepo.updateByTeamId(teamId, {
+      status: 'active',
+      stripe_subscription_id: aiStripeSubscriptionId,
+      price_id: mainPriceId,
+      subscribed_lots: actualLots,
+      payment_method_added: true,
+    })
+
+    return { status: 'active', mainItemAdded: true }
+  }
+
   // ── isReadOnlyMode ────────────────────────────────────────────────────
 
   async isReadOnlyMode(teamId: string): Promise<boolean> {
@@ -495,7 +543,7 @@ export class SubscriptionService {
   } | null> {
     try {
       const stripeSub = await this.stripe.subscriptions.retrieve(stripeSubId)
-      const firstItem = stripeSub.items?.data?.[0]
+      const firstItem = stripeSub.items?.data?.find(i => !isAiPrice(i.price.id)) ?? stripeSub.items?.data?.[0]
       // Stripe API: current_period_start/end are on the subscription item, not the subscription root (see docs).
       const rawPeriodStart = stripeSub.current_period_start ?? (firstItem as { current_period_start?: number } | undefined)?.current_period_start
       const rawPeriodEnd = stripeSub.current_period_end ?? (firstItem as { current_period_end?: number } | undefined)?.current_period_end

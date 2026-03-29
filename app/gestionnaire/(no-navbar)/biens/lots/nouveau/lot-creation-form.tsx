@@ -233,6 +233,7 @@ export default function LotCreationForm({
     doorNumber: string
     description: string
     category: LotCategory
+    pebRating?: string
   }>>([])
   const [expandedLots, setExpandedLots] = useState<{[key: string]: boolean}>({})
   const [lotContactAssignments, setLotContactAssignments] = useState<{
@@ -1390,6 +1391,7 @@ export default function LotCreationForm({
           floor: parseInt(String(lot.floor)) || 0,
           doorNumber: lot.doorNumber || null,
           description: lot.description || null,
+          pebRating: lot.pebRating || undefined,
         }))
 
         const result = await createLotsCompositeAction({
@@ -1445,6 +1447,7 @@ export default function LotCreationForm({
           floor: lot.floor ? parseInt(lot.floor) : null,
           doorNumber: lot.doorNumber || null,
           description: lot.description || null,
+          pebRating: lot.pebRating || undefined,
           address: (lot.street || lot.city) ? {
             street: lot.street,
             postalCode: lot.postalCode,

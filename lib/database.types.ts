@@ -320,14 +320,21 @@ export type Database = {
           elevenlabs_phone_number_id: string | null
           id: string
           is_active: boolean
+          meta_phone_number_id: string | null
           phone_number: string
+          provisioning_error: string | null
+          provisioning_status: string
           stripe_ai_price_id: string | null
           stripe_ai_subscription_id: string | null
           stripe_subscription_id: string | null
           team_id: string
           telnyx_connection_id: string | null
           telnyx_phone_number_id: string | null
+          twilio_account_sid: string | null
+          twilio_number_sid: string | null
           updated_at: string
+          whatsapp_enabled: boolean
+          whatsapp_number: string | null
         }
         Insert: {
           ai_tier?: string
@@ -338,14 +345,21 @@ export type Database = {
           elevenlabs_phone_number_id?: string | null
           id?: string
           is_active?: boolean
+          meta_phone_number_id?: string | null
           phone_number: string
+          provisioning_error?: string | null
+          provisioning_status?: string
           stripe_ai_price_id?: string | null
           stripe_ai_subscription_id?: string | null
           stripe_subscription_id?: string | null
           team_id: string
           telnyx_connection_id?: string | null
           telnyx_phone_number_id?: string | null
+          twilio_account_sid?: string | null
+          twilio_number_sid?: string | null
           updated_at?: string
+          whatsapp_enabled?: boolean
+          whatsapp_number?: string | null
         }
         Update: {
           ai_tier?: string
@@ -356,20 +370,27 @@ export type Database = {
           elevenlabs_phone_number_id?: string | null
           id?: string
           is_active?: boolean
+          meta_phone_number_id?: string | null
           phone_number?: string
+          provisioning_error?: string | null
+          provisioning_status?: string
           stripe_ai_price_id?: string | null
           stripe_ai_subscription_id?: string | null
           stripe_subscription_id?: string | null
           team_id?: string
           telnyx_connection_id?: string | null
           telnyx_phone_number_id?: string | null
+          twilio_account_sid?: string | null
+          twilio_number_sid?: string | null
           updated_at?: string
+          whatsapp_enabled?: boolean
+          whatsapp_number?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "ai_phone_numbers_team_id_fkey"
             columns: ["team_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
@@ -409,6 +430,96 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ai_phone_usage_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_whatsapp_sessions: {
+        Row: {
+          channel: string
+          contact_phone: string
+          created_at: string
+          extracted_data: Json
+          id: string
+          identified_user_id: string | null
+          identified_via: string | null
+          intervention_id: string | null
+          language: string
+          last_message_at: string
+          messages: Json
+          phone_number_id: string | null
+          status: string
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          contact_phone: string
+          created_at?: string
+          extracted_data?: Json
+          id?: string
+          identified_user_id?: string | null
+          identified_via?: string | null
+          intervention_id?: string | null
+          language?: string
+          last_message_at?: string
+          messages?: Json
+          phone_number_id?: string | null
+          status?: string
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          contact_phone?: string
+          created_at?: string
+          extracted_data?: Json
+          id?: string
+          identified_user_id?: string | null
+          identified_via?: string | null
+          intervention_id?: string | null
+          language?: string
+          last_message_at?: string
+          messages?: Json
+          phone_number_id?: string | null
+          status?: string
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_whatsapp_sessions_identified_user_id_fkey"
+            columns: ["identified_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_whatsapp_sessions_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_whatsapp_sessions_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_whatsapp_sessions_phone_number_id_fkey"
+            columns: ["phone_number_id"]
+            isOneToOne: false
+            referencedRelation: "ai_phone_numbers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_whatsapp_sessions_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -2079,6 +2190,42 @@ export type Database = {
           },
         ]
       }
+      indexation_leads: {
+        Row: {
+          consent_given: boolean
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          source: string | null
+          type: string
+        }
+        Insert: {
+          consent_given?: boolean
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          source?: string | null
+          type: string
+        }
+        Update: {
+          consent_given?: boolean
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          source?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
       intervention_assignments: {
         Row: {
           assigned_at: string
@@ -3091,6 +3238,7 @@ export type Database = {
           floor: number | null
           id: string
           metadata: Json | null
+          peb_rating: string | null
           reference: string
           team_id: string
           total_interventions: number | null
@@ -3109,6 +3257,7 @@ export type Database = {
           floor?: number | null
           id?: string
           metadata?: Json | null
+          peb_rating?: string | null
           reference: string
           team_id: string
           total_interventions?: number | null
@@ -3127,6 +3276,7 @@ export type Database = {
           floor?: number | null
           id?: string
           metadata?: Json | null
+          peb_rating?: string | null
           reference?: string
           team_id?: string
           total_interventions?: number | null
@@ -3239,6 +3389,57 @@ export type Database = {
           },
           {
             foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      phone_team_mappings: {
+        Row: {
+          contact_phone: string
+          conversation_history: Json
+          created_at: string
+          id: string
+          last_used_at: string
+          source: string
+          team_id: string
+          user_id: string | null
+          user_role: string | null
+        }
+        Insert: {
+          contact_phone: string
+          conversation_history?: Json
+          created_at?: string
+          id?: string
+          last_used_at?: string
+          source?: string
+          team_id: string
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Update: {
+          contact_phone?: string
+          conversation_history?: Json
+          created_at?: string
+          id?: string
+          last_used_at?: string
+          source?: string
+          team_id?: string
+          user_id?: string | null
+          user_role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_team_mappings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_team_mappings_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -4856,14 +5057,14 @@ export type Database = {
           id: string
           invitation_token: string | null
           invited_at: string
-          invited_by: string
+          invited_by: string | null
           last_name: string | null
           provider_category:
             | Database["public"]["Enums"]["provider_category"]
             | null
           role: Database["public"]["Enums"]["user_role"]
           status: Database["public"]["Enums"]["invitation_status"]
-          team_id: string
+          team_id: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -4876,14 +5077,14 @@ export type Database = {
           id?: string
           invitation_token?: string | null
           invited_at?: string
-          invited_by: string
+          invited_by?: string | null
           last_name?: string | null
           provider_category?:
             | Database["public"]["Enums"]["provider_category"]
             | null
           role: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["invitation_status"]
-          team_id: string
+          team_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -4896,14 +5097,14 @@ export type Database = {
           id?: string
           invitation_token?: string | null
           invited_at?: string
-          invited_by?: string
+          invited_by?: string | null
           last_name?: string | null
           provider_category?:
             | Database["public"]["Enums"]["provider_category"]
             | null
           role?: Database["public"]["Enums"]["user_role"]
           status?: Database["public"]["Enums"]["invitation_status"]
-          team_id?: string
+          team_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -5937,6 +6138,7 @@ export type Database = {
           team_id: string
         }[]
       }
+      hook_block_uninvited_signups: { Args: { event: Json }; Returns: Json }
       increment_rent_call_received: {
         Args: { p_delta: number; p_rent_call_id: string }
         Returns: undefined
@@ -6220,6 +6422,9 @@ export type Database = {
         | "energie"
         | "administration"
         | "juridique"
+        | "assurance"
+        | "notaire"
+        | "syndic"
       response_type: "accepted" | "rejected" | "pending"
       subscription_status:
         | "trialing"
@@ -6573,6 +6778,9 @@ export const Constants = {
         "energie",
         "administration",
         "juridique",
+        "assurance",
+        "notaire",
+        "syndic",
       ],
       response_type: ["accepted", "rejected", "pending"],
       subscription_status: [

@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-03-26
-**Total Learnings:** 200
+**Last Updated:** 2026-03-29
+**Total Learnings:** 231
 
 ---
 
@@ -1473,6 +1473,231 @@
 **Example:** `app/actions/admin-team-actions.ts:246-286` — deferred email in `extendTeamTrialAction`
 **When to Use:** When deferring work with `after()` AND you already have a service role client — no auth cookie concern
 **Added:** 2026-03-26 | **Source:** Admin Dashboard Redesign + Trial Extension
+
+#### Learning #201: Supabase before-user-created hook blocks admin API calls (generateLink)
+**Problem:** `before-user-created` auth hooks fire for ALL user creation — including `supabase.auth.admin.generateLink({type: 'invite'})`. The invite flow inserts `user_invitations` AFTER `generateLink`, so the hook rejects the invite (chicken-and-egg). Error leaks internal `pg-functions://` URI to the user.
+**Solution:** Two-layer fix: (1) Hook checks `user_metadata.password_set = 'false'` — only set by server-side admin invite actions, never by regular signup or OAuth. (2) For flows with all FK fields available (invite-user route), pre-insert `user_invitations` BEFORE `generateLink`, then update with `invitation_token` after. Also sanitize hook error messages — never expose `pg-functions://` URIs.
+**Example:** `supabase/migrations/20260326210000_fix_hook_allow_admin_invites.sql` + `app/api/invite-user/route.ts:427-453` (pre-insert) + `app/auth/oauth-callback/route.ts:91-93` (sanitize)
+**When to Use:** Any time you add a Supabase auth hook that gates user creation — audit ALL code paths that create auth users (signup, OAuth, admin invite, magiclink). Pre-populate gate tables BEFORE the hook-triggering call.
+**Added:** 2026-03-26 | **Source:** Invite-only hook blocking admin team invitations
+
+#### Learning #202: Unauthenticated API routes — check EVERY route in a directory
+**Problem:** `app/api/emails/connections/test/route.ts` had zero `getApiAuthContext()` — a live SSRF vector. The sibling route `connections/[id]/test/route.ts` had auth. When multiple routes exist in a feature directory, auth gaps hide because reviews focus on the main routes.
+**Solution:** When auditing API routes, check EVERY file in the directory — not just the ones that seem important. Grep for `export async function` in `app/api/` and verify each has auth. For IMAP/SMTP test routes, also add SSRF protection (reject RFC 1918 private IPs, link-local, loopback).
+**Example:** `app/api/emails/connections/test/route.ts` — added `getApiAuthContext()` + `isPrivateHost()` DNS-based SSRF check
+**When to Use:** Any security audit, any new API route directory, any code review of email/connection features
+**Added:** 2026-03-26 | **Source:** Email system comprehensive review
+
+#### Learning #203: Welcome email prop name mismatch — WelcomeEmailProps.dashboardUrl
+**Problem:** `send-welcome-email/route.ts` passed `confirmationUrl` but `WelcomeEmailProps` expects `dashboardUrl`. The CTA button rendered with `undefined` href. The main path via `confirm-actions.ts` was correct; only the API route path was broken.
+**Solution:** Always verify prop names match the type definition when calling email service methods. The `emailService.sendWelcomeEmail()` method takes `WelcomeEmailProps` which requires `dashboardUrl`, not `confirmationUrl`. When two code paths call the same method, check BOTH.
+**Example:** `app/api/send-welcome-email/route.ts:68` — changed `confirmationUrl` to `dashboardUrl`
+**When to Use:** When adding or modifying email send calls — verify prop names against the type in `emails/utils/types.ts`
+**Added:** 2026-03-26 | **Source:** Email system comprehensive review
+
+#### Learning #204: Honeypot hidden inputs must be wired via useRef
+**Problem:** A honeypot `<input>` was rendered offscreen but its value was hardcoded to `''` in the fetch body. Bots filling the field had no effect — the server-side check never received the bot value.
+**Solution:** Use `useRef<HTMLInputElement>(null)` on the hidden input, then send `honeypotRef.current?.value ?? ''` in the API call. Never hardcode the honeypot value.
+**Example:** `components/landing/sections/indexation-section.tsx:59` — `honeypotRef` wired to hidden input
+**When to Use:** Any form with honeypot anti-bot protection
+**Added:** 2026-03-26 | **Source:** Lead magnet indexation calculator — feature evaluation
+
+#### Learning #205: Public API routes — security without auth
+**Problem:** The lead magnet API captures emails from anonymous visitors — no user session exists. Standard `getApiAuthContext()` can't be used.
+**Solution:** Layer 3 defenses: (1) `rateLimiters.public` with IP identification, (2) Zod schema validation with strict constraints, (3) honeypot field. Use `createServiceRoleSupabaseClient()` for DB writes on tables without RLS. Always escape user input in inline HTML emails.
+**Example:** `app/api/lead-magnet/route.ts` — first public API route in SEIDO
+**When to Use:** Any public-facing API endpoint that doesn't require authentication (lead capture, contact forms, public calculators)
+**Added:** 2026-03-26 | **Source:** Lead magnet indexation calculator
+
+#### Learning #206: Single data source for UI + JSON-LD structured data
+**Problem:** FAQ questions were needed both in the landing page accordion UI and in the FAQPage JSON-LD schema for SEO. Duplicating content risks drift.
+**Solution:** Store data in a single typed array (`data/faq.ts`), then map it in both the UI component and the JSON-LD `<script>` tag. Adding items to the array automatically updates both. Use category tags to filter subsets.
+**Example:** `data/faq.ts` → `app/page.tsx` (JSON-LD) + `components/landing/sections/faq-section.tsx` (UI)
+**When to Use:** Any content that appears in both UI and structured data (FAQ, reviews, products, events)
+**Added:** 2026-03-26 | **Source:** Lead magnet indexation calculator — US-007
+
+---
+
+### Web Scraping & Data Enrichment
+
+#### Learning #207: Never delete intermediate files before final audit passes
+**Problem:** After generating enriched prospects (MD+CSV), intermediate enrichment JSON files were deleted. When the audit found issues (HTML entities, invalid emails), fixing required those files — forcing a complete rebuild from scratch (~30 min lost).
+**Solution:** Keep all intermediate files (`_enrichment_*.json`, `_prospects_scored.json`) until the audit script passes Grade A. Only clean up after confirmed validation. Add a `--cleanup` flag to the merge script instead of manual deletion.
+**Example:** `scripts/merge-final.mjs` loads 4 enrichment JSONs → `scripts/audit-prospects.mjs` validates → only then delete
+**When to Use:** Any multi-step data pipeline where outputs depend on intermediate results
+**Added:** 2026-03-28 | **Source:** IPI Brussels agents scraping & enrichment campaign
+
+#### Learning #208: Verify column alignment with sample output before full scrape
+**Problem:** A sub-agent regenerating the website enrichment parsed the IPI statut column ("Courtier titulaire") instead of site_web, producing 980 garbage URLs like `"https://Courtier"`. All 980 entries showed `site_active: false` and `error: timeout`.
+**Solution:** After parsing, log 5 sample entries immediately and verify column content makes sense. For table parsing: `console.log('Samples:', agents.slice(0,5).map(a => ({id:a.id, site_web:a.site_web, statut:a.statut})))`. Abort early if samples look wrong.
+**Example:** `scripts/enrich-websites.mjs:29` — destructured `[nom, id, entreprise, adresse, tel, email, siteWeb, statut]`
+**When to Use:** Any HTML table or MD table parsing, especially when dispatching to sub-agents
+**Added:** 2026-03-28 | **Source:** IPI website enrichment regeneration failure
+
+#### Learning #209: HTML entity decoding is mandatory post-scrape
+**Problem:** Company names from IPI contained `&amp;` (→ &), `&#039;` (→ '), `&quot;` (→ ") because HTML was parsed without entity decoding. "LATOUR &amp; PETIT" appeared in output files.
+**Solution:** Apply `decodeEntities()` recursively to ALL string fields immediately after parsing HTML. Function: `str.replace(/&amp;/g, '&').replace(/&#039;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>')`. Apply to the parsed object with a `deepDecode()` recursive helper.
+**Example:** `scripts/merge-final.mjs:11-23` — `decodeEntities()` + `deepDecode()`
+**When to Use:** Any time data is extracted from HTML source (scraping, RSS, API responses with HTML fragments)
+**Added:** 2026-03-28 | **Source:** IPI agents audit — encoding pass
+
+#### Learning #210: Belgian phone number cleaning pipeline
+**Problem:** IPI phone fields contain multiple formats: `+32 (2) 123 45 67`, `02/217.00.32`, double prefix `+32 (4) +32483534308` (from concatenated fields), and empty parens `+32 () `.
+**Solution:** Multi-step `cleanPhone()`: (1) convert old format `0X/XXX.XX.XX` → `+32 X XXX XX XX`, (2) extract from double prefix via regex `\+32\s*\(\d\)\s*(\+32\d+)`, (3) strip parentheses and normalize spaces. Validate with `isValidPhone`: must start with `+32`, contain only digits/spaces, minimum 11 chars without spaces.
+**Example:** `scripts/merge-final.mjs:28-38` — `cleanPhone()` function
+**When to Use:** Any Belgian data source with phone numbers (IPI, BCE, Immoweb, LinkedIn)
+**Added:** 2026-03-28 | **Source:** IPI audit — 12 invalid phones fixed
+
+#### Learning #211: Fuzzy company name matching needs multiple normalization passes
+**Problem:** Enrichment data from different sources (Google, Immoweb, BCE) uses slightly different company names. "LATOUR & PETIT" vs "Latour & Petit SA" vs "latour petit" would not match with simple normalization.
+**Solution:** Build a multi-key lookup map: (1) lowercase + strip legal suffixes (SA/SRL/NV/BV/SPRL/BVBA), (2) raw lowercase, (3) index by agent IDs when available. For audit validation: also compare with HTML entity variants and quote variants (`"` vs `&quot;`).
+**Example:** `scripts/merge-final.mjs:58-70` — `matchCompany()` with `norm()` helper
+**When to Use:** Merging data from multiple sources about the same Belgian companies
+**Added:** 2026-03-28 | **Source:** IPI enrichment merge — fuzzy matching
+
+#### Learning #212: Software detection false positives from HTML attributes
+**Problem:** Searching for "sap" in page HTML matched 423 sites — but it was hitting HTML attributes like `data-sap-ui`, `sap-icon`, not actual SAP software usage. Similarly, "immoweb" matched portal links, not the company using Immoweb internally.
+**Solution:** Filter known false-positive keywords from software detection: exclude 'sap' entirely (too common in HTML). For other tools, check context: only match in visible text or known meta tags, not in HTML attributes/class names.
+**Example:** `scripts/merge-final.mjs:157` — `.filter(s => s !== 'sap')`
+**When to Use:** Any web scraping that detects software/technology from HTML content
+**Added:** 2026-03-28 | **Source:** IPI website enrichment — SAP false positive analysis
+
+#### Learning #213: Hallucination detection patterns must account for domain conventions
+**Problem:** Audit regex `/^[A-Z][a-z]+ [A-Z][a-z]+ (Properties|Real Estate)$/` flagged 16 Belgian companies as "AI hallucinations" — but "Hermanns Real Estate", "Ricci Real Estate", etc. are legitimate Belgian agencies. The pattern was too aggressive.
+**Solution:** Only flag truly generic AI-sounding combinations (Vertex/Summit/Pinnacle/Apex + Properties). Real estate companies legitimately use English naming in Belgium. Cross-reference flagged names against the source data (IPI agent IDs) before marking as hallucinated.
+**Example:** `scripts/audit-prospects.mjs:143-146` — narrowed hallucination patterns
+**When to Use:** Any data validation that checks for AI-generated content in domain-specific datasets
+**Added:** 2026-03-28 | **Source:** IPI audit — false positive hallucination detection
+
+#### Learning #214: Resume capability is essential for long-running scrapes
+**Problem:** Scraping 830 websites takes ~5 minutes. If the script crashes at 600/830, you lose all progress and must restart from zero.
+**Solution:** Save intermediate results as a JSON map keyed by ID. On startup, load existing results and filter out already-processed entries: `const toProcess = withSite.filter(a => !results[a.id])`. Save every N items (20-50). This makes the script idempotent and resumable.
+**Example:** `scripts/enrich-websites.mjs:155-165` — resume logic with `existsSync` + filter
+**When to Use:** Any batch processing over 100 items or taking more than 2 minutes
+**Added:** 2026-03-28 | **Source:** IPI website enrichment — 830 sites with resume
+
+#### Learning #215: Batch fetch with concurrency control prevents IP bans
+**Problem:** Fetching 830 websites sequentially takes too long (~30 min). But unlimited parallel requests triggers rate limiting and IP bans.
+**Solution:** Use batch parallelism: `Promise.all` on batches of 5 + 1.5s delay between batches. This gives ~160 req/min — fast enough (~5 min total) but respectful. For aggressive targets (Immoweb, Google), reduce to batches of 2-3 with 3-5s delays.
+**Example:** `scripts/enrich-websites.mjs:171-197` — BATCH_SIZE=5, DELAY_MS=1500
+**When to Use:** Any HTTP scraping or API calls over 50 targets
+**Added:** 2026-03-28 | **Source:** IPI website enrichment — zero bans on 830 requests
+
+#### Learning #216: Multi-axis enrichment architecture — independent axes + merge
+**Problem:** Enriching 1200+ companies from 4 different sources (websites, Google, Immoweb, BCE) is too slow sequentially and too complex in a single script.
+**Solution:** Design each enrichment axis as an independent script producing a JSON file. Run them in parallel (separate agents/processes). Then a merge script loads all JSONs, matches by company name/ID, scores, and generates final output. Each axis is independently re-runnable without affecting others.
+**Example:** `scripts/enrich-websites.mjs` + `scripts/merge-final.mjs` — 4 input JSONs → scored MD+CSV+JSON
+**When to Use:** Any data enrichment from 3+ sources, or when enrichment takes more than 5 minutes total
+**Added:** 2026-03-28 | **Source:** IPI Brussels campaign — 4-axis enrichment architecture
+
+#### Learning #217: 1-row-per-contact CSV beats grouped CSV for CRM import
+**Problem:** First CSV format had 1 row per company with all agent names concatenated in a single field (`"Agent1; Agent2; Agent3"`). This makes it impossible to filter by individual phone/email or assign specific agents to sales reps.
+**Solution:** Explode to 1 row per agent with their individual data (name, phone, email, statut, address, IPI profile URL). Repeat company-level enrichment data on each row. This duplicates enrichment data but makes every row independently actionable for cold calling.
+**Example:** `scripts/merge-final.mjs:378-400` — CSV loop iterates `p.agentsRaw` not just `prospects`
+**When to Use:** Any CRM-targeted export where the unit of action (call/email) is a person, not a company
+**Added:** 2026-03-28 | **Source:** IPI prospects CSV — user feedback on grouped format
+
+---
+
+### Claude Code Harness & Agent Ecosystem
+
+#### Learning #218: Background agents cannot write outside the project sandbox
+**Problem:** When dispatching background agents (via `Agent` tool with `run_in_background: true`) to write files in a directory outside the main project's working directory, the agents fail silently — `Write` and `Bash` tools are sandboxed to the project root. Two background agents tasked with writing 10 files to `umumentum-ai-starter-kit/` (while main context was `seido-app/`) both returned permission denied errors.
+**Solution:** Write files directly from the main conversation context (which has broader permissions when the target dir is listed as an additional working directory), NOT via background agents. Background agents inherit the project sandbox, not the broader multi-directory permissions. Use background agents only for research/analysis tasks that don't need cross-directory writes.
+**Example:** `umumentum-ai-starter-kit/.claude/agents/*.md` — 4 agent files written directly after background agent failure
+**When to Use:** Any multi-project workflow where Agent tool targets files outside `cwd`
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit creation — sandbox discovery
+
+#### Learning #219: settings.local.json hooks require async stdin pattern on Windows
+**Problem:** Claude Code hooks (`PreToolUse`, `PostToolUse`, etc.) in `settings.local.json` receive input via stdin as a JSON blob. On Windows, synchronous `fs.readFileSync('/dev/stdin')` doesn't work. Using `process.stdin.on('data')` with `process.stdin.resume()` is required, but the hook must handle the case where stdin data arrives in chunks.
+**Solution:** Use `process.stdin.resume(); process.stdin.on('data', chunk => { ... })` pattern. Accumulate chunks, JSON.parse on `end` event. For blocking hooks (PreToolUse), use `process.exit(2)` to block and `process.exit(0)` to allow. Hook scripts must be pure Node.js — no dependencies.
+**Example:** `umumentum-ai-starter-kit/.claude/scripts/block-dangerous-commands.js` — async stdin + exit(2) block pattern
+**When to Use:** Writing any Claude Code hook script that needs to read tool input on Windows
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — hook scripts porting from SEIDO
+
+#### Learning #220: Agent quality scales with Example Output sections, not instruction length
+**Problem:** Analysis of 2500+ GitHub repos with Claude Code agents showed that agent effectiveness doesn't correlate with instruction verbosity. Agents with long "Do this, don't do that" lists performed worse than shorter agents with concrete Example Output sections showing exactly what good output looks like.
+**Solution:** Every agent file MUST include an `## Example Output` section with a realistic, complete example of the expected deliverable. This anchors the agent's behavior more than rules. Keep instructions concise (responsibilities, process, what NOT to do) and let the example do the heavy lifting.
+**Example:** `umumentum-ai-starter-kit/.claude/agents/feature-evaluator.md` — full evaluation report example with scores, file:line references, verdict
+**When to Use:** Writing or reviewing any agent definition (`.claude/agents/*.md`)
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit design — GitHub repos analysis
+
+#### Learning #221: GAN evaluation pattern — separate context eliminates self-evaluation bias
+**Problem:** When the same agent implements AND evaluates code, it consistently rates its own work 8-9/10 (confirmation bias). Code review within the same context is performative — the agent "remembers" its design decisions and rationalizes them.
+**Solution:** Run feature evaluation in a SEPARATE agent context (feature-evaluator agent dispatched fresh, with no access to implementation conversation). Score on 3 weighted axes: Security (40%), Patterns (30%), Design Quality (30%). Start at 10, apply penalties. The evaluator reads only the code, not the implementation rationale. This is the GAN (Generative Adversarial Network) pattern applied to code quality.
+**Example:** `umumentum-ai-starter-kit/.claude/agents/feature-evaluator.md` — 3-axis scoring with penalty table, `.claude/skills/sp-evaluate/SKILL.md` — orchestrates the evaluation
+**When to Use:** After any feature implementation, before merge. Auto-invoked by sp-ralph Step 6.
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — quality coverage analysis
+
+#### Learning #222: Design system must be scaffolded at project creation, not retrofitted
+**Problem:** In SEIDO, the design system (component hierarchy, design tokens, anti-slop criteria) was introduced after 100+ components already existed. Retrofitting required auditing every component for duplicate patterns, hardcoded values, and inconsistent hierarchy. Multiple custom card/stat/metric components existed that should have been one reusable composite.
+**Solution:** Scaffold 3 design system artifacts during project creation: (1) `design-system-rules.md` with 5-level component hierarchy (Primitives → Composites → Features → Templates → Pages), (2) `design-evaluation-criteria.md` with anti-AI-slop scoring, (3) design tokens in Tailwind config. The ui-designer agent and frontend-developer agent both reference these from day 1.
+**Example:** `umumentum-ai-starter-kit/.claude/rules/design-system-rules.md` + `design-evaluation-criteria.md` — created during sp-onboarding Phase 2
+**When to Use:** Starting any new project, or retrofitting an existing one that lacks design governance
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — design system from SEIDO retrospective
+
+#### Learning #223: Anti-AI-slop scoring prevents generic AI-generated UI patterns
+**Problem:** AI-generated UIs follow predictable patterns: centered hero with gradient, uniform card grid, loading spinners everywhere, blank empty states, hardcoded colors. These "AI-slop" patterns make every AI-built app look identical and unprofessional.
+**Solution:** Score UI against specific anti-slop criteria with penalties: generic hero layout (-2), uniform card grid without visual hierarchy (-2), loading spinner instead of skeleton (-2), blank empty state (-2), hardcoded colors/spacing (-2). Award bonuses (+1) for contextual design that reflects the specific domain. Target: 7+/10 for all new UI. The `design-evaluation-criteria.md` file encodes these as a rubric for the feature-evaluator agent.
+**Example:** `umumentum-ai-starter-kit/.claude/rules/design-evaluation-criteria.md` — Layout, Component, Interaction, Color, Typography slop categories
+**When to Use:** Evaluating any AI-generated UI, or writing prompts for UI generation
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — SEIDO UX/UI patterns formalized
+
+#### Learning #225: Filter AI-sourced interventions by `source` column, not `type`
+**Problem:** The triage query used `type = 'demande_whatsapp'` to find AI-created interventions. But phone_ai interventions have real types like 'plomberie' or 'electricite' (extracted by AI during the call). This caused phone-originated interventions to be invisible in the triage queue.
+**Solution:** Filter by `source IN ('whatsapp_ai', 'sms_ai', 'phone_ai')` — the `source` column is the reliable discriminator for AI-created interventions, not `type`. Export `AI_SOURCES` as a shared constant from `lib/services/domain/ai-whatsapp/types.ts` to avoid duplication across files.
+**Example:** `app/actions/whatsapp-triage-actions.ts:60` — `.in('source', AI_SOURCES)`
+**When to Use:** Any query filtering for AI-sourced vs human-sourced interventions
+**Added:** 2026-03-29 | **Source:** AI triage card redesign — phone interventions missing from triage
+
+#### Learning #226: ElevenLabs post-call webhook metadata structure for Twilio-registered calls
+**Problem:** The ElevenLabs post-call webhook `metadata` payload has an undocumented structure for Twilio-registered calls. The caller phone is NOT at `phone_call.body.from_number` (that path doesn't exist). The team identification via `ai_phone_numbers.elevenlabs_agent_id` lookup fails in shared-agent architecture (single agent ID for all teams).
+**Solution:** For Twilio-registered calls: caller phone is at `metadata.phone_call.external_number`. Agent number is at `metadata.phone_call.agent_number`. Call type is `metadata.phone_call.type === 'twilio'`. As fallback, pass `caller_phone` as a dynamic variable during `register-call` and read it from `conversation_initiation_client_data.dynamic_variables.caller_phone`. For team identification, use `resolvePhoneMappings(callerPhone)` via `phone_team_mappings` table instead of agent ID lookup.
+**Example:** `app/api/webhooks/elevenlabs/route.ts:250-260` — metadata extraction with fallback chain
+**When to Use:** Working with ElevenLabs Conversational AI webhooks + Twilio integration
+**Added:** 2026-03-29 | **Source:** ElevenLabs voice integration — debug metadata dump revealed actual structure
+
+#### Learning #227: Card + ListView pairs should share actions via a hook, not copy-paste
+**Problem:** When creating a card view and list view for the same entity (triage items), action handlers (mark handled, reject, convert to intervention, convert to reminder) were copy-pasted between components. Both had identical `useTransition` + server action + toast patterns, leading to 6 duplicated functions.
+**Solution:** Extract a `useEntityActions(item, onRemoved)` hook that returns all action handlers + `isPending` state. Both card and list view import the same hook. Also extract shared config (channel icons/colors) to a `triage-shared.ts` constants file. This DRYs up ~60 lines per component.
+**Example:** `components/operations/use-triage-actions.ts` — shared hook; `components/operations/triage-shared.ts` — shared CHANNEL_CONFIG
+**When to Use:** Any time you create card + list view pairs for the same entity type
+**Added:** 2026-03-29 | **Source:** AI triage card redesign — /simplify review caught the duplication
+
+#### Learning #228: TypeScript interface must mirror DB columns used in runtime filters
+**Problem:** The `Intervention` interface in `service-types.ts` was missing the `source` field even though the DB column existed and was used at runtime. This forced `(i as any).source` casts in the dashboard filter, hiding the field from type checking and IDE autocomplete.
+**Solution:** When adding a DB column that will be read in TypeScript code, ALWAYS add it to the corresponding TypeScript interface immediately. Check `lib/database.types.ts` (generated) for the column definition, then add it to the domain interface in `service-types.ts`. This is especially important for filter/discriminator columns used in `.filter()` or `.includes()` checks.
+**Example:** `lib/services/core/service-types.ts:191` — `source?: string | null` added to `Intervention`
+**When to Use:** After any migration that adds a column used for filtering or branching logic
+**Added:** 2026-03-29 | **Source:** AI triage card redesign — /simplify review caught `as any` casts
+
+#### Learning #224: Skill content > skill quantity — 6 empty skills are worse than 3 complete ones
+**Problem:** Initially created 13 skill directories but only wrote content for 7. The 6 empty `SKILL.md` files gave the appearance of coverage but provided zero guidance to agents. An agent invoking `sp-tdd` would get an empty file and fall back to generic behavior.
+**Solution:** Never create a skill directory without immediately writing meaningful content. Each SKILL.md needs at minimum: Overview, When to Use, Process (step-by-step), Example Output, and What NOT to Do. If you can't write the content now, don't create the directory — it's misleading. Batch-write skills in a single session rather than creating shells.
+**Example:** `umumentum-ai-starter-kit/.claude/skills/sp-tdd/SKILL.md` — 185 lines with Red-Green-Refactor cycle, test patterns, quality checklist
+**When to Use:** Creating or reviewing any Claude Code skill structure
+**Added:** 2026-03-28 | **Source:** umumentum-ai-starter-kit — empty skill files caused background agent re-work
+
+#### Learning #229: Staggered entrance animation pattern — CSS classes + JS timing + React.memo
+**Problem:** Needed a sequential entrance animation (11 elements appearing over 4.5s) in a React component. Options: (A) 11 useState + 11 conditional classes = excessive re-renders, (B) CSS-only animation-delay = no control over sequencing between groups, (C) JS setTimeout + classList = imperative but performant.
+**Solution:** Use a hybrid pattern: CSS defines the transitions (hidden→visible states), JS `setTimeout` controls sequencing, `data-*` attributes target elements. Structure: (1) CSS file (`hero-flow.css`) with animation classes (`hero-animate-drop`, `hero-animate-scale`, `hero-animate-slide-up`, `hero-animate-slide-left`, `hero-animate-slide-right`, `hero-animate-fade`) each defining the hidden state (opacity:0 + transform offset). (2) Single `.hero-visible` class toggles to visible state — split per animation axis to avoid transform conflicts. (3) JS `useEffect` with `setTimeout` array + cleanup. (4) `animatedRef` prevents double-animation in React StrictMode. (5) `React.memo()` prevents re-renders from parent state. (6) `prefers-reduced-motion` check shows all elements immediately.
+**Example:** `components/landing/hero-flow-visual.tsx` + `app/styles/hero-flow.css` — full pattern
+**When to Use:** Any multi-element sequential entrance animation in React (landing pages, onboarding, feature tours)
+**Added:** 2026-03-29 | **Source:** Landing hero flow directionnel — inputs→AI→intervention animation
+
+#### Learning #230: CSS transform visible states must match their animation axis
+**Problem:** Combined `transform: translate(0) scale(1)` as the visible state for ALL animation types. This works visually but is fragile — `hero-animate-slide-left` uses `translateX(-6px)` but gets reset with `translate(0)` which implicitly zeros both X and Y axes. If a future animation combines translateX + translateY, this breaks silently.
+**Solution:** Split visible-state selectors per animation type: `translateY(0)` for drop/slide-up, `translateX(0)` for slide-left/slide-right, `scale(1)` for scale. Each visible state resets only the axis its hidden state modified.
+**Example:** `app/styles/hero-flow.css:43-56` — separate selectors per animation type
+**When to Use:** Any CSS transition system with multiple animation types sharing a visible class
+**Added:** 2026-03-29 | **Source:** Landing hero /simplify review — CSS transform conflict
+
+#### Learning #231: Limit CSS infinite animations to N iterations on landing pages
+**Problem:** Flow dots used `animation: heroFlowDown 1.8s ease-in-out infinite` — 4 dots × infinite loop = continuous GPU compositing even when user has scrolled past the hero. On lower-end devices, this wastes 15-20% CPU indefinitely.
+**Solution:** Use `animation-iteration-count: 3` (or any finite number) instead of `infinite`. 3 loops (~5.4s) is enough to convey "data flowing" visually, then the CPU is freed. For truly infinite animations, add an IntersectionObserver to pause/resume with `animation-play-state: paused` when off-screen.
+**Example:** `app/styles/hero-flow.css:63` — `animation: heroFlowDown 1.8s ease-in-out 3`
+**When to Use:** Any decorative CSS animation on a landing/marketing page
+**Added:** 2026-03-29 | **Source:** Landing hero /simplify efficiency review
 
 ---
 

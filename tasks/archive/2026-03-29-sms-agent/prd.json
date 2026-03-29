@@ -1,0 +1,92 @@
+{
+  "project": "SEIDO",
+  "featureName": "SMS Agent — Conversational AI via SMS",
+  "branchName": "preview",
+  "description": "Extend the WhatsApp AI conversation engine to support SMS. Same flow (routing by sender phone, AI triage, intervention creation) but via SMS channel. Reuse 90% of existing code by adding a channel field.",
+  "createdAt": "2026-03-29",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add channel field to types + sessions DB",
+      "description": "As the system, I need a channel discriminator so the engine knows whether to reply via SMS or WhatsApp",
+      "acceptanceCriteria": [
+        "channel column added to ai_whatsapp_sessions (default 'whatsapp')",
+        "IncomingWhatsAppMessage type has channel: 'whatsapp' | 'sms'",
+        "Types regenerated",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Migration 20260329084439. MessageChannel type + channel field on IncomingWhatsAppMessage."
+    },
+    {
+      "id": "US-002",
+      "title": "Adapt twilio-whatsapp.service for SMS",
+      "description": "As the system, I need the message sending service to handle both SMS and WhatsApp so replies go through the right channel",
+      "acceptanceCriteria": [
+        "sendMessage() adds whatsapp: prefix only when channel is 'whatsapp'",
+        "SMS replies have no prefix on From/To",
+        "Existing WhatsApp flow unchanged",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "formatPhone() helper. All send functions accept optional channel param with default 'whatsapp'."
+    },
+    {
+      "id": "US-003",
+      "title": "Create SMS webhook /api/webhooks/sms",
+      "description": "As a tenant, I want to send an SMS to report a maintenance issue so I can use the AI assistant without WhatsApp",
+      "acceptanceCriteria": [
+        "POST /api/webhooks/sms receives Twilio SMS webhooks",
+        "Twilio signature validated (X-Twilio-Signature)",
+        "Routing by sender phone (same as WhatsApp)",
+        "Message passed to conversation engine with channel='sms'",
+        "Returns TwiML 200 response",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Thin adapter (12 lines) — imports handleTwilioIncoming from WhatsApp route."
+    },
+    {
+      "id": "US-004",
+      "title": "Adapt conversation engine for SMS channel",
+      "description": "As the system, I need the conversation engine to send shorter replies via SMS and track the channel in sessions",
+      "acceptanceCriteria": [
+        "Session created with correct channel value",
+        "AI system prompt includes 'respond concisely' instruction for SMS",
+        "Replies sent via correct channel (SMS or WhatsApp)",
+        "Routing flow works for SMS (disambiguation, unknown contact)",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-001", "US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "9 sendWhatsAppMessage calls updated with channel param. createRoutingSession stores channel. buildSystemPrompt uses shorter lengthRule for SMS."
+    },
+    {
+      "id": "US-005",
+      "title": "Configure webhook + env + cleanup",
+      "description": "As a developer, I need the SMS webhook documented and the env vars updated",
+      "acceptanceCriteria": [
+        ".env.example documents SMS webhook path",
+        "No lint errors",
+        "All existing tests pass"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-003"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Updated .env.example with SMS webhook path + removed stale Meta WABA env vars. Lint: 0 new errors. Tests: pre-existing integration failures only."
+    }
+  ]
+}

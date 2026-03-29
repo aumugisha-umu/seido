@@ -29,10 +29,10 @@ export async function GET(request: Request, { params }: RouteParams) {
             links
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Get email links error:', error);
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: error instanceof Error ? error.message : String(error) },
             { status: 500 }
         );
     }
@@ -102,11 +102,11 @@ export async function POST(request: Request, { params }: RouteParams) {
             link
         }, { status: 201 });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Create email link error:', error);
 
         // Gestion spéciale pour contrainte d'unicité
-        if (error.code === '23505') {
+        if (error instanceof Object && 'code' in error && error.code === '23505') {
             return NextResponse.json(
                 { success: false, error: 'Ce lien existe déjà' },
                 { status: 409 }
@@ -114,7 +114,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         }
 
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: error instanceof Error ? error.message : String(error) },
             { status: 500 }
         );
     }
@@ -160,10 +160,10 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
         return NextResponse.json({ success: true });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Delete email link error:', error);
         return NextResponse.json(
-            { success: false, error: error.message },
+            { success: false, error: error instanceof Error ? error.message : String(error) },
             { status: 500 }
         );
     }

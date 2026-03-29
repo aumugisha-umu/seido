@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEIDO — Data Flow Animation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #020617; color: white; overflow-x: hidden; }
+
+  .hero {
+    min-height: 50vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #020617, #0f172a, #020617);
+  }
+  .hero-content { text-align: center; max-width: 650px; padding: 1.5rem; }
+  .hero h1 { font-size: clamp(1.8rem,4.5vw,3rem); font-weight: 700; line-height: 1.15; margin-bottom: 0.8rem; }
+  .hero h1 span { background: linear-gradient(135deg,#60a5fa,#67e8f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { font-size: 1rem; color: rgba(255,255,255,0.65); margin-bottom: 1.5rem; }
+  .hero .cta { display:inline-block; padding:0.75rem 1.75rem; background:white; color:#020617; border-radius:9999px; font-weight:600; text-decoration:none; }
+  .scroll-hint { text-align:center; padding:0.5rem; color:rgba(255,255,255,0.2); font-size:0.7rem; }
+
+  .section-header { text-align:center; padding:2rem 1rem 0.5rem; }
+  .section-header h2 { font-size:1.2rem; color:rgba(255,255,255,0.4); font-weight:400; }
+  .hover-hint { text-align:center; padding:0.3rem; color:rgba(255,255,255,0.22); font-size:0.7rem; }
+
+  /* ═══ STAGE ═══ */
+  .stage {
+    position: relative; width: 100%; max-width: 1100px; margin: 0 auto;
+    height: 78vh; min-height: 520px; overflow: hidden; cursor: pointer;
+  }
+
+  /* ═══ BG ═══ */
+  .bg-glow { position:absolute; border-radius:50%; filter:blur(80px); pointer-events:none; transition: opacity 2s, transform 2s; }
+  .cg1 { width:250px; height:250px; background:rgba(217,119,6,0.1); top:12%; left:8%; }
+  .cg2 { width:200px; height:200px; background:rgba(239,68,68,0.06); bottom:15%; right:8%; }
+  .og { width:450px; height:450px; background:rgba(139,92,246,0.08); top:50%; left:50%; transform:translate(-50%,-50%); opacity:0; }
+
+  /* ═══ CHAOS CARDS ═══ */
+  .chaos-el {
+    position:absolute; display:flex; align-items:center; gap:0.45rem;
+    padding:0.5rem 0.8rem; border-radius:11px; font-size:0.73rem; font-weight:500;
+    white-space:nowrap; backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,0.06); box-shadow:0 3px 14px rgba(0,0,0,0.25);
+    z-index:5; will-change:transform,opacity;
+  }
+  .chaos-el .ico {
+    width:24px; height:24px; border-radius:6px;
+    display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0;
+  }
+  .chaos-el.wa { background:rgba(37,211,102,0.1); } .chaos-el.wa .ico { background:rgba(37,211,102,0.2); }
+  .chaos-el.sm { background:rgba(251,191,36,0.1); } .chaos-el.sm .ico { background:rgba(251,191,36,0.2); }
+  .chaos-el.em { background:rgba(239,68,68,0.1); } .chaos-el.em .ico { background:rgba(239,68,68,0.2); }
+  .chaos-el.ph { background:rgba(168,85,247,0.1); } .chaos-el.ph .ico { background:rgba(168,85,247,0.2); }
+  .chaos-el.dc { background:rgba(251,146,60,0.1); } .chaos-el.dc .ico { background:rgba(251,146,60,0.2); }
+
+  /* ═══ SOURCE ANCHORS (visible in order state) ═══ */
+  .source-anchor {
+    position: absolute; display: flex; align-items: center; gap: 0.3rem;
+    padding: 0.3rem 0.55rem; border-radius: 8px; font-size: 0.6rem; font-weight: 500;
+    backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.05);
+    z-index: 4; opacity: 0; transition: opacity 1.2s;
+    white-space: nowrap;
+  }
+  .source-anchor .sa-ico {
+    width: 18px; height: 18px; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; font-size: 9px;
+  }
+  .source-anchor.wa-a { background:rgba(37,211,102,0.08); color:rgba(37,211,102,0.7); }
+  .source-anchor.wa-a .sa-ico { background:rgba(37,211,102,0.15); }
+  .source-anchor.sm-a { background:rgba(251,191,36,0.08); color:rgba(251,191,36,0.7); }
+  .source-anchor.sm-a .sa-ico { background:rgba(251,191,36,0.15); }
+  .source-anchor.em-a { background:rgba(239,68,68,0.08); color:rgba(239,68,68,0.7); }
+  .source-anchor.em-a .sa-ico { background:rgba(239,68,68,0.15); }
+  .source-anchor.ph-a { background:rgba(168,85,247,0.08); color:rgba(168,85,247,0.7); }
+  .source-anchor.ph-a .sa-ico { background:rgba(168,85,247,0.15); }
+  .source-anchor.dc-a { background:rgba(251,146,60,0.08); color:rgba(251,146,60,0.7); }
+  .source-anchor.dc-a .sa-ico { background:rgba(251,146,60,0.15); }
+
+  /* ═══ BRAIN ═══ */
+  .brain-node {
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10;
+    display:flex; flex-direction:column; align-items:center; gap:0.35rem;
+    transition: all 1.8s cubic-bezier(0.22,1,0.36,1);
+  }
+  .brain-orb {
+    width:80px; height:80px; border-radius:50%; position:relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .brain-orb::before {
+    content:''; position:absolute; inset:-6px; border-radius:50%;
+    border:1.5px solid transparent;
+    background: conic-gradient(from 0deg, rgba(96,165,250,0.5), rgba(139,92,246,0.5), rgba(59,130,246,0.3), rgba(96,165,250,0.5)) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    animation: spin 8s linear infinite;
+  }
+  .brain-orb::after {
+    content:''; position:absolute; inset:0; border-radius:50%;
+    background: radial-gradient(circle at 35% 35%, rgba(139,92,246,0.6), rgba(59,130,246,0.4) 40%, rgba(96,165,250,0.2) 70%, transparent);
+    box-shadow: 0 0 40px rgba(139,92,246,0.2), 0 0 80px rgba(59,130,246,0.12), inset 0 0 25px rgba(139,92,246,0.15);
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .brain-orb img {
+    position:relative; z-index:2; width:40px; height:40px;
+    object-fit:contain;
+    filter: drop-shadow(0 0 8px rgba(139,92,246,0.5)) brightness(1.1);
+  }
+  .brain-label { font-size:0.65rem; font-weight:600; letter-spacing:0.12em; text-transform:uppercase; color:rgba(255,255,255,0.5); }
+
+  /* ═══ PULSE ═══ */
+  .pulse-ring {
+    position:absolute; top:50%; left:50%; width:80px; height:80px;
+    border-radius:50%; border:1px solid rgba(139,92,246,0.2);
+    z-index:9; pointer-events:none; opacity:0;
+  }
+  @keyframes pulse-a { 0%{transform:translate(-50%,-50%) scale(1);opacity:0.25} 100%{transform:translate(-50%,-50%) scale(3.5);opacity:0} }
+
+  /* ═══ FLOW CANVAS (for animated data particles) ═══ */
+  .flow-canvas {
+    position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  }
+
+  /* ═══ OUTPUT ═══ */
+  .output-panel {
+    position:absolute; bottom:5%; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; gap:0.5rem; z-index:6;
+  }
+  .output-row {
+    display:flex; align-items:center; gap:0.65rem;
+    padding:0.6rem 1rem; border-radius:11px;
+    background:rgba(15,23,42,0.75); border:1px solid rgba(96,165,250,0.1);
+    backdrop-filter:blur(14px); box-shadow:0 2px 10px rgba(0,0,0,0.2);
+    min-width:300px; opacity:0; transform:translateY(16px);
+    transition: all 0.8s cubic-bezier(0.22,1,0.36,1);
+  }
+  .output-row .sbar { width:3px; height:26px; border-radius:2px; flex-shrink:0; }
+  .sbar.g { background:#34d399; box-shadow:0 0 5px rgba(52,211,153,0.4); }
+  .sbar.b { background:#60a5fa; box-shadow:0 0 5px rgba(96,165,250,0.4); }
+  .sbar.v { background:#a78bfa; box-shadow:0 0 5px rgba(167,139,250,0.4); }
+  .output-row .ri { width:28px; height:28px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; background:rgba(96,165,250,0.08); }
+  .output-row .rt { display:flex; flex-direction:column; gap:1px; }
+  .output-row .rt .t { font-size:0.78rem; font-weight:600; }
+  .output-row .rt .s { font-size:0.65rem; color:rgba(255,255,255,0.4); }
+
+  /* ═══ PARTICLES ═══ */
+  .particle { position:absolute; border-radius:50%; pointer-events:none; z-index:1; }
+
+  .proto-footer { text-align:center; padding:2.5rem 1rem; color:rgba(255,255,255,0.2); font-size:0.7rem; }
+  .proto-footer code { background:rgba(255,255,255,0.04); padding:0.1rem 0.3rem; border-radius:3px; font-size:0.65rem; }
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-content">
+    <h1>La gestion locative <br/><span>en toute serenite</span></h1>
+    <p>Chaque demande declenche une boucle qui prenait des jours. SEIDO centralise et automatise.</p>
+    <a href="#" class="cta" onclick="event.preventDefault()">Essayer gratuitement</a>
+  </div>
+</section>
+<div class="scroll-hint">Scrollez pour voir l'animation</div>
+
+<div class="section-header"><h2>Comment SEIDO transforme votre quotidien</h2></div>
+<div class="hover-hint">Hover = chaos | Leave = SEIDO organise (flux de donnees entrants)</div>
+
+<div class="stage" id="stage">
+  <div class="bg-glow cg1"></div>
+  <div class="bg-glow cg2"></div>
+  <div class="bg-glow og"></div>
+
+  <!-- Flow canvas for animated data dots -->
+  <canvas class="flow-canvas" id="flowCanvas"></canvas>
+
+  <div class="brain-node" id="brain">
+    <div class="brain-orb">
+      <img src="../../public/images/Logo/Picto_Seido_White.webp" alt="SEIDO" />
+    </div>
+    <span class="brain-label">SEIDO AI</span>
+  </div>
+
+  <div class="pulse-ring"></div>
+  <div class="pulse-ring"></div>
+  <div class="pulse-ring"></div>
+
+  <div class="output-panel" id="outputPanel">
+    <div class="output-row">
+      <div class="sbar g"></div><div class="ri">🔧</div>
+      <div class="rt"><div class="t">Intervention planifiee</div><div class="s">Plomberie — Apt 3B — Lundi 14h — Prestataire confirme</div></div>
+    </div>
+    <div class="output-row">
+      <div class="sbar b"></div><div class="ri">🔔</div>
+      <div class="rt"><div class="t">Rappel automatique envoye</div><div class="s">Prestataire + locataire notifies — RDV J-1</div></div>
+    </div>
+    <div class="output-row">
+      <div class="sbar v"></div><div class="ri">📋</div>
+      <div class="rt"><div class="t">Documents archives et lies</div><div class="s">Devis, facture, photos — rattaches a l'intervention</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="proto-footer">
+  <p>Prototype SEIDO — Data Flow Animation (CSS + Canvas2D)</p>
+  <p style="margin-top:0.4rem"><code>hover</code> chaos | <code>leave</code> ordre avec flux de donnees animes</p>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const ITEMS = [
+  { cls:'wa', ico:'💬', txt:'WhatsApp: Fuite sdb apt 3B', x:7,  y:10, r:-8,  color:'#25D366', label:'WhatsApp' },
+  { cls:'em', ico:'📧', txt:'Re: Re: Devis plomberie',    x:56, y:5,  r:5,   color:'#EF4444', label:'Email' },
+  { cls:'ph', ico:'📞', txt:'3 appels manques',           x:82, y:16, r:-6,  color:'#A855F7', label:'Appels' },
+  { cls:'sm', ico:'📱', txt:'SMS: Chauffage en panne',    x:4,  y:48, r:7,   color:'#FBBF24', label:'SMS' },
+  { cls:'dc', ico:'📄', txt:'facture_v3_FINAL.pdf',       x:11, y:76, r:-5,  color:'#FB923C', label:'Documents' },
+  { cls:'wa', ico:'💬', txt:'Photo: degat des eaux',      x:76, y:67, r:9,   color:'#25D366', label:'WhatsApp' },
+  { cls:'em', ico:'📧', txt:'Urgent: cle perdue',         x:82, y:40, r:-4,  color:'#EF4444', label:'Email' },
+  { cls:'sm', ico:'📱', txt:'Quand passe le technicien?', x:40, y:83, r:6,   color:'#FBBF24', label:'SMS' },
+];
+
+const SRC_ANCHOR_MAP = {
+  wa: { cls:'wa-a', ico:'💬', label:'WhatsApp' },
+  em: { cls:'em-a', ico:'📧', label:'Emails' },
+  ph: { cls:'ph-a', ico:'📞', label:'Appels' },
+  sm: { cls:'sm-a', ico:'📱', label:'SMS' },
+  dc: { cls:'dc-a', ico:'📄', label:'Documents' },
+};
+
+// ═══════════════════════════════════════
+// STAGE
+// ═══════════════════════════════════════
+const stage = document.getElementById('stage');
+const brain = document.getElementById('brain');
+const canvas = document.getElementById('flowCanvas');
+const ctx = canvas.getContext('2d');
+const outputRows = document.querySelectorAll('.output-row');
+const pulseRings = document.querySelectorAll('.pulse-ring');
+
+let state = 'idle';
+let hasPlayed = false;
+let floatAnims = [];
+let chaosEls = [];
+let sourceAnchors = [];
+let flowPaths = []; // bezier curves for data flow
+let flowDots = []; // animated dots on the paths
+let flowActive = false;
+let animFrame;
+
+// ─── Build chaos cards ───
+ITEMS.forEach((item, i) => {
+  const el = document.createElement('div');
+  el.className = `chaos-el ${item.cls}`;
+  el.dataset.cx = item.x; el.dataset.cy = item.y; el.dataset.cr = item.r;
+  el.innerHTML = `<div class="ico">${item.ico}</div><span>${item.txt}</span>`;
+  el.style.left = item.x + '%'; el.style.top = item.y + '%';
+  el.style.transform = `rotate(${item.r}deg)`;
+  stage.appendChild(el);
+  chaosEls.push(el);
+});
+
+// ─── Build source anchors (small labels at trail origins, visible in order state) ───
+const uniqueTypes = [...new Set(ITEMS.map(i => i.cls))];
+const anchorPositions = {
+  wa: { x: 5,  y: 15 },
+  em: { x: 85, y: 10 },
+  ph: { x: 90, y: 30 },
+  sm: { x: 8,  y: 60 },
+  dc: { x: 12, y: 82 },
+};
+uniqueTypes.forEach(cls => {
+  const info = SRC_ANCHOR_MAP[cls];
+  const pos = anchorPositions[cls];
+  const el = document.createElement('div');
+  el.className = `source-anchor ${info.cls}`;
+  el.innerHTML = `<div class="sa-ico">${info.ico}</div><span>${info.label}</span>`;
+  el.style.left = pos.x + '%'; el.style.top = pos.y + '%';
+  stage.appendChild(el);
+  sourceAnchors.push({ el, cls, x: pos.x, y: pos.y, color: ITEMS.find(i=>i.cls===cls).color });
+});
+
+// ─── Particles ───
+for (let i = 0; i < 18; i++) {
+  const p = document.createElement('div'); p.className = 'particle';
+  p.style.left = Math.random()*100+'%'; p.style.top = Math.random()*100+'%';
+  const sz = 2+Math.random()*2; p.style.width = p.style.height = sz+'px';
+  p.style.background = `rgba(139,92,246,${0.05+Math.random()*0.08})`;
+  p.animate([
+    {transform:'translate(0,0)',opacity:0.06},{transform:`translate(${-10+Math.random()*20}px,${-10+Math.random()*20}px)`,opacity:0.15},{transform:'translate(0,0)',opacity:0.06}
+  ],{duration:4000+Math.random()*3000,iterations:Infinity,delay:Math.random()*2000,easing:'ease-in-out'});
+  stage.appendChild(p);
+}
+
+// ═══════════════════════════════════════
+// CANVAS — Data Flow System
+// ═══════════════════════════════════════
+function resizeCanvas() {
+  canvas.width = stage.clientWidth;
+  canvas.height = stage.clientHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Build bezier flow paths from each source anchor to center
+function buildFlowPaths() {
+  const w = canvas.width, h = canvas.height;
+  const cx = w / 2, cy = h / 2;
+
+  flowPaths = sourceAnchors.map(anchor => {
+    const sx = w * anchor.x / 100;
+    const sy = h * anchor.y / 100;
+
+    // Two control points for a nice S-curve
+    const dx = cx - sx, dy = cy - sy;
+    const cp1x = sx + dx * 0.3 + (Math.random()-0.5) * 80;
+    const cp1y = sy + dy * 0.15 + (Math.random()-0.5) * 60;
+    const cp2x = sx + dx * 0.7 + (Math.random()-0.5) * 60;
+    const cp2y = sy + dy * 0.85 + (Math.random()-0.5) * 40;
+
+    return {
+      sx, sy, cp1x, cp1y, cp2x, cp2y, cx, cy,
+      color: anchor.color,
+      cls: anchor.cls,
+    };
+  });
+
+  // Create flow dots (multiple per path for continuous stream effect)
+  flowDots = [];
+  flowPaths.forEach((path, pi) => {
+    const dotsPerPath = 4;
+    for (let d = 0; d < dotsPerPath; d++) {
+      flowDots.push({
+        pathIndex: pi,
+        t: d / dotsPerPath, // stagger start positions
+        speed: 0.003 + Math.random() * 0.002,
+        size: 2.5 + Math.random() * 2,
+        opacity: 0.5 + Math.random() * 0.4,
+      });
+    }
+  });
+}
+
+// Get point on cubic bezier at t
+function bezierPoint(path, t) {
+  const mt = 1 - t;
+  return {
+    x: mt*mt*mt*path.sx + 3*mt*mt*t*path.cp1x + 3*mt*t*t*path.cp2x + t*t*t*path.cx,
+    y: mt*mt*mt*path.sy + 3*mt*mt*t*path.cp1y + 3*mt*t*t*path.cp2y + t*t*t*path.cy,
+  };
+}
+
+// Draw flow
+function drawFlow() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!flowActive) return;
+
+  // Draw trail paths (subtle)
+  flowPaths.forEach(path => {
+    ctx.beginPath();
+    ctx.moveTo(path.sx, path.sy);
+    ctx.bezierCurveTo(path.cp1x, path.cp1y, path.cp2x, path.cp2y, path.cx, path.cy);
+
+    // Gradient along path
+    const grad = ctx.createLinearGradient(path.sx, path.sy, path.cx, path.cy);
+    const c = path.color;
+    grad.addColorStop(0, c + '15'); // very subtle at start
+    grad.addColorStop(0.7, c + '30'); // more visible approaching center
+    grad.addColorStop(1, c + '08'); // fade at center
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+
+  // Animate dots along paths
+  flowDots.forEach(dot => {
+    dot.t += dot.speed;
+    if (dot.t > 1) dot.t -= 1;
+
+    const path = flowPaths[dot.pathIndex];
+    const pt = bezierPoint(path, dot.t);
+
+    // Dot glow (grows as it approaches center — last 30% of path)
+    const glowFactor = dot.t > 0.7 ? 1 + (dot.t - 0.7) / 0.3 * 2 : 1;
+    const fadeFactor = dot.t < 0.05 ? dot.t / 0.05 : (dot.t > 0.95 ? (1 - dot.t) / 0.05 : 1);
+
+    // Outer glow
+    const glowRadius = dot.size * glowFactor * 3;
+    const glowGrad = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, glowRadius);
+    glowGrad.addColorStop(0, path.color + Math.round(dot.opacity * fadeFactor * 60).toString(16).padStart(2,'0'));
+    glowGrad.addColorStop(1, path.color + '00');
+    ctx.fillStyle = glowGrad;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Core dot
+    ctx.fillStyle = path.color;
+    ctx.globalAlpha = dot.opacity * fadeFactor;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, dot.size * glowFactor * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Small trail behind dot
+    const trailLen = 0.04;
+    for (let ti = 1; ti <= 3; ti++) {
+      const tt = dot.t - trailLen * ti / 3;
+      if (tt < 0) continue;
+      const tpt = bezierPoint(path, tt);
+      ctx.fillStyle = path.color;
+      ctx.globalAlpha = (dot.opacity * fadeFactor * (1 - ti/4)) * 0.4;
+      ctx.beginPath();
+      ctx.arc(tpt.x, tpt.y, dot.size * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // Central absorption glow
+  const cx = canvas.width/2, cy = canvas.height/2;
+  const cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 50);
+  cGrad.addColorStop(0, 'rgba(139, 92, 246, 0.08)');
+  cGrad.addColorStop(1, 'rgba(139, 92, 246, 0)');
+  ctx.fillStyle = cGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 50, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function flowLoop() {
+  drawFlow();
+  animFrame = requestAnimationFrame(flowLoop);
+}
+
+// ═══════════════════════════════════════
+// STATE MACHINE
+// ═══════════════════════════════════════
+function startFloat() {
+  stopFloat();
+  chaosEls.forEach((el, i) => {
+    const d = 3500+Math.random()*2000, dx = 10+Math.random()*14, dy = 10+Math.random()*14;
+    const br = parseFloat(el.dataset.cr);
+    const a = el.animate([
+      {transform:`rotate(${br}deg) translate(0,0)`},
+      {transform:`rotate(${br+4}deg) translate(${dx}px,${-dy}px)`},
+      {transform:`rotate(${br-4}deg) translate(${-dx}px,${dy}px)`},
+      {transform:`rotate(${br}deg) translate(0,0)`}
+    ],{duration:d,iterations:Infinity,easing:'ease-in-out',delay:i*180});
+    floatAnims.push(a);
+  });
+}
+function stopFloat() { floatAnims.forEach(a=>a.cancel()); floatAnims=[]; }
+
+function toOrder() {
+  if (state === 'transitioning') return;
+  state = 'transitioning';
+  stopFloat();
+
+  const rect = stage.getBoundingClientRect();
+  const cx = rect.width/2, cy = rect.height/2;
+
+  // Phase 1: converge
+  chaosEls.forEach((el,i) => {
+    const er = el.getBoundingClientRect();
+    const ex = er.left-rect.left+er.width/2, ey = er.top-rect.top+er.height/2;
+    el.style.transition = `all ${1.4+i*0.1}s cubic-bezier(0.22,1,0.36,1)`;
+    el.style.transform = `translate(${cx-ex}px,${cy-ey}px) scale(0.3) rotate(0deg)`;
+    el.style.opacity = '0.2';
+  });
+
+  // Phase 2: brain up
+  setTimeout(() => {
+    brain.style.transform = 'translate(-50%,-50%) scale(1.15)';
+    brain.style.opacity = '1';
+    brain.style.filter = 'drop-shadow(0 0 20px rgba(139,92,246,0.4))';
+  }, 800);
+
+  // Phase 3: chaos gone
+  setTimeout(() => {
+    chaosEls.forEach(el => { el.style.opacity = '0'; });
+  }, 1800);
+
+  // Phase 4: settle + flow
+  setTimeout(() => {
+    brain.style.transform = 'translate(-50%,-50%) scale(1)';
+    brain.style.filter = 'drop-shadow(0 0 10px rgba(139,92,246,0.2))';
+
+    stage.querySelector('.cg1').style.opacity = '0';
+    stage.querySelector('.cg2').style.opacity = '0';
+    stage.querySelector('.og').style.opacity = '1';
+    stage.querySelector('.og').style.transform = 'translate(-50%,-50%) scale(1.3)';
+
+    // Output rows
+    outputRows.forEach((row,i) => {
+      setTimeout(() => { row.style.opacity='1'; row.style.transform='translateY(0)'; }, i*220);
+    });
+
+    // Pulse
+    pulseRings.forEach((pr,i) => { pr.style.animation = `pulse-a 3s cubic-bezier(0,0.2,0.8,1) ${i}s infinite`; });
+
+    // Source anchors visible
+    sourceAnchors.forEach((a, i) => {
+      setTimeout(() => { a.el.style.opacity = '1'; }, i * 150);
+    });
+
+    // Start data flow
+    resizeCanvas();
+    buildFlowPaths();
+    flowActive = true;
+    flowLoop();
+
+    state = 'order';
+  }, 2600);
+}
+
+function toChaos() {
+  if (state === 'transitioning') return;
+  state = 'transitioning';
+
+  // Stop flow
+  flowActive = false;
+  if (animFrame) cancelAnimationFrame(animFrame);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Hide output + anchors
+  outputRows.forEach(r => { r.style.opacity='0'; r.style.transform='translateY(16px)'; });
+  pulseRings.forEach(pr => { pr.style.animation='none'; });
+  sourceAnchors.forEach(a => { a.el.style.opacity = '0'; });
+
+  brain.style.transform = 'translate(-50%,-50%) scale(0.7)';
+  brain.style.opacity = '0.4'; brain.style.filter = 'none';
+  stage.querySelector('.og').style.opacity = '0';
+
+  setTimeout(() => {
+    stage.querySelector('.cg1').style.opacity = '1';
+    stage.querySelector('.cg2').style.opacity = '1';
+    chaosEls.forEach((el,i) => {
+      el.style.transition = `all ${1.1+i*0.07}s cubic-bezier(0.34,1.56,0.64,1)`;
+      el.style.transform = `rotate(${el.dataset.cr}deg)`;
+      el.style.opacity = '1';
+    });
+    startFloat();
+    state = 'chaos';
+  }, 350);
+}
+
+// ─── Events ───
+brain.style.opacity = '0.4';
+brain.style.transform = 'translate(-50%,-50%) scale(0.7)';
+
+const obs = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting && !hasPlayed) {
+    hasPlayed = true; state = 'chaos'; startFloat();
+    setTimeout(() => { if (state === 'chaos') toOrder(); }, 3000);
+  }
+}, { threshold: 0.25 });
+obs.observe(stage);
+
+stage.addEventListener('mouseenter', () => { if (state === 'order') toChaos(); });
+stage.addEventListener('mouseleave', () => { if (state === 'chaos' && hasPlayed) toOrder(); });
+</script>
+</body>
+</html>

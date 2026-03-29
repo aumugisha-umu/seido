@@ -131,7 +131,16 @@
       "WebFetch(domain:blog.degandpartners.com)",
       "WebFetch(domain:www.centrius.be)",
       "WebFetch(domain:www.titeca.be)",
-      "WebFetch(domain:www.home-consult.be)"
+      "WebFetch(domain:www.home-consult.be)",
+      "Bash(for dir in app/actions/intervention app/actions/contracts app/actions/conversations)",
+      "Read(//c/Users/arthu/Desktop/Coding/seido-app/**)",
+      "Bash(done)",
+      "WebFetch(domain:documentation.ibanity.com)",
+      "WebFetch(domain:documentation.myponto.com)",
+      "WebFetch(domain:myponto.com)",
+      "WebFetch(domain:www.isabelgroup.eu)",
+      "WebFetch(domain:www.ipi.be)",
+      "WebFetch(domain:github.blog)"
     ],
     "deny": [],
     "ask": []

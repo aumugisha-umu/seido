@@ -16,6 +16,7 @@ export interface BuildingLotItem {
     category?: string
     surface_area?: number
     rooms?: number
+    peb_rating?: string | null
     lot_contacts?: Array<{
         id?: string
         user?: { id: string; name: string; email?: string; role: string }
@@ -49,6 +50,7 @@ export interface LotData {
     apartment_number?: string
     surface_area?: number
     rooms?: number
+    peb_rating?: string | null
     status?: string
     is_occupied?: boolean
     lot_contacts?: Array<{

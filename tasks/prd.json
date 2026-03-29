@@ -1,97 +1,60 @@
 {
   "project": "SEIDO",
-  "featureName": "Admin Dashboard Redesign + Trial Extension",
+  "featureName": "ElevenLabs Voice Integration — Shared Twilio Number",
   "branchName": "preview",
-  "description": "Redesign admin dashboard with real KPIs, trial teams panel, recent activity. Add /admin/teams page with trial extension dialog (+7/+14/+30j + date picker), email notification, activity_logs audit trail.",
-  "createdAt": "2026-03-26",
-  "prdSource": "docs/plans/2026-03-26-admin-dashboard-redesign-trial-extension.md",
-  "status": "in_progress",
+  "description": "Inbound voice calls to shared Twilio number routed to ElevenLabs conversational AI. Pre-call routing via phone_team_mappings injects team name, caller info, and conversation history as dynamic variables. Unknown callers get a generic agent that collects everything vocally. Post-call webhook already handles intervention creation.",
+  "createdAt": "2026-03-29",
+  "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Server actions: getAdminTeamsWithSubscriptions + extendTeamTrialAction",
-      "description": "As an admin, I want backend actions to fetch all teams with their subscription data and to extend a team's trial period, so that the UI can display and modify trial dates.",
+      "title": "Voice webhook endpoint",
+      "description": "As the system, I want a POST /api/webhooks/voice endpoint that receives inbound Twilio voice calls, validates the signature, does pre-call routing, calls ElevenLabs register-call API, and returns TwiML to Twilio.",
       "acceptanceCriteria": [
-        "app/actions/admin-team-actions.ts exports getAdminTeamsWithSubscriptions() returning teams with admin_name, admin_email, member_count, lot_count, subscription_status, trial_end",
-        "extendTeamTrialAction(teamId, newTrialEnd, reason?) updates subscriptions.trial_end via service role client",
-        "extendTeamTrialAction verifies subscription status is 'trialing' before allowing extension",
-        "extendTeamTrialAction inserts activity_logs entry with action_type='update', entity_type='team', metadata containing old_end, new_end, days_added, reason",
-        "Both actions use getAdminContext() pattern (getServerAuthContext('admin') + service role client)",
-        "npm run lint passes"
+        "POST /api/webhooks/voice returns TwiML XML response",
+        "Twilio signature validation (reuses existing validateTwilioSignature)",
+        "Pre-call lookup via phone_team_mappings → gets team_id, user info",
+        "Calls ElevenLabs register-call with agent_id + dynamic_variables",
+        "Unknown callers get generic agent (no dynamic context)",
+        "Lint passes"
       ],
-      "priority": 1,
-      "dependsOn": [],
+      "priority": 2,
+      "dependsOn": ["US-002"],
       "sizing": "M",
       "passes": true,
-      "notes": ""
+      "notes": "Full voice webhook with pre-call routing. Reuses lookupMappings, runIdentificationCascade, getConversationHistory, getTeamName from existing services. Parallel fetches for team name + user name + address + history. ElevenLabs register-call via raw fetch (no SDK). Graceful fallback TwiML with French Say + Hangup on errors."
     },
     {
       "id": "US-002",
-      "title": "Trial extended email template + emailService method",
-      "description": "As an admin, I want an automatic email sent to the team's gestionnaire when their trial is extended, so they are informed of the new deadline.",
+      "title": "ElevenLabs agent prompt with dynamic variables",
+      "description": "As the system, I want the ElevenLabs agent system prompt to use dynamic variable placeholders so the voice agent can personalize greetings with caller name, team name, address, and conversation history.",
       "acceptanceCriteria": [
-        "emails/templates/admin/trial-extended.tsx uses EmailLayout > EmailHeader > Section > EmailFooter pattern",
-        "Template displays firstName, teamName, newTrialEnd date formatted in French, daysAdded count, and dashboard CTA button",
-        "TrialExtendedEmailProps interface added to emails/utils/types.ts",
-        "emailService.sendTrialExtendedEmail() added to lib/email/email-service.ts with category='admin', type='trial-extended' tags",
-        "npm run lint passes"
+        "SYSTEM_PROMPT_TEMPLATE uses {{caller_name}}, {{caller_address}}, {{conversation_history}} placeholders",
+        "4-scenario ETAPE 1 (like WhatsApp): name+address known, only name known, only address known, nothing known",
+        "Conversation history section injected when available",
+        "first_message uses dynamic team_name variable",
+        "Lint passes"
       ],
       "priority": 2,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": ""
+      "notes": "Dynamic variable placeholders in SYSTEM_PROMPT_TEMPLATE. buildSystemPrompt only handles custom_instructions (static). team_name/caller_name/caller_address/conversation_history left as {{}} for ElevenLabs runtime resolution. first_message uses {{team_name}}. updateAgent/createAgent signatures simplified. Callers updated."
     },
     {
       "id": "US-003",
-      "title": "Admin navigation: add 'Equipes' link",
-      "description": "As an admin, I want an 'Equipes' nav item between Dashboard and Utilisateurs, so I can access the teams management page.",
+      "title": "Environment config + .env.example",
+      "description": "As a developer, I want ELEVENLABS_AGENT_ID documented in .env.example so the voice webhook knows which shared agent to use.",
       "acceptanceCriteria": [
-        "components/dashboard-header.tsx admin navigation includes { href: '/admin/teams', label: 'Equipes', icon: Building2 } between Dashboard and Utilisateurs",
-        "npm run lint passes"
+        "ELEVENLABS_AGENT_ID added to .env.example with description",
+        "Voice webhook URL documented in .env.example comments",
+        "Lint passes"
       ],
       "priority": 2,
       "dependsOn": [],
       "sizing": "XS",
       "passes": true,
-      "notes": ""
-    },
-    {
-      "id": "US-004",
-      "title": "Admin dashboard redesign: real KPIs + trial panel + quick links",
-      "description": "As an admin, I want the dashboard to show real KPIs (active users, teams, active subscriptions, recent interventions), a panel of teams currently in trial, and functional quick action links.",
-      "acceptanceCriteria": [
-        "4 KPI cards show real counts from DB (no simulated growth percentages)",
-        "Trial teams panel shows teams with status='trialing': team name, admin name, lots count, days remaining, 'Etendre' button",
-        "Trial panel 'Etendre' button opens extend dialog (from US-005 client component)",
-        "Quick action cards are Links to real routes (/admin/teams, /admin/users, /admin/parametres)",
-        "AdminDashboardClient: fix /admin/settings → /admin/parametres, remove logger.info from render",
-        "npm run lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-001"],
-      "sizing": "M",
-      "passes": true,
-      "notes": ""
-    },
-    {
-      "id": "US-005",
-      "title": "Teams management page with trial extension dialog",
-      "description": "As an admin, I want a dedicated /admin/teams page with a full teams table and a trial extension dialog with preset buttons (+7/+14/+30 days) and custom date picker.",
-      "acceptanceCriteria": [
-        "app/admin/(with-navbar)/teams/page.tsx server component uses getServerAuthContext('admin') + getAdminTeamsWithSubscriptions()",
-        "teams-management-client.tsx displays teams table with columns: Nom, Admin, Membres, Lots, Plan (badge), Trial end, Actions",
-        "Table has filter by subscription status (all, trialing, active, canceled)",
-        "Trial extension dialog shows current trial_end, preset buttons (+7j/+14j/+30j adding to current trial_end), date picker for custom date, optional reason textarea",
-        "Dialog calls extendTeamTrialAction on confirm, shows toast on success/error",
-        "loading.tsx provides PageSkeleton",
-        "npm run lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-001", "US-002"],
-      "sizing": "L",
-      "passes": true,
-      "notes": "Server component + client component + loading skeleton. Table with filters, extension dialog with presets + date picker."
+      "notes": "Added ELEVENLABS_API_KEY, ELEVENLABS_AGENT_ID, TELNYX_SIP_USERNAME/PASSWORD, voice webhook URL comment. Grouped under 🎙️ ELEVENLABS VOICE AI section."
     }
   ]
 }

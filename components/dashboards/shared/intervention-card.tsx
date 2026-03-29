@@ -282,13 +282,14 @@ export const InterventionCard = memo(function InterventionCard({
       className={cn(
         "group relative bg-card dark:bg-white/5 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-none",
         "transition-all duration-300 border border-border dark:border-white/10",
-        "hover:border-primary/30 flex flex-col h-full dark:backdrop-blur-sm",
+        "hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-md flex flex-col h-full dark:backdrop-blur-sm cursor-pointer",
         "will-change-transform",
         isRemoving && !prefersReducedMotion && "slide-out-right",
         isRemoving && prefersReducedMotion && "opacity-0"
       )}
       onMouseEnter={prefetchOnEnter}
       onMouseLeave={prefetchOnLeave}
+      onClick={() => router.push(interventionUrl)}
     >
       {/* Checkmark Overlay (appears on success) */}
       {showCheckmark && (
@@ -311,7 +312,7 @@ export const InterventionCard = memo(function InterventionCard({
 
         {/* Title + Badges container */}
         <div className="flex-1 min-w-0">
-          <Link href={interventionUrl} className="block">
+          <Link href={interventionUrl} className="block" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-pointer">
               {intervention.title}
             </h3>
@@ -349,18 +350,17 @@ export const InterventionCard = memo(function InterventionCard({
           </div>
         </div>
 
-        {/* Eye button - FIXED POSITION in header for all roles */}
-        {/* Material Design: 44x44px touch target, 3:1 contrast ratio, visible background */}
+        {/* Eye button — quick access to details */}
         <Button
           variant="outline"
           size="icon"
           asChild
           className="flex-shrink-0 h-9 w-9 border-border/60 bg-muted/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-accent"
-          title="Voir les détails"
+          title="Voir les details"
         >
-          <Link href={interventionUrl}>
+          <Link href={interventionUrl} onClick={(e) => e.stopPropagation()}>
             <Eye className="h-5 w-5" aria-hidden="true" />
-            <span className="sr-only">Voir les détails</span>
+            <span className="sr-only">Voir les details</span>
           </Link>
         </Button>
 
@@ -382,7 +382,7 @@ export const InterventionCard = memo(function InterventionCard({
               {dotMenuActions.map((action, idx) => (
                 <DropdownMenuItem
                   key={idx}
-                  onClick={() => action.href && router.push(action.href)}
+                  onClick={(e) => { e.stopPropagation(); action.href && router.push(action.href) }}
                   className={cn(
                     action.variant === 'destructive' && 'text-red-600 focus:text-red-600 focus:bg-red-50'
                   )}
@@ -433,7 +433,7 @@ export const InterventionCard = memo(function InterventionCard({
 
             return (
               <span className={cn(
-                "text-sm font-semibold whitespace-nowrap flex-shrink-0",
+                "text-xs font-medium whitespace-nowrap flex-shrink-0",
                 isAlert ? 'text-orange-700 dark:text-orange-300' : 'text-blue-700 dark:text-blue-300'
               )}>
                 {formattedDate}{formattedTime ? ` · ${formattedTime}` : ''}
@@ -485,7 +485,7 @@ export const InterventionCard = memo(function InterventionCard({
                 key={idx}
                 variant={buttonVariant}
                 size="default"
-                onClick={() => handleActionClick(action)}
+                onClick={(e) => { e.stopPropagation(); handleActionClick(action) }}
                 disabled={isLoading}
                 className={cn(
                   "flex-1 min-w-0 justify-center min-h-[44px]",

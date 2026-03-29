@@ -1,6 +1,7 @@
 # Lead Magnet — Calculateur d'Indexation de Loyer
 
 **Date :** 2026-03-23
+**Révisé :** 2026-03-26 (review technique + juridique + RGPD)
 **Status :** Design validé, implémentation à planifier
 **Estimation :** ~4-5 jours de dev (MVP)
 
@@ -31,7 +32,7 @@ Calculateur gratuit d'indexation de loyer sur la landing page SEIDO, ciblant les
 | Données indices santé | `lib/indexation/health-indices.json` | MVP |
 | Logique de calcul | `lib/indexation/calculate.ts` | MVP |
 | Script MAJ auto indices | `scripts/update-health-indices.ts` | MVP |
-| Section landing | composant dans `app/(marketing)/page.tsx` | MVP |
+| Section landing | `components/landing/sections/indexation-section.tsx` (importé par `landing-page.tsx`) | MVP |
 | CTA hero | bouton scroll → `#indexation` | MVP |
 | API capture email | `app/api/lead-magnet/route.ts` | MVP |
 | Lettre type PDF | template Resend ou react-pdf | MVP |
@@ -40,7 +41,7 @@ Calculateur gratuit d'indexation de loyer sur la landing page SEIDO, ciblant les
 
 ### Pas de complexité inutile
 
-- Pas de nouvelle table complexe — juste `leads` (email, type, metadata, source)
+- Pas de nouvelle table complexe — juste `indexation_leads` (email, type, metadata, source, consent)
 - Pas de Supabase côté client — calcul 100% client-side (déterministe)
 - Pas d'API externe pour les indices — JSON statique + script mensuel
 
@@ -50,12 +51,17 @@ Calculateur gratuit d'indexation de loyer sur la landing page SEIDO, ciblant les
 
 | Champ | Type | Obligatoire | Notes |
 |-------|------|-------------|-------|
-| Type de bail | Radio : Habitation / Commercial | Oui | Si commercial → masquer PEB |
+| Type de bail | Radio : Habitation / Commercial | Oui | Si commercial → masquer PEB + bail non enregistré |
 | Région | Select : Bruxelles / Wallonie / Flandre | Oui | |
 | Certificat PEB | Select : A, B, C, D, E, F, G, Inconnu | Oui (habitation) | Flandre : A+ à F (pas de G) |
-| Loyer de base (hors charges) | Number (€) | Oui | |
+| Loyer de base (hors charges) | Number (€) | Oui | Tooltip: "Montant du loyer de base, hors provisions pour charges et frais" |
 | Date de signature du bail | Date picker | Oui | |
 | Date de début du bail | Date picker | Oui | Peut différer de la signature |
+| Bail non enregistré | Checkbox | Non (habitation) | Si coché → warning bloquant (Wallonie: aucune indexation; Bruxelles: perte du droit) |
+
+**Note edge cases :**
+- Si le bail prévoit un autre indice (IPC, ABEX) ou une clause dérogatoire → afficher note : "Ce simulateur utilise l'indice santé. Si votre bail prévoit un autre indice ou une dérogation, ce calcul ne s'applique pas."
+- Baux commerciaux : seule la formule standard s'applique, l'indexation doit être prévue au contrat
 
 ---
 
@@ -97,6 +103,11 @@ Le contenu s'adapte dynamiquement aux inputs :
 Deux cartes côte à côte :
 - **"Recevoir la lettre d'indexation"** — email seul → envoi lettre type PDF pré-remplie
 - **"Calculer pour tout mon portefeuille"** — email + nombre de biens → lead qualifier (phase 2 : vrai outil)
+
+**Consentement RGPD (obligatoire sous chaque CTA) :**
+- Checkbox : "J'accepte de recevoir la lettre type par email. [Politique de confidentialité](/confidentialite)"
+- Base légale : consentement (art. 6.1.a RGPD) — email transactionnel unique, pas de newsletter
+- Pas de double opt-in requis (envoi unique, pas d'abonnement récurrent)
 
 ---
 
@@ -268,40 +279,87 @@ Conversion entre bases :
 
 Fetch mensuel des derniers indices depuis Statbel (SPF Economie). Met à jour le JSON automatiquement. Peut être déclenché par cron ou manuellement.
 
+**Source de données :**
+- **Primaire :** Statbel — `https://statbel.fgov.be/fr/themes/prix-la-consommation/indice-sante` (CSV/Excel, pas de JSON API)
+- **Alternative :** NBB.Stat — `https://stat.nbb.be/` (SDMX REST API, plus stable pour l'automatisation)
+- **Format attendu :** CSV (colonnes: date, indice santé lissé). Parser les lignes, extraire la dernière valeur.
+
+**Comportement en cas d'échec :**
+1. Si fetch échoue → conserver le fichier `health-indices.json` existant (ne pas écraser)
+2. Logger un warning avec la date et l'erreur
+3. Le script retourne un exit code non-zero pour alerter en CI
+
+**Rebase indices :**
+- La transition base 2013 → base 2025 est en cours (2025-2026). Les coefficients de raccordement seront publiés par Statbel.
+- Le script doit gérer la coexistence des deux bases et normaliser vers base 2013 tant que la transition n'est pas complète.
+
+**Critères d'acceptation — Tests unitaires obligatoires :**
+- Test avec un exemple officiel connu (ex: indice santé mars 2024 = valeur publiée par Statbel) pour détecter les erreurs de retranscription
+- Test des conversions entre bases (2004 → 2013 → 2025) avec valeurs vérifiables
+- Test du calcul complet (formule × facteur correctif) avec un cas réel documenté par région
+
 ---
 
 ## Backend
 
-### Table `leads`
+### Table `indexation_leads`
 
 ```sql
-create table leads (
+create table indexation_leads (
   id uuid primary key default gen_random_uuid(),
   email text not null,
-  type text not null,        -- 'lettre_indexation' | 'rapport_portfolio'
+  type text not null check (type in ('lettre_indexation', 'rapport_portfolio')),
   metadata jsonb,            -- données du calcul, nb biens, région...
-  source text,               -- 'landing_indexation'
-  created_at timestamptz default now()
+  source text default 'landing_indexation',
+  consent_given boolean not null default false,
+  ip_address text,           -- pour audit RGPD
+  created_at timestamptz default now(),
+  expires_at timestamptz default now() + interval '24 months'  -- rétention RGPD
 );
+
+-- Index pour nettoyage périodique
+create index idx_indexation_leads_expires on indexation_leads(expires_at);
 ```
 
 Pas de RLS (accès service role uniquement). Pas de lien `users`.
+Nettoyage automatique : cron mensuel `DELETE FROM indexation_leads WHERE expires_at < now()`.
+
+### Sécurité & Validation API
+
+**Rate limiting :** Utiliser `rateLimiters.public` existant (100 req/60s par IP) via `lib/rate-limit.ts` + `getClientIdentifier()`.
+
+**Validation Zod :**
+```typescript
+const leadMagnetSchema = z.object({
+  email: z.string().email().max(255),
+  type: z.enum(['lettre_indexation', 'rapport_portfolio']),
+  calcul: z.object({
+    loyer: z.number().min(1).max(100000),
+    region: z.enum(['bruxelles', 'wallonie', 'flandre']),
+    peb: z.enum(['A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'inconnu']).optional(),
+    nouveauLoyer: z.number().min(0),
+    pourcentage: z.number(),
+    formule: z.string().max(500),
+  }),
+  nombreBiens: z.number().int().min(1).max(10000).optional(),
+  honeypot: z.string().max(0).optional(),  // champ invisible anti-bot
+  consent: z.literal(true),                // consentement obligatoire
+})
+```
+
+**Anti-spam :** Champ `honeypot` (input invisible). Si rempli → rejet silencieux (200 OK, pas d'insert).
 
 ### API Route `POST /api/lead-magnet`
 
 ```typescript
-Body: {
-  email: string
-  type: 'lettre_indexation' | 'rapport_portfolio'
-  calcul: { loyer, region, peb, nouveauLoyer, formule... }
-  nombreBiens?: number
-}
-
-→ 1. Insert dans `leads` (service role)
-→ 2. Envoi email via Resend :
+→ 0. Rate limit check (rateLimiters.public)
+→ 1. Zod validation (reject 400 si invalide)
+→ 2. Honeypot check (reject silencieux si rempli)
+→ 3. Insert dans `indexation_leads` (service role, via createServiceRoleSupabaseClient)
+→ 4. Envoi email via Resend (EMAIL_CONFIG.from) :
      - lettre_indexation : lettre type PDF pré-remplie
      - rapport_portfolio : email "SEIDO propose cette fonctionnalité" (lead qualifier)
-→ 3. Return { success: true }
+→ 5. Return { success: true }
 ```
 
 ---
@@ -344,7 +402,13 @@ H2: Questions fréquentes (FAQ — schema.org)
 
 - Principal : "indexation loyer Belgique 2026"
 - Secondaires : "calcul indexation loyer PEB", "facteur correctif PEB Bruxelles", "indexation loyer Wallonie", "indexation loyer Flandre"
-- FAQ en schema.org pour rich snippets
+- FAQ en schema.org (`FAQPage` JSON-LD dans `components/seo/json-ld.tsx` — pattern existant dans `app/page.tsx`)
+
+**Maintenance annuelle SEO :**
+- H1 contient l'année ("2026") → mettre à jour en janvier de chaque année
+- Mettre à jour l'article blog (titre, intro, exemples chiffrés)
+- Vérifier que les coefficients PEB n'ont pas changé (ordonnances/décrets)
+- TODO reminder : créer un reminder SEIDO interne pour chaque janvier
 
 ---
 
@@ -359,8 +423,32 @@ H2: Questions fréquentes (FAQ — schema.org)
 
 ## Sources légales
 
-- **Bruxelles :** Ordonnance du 14 octobre 2022, Code bruxellois du Logement art. 224
-- **Wallonie :** Décret du 19 octobre 2022, modifiant le Décret du 15 mars 2018 art. 26
-- **Flandre :** Decreet van 10 maart 2023, Vlaams Woninghuurdecreet art. 34
-- **Commercial :** Code civil, Article 1728bis
-- **Indices santé :** Statbel / SPF Economie
+| Source | Référence | Moniteur Belge |
+|--------|-----------|----------------|
+| **Bruxelles** | Ordonnance du 14 octobre 2022, Code bruxellois du Logement art. 224 | MB 21/10/2022 |
+| **Wallonie** | Décret du 19 octobre 2022, modifiant le Décret du 15 mars 2018 art. 26 | MB 28/10/2022 |
+| **Flandre** | Decreet van 10 maart 2023, Vlaams Woninghuurdecreet art. 34 | BS 31/03/2023 |
+| **Commercial** | Code civil, Article 1728bis | — |
+| **Indices santé** | Statbel / SPF Economie | `https://statbel.fgov.be/fr/themes/prix-la-consommation/indice-sante` |
+
+**Dernière vérification des coefficients :** 2026-03-23
+**Prochaine vérification prévue :** 2026-10-01 (ou dès publication d'un nouveau décret/ordonnance)
+
+**Disclaimer (à afficher dans l'UI) :**
+> Cet outil fournit une estimation indicative de l'indexation de votre loyer sur base de la législation en vigueur. Il ne constitue pas un conseil juridique. Pour toute situation particulière, consultez un professionnel du droit immobilier.
+
+---
+
+## Résumé des corrections post-review (2026-03-26)
+
+| # | Point review | Action |
+|---|-------------|--------|
+| 1 | Chemin `app/(marketing)/` inexistant | → `components/landing/sections/indexation-section.tsx` |
+| 2 | Table `leads` trop générique | → `indexation_leads` |
+| 3 | Pas de rate limiting / Zod / anti-spam | → Section Sécurité & Validation ajoutée |
+| 4 | RGPD manquant | → Consentement checkbox, lien `/confidentialite`, rétention 24 mois |
+| 5 | Bail non enregistré non capturable | → Checkbox ajoutée au formulaire |
+| 6 | Loyer "hors charges" ambigu | → Tooltip explicatif ajouté |
+| 7 | Sources légales sans traçabilité | → Dates Moniteur Belge, vérification, disclaimer |
+| 8 | Script Statbel sans robustesse | → URL, format, fallback, tests unitaires obligatoires |
+| 9 | SEO année en dur sans process | → Maintenance annuelle documentée |

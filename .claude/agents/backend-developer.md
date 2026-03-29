@@ -148,6 +148,58 @@ sp-test-driven-development → Tests service
 sp-verification-before-completion → RLS, cache invalidation, types
 ```
 
+## Example Output
+
+### When asked to create a new server action:
+
+```typescript
+'use server'
+
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
+import { BuildingRepository } from '@/lib/services/repositories/building.repository'
+import { after } from 'next/server'
+import { logger } from '@/lib/logger'
+
+export async function updateBuildingAction(buildingId: string, data: BuildingUpdateInput) {
+  const ctx = await getServerActionAuthContextOrNull('gestionnaire')
+  if (!ctx) return { error: 'Non autorise' }
+
+  const repository = new BuildingRepository(ctx.supabase)
+  const result = await repository.update(buildingId, { ...data, team_id: ctx.team.id })
+
+  // Deferred side-effects (non-blocking)
+  after(async () => {
+    await createBuildingNotification(buildingId)
+    logger.info('Building updated', { buildingId, teamId: ctx.team.id })
+  })
+
+  return result
+}
+```
+
+### When asked to create a new repository method:
+
+```typescript
+async findByTeamWithStats(teamId: string) {
+  const { data, error } = await this.supabase
+    .from('buildings_active')       // Always use _active views
+    .select('*, lots_active(count)') // Nested count
+    .eq('team_id', teamId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data
+}
+```
+
+### What NOT to produce:
+- `getServerAuthContext()` in server actions (use `getServerActionAuthContextOrNull()`)
+- Missing `after()` for emails/notifications (blocks response)
+- Raw SQL or direct Supabase calls outside repositories
+- `any` return types or untyped error handling
+- Missing Zod validation on POST/PUT request bodies in API routes
+- `console.log` instead of `logger` from `@/lib/logger`
+
 ---
 
 ## Integration Agents

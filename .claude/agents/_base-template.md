@@ -22,19 +22,10 @@
 - Les hooks mettent a jour automatiquement `activeContext.md`
 - Pour sync complete : executer `/sync-memory`
 
-## Metriques SEIDO (2026-01-23)
+## Metriques SEIDO
 
-| Categorie | Count |
-|-----------|-------|
-| Composants | 369 |
-| Hooks | 58 |
-| Repositories | 21 |
-| Domain Services | 31 |
-| API Routes | 113 |
-| Server Actions | 16 |
-| Tables DB | 39 |
-| RLS Functions | 10 |
-| Migrations | 131+ |
+> Exact counts in `.claude/memory-bank/activeContext.md` § Metriques Systeme.
+> Key: 56 tables, 202 migrations, 4 roles, 9 intervention statuts, 7 quote statuts.
 
 **4 Roles Utilisateur** : Admin, Gestionnaire (70%), Prestataire (75% mobile), Locataire
 
@@ -93,9 +84,22 @@ useRealtimeNotificationsV2({ onInsert: (n) => {} })
 | `sp-test-driven-development` | **Avant** coder |
 | `sp-verification-before-completion` | **Avant** claim done/commit |
 | `sp-writing-plans` | Tache complexe multi-step |
+| `sp-executing-plans` | Executer un plan en session separee |
+| `sp-subagent-driven-development` | Executer un plan avec subagents (meme session) |
 | `sp-quality-gate` | Revue pre-commit 4 lenses |
+| `sp-simplify` | Review code for reuse, quality, efficiency |
 | `sp-compound` | Capitaliser learnings apres feature |
 | `sp-requesting-code-review` | Avant merge/PR |
+| `sp-receiving-code-review` | Quand on recoit du feedback de review |
+| `sp-dispatching-parallel-agents` | 2+ taches independantes en parallele |
+| `sp-using-git-worktrees` | Isolation feature dans un worktree |
+| `sp-finishing-a-development-branch` | Merge, PR, ou cleanup apres implementation |
+| `sp-evaluate` | Evaluation feature (Security/Patterns/Design) |
+| `sp-a11y` | Audit accessibilite WCAG 2.1 AA |
+| `sp-analytics` | Event tracking, funnels, KPIs |
+| `sp-monitoring` | Error budgets, alerting, Core Web Vitals |
+| `sp-release` | Pre-deployment checklist, rollback plan |
+| `sp-orchestration` | Routing guide — quel skill invoquer |
 
 ### Red Flags Universels
 
@@ -183,4 +187,4 @@ cloturee_par_gestionnaire | annulee
 
 ---
 
-*Derniere mise a jour: 2026-02-04*
+*Derniere mise a jour: 2026-03-28*

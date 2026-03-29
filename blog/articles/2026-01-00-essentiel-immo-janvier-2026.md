@@ -2,13 +2,29 @@
 title: "L'essentiel immo #1 — Janvier 2026"
 slug: "essentiel-immo-janvier-2026"
 date: "2026-01-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "L'essentiel immo"
 tags: ["recap mensuel", "gestion immobiliere"]
 description: "PEB Bruxelles amendes 62 500 EUR, succession Wallonie droits divises par 2 en 2028, moratoire hivernal et CEDH : les 6 articles essentiels de janvier 2026."
 reading_time: "3 min"
 type: "hub"
 hub: ""
+infographic:
+  type: "stat-highlight"
+  data:
+    title: "Chiffres cles de janvier 2026"
+    stats:
+      - value: 62500
+        prefix: "€"
+        label: "Amende max PEB par copropriete"
+        color: "red"
+      - value: 2
+        label: "Echeances PEB (2033 et 2043)"
+        color: "amber"
+      - value: 50
+        suffix: "%"
+        label: "Reduction droits succession Wallonie 2028"
+        color: "green"
 ---
 
 # L'essentiel immo #1 — Janvier 2026

@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEIDO — Hero Animation Prototype — A vs B</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #020617;
+    color: white;
+    overflow-x: hidden;
+  }
+
+  /* ─── VERSION SWITCHER (fixed top) ─── */
+  .version-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(2, 6, 23, 0.9);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .version-nav button {
+    padding: 0.5rem 1.25rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.6);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .version-nav button.active {
+    background: rgba(96, 165, 250, 0.2);
+    border-color: rgba(96, 165, 250, 0.5);
+    color: white;
+  }
+
+  .version-nav button:hover:not(.active) {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.8);
+  }
+
+  /* ─── FAKE HERO ─── */
+  .hero {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
+    padding-top: 3.5rem;
+  }
+
+  .hero-content {
+    text-align: center;
+    max-width: 700px;
+    padding: 2rem;
+    z-index: 10;
+  }
+
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+
+  .hero h1 span {
+    background: linear-gradient(135deg, #60a5fa, #67e8f9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .hero p { font-size: 1.1rem; color: rgba(255,255,255,0.7); margin-bottom: 2rem; }
+
+  .hero .cta {
+    display: inline-block;
+    padding: 0.875rem 2rem;
+    background: white;
+    color: #020617;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .hero .cta:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(255,255,255,0.2); }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.35);
+    font-size: 0.8rem;
+    animation: bounce 2s infinite;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(8px); }
+  }
+
+  /* ─── SECTION ─── */
+  .section-header {
+    text-align: center;
+    padding: 3rem 1rem 0.5rem;
+    background: #020617;
+  }
+
+  .section-header h2 {
+    font-size: 1.4rem;
+    color: rgba(255,255,255,0.5);
+    font-weight: 400;
+    letter-spacing: 0.03em;
+  }
+
+  .tech-badge {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.2rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    background: rgba(96, 165, 250, 0.12);
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.25);
+  }
+
+  .hover-hint {
+    text-align: center;
+    padding: 0.5rem;
+    color: rgba(255,255,255,0.3);
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* ─── STAGE CONTAINER ─── */
+  .stage-wrapper {
+    display: none;
+  }
+
+  .stage-wrapper.active {
+    display: block;
+  }
+
+  /* ─── SHARED ANIMATION STAGE ─── */
+  .animation-stage {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 75vh;
+    min-height: 500px;
+    overflow: hidden;
+    perspective: 1200px;
+    cursor: pointer;
+  }
+
+  /* ─── BACKGROUND GLOWS ─── */
+  .bg-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    transition: opacity 2s ease, transform 2s ease;
+  }
+
+  .chaos-glow-1 { width: 280px; height: 280px; background: rgba(217, 119, 6, 0.12); top: 15%; left: 10%; }
+  .chaos-glow-2 { width: 220px; height: 220px; background: rgba(239, 68, 68, 0.08); bottom: 20%; right: 10%; }
+  .order-glow { width: 500px; height: 500px; background: rgba(96, 165, 250, 0.1); top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0; }
+
+  /* ─── CHAOS ELEMENTS ─── */
+  .chaos-el {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    z-index: 5;
+    will-change: transform, opacity;
+  }
+
+  .chaos-el .ico {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
+  }
+
+  .chaos-el.wa { background: rgba(37, 211, 102, 0.1); }
+  .chaos-el.wa .ico { background: rgba(37, 211, 102, 0.2); }
+  .chaos-el.sm { background: rgba(251, 191, 36, 0.1); }
+  .chaos-el.sm .ico { background: rgba(251, 191, 36, 0.2); }
+  .chaos-el.em { background: rgba(239, 68, 68, 0.1); }
+  .chaos-el.em .ico { background: rgba(239, 68, 68, 0.2); }
+  .chaos-el.ph { background: rgba(168, 85, 247, 0.1); }
+  .chaos-el.ph .ico { background: rgba(168, 85, 247, 0.2); }
+  .chaos-el.dc { background: rgba(251, 146, 60, 0.1); }
+  .chaos-el.dc .ico { background: rgba(251, 146, 60, 0.2); }
+
+  /* ─── AI BRAIN NODE ─── */
+  .brain-node {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 1.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .brain-orb {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Outer ring */
+  .brain-orb::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    background: conic-gradient(from 0deg, rgba(96,165,250,0.5), rgba(139,92,246,0.5), rgba(59,130,246,0.3), rgba(96,165,250,0.5)) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: spin-slow 8s linear infinite;
+  }
+
+  /* Inner gradient sphere */
+  .brain-orb::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%,
+      rgba(139, 92, 246, 0.6),
+      rgba(59, 130, 246, 0.4) 40%,
+      rgba(96, 165, 250, 0.2) 70%,
+      transparent
+    );
+    box-shadow:
+      0 0 40px rgba(139, 92, 246, 0.2),
+      0 0 80px rgba(59, 130, 246, 0.15),
+      inset 0 0 30px rgba(139, 92, 246, 0.15);
+  }
+
+  @keyframes spin-slow { to { transform: rotate(360deg); } }
+
+  .brain-orb svg {
+    position: relative;
+    z-index: 2;
+    width: 32px; height: 32px;
+    color: rgba(255,255,255,0.9);
+    filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.5));
+  }
+
+  .brain-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.6);
+  }
+
+  /* Neural network lines emanating from brain */
+  .neural-lines {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .neural-lines path {
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    transition: all 1.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* ─── OUTPUT PANEL (ordered list) ─── */
+  .output-panel {
+    position: absolute;
+    bottom: 8%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    z-index: 6;
+    transition: all 1.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .output-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 1.2rem;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(96, 165, 250, 0.12);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    min-width: 320px;
+    transition: all 1.8s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .output-row .status-bar {
+    width: 3px;
+    height: 28px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .output-row .status-bar.green { background: #34d399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.4); }
+  .output-row .status-bar.blue { background: #60a5fa; box-shadow: 0 0 6px rgba(96, 165, 250, 0.4); }
+  .output-row .status-bar.violet { background: #a78bfa; box-shadow: 0 0 6px rgba(167, 139, 250, 0.4); }
+
+  .output-row .row-icon {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+    background: rgba(96, 165, 250, 0.1);
+  }
+
+  .output-row .row-text {
+    display: flex; flex-direction: column; gap: 1px;
+  }
+
+  .output-row .row-title { font-size: 0.82rem; font-weight: 600; color: white; }
+  .output-row .row-sub { font-size: 0.68rem; color: rgba(255,255,255,0.45); }
+
+  /* ─── PULSE RINGS around brain ─── */
+  .pulse-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    z-index: 9;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  /* ─── PROCESSING DOTS (orbiting brain) ─── */
+  .proc-dot {
+    position: absolute;
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+    z-index: 11;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s;
+  }
+
+  /* ─── PARTICLE FIELD ─── */
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ═══════════════════════════════════════════════════
+     STATE MANAGEMENT — JS-driven for proper sequencing
+     ═══════════════════════════════════════════════════ */
+
+  /* ─── DIVIDER ─── */
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.15), transparent);
+    margin: 2rem 10%;
+  }
+
+  /* ─── FOOTER ─── */
+  .proto-footer {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: rgba(255,255,255,0.25);
+    font-size: 0.75rem;
+    background: #020617;
+  }
+
+  .proto-footer code {
+    background: rgba(255,255,255,0.05);
+    padding: 0.12rem 0.35rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+  }
+
+  /* ─── VERSION B — WebGL/R3F LOOK ─── */
+  .stage-b .brain-orb {
+    width: 100px; height: 100px;
+  }
+
+  .stage-b .brain-orb::before {
+    inset: -10px;
+    border-width: 1.5px;
+    animation-duration: 12s;
+  }
+
+  .stage-b .brain-orb::after {
+    background: radial-gradient(circle at 30% 30%,
+      rgba(139, 92, 246, 0.7),
+      rgba(59, 130, 246, 0.5) 30%,
+      rgba(14, 165, 233, 0.3) 55%,
+      rgba(96, 165, 250, 0.1) 80%,
+      transparent
+    );
+    box-shadow:
+      0 0 60px rgba(139, 92, 246, 0.3),
+      0 0 120px rgba(59, 130, 246, 0.2),
+      0 0 200px rgba(14, 165, 233, 0.1),
+      inset 0 0 40px rgba(139, 92, 246, 0.2);
+  }
+
+  /* Second orbit ring for B */
+  .stage-b .brain-orb .orbit-ring-2 {
+    position: absolute;
+    inset: -16px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    background: conic-gradient(from 180deg, rgba(14,165,233,0.3), transparent 40%, rgba(139,92,246,0.3), transparent 80%) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: spin-slow 12s linear infinite reverse;
+  }
+
+  /* Ambient mesh gradient for B */
+  .stage-b .mesh-gradient {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.4;
+    background:
+      radial-gradient(ellipse at 20% 30%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 60%, rgba(14, 165, 233, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 40%);
+    transition: opacity 2s;
+  }
+
+  /* Grid lines for B (subtle) */
+  .stage-b .grid-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image:
+      linear-gradient(rgba(96, 165, 250, 1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(96, 165, 250, 1) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at 50% 50%, black 20%, transparent 70%);
+  }
+
+  /* Output panel for B — more styled */
+  .stage-b .output-row {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 30px rgba(139, 92, 246, 0.05);
+  }
+
+  /* ─── DATA FLOW DOTS for B ─── */
+  @keyframes flow-to-center {
+    0% { offset-distance: 0%; opacity: 0; }
+    10% { opacity: 0.8; }
+    90% { opacity: 0.8; }
+    100% { offset-distance: 100%; opacity: 0; }
+  }
+
+  .flow-dot {
+    position: absolute;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .flow-dot.active {
+    animation: flow-to-center 2s linear infinite;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── VERSION SWITCHER ─── -->
+<nav class="version-nav">
+  <button class="active" onclick="switchVersion('a')">Version A — Framer Motion / CSS</button>
+  <button onclick="switchVersion('b')">Version B — Three.js / R3F Look</button>
+</nav>
+
+<!-- ─── FAKE HERO ─── -->
+<section class="hero">
+  <div class="hero-content">
+    <h1>La gestion locative <br/><span>en toute serenite</span></h1>
+    <p>Chaque demande declenche une boucle qui prenait des jours. SEIDO centralise et automatise.</p>
+    <a href="#" class="cta" onclick="event.preventDefault()">Essayer gratuitement</a>
+  </div>
+  <div class="scroll-hint">Scrollez pour voir l'animation</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     VERSION A — Framer Motion + CSS 3D Transforms
+     ═══════════════════════════════════════════════ -->
+<div class="stage-wrapper active" id="wrapper-a">
+  <div class="section-header">
+    <h2>Comment SEIDO transforme votre quotidien</h2>
+    <div class="tech-badge">Version A — Framer Motion + CSS 3D Transforms (0 KB added)</div>
+  </div>
+  <div class="hover-hint">Survolez pour voir le chaos / Quittez pour voir SEIDO organiser</div>
+
+  <div class="animation-stage stage-a" id="stage-a">
+    <!-- BG glows -->
+    <div class="bg-glow chaos-glow-1"></div>
+    <div class="bg-glow chaos-glow-2"></div>
+    <div class="bg-glow order-glow"></div>
+
+    <!-- Chaos elements -->
+    <div class="chaos-el wa" data-chaos-x="8"  data-chaos-y="10"  data-chaos-r="-8"><div class="ico">💬</div><span>WhatsApp: Fuite sdb apt 3B</span></div>
+    <div class="chaos-el em" data-chaos-x="58" data-chaos-y="6"   data-chaos-r="5"><div class="ico">📧</div><span>Re: Re: Re: Devis plomberie</span></div>
+    <div class="chaos-el ph" data-chaos-x="78" data-chaos-y="18"  data-chaos-r="-6"><div class="ico">📞</div><span>3 appels manques</span></div>
+    <div class="chaos-el sm" data-chaos-x="5"  data-chaos-y="48"  data-chaos-r="7"><div class="ico">📱</div><span>SMS: Chauffage en panne</span></div>
+    <div class="chaos-el dc" data-chaos-x="12" data-chaos-y="75"  data-chaos-r="-5"><div class="ico">📄</div><span>facture_plombier_v3_FINAL.pdf</span></div>
+    <div class="chaos-el wa" data-chaos-x="75" data-chaos-y="68"  data-chaos-r="9"><div class="ico">💬</div><span>Photo: degat des eaux</span></div>
+    <div class="chaos-el em" data-chaos-x="80" data-chaos-y="42"  data-chaos-r="-4"><div class="ico">📧</div><span>Urgent: cle perdue</span></div>
+    <div class="chaos-el sm" data-chaos-x="42" data-chaos-y="82"  data-chaos-r="6"><div class="ico">📱</div><span>Quand passe le technicien?</span></div>
+
+    <!-- AI Brain Node -->
+    <div class="brain-node">
+      <div class="brain-orb">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V11h3a3 3 0 0 1 3 3v1.5c0 1-.5 1.9-1.3 2.5.8.6 1.3 1.5 1.3 2.5V22M12 2a4 4 0 0 0-4 4c0 1.5.8 2.8 2 3.5V11H7a3 3 0 0 0-3 3v1.5c0 1 .5 1.9 1.3 2.5C4.5 18.6 4 19.5 4 20.5V22"/>
+          <circle cx="12" cy="6" r="1"/>
+          <circle cx="8" cy="17" r="1"/>
+          <circle cx="16" cy="17" r="1"/>
+          <path d="M12 11v4"/>
+        </svg>
+      </div>
+      <span class="brain-label">SEIDO AI</span>
+    </div>
+
+    <!-- Pulse rings -->
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+
+    <!-- Processing dots (orbit brain during transition) -->
+    <div class="proc-dot" id="pd-a-1"></div>
+    <div class="proc-dot" id="pd-a-2"></div>
+    <div class="proc-dot" id="pd-a-3"></div>
+    <div class="proc-dot" id="pd-a-4"></div>
+
+    <!-- Neural connection lines -->
+    <svg class="neural-lines" id="lines-a" width="100%" height="100%"></svg>
+
+    <!-- Output panel — proper ordered list -->
+    <div class="output-panel" id="output-a">
+      <div class="output-row" style="opacity:0; transform: translateY(20px);">
+        <div class="status-bar green"></div>
+        <div class="row-icon">🔧</div>
+        <div class="row-text">
+          <div class="row-title">Intervention planifiee</div>
+          <div class="row-sub">Plomberie — Apt 3B — Lundi 14h — Prestataire confirme</div>
+        </div>
+      </div>
+      <div class="output-row" style="opacity:0; transform: translateY(20px);">
+        <div class="status-bar blue"></div>
+        <div class="row-icon">🔔</div>
+        <div class="row-text">
+          <div class="row-title">Rappel automatique envoye</div>
+          <div class="row-sub">Prestataire + locataire notifies — RDV J-1</div>
+        </div>
+      </div>
+      <div class="output-row" style="opacity:0; transform: translateY(20px);">
+        <div class="status-bar violet"></div>
+        <div class="row-icon">📋</div>
+        <div class="row-text">
+          <div class="row-title">Documents archives et lies</div>
+          <div class="row-sub">Devis, facture, photos — rattaches a l'intervention</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     VERSION B — Three.js / R3F Look
+     ═══════════════════════════════════════════════ -->
+<div class="stage-wrapper" id="wrapper-b">
+  <div class="section-header">
+    <h2>Comment SEIDO transforme votre quotidien</h2>
+    <div class="tech-badge">Version B — React Three Fiber + Bloom/Glow (+140KB lazy)</div>
+  </div>
+  <div class="hover-hint">Survolez pour voir le chaos / Quittez pour voir SEIDO organiser</div>
+
+  <div class="animation-stage stage-b" id="stage-b">
+    <!-- Mesh gradient (WebGL feel) -->
+    <div class="mesh-gradient"></div>
+    <div class="grid-bg"></div>
+
+    <!-- BG glows -->
+    <div class="bg-glow chaos-glow-1"></div>
+    <div class="bg-glow chaos-glow-2"></div>
+    <div class="bg-glow order-glow"></div>
+
+    <!-- Chaos elements -->
+    <div class="chaos-el wa" data-chaos-x="6"  data-chaos-y="12"  data-chaos-r="-10"><div class="ico">💬</div><span>WhatsApp: Fuite sdb apt 3B</span></div>
+    <div class="chaos-el em" data-chaos-x="55" data-chaos-y="5"   data-chaos-r="7"><div class="ico">📧</div><span>Re: Re: Re: Devis plomberie</span></div>
+    <div class="chaos-el ph" data-chaos-x="82" data-chaos-y="15"  data-chaos-r="-8"><div class="ico">📞</div><span>3 appels manques</span></div>
+    <div class="chaos-el sm" data-chaos-x="3"  data-chaos-y="50"  data-chaos-r="9"><div class="ico">📱</div><span>SMS: Chauffage en panne</span></div>
+    <div class="chaos-el dc" data-chaos-x="10" data-chaos-y="78"  data-chaos-r="-6"><div class="ico">📄</div><span>facture_plombier_v3_FINAL.pdf</span></div>
+    <div class="chaos-el wa" data-chaos-x="78" data-chaos-y="70"  data-chaos-r="11"><div class="ico">💬</div><span>Photo: degat des eaux</span></div>
+    <div class="chaos-el em" data-chaos-x="85" data-chaos-y="40"  data-chaos-r="-5"><div class="ico">📧</div><span>Urgent: cle perdue</span></div>
+    <div class="chaos-el sm" data-chaos-x="40" data-chaos-y="85"  data-chaos-r="8"><div class="ico">📱</div><span>Quand passe le technicien?</span></div>
+
+    <!-- AI Brain Node — bigger, more glow for B -->
+    <div class="brain-node">
+      <div class="brain-orb">
+        <div class="orbit-ring-2"></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V11h3a3 3 0 0 1 3 3v1.5c0 1-.5 1.9-1.3 2.5.8.6 1.3 1.5 1.3 2.5V22M12 2a4 4 0 0 0-4 4c0 1.5.8 2.8 2 3.5V11H7a3 3 0 0 0-3 3v1.5c0 1 .5 1.9 1.3 2.5C4.5 18.6 4 19.5 4 20.5V22"/>
+          <circle cx="12" cy="6" r="1"/>
+          <circle cx="8" cy="17" r="1"/>
+          <circle cx="16" cy="17" r="1"/>
+          <path d="M12 11v4"/>
+        </svg>
+      </div>
+      <span class="brain-label">SEIDO AI</span>
+    </div>
+
+    <!-- Pulse rings -->
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+    <div class="pulse-ring"></div>
+
+    <!-- Processing dots -->
+    <div class="proc-dot" id="pd-b-1"></div>
+    <div class="proc-dot" id="pd-b-2"></div>
+    <div class="proc-dot" id="pd-b-3"></div>
+    <div class="proc-dot" id="pd-b-4"></div>
+
+    <!-- Neural lines -->
+    <svg class="neural-lines" id="lines-b" width="100%" height="100%"></svg>
+
+    <!-- Output panel -->
+    <div class="output-panel" id="output-b">
+      <div class="output-row" style="opacity:0; transform: translateY(20px);">
+        <div class="status-bar green"></div>
+        <div class="row-icon">🔧</div>
+        <div class="row-text">
+          <div class="row-title">Intervention planifiee</div>
+          <div class="row-sub">Plomberie — Apt 3B — Lundi 14h — Prestataire confirme</div>
+        </div>
+      </div>
+      <div class="output-row" style="opacity:0; transform: translateY(20px);">
+        <div class="status-bar blue"></div>
+        <div class="row-icon">🔔</div>
+        <div class="row-text">
+          <div class="row-title">Rappel automatique envoye</div>
+          <div class="row-sub">Prestataire + locataire notifies — RDV J-1</div>
+        </div>
+      </div>
+      <div class="output-row" style="opacity:0; transform: translateY(20px);">
+        <div class="status-bar violet"></div>
+        <div class="row-icon">📋</div>
+        <div class="row-text">
+          <div class="row-title">Documents archives et lies</div>
+          <div class="row-sub">Devis, facture, photos — rattaches a l'intervention</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-divider"></div>
+
+<div class="proto-footer">
+  <p>Prototype SEIDO — Comparaison Stacks</p>
+  <p style="margin-top: 0.5rem;">
+    <code>hover</code> = chaos (sans SEIDO) &nbsp;|&nbsp;
+    <code>leave</code> = ordre (SEIDO AI en action)
+  </p>
+  <p style="margin-top: 0.5rem;">
+    Transition : chaos (1.5s) → elements convergent vers cerveau (2s) → cerveau traite (1.5s) → output apparait (1s stagger)
+  </p>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// Animation Engine — shared between A and B
+// ═══════════════════════════════════════════════
+
+class StageAnimator {
+  constructor(stageId, linesId, outputId) {
+    this.stage = document.getElementById(stageId);
+    this.linesId = linesId;
+    this.outputId = outputId;
+    this.state = 'idle'; // idle | chaos | transitioning | order
+    this.chaosEls = this.stage.querySelectorAll('.chaos-el');
+    this.outputRows = document.getElementById(outputId).querySelectorAll('.output-row');
+    this.brainNode = this.stage.querySelector('.brain-node');
+    this.pulseRings = this.stage.querySelectorAll('.pulse-ring');
+    this.procDots = this.stage.querySelectorAll('.proc-dot');
+    this.glowChaos1 = this.stage.querySelector('.chaos-glow-1');
+    this.glowChaos2 = this.stage.querySelector('.chaos-glow-2');
+    this.glowOrder = this.stage.querySelector('.order-glow');
+    this.floatAnimations = [];
+    this.orbitAnimations = [];
+    this.hasAutoPlayed = false;
+
+    this._setupHover();
+    this._setupScrollTrigger();
+    this._positionChaosElements();
+    this._drawNeuralLines();
+    this._createParticles(25);
+
+    // Initial state
+    this._setChaosVisuals(true);
+    this._setOrderVisuals(false);
+    this._setBrainState('idle');
+
+    window.addEventListener('resize', () => {
+      this._positionChaosElements();
+      this._drawNeuralLines();
+    });
+  }
+
+  _setupHover() {
+    this.stage.addEventListener('mouseenter', () => {
+      if (this.state === 'order') this.transitionTo('chaos');
+    });
+    this.stage.addEventListener('mouseleave', () => {
+      if (this.state === 'chaos' && this.hasAutoPlayed) this.transitionTo('order');
+    });
+  }
+
+  _setupScrollTrigger() {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && !this.hasAutoPlayed) {
+          this.hasAutoPlayed = true;
+          this.state = 'chaos';
+          this._startFloating();
+          // Auto-transition after 3 seconds
+          setTimeout(() => {
+            if (this.state === 'chaos') this.transitionTo('order');
+          }, 3000);
+        }
+      });
+    }, { threshold: 0.3 });
+    obs.observe(this.stage);
+  }
+
+  _positionChaosElements() {
+    this.chaosEls.forEach(el => {
+      const x = parseFloat(el.dataset.chaosX);
+      const y = parseFloat(el.dataset.chaosY);
+      const r = parseFloat(el.dataset.chaosR);
+      el.style.left = x + '%';
+      el.style.top = y + '%';
+      el.style.transform = `rotate(${r}deg)`;
+    });
+  }
+
+  _startFloating() {
+    this._stopFloating();
+    this.chaosEls.forEach((el, i) => {
+      const duration = 3500 + Math.random() * 2000;
+      const dx = 10 + Math.random() * 15;
+      const dy = 10 + Math.random() * 15;
+      const dr = 3 + Math.random() * 5;
+      const baseR = parseFloat(el.dataset.chaosR);
+      const anim = el.animate([
+        { transform: `rotate(${baseR}deg) translate(0, 0)` },
+        { transform: `rotate(${baseR + dr}deg) translate(${dx}px, ${-dy}px)` },
+        { transform: `rotate(${baseR - dr}deg) translate(${-dx}px, ${dy}px)` },
+        { transform: `rotate(${baseR}deg) translate(0, 0)` },
+      ], {
+        duration,
+        iterations: Infinity,
+        easing: 'ease-in-out',
+        delay: i * 200,
+      });
+      this.floatAnimations.push(anim);
+    });
+  }
+
+  _stopFloating() {
+    this.floatAnimations.forEach(a => a.cancel());
+    this.floatAnimations = [];
+  }
+
+  transitionTo(target) {
+    if (this.state === 'transitioning') return;
+
+    if (target === 'order') {
+      this.state = 'transitioning';
+      this._stopFloating();
+
+      // Phase 1: Chaos elements converge to center (1.8s)
+      const stageRect = this.stage.getBoundingClientRect();
+      const cx = stageRect.width / 2;
+      const cy = stageRect.height / 2;
+
+      this.chaosEls.forEach((el, i) => {
+        const rect = el.getBoundingClientRect();
+        const elCx = rect.left - stageRect.left + rect.width / 2;
+        const elCy = rect.top - stageRect.top + rect.height / 2;
+        const dx = cx - elCx;
+        const dy = cy - elCy;
+
+        el.style.transition = `all ${1.5 + i * 0.1}s cubic-bezier(0.22, 1, 0.36, 1)`;
+        el.style.transform = `translate(${dx}px, ${dy}px) scale(0.4) rotate(0deg)`;
+        el.style.opacity = '0.3';
+      });
+
+      // Phase 2: Brain activates (starts at 1s)
+      setTimeout(() => {
+        this._setBrainState('processing');
+        this._startOrbiting();
+      }, 1000);
+
+      // Phase 3: Chaos elements fully disappear (at 2s)
+      setTimeout(() => {
+        this.chaosEls.forEach(el => {
+          el.style.opacity = '0';
+          el.style.transform += ' scale(0)';
+        });
+      }, 2000);
+
+      // Phase 4: Brain settles, output appears (at 2.5s)
+      setTimeout(() => {
+        this._setBrainState('settled');
+        this._stopOrbiting();
+        this._setChaosGlows(false);
+        this._setOrderGlow(true);
+
+        // Stagger output rows
+        this.outputRows.forEach((row, i) => {
+          setTimeout(() => {
+            row.style.transition = 'all 0.8s cubic-bezier(0.22, 1, 0.36, 1)';
+            row.style.opacity = '1';
+            row.style.transform = 'translateY(0)';
+          }, i * 250);
+        });
+
+        // Start pulse rings
+        this.pulseRings.forEach((ring, i) => {
+          ring.style.animation = `pulse-ring-anim 3s cubic-bezier(0, 0.2, 0.8, 1) ${i}s infinite`;
+        });
+
+        // Redraw lines (output connections)
+        setTimeout(() => this._drawNeuralLines('order'), 200);
+
+        this.state = 'order';
+      }, 2800);
+
+    } else if (target === 'chaos') {
+      this.state = 'transitioning';
+
+      // Hide output
+      this.outputRows.forEach(row => {
+        row.style.transition = 'all 0.6s ease-in';
+        row.style.opacity = '0';
+        row.style.transform = 'translateY(20px)';
+      });
+
+      // Stop pulses
+      this.pulseRings.forEach(ring => { ring.style.animation = 'none'; });
+
+      // Brain dims
+      this._setBrainState('idle');
+      this._setOrderGlow(false);
+
+      // Chaos elements return
+      setTimeout(() => {
+        this._setChaosGlows(true);
+        this.chaosEls.forEach((el, i) => {
+          el.style.transition = `all ${1.2 + i * 0.08}s cubic-bezier(0.34, 1.56, 0.64, 1)`;
+          el.style.transform = `rotate(${el.dataset.chaosR}deg)`;
+          el.style.opacity = '1';
+        });
+        this._startFloating();
+        this._drawNeuralLines('chaos');
+        this.state = 'chaos';
+      }, 400);
+    }
+  }
+
+  _setBrainState(s) {
+    const orb = this.brainNode;
+    if (s === 'idle') {
+      orb.style.transform = 'translate(-50%, -50%) scale(0.75)';
+      orb.style.opacity = '0.4';
+      orb.style.filter = 'none';
+    } else if (s === 'processing') {
+      orb.style.transform = 'translate(-50%, -50%) scale(1.1)';
+      orb.style.opacity = '1';
+      orb.style.filter = 'drop-shadow(0 0 20px rgba(139, 92, 246, 0.4))';
+    } else if (s === 'settled') {
+      orb.style.transform = 'translate(-50%, -50%) scale(1)';
+      orb.style.opacity = '1';
+      orb.style.filter = 'drop-shadow(0 0 12px rgba(139, 92, 246, 0.25))';
+    }
+  }
+
+  _startOrbiting() {
+    this._stopOrbiting();
+    const stageRect = this.stage.getBoundingClientRect();
+    const cx = stageRect.width / 2;
+    const cy = stageRect.height / 2;
+    const radius = 60;
+
+    this.procDots.forEach((dot, i) => {
+      dot.style.opacity = '1';
+      const offset = (Math.PI * 2 / this.procDots.length) * i;
+      const anim = dot.animate([
+        { left: cx + Math.cos(offset) * radius + 'px', top: cy + Math.sin(offset) * radius + 'px' },
+        { left: cx + Math.cos(offset + Math.PI) * radius + 'px', top: cy + Math.sin(offset + Math.PI) * radius + 'px' },
+        { left: cx + Math.cos(offset + Math.PI * 2) * radius + 'px', top: cy + Math.sin(offset + Math.PI * 2) * radius + 'px' },
+      ], { duration: 1500, iterations: Infinity, easing: 'linear' });
+      this.orbitAnimations.push(anim);
+    });
+  }
+
+  _stopOrbiting() {
+    this.orbitAnimations.forEach(a => a.cancel());
+    this.orbitAnimations = [];
+    this.procDots.forEach(d => { d.style.opacity = '0'; });
+  }
+
+  _setChaosVisuals(show) {
+    this.chaosEls.forEach(el => {
+      el.style.opacity = show ? '1' : '0';
+    });
+  }
+
+  _setOrderVisuals(show) {
+    this.outputRows.forEach(row => {
+      row.style.opacity = show ? '1' : '0';
+      row.style.transform = show ? 'translateY(0)' : 'translateY(20px)';
+    });
+  }
+
+  _setChaosGlows(show) {
+    if (this.glowChaos1) { this.glowChaos1.style.opacity = show ? '1' : '0'; }
+    if (this.glowChaos2) { this.glowChaos2.style.opacity = show ? '1' : '0'; }
+  }
+
+  _setOrderGlow(show) {
+    if (this.glowOrder) {
+      this.glowOrder.style.opacity = show ? '1' : '0';
+      this.glowOrder.style.transform = show ? 'translate(-50%, -50%) scale(1.3)' : 'translate(-50%, -50%) scale(0.8)';
+    }
+  }
+
+  _drawNeuralLines(mode = 'chaos') {
+    const svg = document.getElementById(this.linesId);
+    if (!svg) return;
+    const stageRect = this.stage.getBoundingClientRect();
+    const cx = stageRect.width / 2;
+    const cy = stageRect.height / 2;
+    svg.innerHTML = '';
+
+    const sources = mode === 'chaos' ? this.chaosEls : this.outputRows;
+    const parent = mode === 'chaos' ? this.stage : document.getElementById(this.outputId);
+
+    sources.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      const ex = rect.left - stageRect.left + rect.width / 2;
+      const ey = rect.top - stageRect.top + rect.height / 2;
+
+      // Draw curved path instead of straight line
+      const midX = (cx + ex) / 2 + (Math.random() - 0.5) * 40;
+      const midY = (cy + ey) / 2 + (Math.random() - 0.5) * 40;
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M ${ex} ${ey} Q ${midX} ${midY} ${cx} ${cy}`);
+
+      if (mode === 'chaos') {
+        path.style.stroke = 'rgba(217, 119, 6, 0.08)';
+        path.style.strokeDasharray = '4 8';
+      } else {
+        path.style.stroke = 'rgba(96, 165, 250, 0.15)';
+        path.style.strokeDasharray = 'none';
+      }
+      svg.appendChild(path);
+    });
+  }
+
+  _createParticles(count) {
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.top = Math.random() * 100 + '%';
+      const size = 2 + Math.random() * 2;
+      p.style.width = p.style.height = size + 'px';
+      p.style.background = `rgba(96, 165, 250, ${0.08 + Math.random() * 0.15})`;
+      p.animate([
+        { transform: 'translate(0, 0)', opacity: 0.1 },
+        { transform: `translate(${-15 + Math.random()*30}px, ${-15 + Math.random()*30}px)`, opacity: 0.3 },
+        { transform: 'translate(0, 0)', opacity: 0.1 },
+      ], {
+        duration: 4000 + Math.random() * 4000,
+        iterations: Infinity,
+        delay: Math.random() * 3000,
+        easing: 'ease-in-out',
+      });
+      this.stage.appendChild(p);
+    }
+  }
+}
+
+// Pulse ring keyframe (injected dynamically)
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+  @keyframes pulse-ring-anim {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
+    100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+  }
+`;
+document.head.appendChild(styleSheet);
+
+// ─── Initialize both stages ───
+const animatorA = new StageAnimator('stage-a', 'lines-a', 'output-a');
+const animatorB = new StageAnimator('stage-b', 'lines-b', 'output-b');
+
+// ─── Version switcher ───
+function switchVersion(v) {
+  document.querySelectorAll('.version-nav button').forEach((btn, i) => {
+    btn.classList.toggle('active', (v === 'a' && i === 0) || (v === 'b' && i === 1));
+  });
+  document.getElementById('wrapper-a').classList.toggle('active', v === 'a');
+  document.getElementById('wrapper-b').classList.toggle('active', v === 'b');
+
+  // Re-trigger autoplay for the newly visible version
+  const animator = v === 'a' ? animatorA : animatorB;
+  if (!animator.hasAutoPlayed) {
+    animator.hasAutoPlayed = true;
+    animator.state = 'chaos';
+    animator._startFloating();
+    setTimeout(() => {
+      if (animator.state === 'chaos') animator.transitionTo('order');
+    }, 3000);
+  }
+}
+</script>
+</body>
+</html>

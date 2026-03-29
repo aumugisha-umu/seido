@@ -170,6 +170,60 @@ sp-test-driven-development → Tests composant
 sp-verification-before-completion → A11y, mobile, coverage
 ```
 
+## Example Output
+
+### When asked to create a new page (Server Component + Client):
+
+**page.tsx** (Server Component):
+```typescript
+import { getServerAuthContext } from '@/lib/server-context'
+import { BuildingRepository } from '@/lib/services/repositories/building.repository'
+import { MyFeatureClient } from './my-feature-client'
+
+export const dynamic = 'force-dynamic'
+
+export default async function MyFeaturePage() {
+  const { team, supabase } = await getServerAuthContext('gestionnaire')
+  const repository = new BuildingRepository(supabase)
+  const buildings = await repository.findByTeamId(team.id)
+  return <MyFeatureClient initialData={buildings} />
+}
+```
+
+**my-feature-client.tsx** (Client Component):
+```typescript
+'use client'
+
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+
+type Props = { initialData: Building[] }
+
+export const MyFeatureClient = ({ initialData }: Props) => {
+  const handleAction = async (id: string) => {
+    await myServerAction(id)
+  }
+
+  return (
+    <div className="space-y-4">
+      {initialData.map((item) => (
+        <Card key={item.id} className="p-4" data-testid={`item-${item.id}`}>
+          <Button onClick={() => handleAction(item.id)}>Action</Button>
+        </Card>
+      ))}
+    </div>
+  )
+}
+```
+
+### What NOT to produce:
+- Auth with raw `createServerSupabaseClient()` + `supabase.auth.getUser()`
+- Client Component with `useEffect` for initial data fetching
+- Direct `supabase.from('table')` calls in component files
+- Inline styles or CSS modules (Tailwind only)
+- Missing `data-testid` on interactive elements
+- Missing `export const dynamic = 'force-dynamic'` on authenticated pages
+
 ---
 
 ## Integration Agents

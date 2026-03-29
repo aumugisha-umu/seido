@@ -187,6 +187,7 @@ export interface Intervention {
   quote_deadline?: string | null
   quote_notes?: string | null
   selected_quote_id?: string | null
+  source?: string | null
   has_attachments?: boolean | null
   scheduling_type?: 'fixed' | 'slots' | 'flexible' | null
   created_at?: string

@@ -101,6 +101,7 @@ export interface CreateCompletePropertyData {
     charges_amount?: number
     category: string
     description?: string
+    peb_rating?: string
   }>
   buildingContacts?: Array<{
     id: string

@@ -594,7 +594,7 @@ export async function inviteGestionnaireAction(input: {
   organization: string
 }): Promise<ActionResult<{ userId: string; invitationId: string }>> {
   try {
-    const { supabase } = await getAdminContext()
+    const { supabase, profile: adminProfile } = await getAdminContext()
     const { email, firstName, lastName, organization } = input
 
     if (!email || !firstName || !lastName || !organization) {
@@ -655,7 +655,9 @@ export async function inviteGestionnaireAction(input: {
       .limit(1)
       .maybeSingle()
 
-    // 4. Insert invitation record (with real team_id from trigger)
+    // 4. Insert invitation record
+    // team_id is null here — team is created when user confirms (trigger fires on email_confirmed_at UPDATE)
+    // invited_by = admin who sent the invitation
     const { data: invitation, error: invError } = await supabase
       .from('user_invitations')
       .insert({
@@ -663,10 +665,10 @@ export async function inviteGestionnaireAction(input: {
         first_name: firstName,
         last_name: lastName,
         role: 'gestionnaire' as const,
-        team_id: userProfile?.team_id || null,
-        invited_by: userProfile?.id || null,
+        team_id: userProfile?.team_id ?? null,
+        invited_by: adminProfile.id,
         invitation_token: hashedToken,
-        user_id: userProfile?.id || null,
+        user_id: userProfile?.id ?? null,
         status: 'pending' as const,
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       })
@@ -713,6 +715,69 @@ export async function inviteGestionnaireAction(input: {
   }
 }
 
+// Type for admin invitation list
+export interface AdminInvitation {
+  id: string
+  email: string
+  first_name: string | null
+  last_name: string | null
+  status: 'pending' | 'expired'
+  invited_at: string
+  expires_at: string
+  team_name: string | null
+}
+
+/**
+ * Get all pending/expired invitations (admin only)
+ *
+ * Computes expired status at query time: pending + expires_at < now = expired.
+ */
+export async function getInvitationsAction(): Promise<ActionResult<AdminInvitation[]>> {
+  try {
+    const { supabase } = await getAdminContext()
+
+    const { data, error } = await supabase
+      .from('user_invitations')
+      .select('id, email, first_name, last_name, status, invited_at, expires_at, teams:team_id(name)')
+      .in('status', ['pending', 'expired'])
+      .order('invited_at', { ascending: false })
+
+    if (error) {
+      logger.error({ error }, '[ADMIN-INVITATIONS] Error fetching invitations')
+      return { success: false, error: error.message }
+    }
+
+    // Compute expired status at runtime (pending + past expiry = expired)
+    const invitations: AdminInvitation[] = (data || []).map(inv => {
+      const teamData = inv.teams as { name: string } | null
+      let status: 'pending' | 'expired' = inv.status as 'pending' | 'expired'
+
+      if (status === 'pending' && inv.expires_at && new Date(inv.expires_at) < new Date()) {
+        status = 'expired'
+      }
+
+      return {
+        id: inv.id,
+        email: inv.email,
+        first_name: inv.first_name,
+        last_name: inv.last_name,
+        status,
+        invited_at: inv.invited_at,
+        expires_at: inv.expires_at,
+        team_name: teamData?.name || null,
+      }
+    })
+
+    return { success: true, data: invitations }
+  } catch (error) {
+    logger.error({ error }, '[ADMIN-INVITATIONS] Exception in getInvitationsAction')
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue',
+    }
+  }
+}
+
 /**
  * Resend invitation to a gestionnaire (admin only)
  *
@@ -741,31 +806,41 @@ export async function resendGestionnaireInvitationAction(
       return { success: false, error: 'Aucune invitation en attente trouvee pour cet email' }
     }
 
-    // 2. Find the user profile to get organization (team name)
-    const { data: userProfile } = await supabase
+    // 2. Get auth user metadata via public.users → getUserById (targeted, not full list)
+    const { data: publicUser } = await supabase
       .from('users')
-      .select('id, name, team_id, teams:team_id(name)')
+      .select('auth_user_id')
       .eq('email', normalizedEmail)
-      .is('deleted_at', null)
       .limit(1)
       .maybeSingle()
 
-    // 3. Generate new magic link
+    let authUserMetadata: Record<string, unknown> = {}
+    if (publicUser?.auth_user_id) {
+      const { data: authData } = await supabase.auth.admin.getUserById(publicUser.auth_user_id)
+      authUserMetadata = authData?.user?.user_metadata || {}
+    }
+
+    const organization = (authUserMetadata.organization as string)
+      || invitation.first_name
+      || 'votre organisation'
+
+    // 3. Generate new invite link (not magiclink — user hasn't confirmed yet)
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
+      type: 'invite',
       email: normalizedEmail,
       options: {
         redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        data: authUserMetadata,
       },
     })
 
     if (linkError || !linkData?.properties?.hashed_token) {
-      logger.error({ error: linkError }, '[ADMIN-RESEND] Failed to generate magic link')
+      logger.error({ error: linkError }, '[ADMIN-RESEND] Failed to generate invite link')
       return { success: false, error: 'Echec de la generation du nouveau lien' }
     }
 
     const hashedToken = linkData.properties.hashed_token
-    const invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=magiclink`
+    const invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
 
     // 4. Update invitation record
     await supabase
@@ -777,18 +852,17 @@ export async function resendGestionnaireInvitationAction(
       })
       .eq('id', invitation.id)
 
-    // 5. Send email (deferred)
+    // 5. Send renewal email (deferred)
     const resendFirstName = invitation.first_name || 'Gestionnaire'
-    const teamData = userProfile?.teams as { name: string } | null
-    const resendOrganization = teamData?.name || 'votre organisation'
 
     after(async () => {
       try {
         const result = await emailService.sendAdminInvitationEmail(normalizedEmail, {
           firstName: resendFirstName,
-          organization: resendOrganization,
+          organization,
           invitationUrl,
           expiresIn: 7,
+          isRenewal: true,
         })
         if (result.success) {
           logger.info({ emailId: result.emailId }, '[ADMIN-RESEND] Invitation email resent')

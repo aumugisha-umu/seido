@@ -14,6 +14,7 @@ import {
   ERROR_MESSAGES,
   VALIDATION_CONSTRAINTS,
   SHEET_NAMES,
+  PEB_RATINGS,
 } from '../constants';
 import { mapZodErrorToCode } from './utils';
 
@@ -83,6 +84,10 @@ export const lotImportSchema = z.object({
     )
     .optional()
     .nullable(),
+  peb_rating: z
+    .enum(PEB_RATINGS as unknown as [string, ...string[]])
+    .optional()
+    .nullable(),
 });
 
 export type LotImportData = z.infer<typeof lotImportSchema>;
@@ -116,6 +121,7 @@ export function validateLotRow(
     description: row['Description']
       ? String(row['Description']).trim()
       : undefined,
+    peb_rating: parsePebRating(row['PEB']),
   };
 
   // Validate with Zod
@@ -152,6 +158,7 @@ export function validateLotRow(
       city: result.data.city ?? undefined,
       postal_code: result.data.postal_code ?? undefined,
       description: result.data.description ?? undefined,
+      peb_rating: result.data.peb_rating ?? undefined,
       building_name: result.data.building_name ?? undefined,
       _rowIndex: rowIndex,
     },
@@ -234,6 +241,22 @@ function normalizeCategory(value: unknown): string {
   };
 
   return mappings[str] || 'autre';
+}
+
+/**
+ * Parse PEB rating value (case-insensitive, trimmed)
+ */
+function parsePebRating(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  const str = String(value).trim().toUpperCase();
+  if (!str) return undefined;
+
+  // Match against PEB_RATINGS constant (source of truth)
+  const match = PEB_RATINGS.find(r => r.toUpperCase() === str);
+  return match; // undefined if not a valid PEB value → Zod will catch it
 }
 
 /**

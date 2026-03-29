@@ -18,6 +18,7 @@ export const AdminInvitationEmail = ({
   organization,
   invitationUrl,
   expiresIn = 7,
+  isRenewal = false,
 }: AdminInvitationEmailProps) => {
   const quickStartSteps = [
     {
@@ -43,19 +44,29 @@ export const AdminInvitationEmail = ({
   ]
 
   return (
-    <EmailLayout preview={`Votre espace de gestion pour ${organization} est pret`}>
-      <EmailHeader subject="Bienvenue sur SEIDO" />
+    <EmailLayout preview={isRenewal
+      ? `Nouveau lien d'activation pour ${organization}`
+      : `Votre espace de gestion pour ${organization} est pret`
+    }>
+      <EmailHeader subject={isRenewal ? 'Nouveau lien d\'activation' : 'Bienvenue sur SEIDO'} />
 
       <Section className="bg-white px-8 py-8">
         <Text className="text-gray-700 text-base leading-relaxed mb-5 mt-0">
           Bonjour {firstName},
         </Text>
 
-        <Text className="text-gray-700 text-base leading-relaxed mb-5">
-          Vous etes invite(e) a rejoindre <strong>SEIDO</strong>, la plateforme de gestion
-          immobiliere collaborative. Votre espace pour <strong>{organization}</strong> est
-          pret — il ne vous reste qu'a definir votre mot de passe.
-        </Text>
+        {isRenewal ? (
+          <Text className="text-gray-700 text-base leading-relaxed mb-5">
+            Votre precedent lien d'invitation arrivant a expiration, voici un nouveau lien
+            pour activer votre espace <strong>{organization}</strong> sur <strong>SEIDO</strong>.
+          </Text>
+        ) : (
+          <Text className="text-gray-700 text-base leading-relaxed mb-5">
+            Vous etes invite(e) a rejoindre <strong>SEIDO</strong>, la plateforme de gestion
+            immobiliere collaborative. Votre espace pour <strong>{organization}</strong> est
+            pret — il ne vous reste qu'a definir votre mot de passe.
+          </Text>
+        )}
 
         <EmailButton href={invitationUrl}>
           Definir mon mot de passe et commencer

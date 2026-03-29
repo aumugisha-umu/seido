@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { getLotCategoryConfig } from "@/lib/lot-types"
+import { getPebColorClasses } from "@/lib/utils/peb-colors"
 import { usePrefetch } from "@/hooks/use-prefetch"
 
 interface LotCardProps {
@@ -27,6 +28,7 @@ interface LotCardProps {
     apartment_number?: string
     tenant_id?: string | null // ⚠️ Deprecated: Use lot_contacts instead
     building_id?: string
+    peb_rating?: string | null
     has_active_tenants?: boolean // Calculated field from queries
     is_occupied?: boolean // Calculated field from queries
     tenant?: {
@@ -260,8 +262,18 @@ export default function LotCard({
                     </Badge>
                   )
                 })()}
-                
-                <Badge 
+
+                {/* PEB rating badge */}
+                {lot.peb_rating && (() => {
+                  const pebColors = getPebColorClasses(lot.peb_rating)
+                  return (
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${pebColors.bg} ${pebColors.text} border ${pebColors.border}`}>
+                      PEB {lot.peb_rating}
+                    </span>
+                  )
+                })()}
+
+                <Badge
                   variant={isOccupied ? "default" : "secondary"} 
                   className={`px-2 py-1 text-xs ${
                     isOccupied ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"

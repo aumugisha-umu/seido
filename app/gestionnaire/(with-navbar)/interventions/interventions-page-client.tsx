@@ -33,6 +33,7 @@ import { BlockedListOverlay } from "@/components/billing/blocked-list-overlay"
 import { useSubscription } from "@/hooks/use-subscription"
 import { createBrowserSupabaseClient } from "@/lib/services"
 import type { Database } from '@/lib/database.types'
+import { AI_SOURCES } from '@/lib/services/domain/ai-whatsapp/types'
 import { toast } from "sonner"
 
 type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
@@ -51,6 +52,8 @@ interface InterventionsPageClientProps {
   pageSize?: number
   /** Hide PageActions when embedded inside OperationsPageClient */
   hidePageActions?: boolean
+  /** Exclude AI-sourced interventions (they appear in triage tab instead) */
+  excludeAiSources?: boolean
 }
 
 export function InterventionsPageClient({
@@ -61,6 +64,7 @@ export function InterventionsPageClient({
   initialHasMore = false,
   pageSize = 50,
   hidePageActions = false,
+  excludeAiSources = false,
 }: InterventionsPageClientProps) {
   const router = useRouter()
   const { isPending: isNavigating, navigate } = useNavigationPending()
@@ -108,7 +112,10 @@ export function InterventionsPageClient({
       })
 
       if (result.success && result.data) {
-        setInterventions(prev => [...prev, ...result.data.data])
+        const newItems = excludeAiSources
+          ? result.data.data.filter((i: any) => !AI_SOURCES.includes(i.source))
+          : result.data.data
+        setInterventions(prev => [...prev, ...newItems])
         setTotal(result.data.total)
         setHasMore(result.data.hasMore)
       } else {

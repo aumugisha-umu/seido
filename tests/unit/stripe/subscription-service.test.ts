@@ -210,7 +210,7 @@ describe('SubscriptionService', () => {
         current_period_start: 1708560000, // 2024-02-22T00:00:00Z
         current_period_end: 1740096000,   // 2025-02-21T00:00:00Z
         cancel_at_period_end: false,
-        items: { data: [{ quantity: 10 }] },
+        items: { data: [{ quantity: 10, price: { id: 'price_main_monthly' } }] },
       })
 
       const mockServiceRoleRepo = createMockSubscriptionRepo()
@@ -286,7 +286,7 @@ describe('SubscriptionService', () => {
         current_period_start: 1708560000,
         current_period_end: 1740096000,
         cancel_at_period_end: false,
-        items: { data: [{ quantity: 5 }] },
+        items: { data: [{ quantity: 5, price: { id: 'price_main_monthly' } }] },
       })
 
       // No serviceRoleRepo passed — should use this.subscriptionRepo
@@ -686,7 +686,7 @@ describe('SubscriptionService', () => {
         error: null,
       })
       ;(mockStripe.subscriptions.retrieve as any).mockResolvedValue({
-        items: { data: [{ id: 'si_123', quantity: 5 }] },
+        items: { data: [{ id: 'si_123', quantity: 5, price: { id: 'price_main_monthly' } }] },
       })
       ;(mockStripe.subscriptions.update as any).mockResolvedValue({ id: 'sub_abc' })
       ;(subRepo.updateByTeamId as any).mockResolvedValue({ data: {}, error: null })
@@ -744,7 +744,7 @@ describe('SubscriptionService', () => {
         error: null,
       })
       ;(mockStripe.subscriptions.retrieve as any).mockResolvedValue({
-        items: { data: [{ id: 'si_123', quantity: 5 }] },
+        items: { data: [{ id: 'si_123', quantity: 5, price: { id: 'price_main_monthly' } }] },
       })
       ;(mockStripe.subscriptions.update as any).mockResolvedValue({ id: 'sub_abc' })
       ;(subRepo.updateByTeamId as any).mockResolvedValue({ data: {}, error: null })
@@ -774,7 +774,7 @@ describe('SubscriptionService', () => {
           data: [{
             id: 'si_123',
             quantity: 5,
-            price: { recurring: { interval: 'year' } },
+            price: { id: 'price_main_annual', recurring: { interval: 'year' } },
           }],
         },
       })

@@ -20,8 +20,10 @@ import {
   ChevronDown,
   ChevronUp,
   Hash,
-  MapPin
+  MapPin,
+  Zap
 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LotCategory, getAllLotCategories, getLotCategoryConfig, LOT_CATEGORY_SELECTED_STYLES } from "@/lib/lot-types"
 import { AddressFieldsWithMap, type GeocodeResult, type AddressFields } from "@/components/google-maps"
 
@@ -55,6 +57,7 @@ export interface IndependentLot {
   floor: string
   doorNumber: string
   description: string
+  pebRating?: string
 }
 
 export interface GeocodeResultData {
@@ -388,8 +391,8 @@ export function IndependentLotInputCardV2({
           </div>
 
           {/* LOT DETAILS SECTION */}
-          {/* Grid 2-Column: Floor + Door */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* Grid 3-Column: Floor + Door + PEB */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* Floor */}
             <div>
               <Label
@@ -430,6 +433,36 @@ export function IndependentLotInputCardV2({
                 className="h-9 text-sm"
                 aria-label="Numéro de porte"
               />
+            </div>
+
+            {/* PEB/EPC Rating */}
+            <div>
+              <Label
+                htmlFor={`peb-${lot.id}`}
+                className="text-sm font-medium text-slate-700 flex items-center gap-1 mb-1"
+              >
+                <Zap className="w-3 h-3" />
+                PEB
+              </Label>
+              <Select
+                value={lot.pebRating || ""}
+                onValueChange={(value) => onUpdate("pebRating", value === "none" ? "" : value)}
+              >
+                <SelectTrigger id={`peb-${lot.id}`} className="h-9 text-sm">
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Non renseigné</SelectItem>
+                  <SelectItem value="A+">A+</SelectItem>
+                  <SelectItem value="A">A</SelectItem>
+                  <SelectItem value="B">B</SelectItem>
+                  <SelectItem value="C">C</SelectItem>
+                  <SelectItem value="D">D</SelectItem>
+                  <SelectItem value="E">E</SelectItem>
+                  <SelectItem value="F">F</SelectItem>
+                  <SelectItem value="G">G</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

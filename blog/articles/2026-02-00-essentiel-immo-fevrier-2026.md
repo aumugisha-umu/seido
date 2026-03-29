@@ -2,13 +2,30 @@
 title: "L'essentiel immo #2 — Fevrier 2026"
 slug: "essentiel-immo-fevrier-2026"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "L'essentiel immo"
 tags: ["recap mensuel", "gestion immobiliere"]
 description: "Grille des loyers deconnectee, precompte +118% a Saint-Josse, moratoire hivernal valide, fibre en copropriete : les 8 articles incontournables de fevrier 2026."
 reading_time: "3 min"
 type: "hub"
 hub: ""
+infographic:
+  type: "stat-highlight"
+  data:
+    title: "Chiffres cles de fevrier 2026"
+    stats:
+      - value: 75
+        suffix: "%"
+        label: "Loyers bruxellois au-dessus de la grille"
+        color: "red"
+      - value: 118
+        suffix: "%"
+        label: "Hausse precompte Saint-Josse en 10 ans"
+        color: "amber"
+      - value: 8
+        suffix: " ans"
+        label: "Duree moyenne renovation en copropriete"
+        color: "blue"
 ---
 
 # L'essentiel immo #2 — Fevrier 2026

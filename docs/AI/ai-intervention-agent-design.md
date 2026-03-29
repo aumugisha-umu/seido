@@ -1,9 +1,10 @@
 # AI Intervention Agent — Design Document
 
-**Date:** 2026-03-20
-**Status:** Validated (brainstorming complete)
+**Date:** 2026-03-20 (review technique integree 2026-03-26)
+**Status:** Validated — review corrections applied (v1.1)
 **Branch:** feature/operations-reminders-phase1
 **Scope:** Phase 1 (manual) + Phase 2 (automatic)
+**Review:** Audit independant integre — 2 bugs corriges, 4 clarifications, 3 risques documentes
 
 ---
 
@@ -130,13 +131,13 @@ Actions are classified dynamically based on whether external parties (locataire/
 |------|--------------|-----------------|
 | `queryIntervention` | Full intervention + assignments + time slots + quotes | `InterventionRepository` |
 | `queryBuildingAndLot` | Building + lot + address + attached contacts | `BuildingRepository` + `LotRepository` |
-| `queryContracts` | Lot/building contracts (supplier contracts, clauses, dates) | `SupplierContractRepository` |
+| `queryContracts` | Lot/building contracts — both **baux** (tenant) + **supplier** contracts | `ContractRepository` + `SupplierContractRepository` |
 | `queryInterventionHistory` | Past interventions on this property (type, provider, cost, duration) | `InterventionRepository` |
-| `queryDocuments` | Documents + validated `ai_extracted_metadata` | `DocumentRepository` |
+| `queryDocuments` | Documents + validated `ai_extracted_metadata` | **A creer**: `InterventionDocumentRepository` (pas de repository dedie actuellement — acces direct a `intervention_documents`) |
 | `queryConversations` | Thread messages (group, tenant, provider) | `ConversationRepository` |
 | `queryEmails` | Emails linked to the intervention | `EmailRepository` |
 | `queryTeamProviders` | Team providers + specialties + performance history | `UserRepository` |
-| `queryReminders` | Existing reminders on the property/contact/contract | `ReminderRepository` |
+| `queryReminders` | Existing reminders on the property/contact/contract | `ReminderRepository` (**a etendre**: ajouter `findByBuilding`, `findByLot`, `findByContact`, `findByContract` ou methode combinee `findByInterventionContext()`) |
 
 ### WRITE Tools — Dynamic Classification
 
@@ -159,16 +160,26 @@ const hasExternalParty = assignments.some(a => a.role !== 'gestionnaire')
 
 ### Dynamic needsApproval Logic
 
+> **Note:** `needsApproval` dans Vercel AI SDK recoit uniquement les arguments du tool,
+> PAS un deuxieme parametre `context`. Utiliser une **closure** (factory pattern) pour
+> injecter le contexte de l'intervention au moment de la creation des tools.
+
 ```typescript
 const ALWAYS_SAFE_TOOLS = ['createReminder', 'addNote', 'assignGestionnaire']
 
-needsApproval: async (args, context) => {
-  if (ALWAYS_SAFE_TOOLS.includes(toolName)) return false
-  const hasExternalParty = context.assignments.some(
-    a => a.role !== 'gestionnaire'
-  )
-  return hasExternalParty
-}
+// Factory pattern — le contexte est capture par closure
+const createAgentTools = (interventionContext: { assignments: Assignment[] }) => ({
+  assignProvider: tool({
+    description: 'Assign a provider to the intervention',
+    inputSchema: z.object({ providerId: z.string(), reason: z.string() }),
+    needsApproval: async () => {
+      if (ALWAYS_SAFE_TOOLS.includes('assignProvider')) return false
+      return interventionContext.assignments.some(a => a.role !== 'gestionnaire')
+    },
+    execute: async (args) => { /* ... */ }
+  }),
+  // ... autres tools
+})
 ```
 
 ### Guard Rails
@@ -188,6 +199,7 @@ needsApproval: async (args, context) => {
 User drops file -> Upload to Storage (existing)
     -> POST /api/agent/extract-doc { documentId, fileUrl, mimeType, documentType }
     -> Claude Haiku 4.5 (vision for images/PDF, text for the rest)
+    -> try/catch: en cas d'erreur API, fallback metadata minimal { error: true }
     -> Returns structured JSON per document_type
     -> UPDATE intervention_documents SET ai_extracted_metadata = {...}
     -> UI shows inline collapsible block under file
@@ -244,13 +256,10 @@ User drops file -> Upload to Storage (existing)
   scale?: string
 }
 
-// contrat (supplier)
-{
-  parties: string[],
-  duration: string,
-  key_clauses: string[],
-  renewal_date?: string
-}
+// Note: 'contrat' n'est PAS dans l'enum intervention_document_type.
+// Les contrats fournisseurs sont dans supplier_contract_documents (table separee).
+// Si besoin d'extraction IA sur les contrats, etendre supplier_contract_documents
+// avec ai_extracted_metadata (pas intervention_documents).
 ```
 
 ### UI — Inline Collapsible Under File
@@ -493,6 +502,20 @@ INSERT interventions (status='demande')
 - One-tap: executes all sensitive actions without opening the app
 - Implemented via magic link token (same pattern as existing email action links)
 - Only available if the plan contains only medium-risk actions (no critical status changes)
+- **Securite magic link :** token unique, usage unique, expiration courte (ex: 1h). Verifier que le pattern existant fournit ces garanties.
+
+### Risques Phase 2
+
+> Issues identifiees lors de la revue technique.
+
+**Webhook auto-analyze — authentification :**
+Le webhook Supabase (pg_net) n'a pas de session utilisateur ni de cookies. Authentifier via cle secrete partagee (`X-Webhook-Secret` header) ou JWT signe par un secret connu uniquement du projet. A implementer dans `/api/agent/auto-analyze`.
+
+**Race condition sur le trigger `demande` :**
+La creation d'une intervention est un flux multi-etapes (INSERT → assignations → threads → documents). Si l'agent analyse trop tot, il manque des donnees. Strategies :
+- Declencher via job differe (5-10s apres l'INSERT) plutot qu'un trigger immediat
+- Ou utiliser un `AFTER INSERT` qui verifie la presence des donnees critiques
+- Documenter la strategie choisie lors de l'implementation
 
 ### Progressive Learning (Phase 2.5)
 
@@ -516,10 +539,14 @@ const pastSessions = await agentSessionRepo.findByTeam(teamId, {
 
 For semantic search across analyzed documents:
 
+> **Embedding provider:** Voyage AI (recommande par Anthropic). Dimension 1024 (defaut).
+> 1536 = OpenAI (text-embedding-ada-002) — ne pas utiliser avec Voyage.
+> Adapter si un autre provider est choisi.
+
 ```sql
 -- pgvector extension (available on Supabase)
 ALTER TABLE intervention_documents
-  ADD COLUMN ai_embedding vector(1536);
+  ADD COLUMN ai_embedding vector(1024);
 
 CREATE INDEX idx_documents_embedding
   ON intervention_documents
@@ -576,13 +603,14 @@ CREATE INDEX idx_agent_sessions_intervention ON agent_sessions(intervention_id);
 CREATE INDEX idx_agent_sessions_status ON agent_sessions(status);
 
 -- RLS: gestionnaire only, team-scoped
+-- Note: get_my_profile_ids() pour multi-profil (AGENTS.md #003, #086)
 ALTER TABLE agent_sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY agent_sessions_team_access ON agent_sessions
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM team_members
       WHERE team_members.team_id = agent_sessions.team_id
-      AND team_members.user_id = auth.uid()
+      AND team_members.user_id IN (SELECT get_my_profile_ids())
       AND team_members.role IN ('admin', 'gestionnaire')
     )
   );
@@ -605,7 +633,7 @@ CREATE POLICY agent_usage_team_access ON agent_usage_monthly
     EXISTS (
       SELECT 1 FROM team_members
       WHERE team_members.team_id = agent_usage_monthly.team_id
-      AND team_members.user_id = auth.uid()
+      AND team_members.user_id IN (SELECT get_my_profile_ids())
       AND team_members.role IN ('admin', 'gestionnaire')
     )
   );
@@ -629,8 +657,10 @@ COMMENT ON COLUMN teams.ai_monthly_budget
 CREATE EXTENSION IF NOT EXISTS vector;
 
 ALTER TABLE intervention_documents
-  ADD COLUMN ai_embedding vector(1536);
+  ADD COLUMN ai_embedding vector(1024);
 
+-- lists ≈ sqrt(row_count). 100 convient pour < 10k documents.
+-- A ajuster en production selon le volume reel.
 CREATE INDEX idx_documents_embedding
   ON intervention_documents
   USING ivfflat (ai_embedding vector_cosine_ops)
@@ -741,4 +771,6 @@ lib/types/
 
 *Document generated: 2026-03-20*
 *Validated through brainstorming session: 6 sections, all approved*
+*Review technique integree: 2026-03-26 (v1.1) — 2 bugs corriges (embeddings 1024, contrat schema), 4 clarifications (needsApproval closure, queryContracts baux, queryReminders methods, queryDocuments repo), 3 risques (webhook auth, race condition, magic link security), RLS multi-profil*
+*Ancien fichier review `ai-intervention-agent-design-review.md` fusionne ici*
 *Next step: Implementation via sp-ralph (Phase 1, stories 1-8)*

@@ -175,5 +175,5 @@ export function delay(ms: number): Promise<void> {
  * @returns Delay in ms
  */
 export function calculateBackoffDelay(retryCount: number, baseDelay: number): number {
-  return baseDelay * retryCount
+  return baseDelay * Math.pow(2, retryCount - 1)
 }

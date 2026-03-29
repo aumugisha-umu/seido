@@ -14,6 +14,13 @@ Ce design etend le plan pour supporter le **self-service multi-tenant** :
 un gestionnaire souscrit a l'add-on, recoit un numero auto-provisionne (telephone + WhatsApp),
 peut personnaliser le prompt, et les transcriptions sont routees vers son compte.
 
+> **Architecture unifiee (2026-03-26):** 1 equipe = 1 numero = 2 canaux toujours actifs ensemble.
+> Le numero (Twilio ou BYON) est connecte simultanement a :
+> - **ElevenLabs** pour le canal telephonique (voix, SIP trunk)
+> - **Meta WABA** pour le canal WhatsApp (custom setup Claude API — voir `ai-whatsapp-agent-plan.md` v2.1)
+>
+> Table unifiee : `ai_team_numbers` (rename de `ai_phone_numbers`).
+
 ---
 
 ## Table des matieres
@@ -101,13 +108,9 @@ Gestionnaire souscrit add-on IA (Solo 49€ / Equipe 99€ / Agence 149€)
   │  5. Enregistrer numero dans WABA Meta       │
   │     POST graph.facebook.com/.../phone_nums  │
   │     → whatsapp_phone_number_id              │
-  │     (optional — rollback si echec)          │
   │                                             │
-  │  6. Connecter WhatsApp a l'agent ElevenLabs │
-  │     Via ElevenLabs Settings/API             │
-  │                                             │
-  │  7. Sauver en DB                            │
-  │     INSERT INTO ai_phone_numbers (...)      │
+  │  6. Sauver en DB                             │
+  │     INSERT INTO ai_team_numbers (...)       │
   └─────────────────────────────────────────────┘
 ```
 
@@ -209,17 +212,22 @@ Gestionnaire souscrit add-on IA (Solo 49€ / Equipe 99€ / Agence 149€)
 
 ### Schema DB
 
+> **Note:** La table est creee sous `ai_phone_numbers` (migration `20260309100000`)
+> et sera renommee `ai_team_numbers` lors de l'integration WhatsApp (voir `ai-whatsapp-agent-plan.md`).
+
 ```sql
-CREATE TABLE ai_phone_numbers (
+CREATE TABLE ai_phone_numbers (  -- → ai_team_numbers apres migration WhatsApp
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   phone_number TEXT NOT NULL,              -- meme numero pour SIP + WhatsApp
   telnyx_connection_id TEXT,
   telnyx_phone_number_id TEXT,
-  elevenlabs_agent_id TEXT,                -- gere tel + WhatsApp
+  elevenlabs_agent_id TEXT,                -- canal telephone (voix ElevenLabs)
   elevenlabs_phone_number_id TEXT,
-  whatsapp_phone_number_id TEXT,           -- ID numero Meta WhatsApp
-  whatsapp_enabled BOOLEAN DEFAULT false,  -- canal WhatsApp active
+  whatsapp_phone_number_id TEXT,           -- canal WhatsApp (custom setup Claude API)
+  display_name TEXT,                       -- Nom affiche dans WhatsApp (ex: "Immo Dupont")
+  provisioning_mode TEXT DEFAULT 'managed', -- 'managed' (Twilio) | 'byon'
+  twilio_number_sid TEXT,                  -- SID Twilio (NULL si BYON)
   ai_tier TEXT DEFAULT 'solo',             -- 'solo' | 'equipe' | 'agence'
   auto_topup BOOLEAN DEFAULT false,        -- Recharge automatique a 100%
   custom_instructions TEXT,                -- max 500 chars
@@ -235,8 +243,8 @@ CREATE TABLE ai_phone_calls (
   phone_number_id UUID REFERENCES ai_phone_numbers(id),
   elevenlabs_conversation_id TEXT NOT NULL,
   caller_phone TEXT,
-  channel TEXT NOT NULL DEFAULT 'phone',  -- phone | whatsapp_text | whatsapp_voice | whatsapp_call
-  duration_seconds INTEGER,               -- NULL pour whatsapp_text
+  channel TEXT NOT NULL DEFAULT 'phone',  -- phone (ElevenLabs) — WhatsApp sessions dans ai_whatsapp_sessions
+  duration_seconds INTEGER,
   identified_user_id UUID REFERENCES users(id),  -- Locataire identifie (nullable)
   intervention_id UUID REFERENCES interventions(id),
   transcript TEXT,                         -- Transcript complet (plain text)
@@ -244,7 +252,7 @@ CREATE TABLE ai_phone_calls (
   language TEXT DEFAULT 'fr',              -- Langue detectee (fr/nl/en)
   call_status TEXT DEFAULT 'completed',    -- completed | failed | abandoned | transferred
   pdf_document_path TEXT,                  -- Path dans Supabase Storage
-  media_urls JSONB DEFAULT '[]'::jsonb,   -- Media WhatsApp [{type, url, storage_path}]
+  media_urls JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(elevenlabs_conversation_id)
 );
@@ -260,9 +268,8 @@ Si une etape echoue, rollback les etapes precedentes :
 | ElevenLabs agent | Annuler commande Telnyx |
 | ElevenLabs import numero | Supprimer agent ElevenLabs + annuler Telnyx |
 | ElevenLabs assign | Supprimer phone number ElevenLabs + agent + annuler Telnyx |
-| WhatsApp enregistrement | **Continuer sans WhatsApp** (`whatsapp_enabled = false`). Telephone fonctionne. |
-| WhatsApp connexion agent | **Continuer sans WhatsApp** (`whatsapp_enabled = false`). Telephone fonctionne. |
-| DB insert | Supprimer tout (WhatsApp + ElevenLabs + Telnyx) |
+| WABA enregistrement | **Continuer sans WhatsApp** (telephone fonctionne, WhatsApp retry plus tard) |
+| DB insert | Supprimer tout (WABA + ElevenLabs + Telnyx/Twilio) |
 
 ---
 
@@ -669,11 +676,10 @@ Si vide, cette section est omise du prompt.
 |----------|-------|---------------------|
 | Agent par equipe | Clone individuel | Agent partage (pas de customisation) |
 | Numero par equipe | Numero unique (SIP + WhatsApp) | Numero partage (pas d'identification) |
-| Dual-canal | Meme numero pour telephone + WhatsApp | 2 numeros separes (confus pour locataire) |
+| Dual-canal | Meme numero, 2 backends (ElevenLabs voix + Claude API WhatsApp) | ElevenLabs pour les deux (abandonne) |
 | WhatsApp multi-tenant | 1 WABA → N numeros (1/equipe) | 1 WABA par equipe (impossible a scale) |
-| WhatsApp rollback | Optional (telephone continue si echec) | Bloquer tout si WhatsApp echoue (trop strict) |
 | Requirement group | Reutiliser existant | Nouveau groupe (72h d'attente) |
-| Webhook | 1 endpoint workspace (tel + WhatsApp) | N endpoints par agent (pas supporte) |
+| Webhook | 2 endpoints (ElevenLabs + Meta WhatsApp) | 1 endpoint unifie (trop complexe) |
 | Prompt customisation | Instructions appendees (500 chars) | Full prompt editable (trop risque) |
 | Mode dev | Variables DEV_* | Sandbox Telnyx (n'existe pas) |
 | EU data residency | `api.elevenlabs.io` (Pro), upgrade Enterprise pour EU residency | EU endpoint inaccessible sans Enterprise |
@@ -685,5 +691,6 @@ Si vide, cette section est omise du prompt.
 
 **Prochaine etape :** Implementation via `/ralph` (PRD → stories → TDD)
 
-> **WhatsApp :** Le canal WhatsApp est integre au provisioning (etapes 5-6) et au webhook.
-> Voir Section 14 du plan principal pour les details complets.
+> **Architecture dual-canal :** Le meme numero sert pour telephone (ElevenLabs) et WhatsApp (custom Claude API).
+> Details du canal WhatsApp : `ai-whatsapp-agent-plan.md` (v2.1).
+> Table unifiee : `ai_team_numbers` (rename de `ai_phone_numbers`).

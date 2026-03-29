@@ -2,13 +2,58 @@
 title: "Grille des loyers Bruxelles : 75% des loyers au-dessus"
 slug: "grille-loyers-bruxelles-deconnexion"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Marche immobilier"
 tags: ["grille des loyers", "bruxelles", "loyer de reference", "commission paritaire locative", "gestion locative"]
 description: "75% des loyers bruxellois depassent la grille de reference. Ce que les chiffres Smartblock 2025 signifient pour les gestionnaires et proprietaires-bailleurs."
 reading_time: "5 min"
 type: "article"
 hub: "essentiel-immo-fevrier-2026"
+infographic:
+  type: "comparison-bars"
+  data:
+    title: "Loyer moyen 3 chambres — capitales europeennes (2025)"
+    items:
+      - label: "Londres"
+        value: 5088
+        suffix: " EUR"
+        color: "red"
+        highlight: true
+      - label: "Geneve"
+        value: 4295
+        suffix: " EUR"
+        color: "red"
+      - label: "Amsterdam"
+        value: 3871
+        suffix: " EUR"
+        color: "amber"
+      - label: "Paris"
+        value: 3287
+        suffix: " EUR"
+        color: "amber"
+      - label: "Munich"
+        value: 3091
+        suffix: " EUR"
+        color: "amber"
+      - label: "Milan"
+        value: 2974
+        suffix: " EUR"
+        color: "blue"
+      - label: "Barcelone"
+        value: 2506
+        suffix: " EUR"
+        color: "blue"
+      - label: "Berlin"
+        value: 2471
+        suffix: " EUR"
+        color: "blue"
+      - label: "Bruxelles"
+        value: 2103
+        suffix: " EUR"
+        color: "green"
+        highlight: true
+    baselineValue: 2103
+    baselineLabel: "Bruxelles"
 ---
 
 # Grille des loyers a Bruxelles : la deconnexion confirmee par les chiffres

@@ -40,6 +40,23 @@ export const LOT_CATEGORY_LABELS: Record<string, string> = {
   'autre': 'Autre (cave, atelier, entrepôt)',
 };
 
+// PEB/EPC energy performance ratings (matches DB CHECK constraint lots_valid_peb_rating)
+export const PEB_RATINGS = [
+  'A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'inconnu',
+] as const;
+
+export const PEB_RATING_LABELS: Record<string, string> = {
+  'A+': 'A+ (très performant)',
+  'A': 'A',
+  'B': 'B',
+  'C': 'C',
+  'D': 'D',
+  'E': 'E',
+  'F': 'F',
+  'G': 'G (très énergivore)',
+  'inconnu': 'Inconnu',
+};
+
 export const CONTACT_ROLES = [
   'locataire',
   'prestataire',
@@ -153,199 +170,200 @@ export const LOT_TEMPLATE: TemplateConfig = {
     'Ville',
     'Code Postal',
     'Pays',
+    'PEB',
     'Description',
   ],
   exampleRows: [
     // ============================================================================
     // RÉSIDENCE LEOPOLD - 6 lots
     // ============================================================================
-    ['LEO-A01', 'Résidence Leopold', 'appartement', 0, '', '', '', 'belgique', 'Studio 30m², idéal investissement'],
-    ['LEO-A02', 'Résidence Leopold', 'appartement', 1, '', '', '', 'belgique', 'T2 50m², balcon sud'],
-    ['LEO-A03', 'Résidence Leopold', 'appartement', 2, '', '', '', 'belgique', 'T3 70m², 2 chambres'],
-    ['LEO-A04', 'Résidence Leopold', 'appartement', 3, '', '', '', 'belgique', 'T4 90m², terrasse'],
-    ['LEO-P01', 'Résidence Leopold', 'garage', -1, '', '', '', 'belgique', 'Place parking n°01'],
-    ['LEO-C01', 'Résidence Leopold', 'autre', -1, '', '', '', 'belgique', 'Cave 8m²'],
+    ['LEO-A01', 'Résidence Leopold', 'appartement', 0, '', '', '', 'belgique', 'B', 'Studio 30m², idéal investissement'],
+    ['LEO-A02', 'Résidence Leopold', 'appartement', 1, '', '', '', 'belgique', 'C', 'T2 50m², balcon sud'],
+    ['LEO-A03', 'Résidence Leopold', 'appartement', 2, '', '', '', 'belgique', 'A', 'T3 70m², 2 chambres'],
+    ['LEO-A04', 'Résidence Leopold', 'appartement', 3, '', '', '', 'belgique', 'B', 'T4 90m², terrasse'],
+    ['LEO-P01', 'Résidence Leopold', 'garage', -1, '', '', '', 'belgique', '', 'Place parking n°01'],
+    ['LEO-C01', 'Résidence Leopold', 'autre', -1, '', '', '', 'belgique', '', 'Cave 8m²'],
     // ============================================================================
     // LE SABLON - 5 lots
     // ============================================================================
-    ['SAB-A01', 'Le Sablon', 'appartement', 0, '', '', '', 'belgique', 'T2 50m², charme ancien'],
-    ['SAB-A02', 'Le Sablon', 'appartement', 1, '', '', '', 'belgique', 'T3 70m², parquet, cheminée'],
-    ['SAB-A03', 'Le Sablon', 'appartement', 2, '', '', '', 'belgique', 'T4 90m², duplex'],
-    ['SAB-A04', 'Le Sablon', 'appartement', 3, '', '', '', 'belgique', 'T3 68m², sous les toits'],
-    ['SAB-C01', 'Le Sablon', 'autre', -1, '', '', '', 'belgique', 'Cave voûtée 15m²'],
+    ['SAB-A01', 'Le Sablon', 'appartement', 0, '', '', '', 'belgique', 'D', 'T2 50m², charme ancien'],
+    ['SAB-A02', 'Le Sablon', 'appartement', 1, '', '', '', 'belgique', 'E', 'T3 70m², parquet, cheminée'],
+    ['SAB-A03', 'Le Sablon', 'appartement', 2, '', '', '', 'belgique', 'C', 'T4 90m², duplex'],
+    ['SAB-A04', 'Le Sablon', 'appartement', 3, '', '', '', 'belgique', 'D', 'T3 68m², sous les toits'],
+    ['SAB-C01', 'Le Sablon', 'autre', -1, '', '', '', 'belgique', '', 'Cave voûtée 15m²'],
     // ============================================================================
     // BRUXELLES CENTRE - 7 lots (mixte commerce/habitation)
     // ============================================================================
-    ['CTR-L01', 'Bruxelles Centre', 'local_commercial', 0, '', '', '', 'belgique', 'Boutique 80m², vitrine'],
-    ['CTR-L02', 'Bruxelles Centre', 'local_commercial', 0, '', '', '', 'belgique', 'Local 60m², restaurant'],
-    ['CTR-A01', 'Bruxelles Centre', 'appartement', 1, '', '', '', 'belgique', 'T2 50m², pied-à-terre'],
-    ['CTR-A02', 'Bruxelles Centre', 'appartement', 2, '', '', '', 'belgique', 'T3 65m², lumineux'],
-    ['CTR-A03', 'Bruxelles Centre', 'appartement', 3, '', '', '', 'belgique', 'T4 80m², rénové'],
-    ['CTR-K01', 'Bruxelles Centre', 'appartement', 4, '', '', '', 'belgique', 'Coloc 4 chambres, 120m²'],
-    ['CTR-C01', 'Bruxelles Centre', 'autre', -1, '', '', '', 'belgique', 'Cave 20m² stockage'],
+    ['CTR-L01', 'Bruxelles Centre', 'local_commercial', 0, '', '', '', 'belgique', 'C', 'Boutique 80m², vitrine'],
+    ['CTR-L02', 'Bruxelles Centre', 'local_commercial', 0, '', '', '', 'belgique', 'D', 'Local 60m², restaurant'],
+    ['CTR-A01', 'Bruxelles Centre', 'appartement', 1, '', '', '', 'belgique', 'B', 'T2 50m², pied-à-terre'],
+    ['CTR-A02', 'Bruxelles Centre', 'appartement', 2, '', '', '', 'belgique', 'C', 'T3 65m², lumineux'],
+    ['CTR-A03', 'Bruxelles Centre', 'appartement', 3, '', '', '', 'belgique', 'A', 'T4 80m², rénové'],
+    ['CTR-K01', 'Bruxelles Centre', 'appartement', 4, '', '', '', 'belgique', 'B', 'Coloc 4 chambres, 120m²'],
+    ['CTR-C01', 'Bruxelles Centre', 'autre', -1, '', '', '', 'belgique', '', 'Cave 20m² stockage'],
     // ============================================================================
     // TOUR HORIZON - 6 lots
     // ============================================================================
-    ['HOR-A01', 'Tour Horizon', 'appartement', 5, '', '', '', 'belgique', 'T3 85m², vue panoramique'],
-    ['HOR-A02', 'Tour Horizon', 'appartement', 7, '', '', '', 'belgique', 'T4 110m², terrasse'],
-    ['HOR-A03', 'Tour Horizon', 'appartement', 9, '', '', '', 'belgique', 'T4 105m², 2 SDB'],
-    ['HOR-A04', 'Tour Horizon', 'appartement', 12, '', '', '', 'belgique', 'Penthouse 180m²'],
-    ['HOR-P01', 'Tour Horizon', 'garage', -1, '', '', '', 'belgique', 'Box fermé n°01'],
-    ['HOR-P02', 'Tour Horizon', 'garage', -2, '', '', '', 'belgique', 'Place -2 n°01'],
+    ['HOR-A01', 'Tour Horizon', 'appartement', 5, '', '', '', 'belgique', 'A+', 'T3 85m², vue panoramique'],
+    ['HOR-A02', 'Tour Horizon', 'appartement', 7, '', '', '', 'belgique', 'A', 'T4 110m², terrasse'],
+    ['HOR-A03', 'Tour Horizon', 'appartement', 9, '', '', '', 'belgique', 'A', 'T4 105m², 2 SDB'],
+    ['HOR-A04', 'Tour Horizon', 'appartement', 12, '', '', '', 'belgique', 'A+', 'Penthouse 180m²'],
+    ['HOR-P01', 'Tour Horizon', 'garage', -1, '', '', '', 'belgique', '', 'Box fermé n°01'],
+    ['HOR-P02', 'Tour Horizon', 'garage', -2, '', '', '', 'belgique', '', 'Place -2 n°01'],
     // ============================================================================
     // RÉSIDENCE FLAGEY - 6 lots
     // ============================================================================
-    ['FLA-A01', 'Résidence Flagey', 'appartement', 0, '', '', '', 'belgique', 'T1 40m², Art Déco'],
-    ['FLA-A02', 'Résidence Flagey', 'appartement', 1, '', '', '', 'belgique', 'T2 55m², moulures'],
-    ['FLA-A03', 'Résidence Flagey', 'appartement', 2, '', '', '', 'belgique', 'T3 75m², parquet'],
-    ['FLA-A04', 'Résidence Flagey', 'appartement', 3, '', '', '', 'belgique', 'T4 95m², terrasse'],
-    ['FLA-P01', 'Résidence Flagey', 'garage', -1, '', '', '', 'belgique', 'Place parking'],
-    ['FLA-C01', 'Résidence Flagey', 'autre', -1, '', '', '', 'belgique', 'Cave 10m²'],
+    ['FLA-A01', 'Résidence Flagey', 'appartement', 0, '', '', '', 'belgique', 'E', 'T1 40m², Art Déco'],
+    ['FLA-A02', 'Résidence Flagey', 'appartement', 1, '', '', '', 'belgique', 'D', 'T2 55m², moulures'],
+    ['FLA-A03', 'Résidence Flagey', 'appartement', 2, '', '', '', 'belgique', 'D', 'T3 75m², parquet'],
+    ['FLA-A04', 'Résidence Flagey', 'appartement', 3, '', '', '', 'belgique', 'C', 'T4 95m², terrasse'],
+    ['FLA-P01', 'Résidence Flagey', 'garage', -1, '', '', '', 'belgique', '', 'Place parking'],
+    ['FLA-C01', 'Résidence Flagey', 'autre', -1, '', '', '', 'belgique', '', 'Cave 10m²'],
     // ============================================================================
     // LE PARVIS - 5 lots
     // ============================================================================
-    ['PAR-A01', 'Le Parvis', 'appartement', 0, '', '', '', 'belgique', 'T2 48m², rénové'],
-    ['PAR-A02', 'Le Parvis', 'appartement', 1, '', '', '', 'belgique', 'T3 62m², lumineux'],
-    ['PAR-A03', 'Le Parvis', 'appartement', 2, '', '', '', 'belgique', 'T2 52m², balcon'],
-    ['PAR-A04', 'Le Parvis', 'appartement', 3, '', '', '', 'belgique', 'T3 70m², mansardé'],
-    ['PAR-C01', 'Le Parvis', 'autre', -1, '', '', '', 'belgique', 'Cave 8m²'],
+    ['PAR-A01', 'Le Parvis', 'appartement', 0, '', '', '', 'belgique', 'C', 'T2 48m², rénové'],
+    ['PAR-A02', 'Le Parvis', 'appartement', 1, '', '', '', 'belgique', 'B', 'T3 62m², lumineux'],
+    ['PAR-A03', 'Le Parvis', 'appartement', 2, '', '', '', 'belgique', 'C', 'T2 52m², balcon'],
+    ['PAR-A04', 'Le Parvis', 'appartement', 3, '', '', '', 'belgique', 'B', 'T3 70m², mansardé'],
+    ['PAR-C01', 'Le Parvis', 'autre', -1, '', '', '', 'belgique', '', 'Cave 8m²'],
     // ============================================================================
     // LES JARDINS D'UCCLE - 7 lots
     // ============================================================================
-    ['UCL-A01', 'Les Jardins d\'Uccle', 'appartement', 0, '', '', '', 'belgique', 'T2 58m², jardin privatif'],
-    ['UCL-A02', 'Les Jardins d\'Uccle', 'appartement', 1, '', '', '', 'belgique', 'T3 72m², calme'],
-    ['UCL-A03', 'Les Jardins d\'Uccle', 'appartement', 2, '', '', '', 'belgique', 'T4 95m², 3 chambres'],
-    ['UCL-A04', 'Les Jardins d\'Uccle', 'appartement', 3, '', '', '', 'belgique', 'T3 68m², vue parc'],
-    ['UCL-P01', 'Les Jardins d\'Uccle', 'garage', -1, '', '', '', 'belgique', 'Box fermé'],
-    ['UCL-P02', 'Les Jardins d\'Uccle', 'garage', -1, '', '', '', 'belgique', 'Place extérieure'],
-    ['UCL-C01', 'Les Jardins d\'Uccle', 'autre', -1, '', '', '', 'belgique', 'Cave 12m²'],
+    ['UCL-A01', 'Les Jardins d\'Uccle', 'appartement', 0, '', '', '', 'belgique', 'B', 'T2 58m², jardin privatif'],
+    ['UCL-A02', 'Les Jardins d\'Uccle', 'appartement', 1, '', '', '', 'belgique', 'A', 'T3 72m², calme'],
+    ['UCL-A03', 'Les Jardins d\'Uccle', 'appartement', 2, '', '', '', 'belgique', 'B', 'T4 95m², 3 chambres'],
+    ['UCL-A04', 'Les Jardins d\'Uccle', 'appartement', 3, '', '', '', 'belgique', 'C', 'T3 68m², vue parc'],
+    ['UCL-P01', 'Les Jardins d\'Uccle', 'garage', -1, '', '', '', 'belgique', '', 'Box fermé'],
+    ['UCL-P02', 'Les Jardins d\'Uccle', 'garage', -1, '', '', '', 'belgique', '', 'Place extérieure'],
+    ['UCL-C01', 'Les Jardins d\'Uccle', 'autre', -1, '', '', '', 'belgique', '', 'Cave 12m²'],
     // ============================================================================
     // WOLUWE PARC - 6 lots
     // ============================================================================
-    ['WOL-A01', 'Woluwe Parc', 'appartement', 0, '', '', '', 'belgique', 'T2 55m², neuf'],
-    ['WOL-A02', 'Woluwe Parc', 'appartement', 1, '', '', '', 'belgique', 'T3 78m², familial'],
-    ['WOL-A03', 'Woluwe Parc', 'appartement', 2, '', '', '', 'belgique', 'T4 98m², 3 chambres'],
-    ['WOL-A04', 'Woluwe Parc', 'appartement', 3, '', '', '', 'belgique', 'T3 72m², terrasse'],
-    ['WOL-P01', 'Woluwe Parc', 'garage', -1, '', '', '', 'belgique', 'Box fermé'],
-    ['WOL-C01', 'Woluwe Parc', 'autre', -1, '', '', '', 'belgique', 'Cave 10m²'],
+    ['WOL-A01', 'Woluwe Parc', 'appartement', 0, '', '', '', 'belgique', 'A', 'T2 55m², neuf'],
+    ['WOL-A02', 'Woluwe Parc', 'appartement', 1, '', '', '', 'belgique', 'A', 'T3 78m², familial'],
+    ['WOL-A03', 'Woluwe Parc', 'appartement', 2, '', '', '', 'belgique', 'B', 'T4 98m², 3 chambres'],
+    ['WOL-A04', 'Woluwe Parc', 'appartement', 3, '', '', '', 'belgique', 'A', 'T3 72m², terrasse'],
+    ['WOL-P01', 'Woluwe Parc', 'garage', -1, '', '', '', 'belgique', '', 'Box fermé'],
+    ['WOL-C01', 'Woluwe Parc', 'autre', -1, '', '', '', 'belgique', '', 'Cave 10m²'],
     // ============================================================================
     // LE MONTGOMERY - 5 lots
     // ============================================================================
-    ['MON-A01', 'Le Montgomery', 'appartement', 1, '', '', '', 'belgique', 'T3 82m², standing'],
-    ['MON-A02', 'Le Montgomery', 'appartement', 2, '', '', '', 'belgique', 'T4 105m², 2 SDB'],
-    ['MON-A03', 'Le Montgomery', 'appartement', 3, '', '', '', 'belgique', 'T5 125m², penthouse'],
-    ['MON-P01', 'Le Montgomery', 'garage', -1, '', '', '', 'belgique', 'Box fermé double'],
-    ['MON-C01', 'Le Montgomery', 'autre', -1, '', '', '', 'belgique', 'Cave 15m²'],
+    ['MON-A01', 'Le Montgomery', 'appartement', 1, '', '', '', 'belgique', 'A', 'T3 82m², standing'],
+    ['MON-A02', 'Le Montgomery', 'appartement', 2, '', '', '', 'belgique', 'A+', 'T4 105m², 2 SDB'],
+    ['MON-A03', 'Le Montgomery', 'appartement', 3, '', '', '', 'belgique', 'A+', 'T5 125m², penthouse'],
+    ['MON-P01', 'Le Montgomery', 'garage', -1, '', '', '', 'belgique', '', 'Box fermé double'],
+    ['MON-C01', 'Le Montgomery', 'autre', -1, '', '', '', 'belgique', '', 'Cave 15m²'],
     // ============================================================================
     // RÉSIDENCE DANSAERT - 6 lots
     // ============================================================================
-    ['DAN-A01', 'Résidence Dansaert', 'appartement', 0, '', '', '', 'belgique', 'Loft 65m², industriel'],
-    ['DAN-A02', 'Résidence Dansaert', 'appartement', 1, '', '', '', 'belgique', 'Loft 72m², verrière'],
-    ['DAN-A03', 'Résidence Dansaert', 'appartement', 2, '', '', '', 'belgique', 'Duplex 95m², moderne'],
-    ['DAN-A04', 'Résidence Dansaert', 'appartement', 3, '', '', '', 'belgique', 'T3 68m², rooftop'],
-    ['DAN-L01', 'Résidence Dansaert', 'local_commercial', 0, '', '', '', 'belgique', 'Commerce 45m²'],
-    ['DAN-P01', 'Résidence Dansaert', 'garage', -1, '', '', '', 'belgique', 'Place vélo sécurisée'],
+    ['DAN-A01', 'Résidence Dansaert', 'appartement', 0, '', '', '', 'belgique', 'B', 'Loft 65m², industriel'],
+    ['DAN-A02', 'Résidence Dansaert', 'appartement', 1, '', '', '', 'belgique', 'B', 'Loft 72m², verrière'],
+    ['DAN-A03', 'Résidence Dansaert', 'appartement', 2, '', '', '', 'belgique', 'A', 'Duplex 95m², moderne'],
+    ['DAN-A04', 'Résidence Dansaert', 'appartement', 3, '', '', '', 'belgique', 'A', 'T3 68m², rooftop'],
+    ['DAN-L01', 'Résidence Dansaert', 'local_commercial', 0, '', '', '', 'belgique', 'C', 'Commerce 45m²'],
+    ['DAN-P01', 'Résidence Dansaert', 'garage', -1, '', '', '', 'belgique', '', 'Place vélo sécurisée'],
     // ============================================================================
     // FOREST VIEW - 8 lots
     // ============================================================================
-    ['FOR-A01', 'Forest View', 'appartement', 0, '', '', '', 'belgique', 'T1 38m², rénové'],
-    ['FOR-A02', 'Forest View', 'appartement', 1, '', '', '', 'belgique', 'T2 52m², lumineux'],
-    ['FOR-A03', 'Forest View', 'appartement', 1, '', '', '', 'belgique', 'T2 55m², balcon'],
-    ['FOR-A04', 'Forest View', 'appartement', 2, '', '', '', 'belgique', 'T3 68m², familial'],
-    ['FOR-A05', 'Forest View', 'appartement', 2, '', '', '', 'belgique', 'T3 72m², vue forêt'],
-    ['FOR-A06', 'Forest View', 'appartement', 3, '', '', '', 'belgique', 'T4 92m², terrasse'],
-    ['FOR-P01', 'Forest View', 'garage', -1, '', '', '', 'belgique', 'Box fermé'],
-    ['FOR-C01', 'Forest View', 'autre', -1, '', '', '', 'belgique', 'Cave 8m²'],
+    ['FOR-A01', 'Forest View', 'appartement', 0, '', '', '', 'belgique', 'D', 'T1 38m², rénové'],
+    ['FOR-A02', 'Forest View', 'appartement', 1, '', '', '', 'belgique', 'C', 'T2 52m², lumineux'],
+    ['FOR-A03', 'Forest View', 'appartement', 1, '', '', '', 'belgique', 'C', 'T2 55m², balcon'],
+    ['FOR-A04', 'Forest View', 'appartement', 2, '', '', '', 'belgique', 'B', 'T3 68m², familial'],
+    ['FOR-A05', 'Forest View', 'appartement', 2, '', '', '', 'belgique', 'B', 'T3 72m², vue forêt'],
+    ['FOR-A06', 'Forest View', 'appartement', 3, '', '', '', 'belgique', 'A', 'T4 92m², terrasse'],
+    ['FOR-P01', 'Forest View', 'garage', -1, '', '', '', 'belgique', '', 'Box fermé'],
+    ['FOR-C01', 'Forest View', 'autre', -1, '', '', '', 'belgique', '', 'Cave 8m²'],
     // ============================================================================
     // ANDERLECHT SQUARE - 7 lots
     // ============================================================================
-    ['AND-A01', 'Anderlecht Square', 'appartement', 0, '', '', '', 'belgique', 'T2 48m², neuf'],
-    ['AND-A02', 'Anderlecht Square', 'appartement', 1, '', '', '', 'belgique', 'T3 65m², lumineux'],
-    ['AND-A03', 'Anderlecht Square', 'appartement', 2, '', '', '', 'belgique', 'T3 68m², balcon'],
-    ['AND-A04', 'Anderlecht Square', 'appartement', 3, '', '', '', 'belgique', 'T4 85m², familial'],
-    ['AND-K01', 'Anderlecht Square', 'appartement', 4, '', '', '', 'belgique', 'Coloc 5 ch, 130m²'],
-    ['AND-P01', 'Anderlecht Square', 'garage', -1, '', '', '', 'belgique', 'Place souterraine'],
-    ['AND-C01', 'Anderlecht Square', 'autre', -1, '', '', '', 'belgique', 'Cave 10m²'],
+    ['AND-A01', 'Anderlecht Square', 'appartement', 0, '', '', '', 'belgique', 'B', 'T2 48m², neuf'],
+    ['AND-A02', 'Anderlecht Square', 'appartement', 1, '', '', '', 'belgique', 'C', 'T3 65m², lumineux'],
+    ['AND-A03', 'Anderlecht Square', 'appartement', 2, '', '', '', 'belgique', 'C', 'T3 68m², balcon'],
+    ['AND-A04', 'Anderlecht Square', 'appartement', 3, '', '', '', 'belgique', 'B', 'T4 85m², familial'],
+    ['AND-K01', 'Anderlecht Square', 'appartement', 4, '', '', '', 'belgique', 'D', 'Coloc 5 ch, 130m²'],
+    ['AND-P01', 'Anderlecht Square', 'garage', -1, '', '', '', 'belgique', '', 'Place souterraine'],
+    ['AND-C01', 'Anderlecht Square', 'autre', -1, '', '', '', 'belgique', '', 'Cave 10m²'],
     // ============================================================================
     // SCHAERBEEK CENTRAL - 6 lots
     // ============================================================================
-    ['SCH-A01', 'Schaerbeek Central', 'appartement', 0, '', '', '', 'belgique', 'T1 35m², studio'],
-    ['SCH-A02', 'Schaerbeek Central', 'appartement', 1, '', '', '', 'belgique', 'T2 52m², rénové'],
-    ['SCH-A03', 'Schaerbeek Central', 'appartement', 2, '', '', '', 'belgique', 'T3 68m², Art Nouveau'],
-    ['SCH-A04', 'Schaerbeek Central', 'appartement', 3, '', '', '', 'belgique', 'T4 88m², moulures'],
-    ['SCH-P01', 'Schaerbeek Central', 'garage', -1, '', '', '', 'belgique', 'Place cour intérieure'],
-    ['SCH-C01', 'Schaerbeek Central', 'autre', -1, '', '', '', 'belgique', 'Cave 9m²'],
+    ['SCH-A01', 'Schaerbeek Central', 'appartement', 0, '', '', '', 'belgique', 'F', 'T1 35m², studio'],
+    ['SCH-A02', 'Schaerbeek Central', 'appartement', 1, '', '', '', 'belgique', 'E', 'T2 52m², rénové'],
+    ['SCH-A03', 'Schaerbeek Central', 'appartement', 2, '', '', '', 'belgique', 'D', 'T3 68m², Art Nouveau'],
+    ['SCH-A04', 'Schaerbeek Central', 'appartement', 3, '', '', '', 'belgique', 'D', 'T4 88m², moulures'],
+    ['SCH-P01', 'Schaerbeek Central', 'garage', -1, '', '', '', 'belgique', '', 'Place cour intérieure'],
+    ['SCH-C01', 'Schaerbeek Central', 'autre', -1, '', '', '', 'belgique', '', 'Cave 9m²'],
     // ============================================================================
     // EVERE RÉSIDENCE - 5 lots
     // ============================================================================
-    ['EVE-A01', 'Evere Résidence', 'appartement', 0, '', '', '', 'belgique', 'T2 50m², jardin'],
-    ['EVE-A02', 'Evere Résidence', 'appartement', 1, '', '', '', 'belgique', 'T3 65m², calme'],
-    ['EVE-A03', 'Evere Résidence', 'appartement', 2, '', '', '', 'belgique', 'T3 68m², lumineux'],
-    ['EVE-P01', 'Evere Résidence', 'garage', -1, '', '', '', 'belgique', 'Box fermé'],
-    ['EVE-C01', 'Evere Résidence', 'autre', -1, '', '', '', 'belgique', 'Cave 8m²'],
+    ['EVE-A01', 'Evere Résidence', 'appartement', 0, '', '', '', 'belgique', 'C', 'T2 50m², jardin'],
+    ['EVE-A02', 'Evere Résidence', 'appartement', 1, '', '', '', 'belgique', 'C', 'T3 65m², calme'],
+    ['EVE-A03', 'Evere Résidence', 'appartement', 2, '', '', '', 'belgique', 'B', 'T3 68m², lumineux'],
+    ['EVE-P01', 'Evere Résidence', 'garage', -1, '', '', '', 'belgique', '', 'Box fermé'],
+    ['EVE-C01', 'Evere Résidence', 'autre', -1, '', '', '', 'belgique', '', 'Cave 8m²'],
     // ============================================================================
     // AUDERGHEM PARK - 6 lots
     // ============================================================================
-    ['AUD-A01', 'Auderghem Park', 'appartement', 0, '', '', '', 'belgique', 'T2 55m², rez jardin'],
-    ['AUD-A02', 'Auderghem Park', 'appartement', 1, '', '', '', 'belgique', 'T3 72m², vue parc'],
-    ['AUD-A03', 'Auderghem Park', 'appartement', 2, '', '', '', 'belgique', 'T4 95m², familial'],
-    ['AUD-A04', 'Auderghem Park', 'appartement', 3, '', '', '', 'belgique', 'T3 70m², terrasse'],
-    ['AUD-P01', 'Auderghem Park', 'garage', -1, '', '', '', 'belgique', 'Box fermé'],
-    ['AUD-C01', 'Auderghem Park', 'autre', -1, '', '', '', 'belgique', 'Cave 12m²'],
+    ['AUD-A01', 'Auderghem Park', 'appartement', 0, '', '', '', 'belgique', 'B', 'T2 55m², rez jardin'],
+    ['AUD-A02', 'Auderghem Park', 'appartement', 1, '', '', '', 'belgique', 'A', 'T3 72m², vue parc'],
+    ['AUD-A03', 'Auderghem Park', 'appartement', 2, '', '', '', 'belgique', 'A', 'T4 95m², familial'],
+    ['AUD-A04', 'Auderghem Park', 'appartement', 3, '', '', '', 'belgique', 'B', 'T3 70m², terrasse'],
+    ['AUD-P01', 'Auderghem Park', 'garage', -1, '', '', '', 'belgique', '', 'Box fermé'],
+    ['AUD-C01', 'Auderghem Park', 'autre', -1, '', '', '', 'belgique', '', 'Cave 12m²'],
     // ============================================================================
     // LOTS INDÉPENDANTS - MAISONS (15)
     // ============================================================================
-    ['MAIS-001', '', 'maison', '', '12 Rue des Lilas', 'Uccle', '1180', 'belgique', 'Maison 4 ch, jardin 200m²'],
-    ['MAIS-002', '', 'maison', '', '45 Avenue des Hêtres', 'Watermael-Boitsfort', '1170', 'belgique', 'Villa 5 ch, piscine'],
-    ['MAIS-003', '', 'maison', '', '8 Rue de la Forêt', 'Uccle', '1180', 'belgique', 'Maison 3 ch, garage'],
-    ['MAIS-004', '', 'maison', '', '23 Drève du Duc', 'Auderghem', '1160', 'belgique', 'Maison mitoyenne 4 ch'],
-    ['MAIS-005', '', 'maison', '', '67 Avenue Churchill', 'Uccle', '1180', 'belgique', 'Maison de maître 6 ch'],
-    ['MAIS-006', '', 'maison', '', '15 Rue Jean Vandeuren', 'Woluwe-Saint-Pierre', '1150', 'belgique', 'Villa moderne 4 ch'],
-    ['MAIS-007', '', 'maison', '', '89 Avenue de Tervueren', 'Woluwe-Saint-Lambert', '1200', 'belgique', 'Maison 5 ch, jardin'],
-    ['MAIS-008', '', 'maison', '', '34 Rue du Bois', 'Watermael-Boitsfort', '1170', 'belgique', 'Maison 3 ch, rénové'],
-    ['MAIS-009', '', 'maison', '', '56 Avenue Louise', 'Ixelles', '1050', 'belgique', 'Maison de ville 4 ch'],
-    ['MAIS-010', '', 'maison', '', '78 Rue Américaine', 'Ixelles', '1050', 'belgique', 'Maison Art Déco 5 ch'],
-    ['MAIS-011', '', 'maison', '', '12 Clos du Soleil', 'Kraainem', '1950', 'belgique', 'Villa 4 ch, calme'],
-    ['MAIS-012', '', 'maison', '', '45 Rue de Genève', 'Evere', '1140', 'belgique', 'Maison 3 ch, jardin'],
-    ['MAIS-013', '', 'maison', '', '23 Avenue des Cerisiers', 'Schaerbeek', '1030', 'belgique', 'Maison 4 ch, garage'],
-    ['MAIS-014', '', 'maison', '', '67 Rue de la Station', 'Forest', '1190', 'belgique', 'Maison 3 ch, terrasse'],
-    ['MAIS-015', '', 'maison', '', '89 Avenue Brugmann', 'Forest', '1190', 'belgique', 'Maison bourgeoise 5 ch'],
+    ['MAIS-001', '', 'maison', '', '12 Rue des Lilas', 'Uccle', '1180', 'belgique', 'C', 'Maison 4 ch, jardin 200m²'],
+    ['MAIS-002', '', 'maison', '', '45 Avenue des Hêtres', 'Watermael-Boitsfort', '1170', 'belgique', 'A', 'Villa 5 ch, piscine'],
+    ['MAIS-003', '', 'maison', '', '8 Rue de la Forêt', 'Uccle', '1180', 'belgique', 'D', 'Maison 3 ch, garage'],
+    ['MAIS-004', '', 'maison', '', '23 Drève du Duc', 'Auderghem', '1160', 'belgique', 'C', 'Maison mitoyenne 4 ch'],
+    ['MAIS-005', '', 'maison', '', '67 Avenue Churchill', 'Uccle', '1180', 'belgique', 'E', 'Maison de maître 6 ch'],
+    ['MAIS-006', '', 'maison', '', '15 Rue Jean Vandeuren', 'Woluwe-Saint-Pierre', '1150', 'belgique', 'A', 'Villa moderne 4 ch'],
+    ['MAIS-007', '', 'maison', '', '89 Avenue de Tervueren', 'Woluwe-Saint-Lambert', '1200', 'belgique', 'B', 'Maison 5 ch, jardin'],
+    ['MAIS-008', '', 'maison', '', '34 Rue du Bois', 'Watermael-Boitsfort', '1170', 'belgique', 'B', 'Maison 3 ch, rénové'],
+    ['MAIS-009', '', 'maison', '', '56 Avenue Louise', 'Ixelles', '1050', 'belgique', 'D', 'Maison de ville 4 ch'],
+    ['MAIS-010', '', 'maison', '', '78 Rue Américaine', 'Ixelles', '1050', 'belgique', 'F', 'Maison Art Déco 5 ch'],
+    ['MAIS-011', '', 'maison', '', '12 Clos du Soleil', 'Kraainem', '1950', 'belgique', 'B', 'Villa 4 ch, calme'],
+    ['MAIS-012', '', 'maison', '', '45 Rue de Genève', 'Evere', '1140', 'belgique', 'C', 'Maison 3 ch, jardin'],
+    ['MAIS-013', '', 'maison', '', '23 Avenue des Cerisiers', 'Schaerbeek', '1030', 'belgique', 'D', 'Maison 4 ch, garage'],
+    ['MAIS-014', '', 'maison', '', '67 Rue de la Station', 'Forest', '1190', 'belgique', 'C', 'Maison 3 ch, terrasse'],
+    ['MAIS-015', '', 'maison', '', '89 Avenue Brugmann', 'Forest', '1190', 'belgique', 'E', 'Maison bourgeoise 5 ch'],
     // ============================================================================
     // LOTS INDÉPENDANTS - GARAGES (8)
     // ============================================================================
-    ['GAR-001', '', 'garage', '', '8 Rue du Commerce', 'Bruxelles', '1000', 'belgique', 'Garage box fermé'],
-    ['GAR-002', '', 'garage', '', '45 Avenue Louise', 'Bruxelles', '1050', 'belgique', 'Garage double'],
-    ['GAR-003', '', 'garage', '', '12 Rue de la Loi', 'Bruxelles', '1000', 'belgique', 'Garage sécurisé'],
-    ['GAR-004', '', 'garage', '', '34 Boulevard de Waterloo', 'Bruxelles', '1000', 'belgique', 'Garage accès 24h'],
-    ['GAR-005', '', 'garage', '', '56 Rue Royale', 'Bruxelles', '1000', 'belgique', 'Box fermé 15m²'],
-    ['GAR-006', '', 'garage', '', '78 Avenue de la Toison', 'Saint-Gilles', '1060', 'belgique', 'Garage éclairé'],
-    ['GAR-007', '', 'garage', '', '23 Place Flagey', 'Ixelles', '1050', 'belgique', 'Garage résidence'],
-    ['GAR-008', '', 'garage', '', '45 Chaussée de Wavre', 'Etterbeek', '1040', 'belgique', 'Box fermé'],
+    ['GAR-001', '', 'garage', '', '8 Rue du Commerce', 'Bruxelles', '1000', 'belgique', '', 'Garage box fermé'],
+    ['GAR-002', '', 'garage', '', '45 Avenue Louise', 'Bruxelles', '1050', 'belgique', '', 'Garage double'],
+    ['GAR-003', '', 'garage', '', '12 Rue de la Loi', 'Bruxelles', '1000', 'belgique', '', 'Garage sécurisé'],
+    ['GAR-004', '', 'garage', '', '34 Boulevard de Waterloo', 'Bruxelles', '1000', 'belgique', '', 'Garage accès 24h'],
+    ['GAR-005', '', 'garage', '', '56 Rue Royale', 'Bruxelles', '1000', 'belgique', '', 'Box fermé 15m²'],
+    ['GAR-006', '', 'garage', '', '78 Avenue de la Toison', 'Saint-Gilles', '1060', 'belgique', '', 'Garage éclairé'],
+    ['GAR-007', '', 'garage', '', '23 Place Flagey', 'Ixelles', '1050', 'belgique', '', 'Garage résidence'],
+    ['GAR-008', '', 'garage', '', '45 Chaussée de Wavre', 'Etterbeek', '1040', 'belgique', '', 'Box fermé'],
     // ============================================================================
     // LOTS INDÉPENDANTS - PARKINGS (6)
     // ============================================================================
-    ['PARK-001', '', 'garage', '', '10 Place de Brouckère', 'Bruxelles', '1000', 'belgique', 'Place extérieur'],
-    ['PARK-002', '', 'garage', '', '25 Rue Neuve', 'Bruxelles', '1000', 'belgique', 'Place souterraine'],
-    ['PARK-003', '', 'garage', '', '40 Avenue Louise', 'Bruxelles', '1050', 'belgique', 'Place sécurisée'],
-    ['PARK-004', '', 'garage', '', '55 Boulevard Anspach', 'Bruxelles', '1000', 'belgique', 'Place couverte'],
-    ['PARK-005', '', 'garage', '', '70 Rue Antoine Dansaert', 'Bruxelles', '1000', 'belgique', 'Place résidence'],
-    ['PARK-006', '', 'garage', '', '85 Place du Jeu de Balle', 'Bruxelles', '1000', 'belgique', 'Place quartier'],
+    ['PARK-001', '', 'garage', '', '10 Place de Brouckère', 'Bruxelles', '1000', 'belgique', '', 'Place extérieur'],
+    ['PARK-002', '', 'garage', '', '25 Rue Neuve', 'Bruxelles', '1000', 'belgique', '', 'Place souterraine'],
+    ['PARK-003', '', 'garage', '', '40 Avenue Louise', 'Bruxelles', '1050', 'belgique', '', 'Place sécurisée'],
+    ['PARK-004', '', 'garage', '', '55 Boulevard Anspach', 'Bruxelles', '1000', 'belgique', '', 'Place couverte'],
+    ['PARK-005', '', 'garage', '', '70 Rue Antoine Dansaert', 'Bruxelles', '1000', 'belgique', '', 'Place résidence'],
+    ['PARK-006', '', 'garage', '', '85 Place du Jeu de Balle', 'Bruxelles', '1000', 'belgique', '', 'Place quartier'],
     // ============================================================================
     // LOTS INDÉPENDANTS - LOCAUX COMMERCIAUX (5)
     // ============================================================================
-    ['LOC-001', '', 'local_commercial', '', '5 Rue du Marché aux Herbes', 'Bruxelles', '1000', 'belgique', 'Boutique 50m² Grand-Place'],
-    ['LOC-002', '', 'local_commercial', '', '20 Galerie de la Reine', 'Bruxelles', '1000', 'belgique', 'Commerce 35m² galerie'],
-    ['LOC-003', '', 'local_commercial', '', '35 Rue du Bailli', 'Ixelles', '1050', 'belgique', 'Local 70m² avec cave'],
-    ['LOC-004', '', 'local_commercial', '', '50 Chaussée d\'Ixelles', 'Ixelles', '1050', 'belgique', 'Commerce 45m²'],
-    ['LOC-005', '', 'local_commercial', '', '65 Place du Châtelain', 'Ixelles', '1050', 'belgique', 'Restaurant 80m²'],
+    ['LOC-001', '', 'local_commercial', '', '5 Rue du Marché aux Herbes', 'Bruxelles', '1000', 'belgique', 'D', 'Boutique 50m² Grand-Place'],
+    ['LOC-002', '', 'local_commercial', '', '20 Galerie de la Reine', 'Bruxelles', '1000', 'belgique', 'E', 'Commerce 35m² galerie'],
+    ['LOC-003', '', 'local_commercial', '', '35 Rue du Bailli', 'Ixelles', '1050', 'belgique', 'C', 'Local 70m² avec cave'],
+    ['LOC-004', '', 'local_commercial', '', '50 Chaussée d\'Ixelles', 'Ixelles', '1050', 'belgique', 'D', 'Commerce 45m²'],
+    ['LOC-005', '', 'local_commercial', '', '65 Place du Châtelain', 'Ixelles', '1050', 'belgique', 'C', 'Restaurant 80m²'],
     // ============================================================================
     // LOTS INDÉPENDANTS - AUTRES (3)
     // ============================================================================
-    ['AUT-001', '', 'autre', '', '10 Zone Industrielle Nord', 'Anderlecht', '1070', 'belgique', 'Entrepôt 200m²'],
-    ['AUT-002', '', 'autre', '', '25 Rue de l\'Industrie', 'Molenbeek', '1080', 'belgique', 'Atelier 150m²'],
-    ['AUT-003', '', 'autre', '', '40 Avenue du Port', 'Bruxelles', '1000', 'belgique', 'Bureau 100m²'],
+    ['AUT-001', '', 'autre', '', '10 Zone Industrielle Nord', 'Anderlecht', '1070', 'belgique', '', 'Entrepôt 200m²'],
+    ['AUT-002', '', 'autre', '', '25 Rue de l\'Industrie', 'Molenbeek', '1080', 'belgique', '', 'Atelier 150m²'],
+    ['AUT-003', '', 'autre', '', '40 Avenue du Port', 'Bruxelles', '1000', 'belgique', '', 'Bureau 100m²'],
   ],
-  columnWidths: [15, 25, 18, 10, 30, 20, 15, 15, 40],
+  columnWidths: [15, 25, 18, 10, 30, 20, 15, 15, 8, 40],
   requiredColumns: ['Référence*'],
 };
 
@@ -552,6 +570,7 @@ export const CONTRACT_TEMPLATE: TemplateConfig = {
     'Titre*',
     'Réf Lot*',
     'Date Début*',
+    'Date Signature',
     'Durée (mois)*',
     'Loyer*',
     'Charges',
@@ -565,136 +584,136 @@ export const CONTRACT_TEMPLATE: TemplateConfig = {
     // ============================================================================
     // RÉSIDENCE LEOPOLD - 4 baux (sur 4 appartements)
     // ============================================================================
-    ['Bail LEO-A01', 'LEO-A01', '2024-01-01', 36, 850, 80, 'bail_habitation', 1700, 'demo+marie.dubois@seido-app.com', 'demo+jeanpaul.garant@seido-app.com', 'T2 balcon sud'],
-    ['Bail LEO-A02', 'LEO-A02', '2024-02-01', 36, 900, 90, 'bail_habitation', 1800, 'demo+pierre.martin@seido-app.com', '', 'T2 vue avenue'],
-    ['Bail LEO-A03', 'LEO-A03', '2023-09-01', 36, 1100, 100, 'bail_habitation', 2200, 'demo+emma.claessens@seido-app.com', 'demo+francoise.caution@seido-app.com', 'T3 2 chambres'],
-    ['Bail LEO-A04', 'LEO-A04', '2024-03-01', 24, 1150, 100, 'bail_meuble', 2300, 'demo+lucas.peeters@seido-app.com', '', 'T3 meublé rénové 2023'],
+    ['Bail LEO-A01', 'LEO-A01', '2024-01-01', '2023-12-20', 36, 850, 80, 'bail_habitation', 1700, 'demo+marie.dubois@seido-app.com', 'demo+jeanpaul.garant@seido-app.com', 'T2 balcon sud'],
+    ['Bail LEO-A02', 'LEO-A02', '2024-02-01', '', 36, 900, 90, 'bail_habitation', 1800, 'demo+pierre.martin@seido-app.com', '', 'T2 vue avenue'],
+    ['Bail LEO-A03', 'LEO-A03', '2023-09-01', '', 36, 1100, 100, 'bail_habitation', 2200, 'demo+emma.claessens@seido-app.com', 'demo+francoise.caution@seido-app.com', 'T3 2 chambres'],
+    ['Bail LEO-A04', 'LEO-A04', '2024-03-01', '', 24, 1150, 100, 'bail_meuble', 2300, 'demo+lucas.peeters@seido-app.com', '', 'T3 meublé rénové 2023'],
     // ============================================================================
     // LE SABLON - 4 baux (appartements)
     // ============================================================================
-    ['Bail SAB-A01', 'SAB-A01', '2024-02-01', 36, 900, 85, 'bail_habitation', 1800, 'demo+louis.leclercq@seido-app.com', '', 'T2 charme ancien'],
-    ['Bail SAB-A02', 'SAB-A02', '2023-08-01', 36, 750, 70, 'bail_habitation', 1500, 'demo+manon.hermans@seido-app.com', 'demo+philippe.fidele@seido-app.com', 'T1 poutres apparentes'],
-    ['Bail SAB-A03', 'SAB-A03', '2024-03-01', 36, 1100, 100, 'bail_habitation', 2200, 'demo+sophie.lambert@seido-app.com', 'demo+christine.solide@seido-app.com', 'T3 parquet cheminée'],
-    ['Bail SAB-A04', 'SAB-A04', '2023-12-01', 24, 850, 80, 'bail_meuble', 1700, 'demo+theo.aerts@seido-app.com', '', 'T2 meublé vue parc'],
+    ['Bail SAB-A01', 'SAB-A01', '2024-02-01', '2024-01-15', 36, 900, 85, 'bail_habitation', 1800, 'demo+louis.leclercq@seido-app.com', '', 'T2 charme ancien'],
+    ['Bail SAB-A02', 'SAB-A02', '2023-08-01', '', 36, 750, 70, 'bail_habitation', 1500, 'demo+manon.hermans@seido-app.com', 'demo+philippe.fidele@seido-app.com', 'T1 poutres apparentes'],
+    ['Bail SAB-A03', 'SAB-A03', '2024-03-01', '', 36, 1100, 100, 'bail_habitation', 2200, 'demo+sophie.lambert@seido-app.com', 'demo+christine.solide@seido-app.com', 'T3 parquet cheminée'],
+    ['Bail SAB-A04', 'SAB-A04', '2023-12-01', '', 24, 850, 80, 'bail_meuble', 1700, 'demo+theo.aerts@seido-app.com', '', 'T2 meublé vue parc'],
     // ============================================================================
     // BRUXELLES CENTRE - 5 baux (commerces + appartements + colocation)
     // ============================================================================
-    ['Bail Commercial CTR-L01', 'CTR-L01', '2023-01-01', 108, 3500, 500, 'bail_commercial', 10500, 'demo+resto.sablon@seido-app.com', '', 'Bail 3-6-9 restaurant'],
-    ['Bail Commercial CTR-L02', 'CTR-L02', '2023-06-01', 108, 2800, 400, 'bail_commercial', 8400, 'demo+fashion.store@seido-app.com', '', 'Bail 3-6-9 mode'],
-    ['Bail CTR-A01', 'CTR-A01', '2024-01-01', 36, 950, 80, 'bail_habitation', 1900, 'demo+thomas.janssen@seido-app.com', '', 'T2 pied-à-terre'],
-    ['Bail CTR-A02', 'CTR-A02', '2024-06-01', 12, 750, 70, 'bail_meuble', 1500, 'demo+alexandre.petit@seido-app.com', '', 'T1 meublé'],
-    ['Bail Coloc CTR-K01', 'CTR-K01', '2024-01-01', 12, 2000, 220, 'bail_habitation', 4000, 'demo+alexis.bodart@seido-app.com, demo+margaux.collignon@seido-app.com, demo+benjamin.gilles@seido-app.com, demo+valentine.poncelet@seido-app.com', '', 'Colocation 4 chambres'],
+    ['Bail Commercial CTR-L01', 'CTR-L01', '2023-01-01', '2022-12-10', 108, 3500, 500, 'bail_commercial', 10500, 'demo+resto.sablon@seido-app.com', '', 'Bail 3-6-9 restaurant'],
+    ['Bail Commercial CTR-L02', 'CTR-L02', '2023-06-01', '', 108, 2800, 400, 'bail_commercial', 8400, 'demo+fashion.store@seido-app.com', '', 'Bail 3-6-9 mode'],
+    ['Bail CTR-A01', 'CTR-A01', '2024-01-01', '', 36, 950, 80, 'bail_habitation', 1900, 'demo+thomas.janssen@seido-app.com', '', 'T2 pied-à-terre'],
+    ['Bail CTR-A02', 'CTR-A02', '2024-06-01', '', 12, 750, 70, 'bail_meuble', 1500, 'demo+alexandre.petit@seido-app.com', '', 'T1 meublé'],
+    ['Bail Coloc CTR-K01', 'CTR-K01', '2024-01-01', '', 12, 2000, 220, 'bail_habitation', 4000, 'demo+alexis.bodart@seido-app.com, demo+margaux.collignon@seido-app.com, demo+benjamin.gilles@seido-app.com, demo+valentine.poncelet@seido-app.com', '', 'Colocation 4 chambres'],
     // ============================================================================
     // TOUR HORIZON - 4 baux (appartements standing)
     // ============================================================================
-    ['Bail HOR-A01', 'HOR-A01', '2024-01-01', 36, 1500, 150, 'bail_habitation', 3000, 'demo+philippe.richter@seido-app.com', '', 'T3 vue panoramique'],
-    ['Bail HOR-A02', 'HOR-A02', '2023-10-01', 36, 1800, 180, 'bail_habitation', 3600, 'demo+catherine.dewit@seido-app.com', '', 'T4 terrasse'],
-    ['Bail HOR-A03', 'HOR-A03', '2024-03-01', 24, 1400, 140, 'bail_meuble', 2800, 'demo+marc.vandamme@seido-app.com', '', 'T3 meublé standing'],
-    ['Bail HOR-A04', 'HOR-A04', '2023-06-01', 36, 2200, 220, 'bail_habitation', 4400, 'demo+isabelle.francois@seido-app.com', '', 'T5 4 chambres'],
+    ['Bail HOR-A01', 'HOR-A01', '2024-01-01', '2023-12-15', 36, 1500, 150, 'bail_habitation', 3000, 'demo+philippe.richter@seido-app.com', '', 'T3 vue panoramique'],
+    ['Bail HOR-A02', 'HOR-A02', '2023-10-01', '', 36, 1800, 180, 'bail_habitation', 3600, 'demo+catherine.dewit@seido-app.com', '', 'T4 terrasse'],
+    ['Bail HOR-A03', 'HOR-A03', '2024-03-01', '', 24, 1400, 140, 'bail_meuble', 2800, 'demo+marc.vandamme@seido-app.com', '', 'T3 meublé standing'],
+    ['Bail HOR-A04', 'HOR-A04', '2023-06-01', '', 36, 2200, 220, 'bail_habitation', 4400, 'demo+isabelle.francois@seido-app.com', '', 'T5 4 chambres'],
     // ============================================================================
     // RÉSIDENCE FLAGEY - 4 baux
     // ============================================================================
-    ['Bail FLA-A01', 'FLA-A01', '2024-01-01', 36, 950, 90, 'bail_habitation', 1900, 'demo+julie.maes@seido-app.com', 'demo+michel.garantie@seido-app.com', 'T2 Art Déco'],
-    ['Bail FLA-A02', 'FLA-A02', '2024-04-01', 36, 1500, 130, 'bail_habitation', 3000, 'demo+maxime.wouters@seido-app.com', '', 'T4 terrasse'],
-    ['Bail FLA-A03', 'FLA-A03', '2023-01-01', 36, 1800, 150, 'bail_habitation', 3600, 'demo+chloe.willems@seido-app.com', 'demo+annemarie.surete@seido-app.com', 'T5 penthouse'],
-    ['Bail FLA-A04', 'FLA-A04', '2024-05-01', 12, 1200, 100, 'bail_meuble', 2400, 'demo+nathan.jacobs@seido-app.com', '', 'T3 meublé'],
+    ['Bail FLA-A01', 'FLA-A01', '2024-01-01', '', 36, 950, 90, 'bail_habitation', 1900, 'demo+julie.maes@seido-app.com', 'demo+michel.garantie@seido-app.com', 'T2 Art Déco'],
+    ['Bail FLA-A02', 'FLA-A02', '2024-04-01', '', 36, 1500, 130, 'bail_habitation', 3000, 'demo+maxime.wouters@seido-app.com', '', 'T4 terrasse'],
+    ['Bail FLA-A03', 'FLA-A03', '2023-01-01', '', 36, 1800, 150, 'bail_habitation', 3600, 'demo+chloe.willems@seido-app.com', 'demo+annemarie.surete@seido-app.com', 'T5 penthouse'],
+    ['Bail FLA-A04', 'FLA-A04', '2024-05-01', '', 12, 1200, 100, 'bail_meuble', 2400, 'demo+nathan.jacobs@seido-app.com', '', 'T3 meublé'],
     // ============================================================================
     // LE PARVIS - 4 baux
     // ============================================================================
-    ['Bail PAR-A01', 'PAR-A01', '2023-10-01', 36, 800, 75, 'bail_habitation', 1600, 'demo+lea.mertens@seido-app.com', 'demo+robert.confiance@seido-app.com', 'T2 lumineux'],
-    ['Bail PAR-A02', 'PAR-A02', '2024-06-01', 24, 750, 70, 'bail_meuble', 1500, 'demo+hugo.vandenberg@seido-app.com', '', 'T1 bis meublé'],
-    ['Bail PAR-A03', 'PAR-A03', '2024-01-15', 36, 820, 75, 'bail_habitation', 1640, 'demo+clara.claes@seido-app.com', '', 'T2 parquet'],
-    ['Bail PAR-A04', 'PAR-A04', '2023-11-01', 36, 1100, 95, 'bail_habitation', 2200, 'demo+arthur.desmet@seido-app.com', 'demo+martine.assurance@seido-app.com', 'T3 2 SDB'],
+    ['Bail PAR-A01', 'PAR-A01', '2023-10-01', '', 36, 800, 75, 'bail_habitation', 1600, 'demo+lea.mertens@seido-app.com', 'demo+robert.confiance@seido-app.com', 'T2 lumineux'],
+    ['Bail PAR-A02', 'PAR-A02', '2024-06-01', '', 24, 750, 70, 'bail_meuble', 1500, 'demo+hugo.vandenberg@seido-app.com', '', 'T1 bis meublé'],
+    ['Bail PAR-A03', 'PAR-A03', '2024-01-15', '', 36, 820, 75, 'bail_habitation', 1640, 'demo+clara.claes@seido-app.com', '', 'T2 parquet'],
+    ['Bail PAR-A04', 'PAR-A04', '2023-11-01', '', 36, 1100, 95, 'bail_habitation', 2200, 'demo+arthur.desmet@seido-app.com', 'demo+martine.assurance@seido-app.com', 'T3 2 SDB'],
     // ============================================================================
     // JARDINS D'UCCLE - 4 baux
     // ============================================================================
-    ['Bail UCL-A01', 'UCL-A01', '2024-01-01', 36, 1400, 120, 'bail_habitation', 2800, 'demo+ines.dubois@seido-app.com', '', 'T4 jardin'],
-    ['Bail UCL-A02', 'UCL-A02', '2023-07-01', 36, 1050, 90, 'bail_habitation', 2100, 'demo+eva.michiels@seido-app.com', '', 'T3 calme'],
-    ['Bail UCL-A03', 'UCL-A03', '2024-04-01', 12, 900, 80, 'bail_meuble', 1800, 'demo+sarah.debacker@seido-app.com', '', 'T2 meublé'],
-    ['Bail UCL-A04', 'UCL-A04', '2023-09-01', 36, 1200, 100, 'bail_habitation', 2400, 'demo+romain.leroy@seido-app.com', '', 'T3 vue jardin'],
+    ['Bail UCL-A01', 'UCL-A01', '2024-01-01', '', 36, 1400, 120, 'bail_habitation', 2800, 'demo+ines.dubois@seido-app.com', '', 'T4 jardin'],
+    ['Bail UCL-A02', 'UCL-A02', '2023-07-01', '', 36, 1050, 90, 'bail_habitation', 2100, 'demo+eva.michiels@seido-app.com', '', 'T3 calme'],
+    ['Bail UCL-A03', 'UCL-A03', '2024-04-01', '', 12, 900, 80, 'bail_meuble', 1800, 'demo+sarah.debacker@seido-app.com', '', 'T2 meublé'],
+    ['Bail UCL-A04', 'UCL-A04', '2023-09-01', '', 36, 1200, 100, 'bail_habitation', 2400, 'demo+romain.leroy@seido-app.com', '', 'T3 vue jardin'],
     // ============================================================================
     // WOLUWE PARC - 4 baux
     // ============================================================================
-    ['Bail WOL-A01', 'WOL-A01', '2024-02-01', 36, 1100, 95, 'bail_habitation', 2200, 'demo+antoine.renard@seido-app.com', '', 'T3 familial'],
-    ['Bail WOL-A02', 'WOL-A02', '2023-08-01', 36, 950, 85, 'bail_habitation', 1900, 'demo+zoe.fontaine@seido-app.com', '', 'T2 rénové'],
-    ['Bail WOL-A03', 'WOL-A03', '2024-05-01', 24, 850, 80, 'bail_meuble', 1700, 'demo+kevin.vandenbulcke@seido-app.com', '', 'T2 meublé moderne'],
-    ['Bail WOL-A04', 'WOL-A04', '2023-11-01', 36, 1300, 110, 'bail_habitation', 2600, 'demo+lisa.pieters@seido-app.com', '', 'T4 lumineux'],
+    ['Bail WOL-A01', 'WOL-A01', '2024-02-01', '', 36, 1100, 95, 'bail_habitation', 2200, 'demo+antoine.renard@seido-app.com', '', 'T3 familial'],
+    ['Bail WOL-A02', 'WOL-A02', '2023-08-01', '', 36, 950, 85, 'bail_habitation', 1900, 'demo+zoe.fontaine@seido-app.com', '', 'T2 rénové'],
+    ['Bail WOL-A03', 'WOL-A03', '2024-05-01', '', 24, 850, 80, 'bail_meuble', 1700, 'demo+kevin.vandenbulcke@seido-app.com', '', 'T2 meublé moderne'],
+    ['Bail WOL-A04', 'WOL-A04', '2023-11-01', '', 36, 1300, 110, 'bail_habitation', 2600, 'demo+lisa.pieters@seido-app.com', '', 'T4 lumineux'],
     // ============================================================================
     // LE MONTGOMERY - 3 baux
     // ============================================================================
-    ['Bail MON-A01', 'MON-A01', '2024-03-01', 36, 1400, 130, 'bail_habitation', 2800, 'demo+sebastien.brasseur@seido-app.com', '', 'T4 standing'],
-    ['Bail MON-A02', 'MON-A02', '2023-06-01', 36, 1000, 90, 'bail_habitation', 2000, 'demo+aurelie.marchal@seido-app.com', '', 'T2 charme'],
-    ['Bail MON-A03', 'MON-A03', '2024-01-01', 12, 1100, 100, 'bail_meuble', 2200, 'demo+julien.coppens@seido-app.com', '', 'T3 meublé gardien'],
+    ['Bail MON-A01', 'MON-A01', '2024-03-01', '', 36, 1400, 130, 'bail_habitation', 2800, 'demo+sebastien.brasseur@seido-app.com', '', 'T4 standing'],
+    ['Bail MON-A02', 'MON-A02', '2023-06-01', '', 36, 1000, 90, 'bail_habitation', 2000, 'demo+aurelie.marchal@seido-app.com', '', 'T2 charme'],
+    ['Bail MON-A03', 'MON-A03', '2024-01-01', '', 12, 1100, 100, 'bail_meuble', 2200, 'demo+julien.coppens@seido-app.com', '', 'T3 meublé gardien'],
     // ============================================================================
     // RÉSIDENCE DANSAERT - 4 baux + 1 commerce
     // ============================================================================
-    ['Bail Commercial DAN-L01', 'DAN-L01', '2024-01-01', 108, 1800, 250, 'bail_commercial', 5400, 'demo+boulangerie.artisanale@seido-app.com', '', 'Bail 3-6-9 boulangerie'],
-    ['Bail DAN-A01', 'DAN-A01', '2023-12-01', 36, 1050, 95, 'bail_habitation', 2100, 'demo+marine.dumont@seido-app.com', '', 'Loft rénové'],
-    ['Bail DAN-A02', 'DAN-A02', '2024-02-01', 36, 980, 90, 'bail_habitation', 1960, 'demo+quentin.lambert@seido-app.com', '', 'T2 design'],
-    ['Bail DAN-A03', 'DAN-A03', '2023-09-01', 24, 1150, 100, 'bail_meuble', 2300, 'demo+emilie.lemaire@seido-app.com', '', 'T3 meublé haut de gamme'],
-    ['Bail DAN-A04', 'DAN-A04', '2024-04-01', 36, 900, 85, 'bail_habitation', 1800, 'demo+florian.henrard@seido-app.com', '', 'T2 industriel'],
+    ['Bail Commercial DAN-L01', 'DAN-L01', '2024-01-01', '', 108, 1800, 250, 'bail_commercial', 5400, 'demo+boulangerie.artisanale@seido-app.com', '', 'Bail 3-6-9 boulangerie'],
+    ['Bail DAN-A01', 'DAN-A01', '2023-12-01', '', 36, 1050, 95, 'bail_habitation', 2100, 'demo+marine.dumont@seido-app.com', '', 'Loft rénové'],
+    ['Bail DAN-A02', 'DAN-A02', '2024-02-01', '', 36, 980, 90, 'bail_habitation', 1960, 'demo+quentin.lambert@seido-app.com', '', 'T2 design'],
+    ['Bail DAN-A03', 'DAN-A03', '2023-09-01', '', 24, 1150, 100, 'bail_meuble', 2300, 'demo+emilie.lemaire@seido-app.com', '', 'T3 meublé haut de gamme'],
+    ['Bail DAN-A04', 'DAN-A04', '2024-04-01', '', 36, 900, 85, 'bail_habitation', 1800, 'demo+florian.henrard@seido-app.com', '', 'T2 industriel'],
     // ============================================================================
     // FOREST VIEW - 6 baux
     // ============================================================================
-    ['Bail FOR-A01', 'FOR-A01', '2024-01-01', 36, 850, 80, 'bail_habitation', 1700, 'demo+charlotte.pirard@seido-app.com', '', 'T2 vue forêt'],
-    ['Bail FOR-A02', 'FOR-A02', '2023-07-01', 36, 920, 85, 'bail_habitation', 1840, 'demo+arnaud.simon@seido-app.com', '', 'T2 balcon'],
-    ['Bail FOR-A03', 'FOR-A03', '2024-03-01', 36, 1100, 95, 'bail_habitation', 2200, 'demo+pauline.dujardin@seido-app.com', '', 'T3 familial'],
-    ['Bail FOR-A04', 'FOR-A04', '2023-10-01', 24, 980, 90, 'bail_meuble', 1960, 'demo+alexis.bodart@seido-app.com', '', 'T2 meublé récent'],
-    ['Bail FOR-A05', 'FOR-A05', '2024-05-01', 36, 1250, 110, 'bail_habitation', 2500, 'demo+margaux.collignon@seido-app.com', '', 'T4 terrasse'],
-    ['Bail FOR-A06', 'FOR-A06', '2023-11-01', 36, 750, 70, 'bail_habitation', 1500, 'demo+benjamin.gilles@seido-app.com', '', 'T1 bis étudiant'],
+    ['Bail FOR-A01', 'FOR-A01', '2024-01-01', '', 36, 850, 80, 'bail_habitation', 1700, 'demo+charlotte.pirard@seido-app.com', '', 'T2 vue forêt'],
+    ['Bail FOR-A02', 'FOR-A02', '2023-07-01', '', 36, 920, 85, 'bail_habitation', 1840, 'demo+arnaud.simon@seido-app.com', '', 'T2 balcon'],
+    ['Bail FOR-A03', 'FOR-A03', '2024-03-01', '', 36, 1100, 95, 'bail_habitation', 2200, 'demo+pauline.dujardin@seido-app.com', '', 'T3 familial'],
+    ['Bail FOR-A04', 'FOR-A04', '2023-10-01', '', 24, 980, 90, 'bail_meuble', 1960, 'demo+alexis.bodart@seido-app.com', '', 'T2 meublé récent'],
+    ['Bail FOR-A05', 'FOR-A05', '2024-05-01', '', 36, 1250, 110, 'bail_habitation', 2500, 'demo+margaux.collignon@seido-app.com', '', 'T4 terrasse'],
+    ['Bail FOR-A06', 'FOR-A06', '2023-11-01', '', 36, 750, 70, 'bail_habitation', 1500, 'demo+benjamin.gilles@seido-app.com', '', 'T1 bis étudiant'],
     // ============================================================================
     // ANDERLECHT SQUARE - 4 baux + 1 colocation
     // ============================================================================
-    ['Bail AND-A01', 'AND-A01', '2024-02-01', 36, 780, 75, 'bail_habitation', 1560, 'demo+valentine.poncelet@seido-app.com', '', 'T2 sécurisé'],
-    ['Bail AND-A02', 'AND-A02', '2023-08-01', 36, 850, 80, 'bail_habitation', 1700, 'demo+cyril.adam@seido-app.com', '', 'T2 rénové'],
-    ['Bail AND-A03', 'AND-A03', '2024-04-01', 12, 720, 70, 'bail_meuble', 1440, 'demo+noemie.hallet@seido-app.com', '', 'T1 meublé'],
-    ['Bail AND-A04', 'AND-A04', '2023-12-01', 36, 950, 90, 'bail_habitation', 1900, 'demo+dylan.bertrand@seido-app.com', '', 'T3 lumineux'],
-    ['Bail Coloc AND-K01', 'AND-K01', '2024-01-01', 12, 1800, 200, 'bail_habitation', 3600, 'demo+christophe.lejeune@seido-app.com, demo+nathalie.roose@seido-app.com, demo+laurent.degroote@seido-app.com', '', 'Colocation 3 chambres'],
+    ['Bail AND-A01', 'AND-A01', '2024-02-01', '', 36, 780, 75, 'bail_habitation', 1560, 'demo+valentine.poncelet@seido-app.com', '', 'T2 sécurisé'],
+    ['Bail AND-A02', 'AND-A02', '2023-08-01', '', 36, 850, 80, 'bail_habitation', 1700, 'demo+cyril.adam@seido-app.com', '', 'T2 rénové'],
+    ['Bail AND-A03', 'AND-A03', '2024-04-01', '', 12, 720, 70, 'bail_meuble', 1440, 'demo+noemie.hallet@seido-app.com', '', 'T1 meublé'],
+    ['Bail AND-A04', 'AND-A04', '2023-12-01', '', 36, 950, 90, 'bail_habitation', 1900, 'demo+dylan.bertrand@seido-app.com', '', 'T3 lumineux'],
+    ['Bail Coloc AND-K01', 'AND-K01', '2024-01-01', '', 12, 1800, 200, 'bail_habitation', 3600, 'demo+christophe.lejeune@seido-app.com, demo+nathalie.roose@seido-app.com, demo+laurent.degroote@seido-app.com', '', 'Colocation 3 chambres'],
     // ============================================================================
     // SCHAERBEEK CENTRAL - 4 baux
     // ============================================================================
-    ['Bail SCH-A01', 'SCH-A01', '2024-01-01', 36, 820, 75, 'bail_habitation', 1640, 'demo+veronique.bastien@seido-app.com', '', 'T2 rénové 2023'],
-    ['Bail SCH-A02', 'SCH-A02', '2023-09-01', 36, 900, 85, 'bail_habitation', 1800, 'demo+camille.goossens@seido-app.com', '', 'T2 parquet chêne'],
-    ['Bail SCH-A03', 'SCH-A03', '2024-03-01', 24, 780, 70, 'bail_meuble', 1560, 'demo+valerie.grand@seido-app.com', '', 'T1 bis meublé'],
-    ['Bail SCH-A04', 'SCH-A04', '2023-11-01', 36, 1050, 95, 'bail_habitation', 2100, 'demo+nicolas.moyen@seido-app.com', '', 'T3 familial'],
+    ['Bail SCH-A01', 'SCH-A01', '2024-01-01', '', 36, 820, 75, 'bail_habitation', 1640, 'demo+veronique.bastien@seido-app.com', '', 'T2 rénové 2023'],
+    ['Bail SCH-A02', 'SCH-A02', '2023-09-01', '', 36, 900, 85, 'bail_habitation', 1800, 'demo+camille.goossens@seido-app.com', '', 'T2 parquet chêne'],
+    ['Bail SCH-A03', 'SCH-A03', '2024-03-01', '', 24, 780, 70, 'bail_meuble', 1560, 'demo+valerie.grand@seido-app.com', '', 'T1 bis meublé'],
+    ['Bail SCH-A04', 'SCH-A04', '2023-11-01', '', 36, 1050, 95, 'bail_habitation', 2100, 'demo+nicolas.moyen@seido-app.com', '', 'T3 familial'],
     // ============================================================================
     // EVERE RÉSIDENCE - 3 baux
     // ============================================================================
-    ['Bail EVE-A01', 'EVE-A01', '2024-02-01', 36, 750, 70, 'bail_habitation', 1500, 'demo+caroline.haute@seido-app.com', '', 'T2 calme'],
-    ['Bail EVE-A02', 'EVE-A02', '2023-10-01', 36, 820, 75, 'bail_habitation', 1640, 'demo+david.basse@seido-app.com', '', 'T2 lumineux'],
-    ['Bail EVE-A03', 'EVE-A03', '2024-04-01', 12, 700, 65, 'bail_meuble', 1400, 'demo+elodie.nord@seido-app.com', '', 'T1 meublé'],
+    ['Bail EVE-A01', 'EVE-A01', '2024-02-01', '', 36, 750, 70, 'bail_habitation', 1500, 'demo+caroline.haute@seido-app.com', '', 'T2 calme'],
+    ['Bail EVE-A02', 'EVE-A02', '2023-10-01', '', 36, 820, 75, 'bail_habitation', 1640, 'demo+david.basse@seido-app.com', '', 'T2 lumineux'],
+    ['Bail EVE-A03', 'EVE-A03', '2024-04-01', '', 12, 700, 65, 'bail_meuble', 1400, 'demo+elodie.nord@seido-app.com', '', 'T1 meublé'],
     // ============================================================================
     // AUDERGHEM PARK - 4 baux
     // ============================================================================
-    ['Bail AUD-A01', 'AUD-A01', '2024-01-01', 36, 950, 90, 'bail_habitation', 1900, 'demo+gregoire.sud@seido-app.com', '', 'T3 vue parc'],
-    ['Bail AUD-A02', 'AUD-A02', '2023-07-01', 36, 880, 80, 'bail_habitation', 1760, 'demo+helene.est@seido-app.com', '', 'T2 verdure'],
-    ['Bail AUD-A03', 'AUD-A03', '2024-05-01', 24, 820, 75, 'bail_meuble', 1640, 'demo+igor.ouest@seido-app.com', '', 'T2 meublé'],
-    ['Bail AUD-A04', 'AUD-A04', '2023-12-01', 36, 1100, 100, 'bail_habitation', 2200, 'demo+juliette.centre@seido-app.com', '', 'T3 standing'],
+    ['Bail AUD-A01', 'AUD-A01', '2024-01-01', '', 36, 950, 90, 'bail_habitation', 1900, 'demo+gregoire.sud@seido-app.com', '', 'T3 vue parc'],
+    ['Bail AUD-A02', 'AUD-A02', '2023-07-01', '', 36, 880, 80, 'bail_habitation', 1760, 'demo+helene.est@seido-app.com', '', 'T2 verdure'],
+    ['Bail AUD-A03', 'AUD-A03', '2024-05-01', '', 24, 820, 75, 'bail_meuble', 1640, 'demo+igor.ouest@seido-app.com', '', 'T2 meublé'],
+    ['Bail AUD-A04', 'AUD-A04', '2023-12-01', '', 36, 1100, 100, 'bail_habitation', 2200, 'demo+juliette.centre@seido-app.com', '', 'T3 standing'],
     // ============================================================================
     // MAISONS - 10 baux
     // ============================================================================
-    ['Bail MAIS-001', 'MAIS-001', '2023-09-01', 36, 1800, 200, 'bail_habitation', 3600, 'demo+famille.vandenberghe@seido-app.com', '', 'Maison 4 chambres jardin'],
-    ['Bail MAIS-002', 'MAIS-002', '2024-01-01', 36, 2500, 300, 'bail_habitation', 5000, 'demo+declercq.famille@seido-app.com', '', 'Villa 5 chambres piscine'],
-    ['Bail MAIS-003', 'MAIS-003', '2023-06-01', 36, 1500, 180, 'bail_habitation', 3000, 'demo+simon.verhoeven@seido-app.com', '', 'Maison 3 chambres garage'],
-    ['Bail MAIS-004', 'MAIS-004', '2024-02-01', 36, 1600, 190, 'bail_habitation', 3200, 'demo+famille.petit@seido-app.com', '', 'Maison mitoyenne 4 ch'],
-    ['Bail MAIS-005', 'MAIS-005', '2023-01-01', 36, 2800, 350, 'bail_habitation', 5600, 'demo+jeanmarc.henrotte@seido-app.com', '', 'Maison de maître 6 ch'],
-    ['Bail MAIS-006', 'MAIS-006', '2024-03-01', 36, 2200, 250, 'bail_habitation', 4400, 'demo+famille.servais@seido-app.com', '', 'Villa moderne 4 ch'],
-    ['Bail MAIS-007', 'MAIS-007', '2023-10-01', 36, 2000, 230, 'bail_habitation', 4000, 'demo+bernard.thiry@seido-app.com', '', 'Maison 5 ch jardin'],
-    ['Bail MAIS-008', 'MAIS-008', '2024-04-01', 36, 1400, 170, 'bail_habitation', 2800, 'demo+famille.grosjean@seido-app.com', '', 'Maison 3 ch rénové'],
-    ['Bail MAIS-009', 'MAIS-009', '2023-07-01', 36, 1900, 220, 'bail_habitation', 3800, 'demo+lemaire.couple@seido-app.com', '', 'Maison de ville 4 ch'],
-    ['Bail MAIS-010', 'MAIS-010', '2024-01-15', 36, 2100, 240, 'bail_habitation', 4200, 'demo+famille.boucher@seido-app.com', '', 'Maison Art Déco 5 ch'],
+    ['Bail MAIS-001', 'MAIS-001', '2023-09-01', '2023-08-20', 36, 1800, 200, 'bail_habitation', 3600, 'demo+famille.vandenberghe@seido-app.com', '', 'Maison 4 chambres jardin'],
+    ['Bail MAIS-002', 'MAIS-002', '2024-01-01', '', 36, 2500, 300, 'bail_habitation', 5000, 'demo+declercq.famille@seido-app.com', '', 'Villa 5 chambres piscine'],
+    ['Bail MAIS-003', 'MAIS-003', '2023-06-01', '', 36, 1500, 180, 'bail_habitation', 3000, 'demo+simon.verhoeven@seido-app.com', '', 'Maison 3 chambres garage'],
+    ['Bail MAIS-004', 'MAIS-004', '2024-02-01', '', 36, 1600, 190, 'bail_habitation', 3200, 'demo+famille.petit@seido-app.com', '', 'Maison mitoyenne 4 ch'],
+    ['Bail MAIS-005', 'MAIS-005', '2023-01-01', '', 36, 2800, 350, 'bail_habitation', 5600, 'demo+jeanmarc.henrotte@seido-app.com', '', 'Maison de maître 6 ch'],
+    ['Bail MAIS-006', 'MAIS-006', '2024-03-01', '', 36, 2200, 250, 'bail_habitation', 4400, 'demo+famille.servais@seido-app.com', '', 'Villa moderne 4 ch'],
+    ['Bail MAIS-007', 'MAIS-007', '2023-10-01', '', 36, 2000, 230, 'bail_habitation', 4000, 'demo+bernard.thiry@seido-app.com', '', 'Maison 5 ch jardin'],
+    ['Bail MAIS-008', 'MAIS-008', '2024-04-01', '', 36, 1400, 170, 'bail_habitation', 2800, 'demo+famille.grosjean@seido-app.com', '', 'Maison 3 ch rénové'],
+    ['Bail MAIS-009', 'MAIS-009', '2023-07-01', '', 36, 1900, 220, 'bail_habitation', 3800, 'demo+lemaire.couple@seido-app.com', '', 'Maison de ville 4 ch'],
+    ['Bail MAIS-010', 'MAIS-010', '2024-01-15', '', 36, 2100, 240, 'bail_habitation', 4200, 'demo+famille.boucher@seido-app.com', '', 'Maison Art Déco 5 ch'],
     // ============================================================================
     // GARAGES, PARKINGS, LOCAUX, AUTRES - 8 baux
     // ============================================================================
-    ['Bail GAR-001', 'GAR-001', '2024-01-01', 12, 120, 0, 'bail_habitation', 240, 'demo+paul.mercier@seido-app.com', '', 'Garage box fermé'],
-    ['Bail GAR-002', 'GAR-002', '2023-06-01', 12, 180, 0, 'bail_habitation', 360, 'demo+amelie.janssens@seido-app.com', '', 'Garage double'],
-    ['Bail LOC-001', 'LOC-001', '2022-01-01', 108, 2000, 250, 'bail_commercial', 6000, 'demo+kilian.rive@seido-app.com', '', 'Boutique Grand-Place'],
-    ['Bail LOC-003', 'LOC-003', '2023-03-01', 108, 1800, 200, 'bail_commercial', 5400, 'demo+matthieu.plage@seido-app.com', '', 'Local avec cave'],
-    ['Bail AUT-001', 'AUT-001', '2023-01-01', 36, 1200, 100, 'bail_habitation', 2400, 'demo+logistique@seido-app.com', '', 'Entrepôt 200m²'],
-    ['Bail AUT-002', 'AUT-002', '2024-02-01', 36, 900, 80, 'bail_habitation', 1800, 'demo+atelier.artiste@seido-app.com', '', 'Atelier 150m²'],
-    ['Bail AUT-003', 'AUT-003', '2023-09-01', 36, 1500, 150, 'bail_habitation', 3000, 'demo+conseil.pro@seido-app.com', '', 'Bureau 100m²'],
+    ['Bail GAR-001', 'GAR-001', '2024-01-01', '', 12, 120, 0, 'bail_habitation', 240, 'demo+paul.mercier@seido-app.com', '', 'Garage box fermé'],
+    ['Bail GAR-002', 'GAR-002', '2023-06-01', '', 12, 180, 0, 'bail_habitation', 360, 'demo+amelie.janssens@seido-app.com', '', 'Garage double'],
+    ['Bail LOC-001', 'LOC-001', '2022-01-01', '', 108, 2000, 250, 'bail_commercial', 6000, 'demo+kilian.rive@seido-app.com', '', 'Boutique Grand-Place'],
+    ['Bail LOC-003', 'LOC-003', '2023-03-01', '', 108, 1800, 200, 'bail_commercial', 5400, 'demo+matthieu.plage@seido-app.com', '', 'Local avec cave'],
+    ['Bail AUT-001', 'AUT-001', '2023-01-01', '', 36, 1200, 100, 'bail_habitation', 2400, 'demo+logistique@seido-app.com', '', 'Entrepôt 200m²'],
+    ['Bail AUT-002', 'AUT-002', '2024-02-01', '', 36, 900, 80, 'bail_habitation', 1800, 'demo+atelier.artiste@seido-app.com', '', 'Atelier 150m²'],
+    ['Bail AUT-003', 'AUT-003', '2023-09-01', '', 36, 1500, 150, 'bail_habitation', 3000, 'demo+conseil.pro@seido-app.com', '', 'Bureau 100m²'],
   ],
-  columnWidths: [25, 15, 15, 15, 12, 12, 18, 12, 45, 35, 30],
+  columnWidths: [25, 15, 15, 15, 15, 12, 12, 18, 12, 45, 35, 30],
   requiredColumns: ['Titre*', 'Réf Lot*', 'Date Début*', 'Durée (mois)*', 'Loyer*'],
 };
 

@@ -48,6 +48,7 @@ export interface RawLotRow {
   'Ville'?: string;
   'Code Postal'?: string;
   'Description'?: string;
+  'PEB'?: string;
 }
 
 export interface RawContactRow {
@@ -65,6 +66,7 @@ export interface RawContractRow {
   'Titre': string;
   'Réf Lot': string;
   'Date Début': string | Date;
+  'Date Signature'?: string | Date;
   'Durée (mois)': string | number;
   'Loyer': string | number;
   'Charges'?: string | number;
@@ -112,6 +114,7 @@ export interface ParsedLot {
   city?: string;
   postal_code?: string;
   description?: string;
+  peb_rating?: string | null;
   _rowIndex: number;
   _resolvedBuildingId?: string;  // After resolution
 }
@@ -134,6 +137,7 @@ export interface ParsedContract {
   title: string;
   lot_reference: string;
   start_date: string;  // ISO date
+  signed_date?: string | null;  // ISO date
   duration_months: number;
   rent_amount: number;
   charges_amount?: number;

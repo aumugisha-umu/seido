@@ -2,13 +2,35 @@
 title: "Taxes residences secondaires a la Cote belge : Cassation 2026"
 slug: "residences-secondaires-cote-taxes"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Fiscalite"
 tags: ["residence secondaire", "cote belge", "taxe communale", "knokke", "coxyde", "cour de cassation"]
 description: "La Cour de cassation casse les arrets de Gand sur les taxes de residences secondaires a Knokke et Coxyde. Etat de la saga juridique et ce que les proprietaires doivent faire."
 reading_time: "5 min"
 type: "article"
 hub: "essentiel-immo-fevrier-2026"
+infographic:
+  type: "comparison-bars"
+  data:
+    title: "Taxe residence secondaire — statut juridique (2026)"
+    items:
+      - label: "Taxe provinciale FO"
+        value: 100
+        suffix: "% annulee"
+        color: "green"
+        highlight: true
+      - label: "Taxe Knokke"
+        value: 50
+        suffix: "% incertain"
+        color: "amber"
+      - label: "Taxe Coxyde"
+        value: 50
+        suffix: "% incertain"
+        color: "amber"
+      - label: "Autres communes"
+        value: 25
+        suffix: "% a surveiller"
+        color: "red"
 ---
 
 # Residences secondaires a la Cote belge : la Cour de cassation rebat les cartes

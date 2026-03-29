@@ -1,34 +1,65 @@
-# Progress Log — Admin Dashboard Redesign + Trial Extension
-# Started: 2026-03-26
-# Stories: 5 total
+# Progress Log — ElevenLabs Voice + AI Triage Redesign
+# Started: 2026-03-29
+# Stories: 3 voice + triage redesign
 ---
 
-## 2026-03-26 — US-001: Server actions (getAdminTeamsWithSubscriptions + extendTeamTrialAction)
-- Implemented: 3 server actions in app/actions/admin-team-actions.ts
-- getAdminTeamsWithSubscriptions: teams + subscriptions join, parallel fetch for admins/members/lots counts
-- extendTeamTrialAction: status guard (trialing only), update trial_end, activity_logs insert, deferred email via after()
-- getAdminDashboardStats: count-only queries for 4 KPIs (active users, teams, subscriptions, recent interventions)
-- Files: app/actions/admin-team-actions.ts
-- Learnings: activity_logs requires action_type from enum (used 'update'), entity_type='team'; service role needed for subscriptions writes
+## US-002: ElevenLabs agent prompt with dynamic variables ✅
+- SYSTEM_PROMPT_TEMPLATE: 4 dynamic variables (team_name, caller_name, caller_address, conversation_history) + custom_instructions
+- 4-scenario ETAPE 1 matching WhatsApp pattern
+- buildSystemPrompt() simplified: only replaces {{custom_instructions}} (static at agent creation)
+- first_message uses {{team_name}} for runtime resolution
+- updateAgent/createAgent signatures cleaned (removed teamName param)
+- Callers updated: phone-provisioning.service.ts, ai-subscription-actions.ts
+- Files: elevenlabs-agent.service.ts, phone-provisioning.service.ts, ai-subscription-actions.ts
 
-## 2026-03-26 — US-002: Trial extended email template + emailService method
-- Created emails/templates/admin/trial-extended.tsx (EmailLayout > EmailHeader > Section > EmailFooter)
-- Added TrialExtendedEmailProps to emails/utils/types.ts
-- Added sendTrialExtendedEmail() to lib/email/email-service.ts
-- Files: emails/templates/admin/trial-extended.tsx, emails/utils/types.ts, lib/email/email-service.ts
+## US-003: Environment config + .env.example ✅
+- Added ELEVENLABS_API_KEY + ELEVENLABS_AGENT_ID to .env.example
+- Added TELNYX_SIP_USERNAME/PASSWORD (SIP trunk for ElevenLabs ↔ Telnyx)
+- Documented voice webhook URL: POST /api/webhooks/voice
+- Files: .env.example
 
-## 2026-03-26 — US-003: Admin navigation — Equipes link
-- Added { href: '/admin/teams', label: 'Equipes', icon: Building2 } to admin nav in dashboard-header.tsx
-- Files: components/dashboard-header.tsx
+## US-001: Voice webhook endpoint ✅
+- POST /api/webhooks/voice — full inbound voice call handler
+- Twilio signature validation (reuses validateTwilioSignature)
+- Pre-call routing: lookupMappings → runIdentificationCascade → phone_team_mappings
+- Known caller: parallel fetch (teamName, callerName, callerAddress, conversationHistory)
+- Unknown caller: generic agent with default team_name="Votre gestionnaire"
+- ElevenLabs register-call API: POST /v1/convai/twilio/register-call with dynamic_variables
+- TwiML passthrough: ElevenLabs returns TwiML, we proxy to Twilio
+- Graceful fallback: French <Say> + <Hangup> on any error
+- Files: app/api/webhooks/voice/route.ts (NEW)
 
-## 2026-03-26 — US-004: Admin dashboard redesign
-- Rewrote page.tsx: real KPIs via getAdminDashboardStats(), trial teams panel, functional quick links
-- Simplified admin-dashboard-client.tsx: removed broken settings route, logger.info, unused props
-- Files: app/admin/(with-navbar)/dashboard/page.tsx, app/admin/(with-navbar)/dashboard/admin-dashboard-client.tsx
+## 2026-03-29 15:00 — Telnyx removal + ElevenLabs webhook fixes ✅
+- Removed all Telnyx code (importPhoneNumber, assignAgentToNumber, SIP config)
+- Fixed post-call webhook: team identification via resolvePhoneMappings (not agent_id lookup)
+- Fixed caller phone extraction: metadata.phone_call.external_number (not body.from_number)
+- Added caller_phone as dynamic variable fallback in voice webhook
+- Files: elevenlabs-agent.service.ts, app/api/webhooks/elevenlabs/route.ts, app/api/webhooks/voice/route.ts
 
-## 2026-03-26 — US-005: Teams management page with trial extension dialog
-- Server component: getServerAuthContext('admin') + stats cards + error display
-- Client component: teams table, status filter, search, StatusBadge, trial extension dialog
-- Dialog: current trial info, preset +7/+14/+30j buttons, DatePicker, preview, optional reason
-- Loading skeleton with PageSkeleton variant="table"
-- Files: app/admin/(with-navbar)/teams/page.tsx, teams-management-client.tsx, loading.tsx
+## 2026-03-29 16:00 — AI Triage Card Redesign ✅
+- Data layer: triage query now uses source IN (whatsapp_ai, sms_ai, phone_ai) instead of type = demande_whatsapp
+- Dashboard filter: AI-sourced interventions excluded from Interventions tab (regularInterventions)
+- Card redesign: channel icons (WhatsApp green/Phone blue/SMS purple), badges, dot menu, Traite/Rejeter buttons
+- Navigator: ContentNavigator with channel sub-tabs (Toutes/WhatsApp/Appels/SMS), search, view switcher
+- List view: sortable table with channel, contact+badges, description, address, date, inline actions
+- Files: whatsapp-triage-actions.ts, async-dashboard-content.tsx, whatsapp-triage-card.tsx, whatsapp-triage-navigator.tsx, whatsapp-triage-list-view.tsx (NEW)
+
+## 2026-03-29 17:00 — Simplify pass ✅
+- Extracted AI_SOURCES to shared constant in lib/services/domain/ai-whatsapp/types.ts (was defined 3x)
+- Extracted CHANNEL_CONFIG to components/operations/triage-shared.ts (was duplicated in card + list)
+- Extracted useTriageActions hook to components/operations/use-triage-actions.ts (was duplicated)
+- Dashboard: filter once + reuse (was filtering twice)
+- Added source field to Intervention interface (removed as any casts)
+- Single-pass channel grouping in navigator (was 3 separate .filter() calls)
+- Files: types.ts, triage-shared.ts (NEW), use-triage-actions.ts (NEW), service-types.ts, whatsapp-triage-card.tsx, whatsapp-triage-list-view.tsx, whatsapp-triage-navigator.tsx, async-dashboard-content.tsx
+
+## 2026-03-29 22:00 — Landing Hero: Flow Directionnel Animation
+- Implemented: Replaced video background hero with animated flow visual (inputs→AI→intervention card)
+- Prototyped in HTML first (docs/prototypes/hero-final.html), then converted to React component
+- Component: HeroFlowVisual (React.memo, CSS transitions + JS setTimeout sequencing)
+- CSS: hero-flow.css with 6 animation classes (drop, scale, slide-up/left/right, fade)
+- Context enrichment: chips showing existing data pulled by SEIDO (documents, contacts, history)
+- /simplify fixes: split CSS transform per axis, limit flow dots to 3 iterations, add React.memo
+- Blog: changed author from "Equipe Seido" to "Arthur Umugisha" across 24 articles
+- Learnings: #229 (staggered animation pattern), #230 (CSS transform axis matching), #231 (finite animation iterations)
+- Files: hero-flow-visual.tsx (NEW), hero-flow.css (NEW), landing-page.tsx, globals.css, hero-final.html, 24x blog articles

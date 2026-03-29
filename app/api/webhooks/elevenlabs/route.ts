@@ -43,10 +43,9 @@ interface ElevenLabsWebhookPayload {
     agent_id: string
     conversation_id: string
     transcript: ElevenLabsTranscriptEntry[]
-    metadata: {
-      phone_call?: { body?: { from_number?: string } }
-      call_duration_secs?: number
-      main_language?: string
+    metadata: Record<string, unknown>
+    conversation_initiation_client_data?: {
+      dynamic_variables?: Record<string, string>
     }
   }
 }
@@ -224,39 +223,63 @@ async function processPostCallAsync(
 ) {
   const supabase = createServiceRoleSupabaseClient()
 
-  // ─── 1. Team Identification via agent_id ───────────────────────
-  const { data: phoneConfig } = await supabase
-    .from('ai_phone_numbers')
-    .select('id, team_id, phone_number')
-    .eq('elevenlabs_agent_id', payload.agent_id)
-    .eq('is_active', true)
-    .limit(1)
-    .maybeSingle()
+  // ─── 1. Team Identification via caller phone → phone_team_mappings ──
+  // Shared agent architecture: all teams use the same ELEVENLABS_AGENT_ID,
+  // so we can't identify the team from agent_id. Instead, use the caller's
+  // phone number to look up the team via phone_team_mappings (same as voice webhook).
 
-  if (!phoneConfig) {
+  // ElevenLabs Twilio integration uses phone_call.external_number for the caller.
+  // Fallback: dynamic_variables.caller_phone (injected by our voice webhook).
+  const meta = payload.metadata ?? {}
+  const phoneCall = meta.phone_call as Record<string, unknown> | undefined
+  const callerPhone =
+    (phoneCall?.external_number as string) ??
+    payload.conversation_initiation_client_data?.dynamic_variables?.caller_phone ??
+    null
+
+  let teamId: string | null = null
+  let phoneConfigId: string | null = null
+
+  if (callerPhone) {
+    const { resolvePhoneMappings } = await import('@/lib/services/domain/ai-whatsapp/phone-mapping.service')
+    const mappings = await resolvePhoneMappings(supabase, callerPhone)
+
+    if (mappings.length > 1) {
+      logger.warn(
+        { callerPhone, mappingCount: mappings.length, teamIds: mappings.map(m => m.team_id) },
+        '⚠️ [ELEVENLABS-WH] Multi-team caller — using most recent mapping'
+      )
+    }
+
+    if (mappings.length > 0) {
+      teamId = mappings[0].team_id
+
+      // Look up ai_phone_numbers for this team (for call log foreign key)
+      const { data: phoneConfig } = await supabase
+        .from('ai_phone_numbers')
+        .select('id')
+        .eq('team_id', teamId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle()
+
+      phoneConfigId = phoneConfig?.id ?? null
+    }
+  }
+
+  if (!teamId) {
     logger.error(
-      { agentId: payload.agent_id },
-      '❌ [ELEVENLABS-WH] No team found for agent_id'
+      { agentId: payload.agent_id, callerPhone },
+      '❌ [ELEVENLABS-WH] No team found for caller phone'
     )
     return
   }
 
-  const teamId = phoneConfig.team_id
-  logger.info({ teamId, phoneConfigId: phoneConfig.id }, '📞 [ELEVENLABS-WH] Team identified')
+  logger.info({ teamId, phoneConfigId, callerPhone }, '📞 [ELEVENLABS-WH] Team identified')
 
-  // ─── 2. Get team name ──────────────────────────────────────────
-  const { data: team } = await supabase
-    .from('teams')
-    .select('name')
-    .eq('id', teamId)
-    .single()
-
-  const teamName = team?.name ?? 'Equipe'
-
-  // ─── 3. Extract caller phone & build transcript ────────────────
-  const callerPhone = payload.metadata?.phone_call?.body?.from_number ?? null
-  const durationSeconds = payload.metadata?.call_duration_secs ?? null
-  const language = payload.metadata?.main_language ?? 'fr'
+  // ─── 2. Extract call metadata & build transcript ───────────────
+  const durationSeconds = (meta.call_duration_secs as number | undefined) ?? null
+  const language = (meta.main_language as string | undefined) ?? 'fr'
 
   const transcriptText = payload.transcript
     .map((t) => `${t.role}: ${t.message}`)
@@ -298,6 +321,23 @@ async function processPostCallAsync(
         identifiedUserName = matchedUser.name ?? 'Locataire'
         logger.info({ userId: identifiedUserId, name: identifiedUserName }, '✅ [ELEVENLABS-WH] Tenant identified')
       }
+    }
+  }
+
+  // ─── 4b. Upsert phone→team mapping for cross-channel routing ──
+  if (callerPhone && teamId) {
+    try {
+      const { createOrUpdateMapping } = await import('@/lib/services/domain/ai-whatsapp/phone-mapping.service')
+      await createOrUpdateMapping(supabase, {
+        contactPhone: callerPhone,
+        teamId,
+        userId: identifiedUserId,
+        userRole: identifiedUserId ? 'locataire' : null,
+        source: 'voice_call',
+      })
+      logger.info({ callerPhone, teamId }, '✅ [ELEVENLABS-WH] Phone mapping upserted')
+    } catch (err) {
+      logger.warn({ err }, '[ELEVENLABS-WH] Phone mapping upsert failed (non-blocking)')
     }
   }
 
@@ -415,7 +455,7 @@ async function processPostCallAsync(
     // Still save the call log without intervention link
     await saveCallLog(supabase, {
       teamId,
-      phoneConfigId: phoneConfig.id,
+      phoneConfigId,
       conversationId,
       callerPhone,
       identifiedUserId,
@@ -452,11 +492,12 @@ async function processPostCallAsync(
   }
 
   // STEP 2b: ASSIGN team managers so notifications/emails find recipients
+  // Include 'admin' role — team admins are gestionnaires (two role systems)
   const { data: teamManagers } = await supabase
     .from('team_members')
     .select('user_id')
     .eq('team_id', teamId)
-    .eq('role', 'gestionnaire')
+    .in('role', ['gestionnaire', 'admin'])
     .is('left_at', null)
 
   if (teamManagers && teamManagers.length > 0) {
@@ -543,10 +584,29 @@ async function processPostCallAsync(
     logger.warn({ error: threadError }, '⚠️ [ELEVENLABS-WH] Thread creation failed (non-blocking)')
   }
 
-  // ─── 8. Save Call Log (PDF removed — email notification with full details is sufficient) ──
+  // ─── 8. Persist conversation history to phone_team_mappings (cross-channel memory) ──
+  if (callerPhone && teamId) {
+    try {
+      const { appendConversationSummary } = await import('@/lib/services/domain/ai-whatsapp/phone-mapping.service')
+      await appendConversationSummary(supabase, callerPhone, teamId, {
+        date: new Date().toISOString().slice(0, 10),
+        channel: 'phone',
+        problem: summary.problem_description || 'Appel vocal',
+        address: summary.address || undefined,
+        urgency: summary.urgency || undefined,
+        caller_name: identifiedUserName !== 'Appelant inconnu' ? identifiedUserName : summary.caller_name || undefined,
+        intervention_ref: reference,
+      })
+      logger.info({ callerPhone, teamId }, '✅ [ELEVENLABS-WH] Conversation history appended')
+    } catch (err) {
+      logger.warn({ err }, '⚠️ [ELEVENLABS-WH] Append conversation history failed (non-blocking)')
+    }
+  }
+
+  // ─── 9. Save Call Log ──
   await saveCallLog(supabase, {
     teamId,
-    phoneConfigId: phoneConfig.id,
+    phoneConfigId,
     conversationId,
     callerPhone,
     identifiedUserId,
@@ -666,7 +726,7 @@ async function processPostCallAsync(
 
 interface CallLogData {
   teamId: string
-  phoneConfigId: string
+  phoneConfigId: string | null
   conversationId: string
   callerPhone: string | null
   identifiedUserId: string | null

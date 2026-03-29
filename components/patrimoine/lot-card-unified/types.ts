@@ -105,6 +105,7 @@ export interface LotData {
   door_number?: string
   surface_area?: number
   rooms?: number
+  peb_rating?: string | null
   status?: string
   is_occupied?: boolean
   has_active_tenants?: boolean

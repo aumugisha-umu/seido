@@ -90,9 +90,9 @@ export async function POST(
 
                 imap.connect();
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
             return NextResponse.json(
-                { error: `IMAP test failed: ${error.message}` },
+                { error: `IMAP test failed: ${error instanceof Error ? error.message : String(error)}` },
                 { status: 400 }
             );
         }
@@ -110,16 +110,16 @@ export async function POST(
             });
 
             await transporter.verify();
-        } catch (error: any) {
+        } catch (error: unknown) {
             return NextResponse.json(
-                { error: `SMTP test failed: ${error.message}` },
+                { error: `SMTP test failed: ${error instanceof Error ? error.message : String(error)}` },
                 { status: 400 }
             );
         }
 
         return NextResponse.json({ success: true, message: 'Connection test successful' });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Test connection error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }

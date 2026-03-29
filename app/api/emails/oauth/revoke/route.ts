@@ -134,10 +134,10 @@ export async function POST(request: Request) {
         : 'OAuth access revoked and connection deleted',
       emailsDeleted: deleteEmails
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('OAuth revoke error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to revoke OAuth access' },
+      { error: error instanceof Error ? error.message : 'Failed to revoke OAuth access' },
       { status: 500 }
     )
   }

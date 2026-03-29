@@ -1,0 +1,167 @@
+{
+  "project": "SEIDO",
+  "featureName": "Lead Magnet — Calculateur d'Indexation de Loyer",
+  "branchName": "preview",
+  "description": "Calculateur gratuit d'indexation de loyer sur la landing page SEIDO. Calcul déterministe client-side couvrant 3 régions belges + corrections PEB. Capture email pour lettre type pré-remplie. Article blog SEO associé.",
+  "createdAt": "2026-03-26",
+  "prdSource": "docs/Sales/lead-magnet-indexation-design.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Health indices JSON data + calculation engine",
+      "description": "As a developer, I want a JSON file with historical health indices and a pure TypeScript calculation engine, so that the UI can compute rent indexation client-side without any API call.",
+      "acceptanceCriteria": [
+        "lib/indexation/health-indices.json contains monthly indices from 2010-01 to 2026-03 (base 2013=100), key format YYYY-MM",
+        "lib/indexation/calculate.ts exports calculateIndexation(input) returning { nouveauLoyer, pourcentage, formule, indiceDepart, nouvelIndice, correctionPEB }",
+        "Handles all 3 regions: Bruxelles (facteurs correctifs PEB E/F/G), Wallonie (loyer adapté phases 1+2), Flandre (CF permanent D/E/F)",
+        "Handles bail commercial (formule standard sans PEB)",
+        "Handles bail non enregistré (returns error for Wallonie, warning for Bruxelles)",
+        "lib/indexation/types.ts exports IndexationInput, IndexationResult, Region, PebLabel types",
+        "Unit tests in tests/unit/indexation/calculate.test.ts with at least 1 real-world example per region + commercial + non-enregistré cases",
+        "npm run lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "L",
+      "passes": true,
+      "notes": "23 unit tests passing. 4 files: types.ts, calculate.ts, index.ts, health-indices.json"
+    },
+    {
+      "id": "US-002",
+      "title": "Health indices update script",
+      "description": "As a developer, I want a script to fetch latest health indices from Statbel and update the JSON file, so indices stay current monthly.",
+      "acceptanceCriteria": [
+        "scripts/update-health-indices.ts fetches data from Statbel CSV (https://statbel.fgov.be/fr/themes/prix-la-consommation/indice-sante)",
+        "Parses CSV, extracts monthly health index values, normalizes to base 2013",
+        "On success: overwrites lib/indexation/health-indices.json with merged data (existing + new)",
+        "On failure: logs error, exits with non-zero code, does NOT overwrite existing file",
+        "Can be run via: npx tsx scripts/update-health-indices.ts",
+        "npm run lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Dual-source: NBB.Stat SDMX + Statbel CSV fallback. Safe no-overwrite on failure."
+    },
+    {
+      "id": "US-003",
+      "title": "Database migration: indexation_leads table",
+      "description": "As a developer, I want the indexation_leads table created in Supabase, so the API route can store lead captures.",
+      "acceptanceCriteria": [
+        "Migration creates indexation_leads table with columns: id (uuid PK), email (text not null), type (text CHECK in lettre_indexation/rapport_portfolio), metadata (jsonb), source (text default landing_indexation), consent_given (boolean not null default false), ip_address (text), created_at (timestamptz), expires_at (timestamptz default now() + 24 months)",
+        "Index on expires_at for cleanup queries",
+        "No RLS policies (service role access only)",
+        "npm run supabase:types regenerates database.types.ts successfully",
+        "npm run lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Migration 20260326220000. supabase:types to regenerate after db push."
+    },
+    {
+      "id": "US-004",
+      "title": "API route POST /api/lead-magnet with Zod + rate limiting + honeypot",
+      "description": "As a visitor, I want to submit my email to receive the indexation letter, so that I get a pre-filled PDF via email.",
+      "acceptanceCriteria": [
+        "app/api/lead-magnet/route.ts handles POST requests",
+        "Zod schema validates: email, type enum, calcul object (loyer/region/peb/nouveauLoyer/pourcentage/formule), honeypot (max 0 chars), consent (literal true)",
+        "Uses rateLimiters.public from lib/rate-limit.ts with getClientIdentifier()",
+        "Honeypot filled → silent 200 OK (no insert, no email)",
+        "Inserts into indexation_leads via createServiceRoleSupabaseClient()",
+        "Sends email via Resend using EMAIL_CONFIG.from",
+        "Returns 200 { success: true } on success, 400 on validation error, 429 on rate limit",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-003"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Inline HTML emails for MVP. US-005 upgrades to React Email templates."
+    },
+    {
+      "id": "US-005",
+      "title": "Lettre d'indexation email template",
+      "description": "As a gestionnaire receiving the letter, I want a professional pre-filled indexation letter as email, so I can use it directly with my tenant.",
+      "acceptanceCriteria": [
+        "emails/templates/lead-magnet/indexation-letter.tsx React email template with EmailLayout pattern",
+        "Template includes: owner/manager placeholder fields, tenant address placeholder, calculated new rent, formula breakdown, applicable legal reference, effective date",
+        "Props interface IndexationLetterEmailProps added to emails/utils/types.ts",
+        "emailService method or inline Resend call sends the email with the template",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-004"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "React Email template with pre-filled letter. Route updated to use renderEmail()."
+    },
+    {
+      "id": "US-006",
+      "title": "Landing page indexation calculator section",
+      "description": "As a visitor on the SEIDO landing page, I want to use the rent indexation calculator, so I can instantly see my new indexed rent with full explanation.",
+      "acceptanceCriteria": [
+        "components/landing/sections/indexation-section.tsx is a 'use client' component",
+        "Form includes all fields from design: bail type, region, PEB, loyer, date signature, date début, bail non enregistré checkbox",
+        "PEB options adapt to region (Flandre: A+ to F, others: A to G + Inconnu)",
+        "PEB hidden when bail commercial selected",
+        "Bail non enregistré hidden when bail commercial selected",
+        "Result displays: nouveau loyer, pourcentage, formule breakdown",
+        "Accordion 'Comment ce calcul est-il effectué ?' with 5 sections (formule, indices, correction PEB, calcul détaillé, base légale)",
+        "Content adapts dynamically to inputs (PEB warnings, region-specific explanations)",
+        "Disclaimer text displayed under results",
+        "Two CTA cards under result: lettre d'indexation (email only) + portfolio (email + nombre biens)",
+        "RGPD checkbox with link to /confidentialite required before submit",
+        "Honeypot invisible field included in email capture form",
+        "Calls POST /api/lead-magnet on CTA submit",
+        "Imported in components/landing/landing-page.tsx with dynamic import",
+        "Section has id='indexation' for anchor scroll from hero CTA",
+        "Mobile-responsive layout",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001", "US-004"],
+      "sizing": "XL",
+      "passes": true,
+      "notes": "~470 lines. Dynamic import in landing-page.tsx. 8 apostrophe escapes fixed for lint."
+    },
+    {
+      "id": "US-007",
+      "title": "Hero CTA button + JSON-LD FAQ schema",
+      "description": "As a visitor, I want a CTA button in the hero that scrolls to the calculator, and structured data for SEO.",
+      "acceptanceCriteria": [
+        "Hero section in landing-page.tsx has a secondary CTA button 'Calculer mon indexation' that smooth-scrolls to #indexation",
+        "components/seo/json-ld.tsx extended with FAQPage schema for indexation-related questions",
+        "FAQ questions added to data/faq.ts (6 indexation questions from design doc)",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-006"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "6 indexation FAQs added (ids 9-14). Hero CTA already done. FAQPage JSON-LD auto-included via existing faq array mapping in app/page.tsx."
+    },
+    {
+      "id": "US-008",
+      "title": "Blog SEO article: indexation loyer Belgique",
+      "description": "As a visitor searching for rent indexation info, I want a comprehensive blog article that explains the rules and links to the calculator.",
+      "acceptanceCriteria": [
+        "blog/articles/calculer-indexation-loyer-belgique.md with ~1500 words",
+        "Frontmatter: title, description, date, slug, category, tags, hub/cluster metadata",
+        "H1 includes year (2026), H2/H3 structure per design doc",
+        "CTA links to /#indexation in intro and closing",
+        "Covers: formula, regions, PEB impact, commercial leases, non-registered leases, FAQ",
+        "Article accessible at /blog/calculer-indexation-loyer-belgique",
+        "npm run lint passes (if applicable to md)"
+      ],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "1532 words. Hub: essentiel-immo-mars-2026. 6 FAQ sections, 2 CTA links to /#indexation."
+    }
+  ]
+}

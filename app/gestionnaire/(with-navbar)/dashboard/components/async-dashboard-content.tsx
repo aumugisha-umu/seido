@@ -27,6 +27,9 @@ import { logger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
 import { loadMultiTeamData, createTeamNameMap } from "@/lib/multi-team-helpers"
 import { ManagerDashboardV2 } from "@/components/dashboards/manager/manager-dashboard-v2"
+import { getWhatsAppTriageItems, type WhatsAppTriageItem } from '@/app/actions/whatsapp-triage-actions'
+import { getAiSubscriptionStatus } from '@/app/actions/ai-subscription-actions'
+import { AI_SOURCES } from '@/lib/services/domain/ai-whatsapp/types'
 
 // ✅ PERF: React cache() deduplicates service creation within a single request render tree.
 // If the layout or other server components call the same factories, they reuse this instance.
@@ -88,6 +91,7 @@ export async function AsyncDashboardContent({
   }
 
   let allInterventions: InterventionWithRelations[] = []
+  let regularInterventions: InterventionWithRelations[] = []
   let pendingActionsCount = 0
 
   try {
@@ -240,12 +244,17 @@ export async function AsyncDashboardContent({
     allInterventions = allInterventions
       .sort((a, b) => (new Date(b.created_at ?? '').getTime() || 0) - (new Date(a.created_at ?? '').getTime() || 0))
 
-    const transformedInterventions = allInterventions.map((intervention: any) => ({
-      ...intervention,
-      reference: intervention.reference || `INT-${intervention.id.slice(0, 8)}`,
-      urgency: intervention.urgency || intervention.priority || 'normale',
-      type: intervention.intervention_type || 'autre'
-    }))
+    // Filter out AI-sourced interventions — they appear in "Assistant IA" triage tab only
+    regularInterventions = allInterventions.filter(
+      i => !AI_SOURCES.includes(i.source as typeof AI_SOURCES[number])
+    )
+    const transformedInterventions = regularInterventions
+      .map((intervention) => ({
+        ...intervention,
+        reference: intervention.reference || `INT-${intervention.id.slice(0, 8)}`,
+        urgency: intervention.urgency || intervention.priority || 'normale',
+        type: intervention.intervention_type || 'autre'
+      }))
     pendingActionsCount = filterPendingActions(transformedInterventions, 'gestionnaire').length
 
   } catch (error) {
@@ -258,14 +267,18 @@ export async function AsyncDashboardContent({
   let unreadThreads: Awaited<ReturnType<ConversationRepository['getUnreadThreadsForDashboard']>>['data'] = { threads: [], totalCount: 0 }
   let reminderStats: ReminderStats = { total: 0, en_attente: 0, en_cours: 0, termine: 0, annule: 0, overdue: 0, due_today: 0 }
   let reminders: ReminderWithRelations[] = []
+  let whatsappTriageItems: WhatsAppTriageItem[] = []
+  let isAiSubscribed = false
 
-  const [unreadResult, reminderStatsResult, remindersResult] = await Promise.allSettled([
+  const [unreadResult, reminderStatsResult, remindersResult, whatsappTriageResult, aiResult] = await Promise.allSettled([
     (async () => {
       const conversationRepo = new ConversationRepository(supabase)
       return conversationRepo.getUnreadThreadsForDashboard(profile.id)
     })(),
     reminderService.getStats(team.id),
     reminderService.getByTeam(team.id),
+    getWhatsAppTriageItems(),
+    getAiSubscriptionStatus().catch(() => null),
   ])
 
   if (unreadResult.status === 'fulfilled' && unreadResult.value.success && unreadResult.value.data) {
@@ -286,6 +299,16 @@ export async function AsyncDashboardContent({
     logger.warn('[ASYNC-DASHBOARD] Reminders fetch failed, skipping', { error: remindersResult.reason })
   }
 
+  if (whatsappTriageResult.status === 'fulfilled') {
+    whatsappTriageItems = whatsappTriageResult.value
+  } else {
+    logger.warn('[ASYNC-DASHBOARD] WhatsApp triage fetch failed, skipping', { error: whatsappTriageResult.reason })
+  }
+
+  if (aiResult.status === 'fulfilled' && aiResult.value) {
+    isAiSubscribed = !!aiResult.value.success && !!aiResult.value.data?.isActive
+  }
+
   // Bank module hidden until Tink app is approved in production
   // Bank data fetch + bankData prop removed temporarily
 
@@ -294,12 +317,14 @@ export async function AsyncDashboardContent({
       stats={stats}
       tenantCount={tenantCount}
       contractStats={contractStats}
-      interventions={allInterventions}
+      interventions={regularInterventions}
       pendingCount={pendingActionsCount}
       unreadThreads={unreadThreads?.threads}
       unreadThreadsTotalCount={unreadThreads?.totalCount}
       reminderStats={reminderStats}
       reminders={reminders}
+      whatsappTriageItems={whatsappTriageItems}
+      isAiSubscribed={isAiSubscribed}
       // bankData={bankData}  // Bank module hidden until Tink approved
     />
   )

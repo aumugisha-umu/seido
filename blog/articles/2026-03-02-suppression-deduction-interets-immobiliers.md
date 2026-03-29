@@ -2,13 +2,36 @@
 title: "Deduction interets immobiliers supprimee : recours constitutionnel SNPC"
 slug: "suppression-deduction-interets-immobiliers"
 date: "2026-03-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Fiscalite"
 tags: ["deduction interets", "fiscalite immobiliere", "SNPC", "Cour constitutionnelle", "IPP", "bailleur", "emprunt immobilier"]
 description: "La loi du 11 decembre 2025 supprime la deduction des interets d'emprunt avec effet retroactif au 1er janvier 2025. Le SNPC saisit la Cour constitutionnelle."
 reading_time: "6 min"
 type: "article"
 hub: "essentiel-immo-mars-2026"
+infographic:
+  type: "comparison-bars"
+  data:
+    title: "Impact fiscal annuel — credit 250 000 EUR a 3%"
+    items:
+      - label: "Interets non deductibles"
+        value: 7500
+        suffix: " EUR"
+        color: "red"
+        highlight: true
+      - label: "Surcout fiscal (taux 50%)"
+        value: 3750
+        suffix: " EUR"
+        color: "amber"
+        highlight: true
+      - label: "Deduction perdue (taux 45%)"
+        value: 3375
+        suffix: " EUR"
+        color: "amber"
+      - label: "Deduction perdue (taux 40%)"
+        value: 3000
+        suffix: " EUR"
+        color: "blue"
 ---
 
 # Suppression de la deduction des interets immobiliers : le SNPC saisit la Cour constitutionnelle

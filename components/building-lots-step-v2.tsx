@@ -19,6 +19,7 @@ interface Lot {
   doorNumber: string
   description: string
   category: LotCategory
+  pebRating?: string
 }
 
 interface BuildingLotsStepV2Props {

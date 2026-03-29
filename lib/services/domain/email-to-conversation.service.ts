@@ -321,7 +321,8 @@ export async function syncEmailReplyToConversation(
     // ═══════════════════════════════════════════════════════════
     // 5. Update thread metadata (last_message_at, message_count)
     // ═══════════════════════════════════════════════════════════
-    // First get current count
+    // TODO: race condition under concurrent syncs — message_count uses read-increment-write
+    // which can lose updates. Use SQL `message_count + 1` via RPC when available.
     const { data: currentThread } = await supabase
       .from('conversation_threads')
       .select('message_count')

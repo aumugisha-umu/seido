@@ -16,10 +16,12 @@ import {
   Tag,
   Layers,
   DoorOpen,
+  Zap,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories, LOT_CATEGORY_SELECTED_STYLES } from "@/lib/lot-types"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createBuildingService } from "@/lib/services"
 import { AddressFieldsWithMap, type GeocodeResult } from "@/components/google-maps"
 
@@ -46,6 +48,7 @@ interface BuildingInfo {
   floor?: string
   doorNumber?: string
   category?: LotCategory
+  pebRating?: string
   // Google Maps geocoding data
   latitude?: number
   longitude?: number
@@ -452,6 +455,30 @@ export const BuildingInfoForm = ({
                 onBlur={handleFieldBlur}
                 className="mt-1 h-10 sm:h-11"
               />
+            </div>
+            <div className="min-w-0">
+              <Label htmlFor="pebRating" icon={Zap}>
+                Certificat PEB/EPC <span className="text-muted-foreground font-normal">(optionnel)</span>
+              </Label>
+              <Select
+                value={buildingInfo.pebRating || ""}
+                onValueChange={(value) => setBuildingInfo({ ...buildingInfo, pebRating: value === "none" ? undefined : value })}
+              >
+                <SelectTrigger id="pebRating" className="mt-1 h-10 sm:h-11">
+                  <SelectValue placeholder="Non renseign&eacute;" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Non renseign&eacute;</SelectItem>
+                  <SelectItem value="A+">A+</SelectItem>
+                  <SelectItem value="A">A</SelectItem>
+                  <SelectItem value="B">B</SelectItem>
+                  <SelectItem value="C">C</SelectItem>
+                  <SelectItem value="D">D</SelectItem>
+                  <SelectItem value="E">E</SelectItem>
+                  <SelectItem value="F">F</SelectItem>
+                  <SelectItem value="G">G</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
       )}

@@ -25,6 +25,7 @@ export const WelcomeEmail = ({
     gestionnaire: 'Vous pouvez gérer vos biens, interventions et équipes en toute simplicité.',
     prestataire: 'Vous recevrez des demandes d\'intervention et pourrez soumettre vos estimations.',
     locataire: 'Vous pouvez soumettre des demandes d\'intervention pour votre logement.',
+    proprietaire: 'Vous pouvez consulter vos biens et suivre les interventions en cours.',
   }
 
   const roleLabels = {
@@ -32,6 +33,7 @@ export const WelcomeEmail = ({
     gestionnaire: 'Gestionnaire',
     prestataire: 'Prestataire',
     locataire: 'Locataire',
+    proprietaire: 'Proprietaire',
   }
 
   return (

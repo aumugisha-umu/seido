@@ -2,13 +2,63 @@
 title: "Moratoire hivernal Bruxelles : fonds indemnisation bailleur"
 slug: "moratoire-hivernal-fonds-indemnisation"
 date: "2026-01-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Legislation"
 tags: ["moratoire hivernal", "bruxelles", "fonds indemnisation", "loyers impayes", "expulsion locative", "bailleur", "gestionnaire immobilier"]
 description: "Loyers impayes pendant le moratoire hivernal bruxellois ? Le Fonds regional de solidarite indemnise les bailleurs — conditions, delais et procedure pour ne pas passer a cote."
 reading_time: "5 min"
 type: "article"
 hub: "essentiel-immo-janvier-2026"
+infographic:
+  type: "timeline"
+  data:
+    title: "Calendrier bailleur — moratoire hivernal"
+    milestones:
+      - date: "Avant hiver"
+        label: "Verifier baux enregistres"
+        detail: "Identifier locataires a risque"
+        color: "blue"
+        icon: "check"
+        actions:
+          - "Verifier l'enregistrement de tous les baux aupres du bureau competent"
+          - "Identifier les locataires en retard de paiement et evaluer le risque d'impayes"
+          - "Lancer une procedure judiciaire avant le 1er novembre si un locataire est deja defaillant"
+      - date: "1er nov."
+        label: "Debut moratoire"
+        detail: "Expulsions suspendues"
+        color: "red"
+        icon: "alert"
+        actions:
+          - "Envoyer une mise en demeure par recommande a tout locataire en defaut de paiement"
+          - "Informer les proprietaires concernes de la suspension des expulsions"
+          - "Introduire ou poursuivre les procedures judiciaires (le moratoire ne bloque pas les audiences)"
+      - date: "Nov. - Mars"
+        label: "Documenter les impayes"
+        detail: "Recommandes + releves de compte"
+        color: "amber"
+        icon: "clock"
+        actions:
+          - "Conserver tous les releves de compte prouvant l'absence de versement du loyer"
+          - "Envoyer un rappel ecrit chaque mois au locataire defaillant"
+          - "Constituer un dossier complet (recommandes, releves, jugement) pour la demande d'indemnisation"
+      - date: "15 mars"
+        label: "Fin moratoire"
+        detail: "Relancer l'expulsion"
+        color: "green"
+        icon: "check"
+        actions:
+          - "Contacter l'huissier pour planifier l'execution du jugement d'expulsion"
+          - "Relancer le locataire avec une derniere mise en demeure formelle"
+          - "Preparer la demande d'indemnisation aupres du Fonds regional de solidarite"
+      - date: "15 sept."
+        label: "Date limite indemnisation"
+        detail: "Fonds regional de solidarite"
+        color: "red"
+        icon: "alert"
+        actions:
+          - "Deposer la demande d'indemnisation avant le 15 septembre — aucun delai supplementaire"
+          - "Joindre le jugement d'expulsion, les preuves d'impayes et les mises en demeure"
+          - "Verifier que le bail est bien enregistre (condition obligatoire pour l'indemnisation)"
 ---
 
 # Moratoire hivernal a Bruxelles : le fonds d'indemnisation que les bailleurs ignorent

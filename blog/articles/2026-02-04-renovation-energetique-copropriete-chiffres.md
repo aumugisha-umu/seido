@@ -2,13 +2,34 @@
 title: "Renovation energetique en copropriete : 8 ans et 3 sources"
 slug: "renovation-energetique-copropriete-chiffres"
 date: "2026-02-15"
-author: "Equipe Seido"
+author: "Arthur Umugisha"
 category: "Energie"
 tags: ["renovation energetique", "copropriete", "syndic reno support", "financement", "peb", "federia"]
 description: "8 ans entre la reflexion et le chantier, 3 sources de financement, 100-180 EUR/mois par appartement. Les vrais chiffres de la renovation energetique en copropriete."
 reading_time: "6 min"
 type: "article"
 hub: "essentiel-immo-fevrier-2026"
+infographic:
+  type: "stat-highlight"
+  data:
+    title: "Renovation energetique en copropriete"
+    stats:
+      - value: 8
+        suffix: " ans"
+        label: "Duree moyenne reflexion → chantier"
+        color: "blue"
+      - value: 90
+        suffix: "%"
+        label: "Combinent 3+ sources de financement"
+        color: "amber"
+      - value: 180
+        prefix: "€"
+        suffix: "/mois"
+        label: "Cout max par appartement (86% des cas)"
+        color: "red"
+      - value: 4
+        label: "Organismes preteurs actifs en Belgique"
+        color: "green"
 ---
 
 # Renovation energetique en copropriete : les vrais chiffres du programme Syndic Reno Support

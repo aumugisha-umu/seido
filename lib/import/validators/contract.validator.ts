@@ -54,6 +54,15 @@ export const contractImportSchema = z.object({
       VALIDATION_CONSTRAINTS.contract.start_date.pattern,
       'Format de date invalide. Utilisez AAAA-MM-JJ (ex: 2024-01-01)'
     ),
+  signed_date: z
+    .string()
+    .regex(
+      VALIDATION_CONSTRAINTS.contract.start_date.pattern,
+      'Format de date de signature invalide. Utilisez AAAA-MM-JJ (ex: 2024-01-01)'
+    )
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   duration_months: z
     .number()
     .int('La durée doit être un nombre entier')
@@ -134,6 +143,7 @@ export function validateContractRow(
     title: String(row['Titre'] || row['Titre*'] || '').trim(),
     lot_reference: String(row['Réf Lot'] || row['Réf Lot*'] || '').trim(),
     start_date: parseDate(row['Date Début'] || row['Date Début*']),
+    signed_date: row['Date Signature'] ? parseDate(row['Date Signature']) : undefined,
     duration_months: parseNumber(row['Durée (mois)'] || row['Durée (mois)*']),
     rent_amount: parseAmount(row['Loyer'] || row['Loyer*']),
     charges_amount: parseAmount(row['Charges']),
@@ -203,6 +213,7 @@ export function validateContractRow(
       title: result.data.title,
       lot_reference: result.data.lot_reference,
       start_date: result.data.start_date,
+      signed_date: result.data.signed_date || undefined,
       duration_months: result.data.duration_months,
       rent_amount: result.data.rent_amount,
       charges_amount: result.data.charges_amount ?? undefined,

@@ -438,8 +438,3 @@ export class EmailReplyService {
 // Factory Function
 // ══════════════════════════════════════════════════════════════
 
-/**
- * Crée une instance du EmailReplyService
- * Note: Cette classe utilise des méthodes statiques, pas besoin d'instanciation
- */
-export const createEmailReplyService = () => EmailReplyService

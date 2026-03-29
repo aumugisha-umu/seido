@@ -5,6 +5,12 @@ import {
   FREE_TIER_LIMIT,
   TRIAL_DAYS,
   STRIPE_PRICES,
+  STRIPE_AI_PRICES,
+  AI_PRICE_IDS,
+  isAiPrice,
+  isMainPrice,
+  getTierFromPriceId,
+  getIntervalFromAiPriceId,
 } from '@/lib/stripe'
 
 // ============================================================================
@@ -110,5 +116,122 @@ describe('calculateAnnualSavings', () => {
 
   it('returns 0 for negative lot count', () => {
     expect(calculateAnnualSavings(-1)).toBe(0)
+  })
+})
+
+// ============================================================================
+// AI Price Helpers (added for unified billing model)
+// ============================================================================
+
+describe('STRIPE_AI_PRICES', () => {
+  it('has nested month/year structure for each tier', () => {
+    for (const tier of ['solo', 'equipe', 'agence'] as const) {
+      expect(STRIPE_AI_PRICES[tier]).toHaveProperty('month')
+      expect(STRIPE_AI_PRICES[tier]).toHaveProperty('year')
+    }
+  })
+})
+
+describe('AI_PRICE_IDS', () => {
+  it('is a Set containing all non-empty AI price IDs', () => {
+    expect(AI_PRICE_IDS).toBeInstanceOf(Set)
+    // Empty env values are filtered out
+    for (const id of AI_PRICE_IDS) {
+      expect(id).not.toBe('')
+    }
+  })
+})
+
+describe('isAiPrice', () => {
+  it('returns true for a known AI price ID', () => {
+    const monthlyId = STRIPE_AI_PRICES.solo.month
+    if (monthlyId) {
+      expect(isAiPrice(monthlyId)).toBe(true)
+    }
+  })
+
+  it('returns false for a main price ID', () => {
+    if (STRIPE_PRICES.annual) {
+      expect(isAiPrice(STRIPE_PRICES.annual)).toBe(false)
+    }
+  })
+
+  it('returns false for random string', () => {
+    expect(isAiPrice('price_nonexistent_xxx')).toBe(false)
+  })
+
+  it('returns false for empty string', () => {
+    expect(isAiPrice('')).toBe(false)
+  })
+})
+
+describe('isMainPrice', () => {
+  it('returns true for annual price', () => {
+    if (STRIPE_PRICES.annual) {
+      expect(isMainPrice(STRIPE_PRICES.annual)).toBe(true)
+    }
+  })
+
+  it('returns true for monthly price', () => {
+    if (STRIPE_PRICES.monthly) {
+      expect(isMainPrice(STRIPE_PRICES.monthly)).toBe(true)
+    }
+  })
+
+  it('returns false for AI price', () => {
+    const aiId = STRIPE_AI_PRICES.solo.month
+    if (aiId) {
+      expect(isMainPrice(aiId)).toBe(false)
+    }
+  })
+
+  it('returns false for random string', () => {
+    expect(isMainPrice('price_nonexistent_xxx')).toBe(false)
+  })
+})
+
+describe('getTierFromPriceId', () => {
+  it('returns tier for known monthly AI price', () => {
+    const soloMonth = STRIPE_AI_PRICES.solo.month
+    if (soloMonth) {
+      expect(getTierFromPriceId(soloMonth)).toBe('solo')
+    }
+  })
+
+  it('returns tier for known annual AI price', () => {
+    const equipeYear = STRIPE_AI_PRICES.equipe.year
+    if (equipeYear) {
+      expect(getTierFromPriceId(equipeYear)).toBe('equipe')
+    }
+  })
+
+  it('returns null for main price', () => {
+    if (STRIPE_PRICES.annual) {
+      expect(getTierFromPriceId(STRIPE_PRICES.annual)).toBeNull()
+    }
+  })
+
+  it('returns null for unknown price', () => {
+    expect(getTierFromPriceId('price_unknown_xxx')).toBeNull()
+  })
+})
+
+describe('getIntervalFromAiPriceId', () => {
+  it('returns month for monthly AI price', () => {
+    const soloMonth = STRIPE_AI_PRICES.solo.month
+    if (soloMonth) {
+      expect(getIntervalFromAiPriceId(soloMonth)).toBe('month')
+    }
+  })
+
+  it('returns year for annual AI price', () => {
+    const agenceYear = STRIPE_AI_PRICES.agence.year
+    if (agenceYear) {
+      expect(getIntervalFromAiPriceId(agenceYear)).toBe('year')
+    }
+  })
+
+  it('returns null for non-AI price', () => {
+    expect(getIntervalFromAiPriceId('price_main_xxx')).toBeNull()
   })
 })

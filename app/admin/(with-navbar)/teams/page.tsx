@@ -2,19 +2,26 @@ import { Badge } from '@/components/ui/badge'
 import { Shield, Building2 } from 'lucide-react'
 import { getServerAuthContext } from '@/lib/server-context'
 import { getAdminTeamsWithSubscriptions } from '@/app/actions/admin-team-actions'
+import { getInvitationsAction } from '@/app/actions/user-admin-actions'
 import { TeamsManagementClient } from './teams-management-client'
 
 /**
  * Admin Teams Page — Server Component
  *
  * Displays all teams with subscription status, member/lot counts.
- * Allows trial extension for teams in trialing status.
+ * Shows pending/expired invitations below the teams table.
  */
 export default async function AdminTeamsPage() {
   const { profile } = await getServerAuthContext('admin')
 
-  const teamsResult = await getAdminTeamsWithSubscriptions()
+  const [teamsResult, invitationsResult] = await Promise.all([
+    getAdminTeamsWithSubscriptions(),
+    getInvitationsAction(),
+  ])
   const teams = teamsResult.success ? teamsResult.data || [] : []
+  const invitations = invitationsResult.success ? invitationsResult.data || [] : []
+
+  const pendingInvitations = invitations.filter(i => i.status === 'pending').length
 
   const stats = {
     total: teams.length,
@@ -50,7 +57,7 @@ export default async function AdminTeamsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div className="bg-white rounded-lg border p-4">
           <div className="text-2xl font-bold text-slate-900">{stats.total}</div>
           <div className="text-sm text-slate-600">Total</div>
@@ -67,6 +74,12 @@ export default async function AdminTeamsPage() {
           <div className="text-2xl font-bold text-slate-700">{stats.canceled}</div>
           <div className="text-sm text-slate-600">Annulees</div>
         </div>
+        {pendingInvitations > 0 && (
+          <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+            <div className="text-2xl font-bold text-blue-700">{pendingInvitations}</div>
+            <div className="text-sm text-blue-600">Invitations en attente</div>
+          </div>
+        )}
       </div>
 
       {/* Error */}
@@ -76,8 +89,8 @@ export default async function AdminTeamsPage() {
         </div>
       )}
 
-      {/* Teams Table */}
-      <TeamsManagementClient initialTeams={teams} />
+      {/* Teams Table + Invitations Section */}
+      <TeamsManagementClient initialTeams={teams} initialInvitations={invitations} />
     </div>
   )
 }

@@ -52,6 +52,13 @@ export const EMAIL_CONFIG = {
   contactEmail: process.env.CONTACT_EMAIL || 'contact@seido-app.com',
 
   /**
+   * Adresse d'envoi pour les emails admin (invitations, trial extensions)
+   * Les réponses arrivent directement dans la boîte du fondateur
+   */
+  adminFrom: process.env.ADMIN_FROM_EMAIL || 'Arthur from SEIDO <arthur@seido-app.com>',
+  adminReplyTo: process.env.ADMIN_REPLY_TO || 'arthur@seido-app.com',
+
+  /**
    * Nom de l'application
    */
   appName: 'SEIDO',

@@ -108,7 +108,7 @@ const FAQ_DATA: FAQItem[] = [
   // Collaboration
   { category: "General", question: "Comment inviter un collegue dans mon equipe ?", answer: "Allez dans Parametres > Equipe > Inviter un membre. Votre collegue recoit un email, cree son compte et accede aux memes donnees. Vous controlez ses acces depuis les parametres." },
   { category: "General", question: "Que voient mes locataires sur leur portail ?", answer: "Chaque locataire invite accede a un portail ou il peut signaler un probleme en 2 minutes, suivre l'avancement des interventions et consulter ses documents. Il ne voit que son lot, jamais les autres." },
-  { category: "General", question: "Quel est le delai de reponse du support ?", answer: "Moins de 24h en semaine par email (contact@seido-app.com). Pour les urgences techniques, nous repondons sous 2h pendant les heures ouvrables (lundi-vendredi, 9h-18h)." },
+  { category: "General", question: "Quel est le delai de reponse du support ?", answer: "Moins de 24h en semaine par email (support@seido-app.com). Pour les urgences techniques, nous repondons sous 2h pendant les heures ouvrables (lundi-vendredi, 9h-18h)." },
 ]
 
 const FAQ_CATEGORIES = ["General", "Facturation", "Securite", "Mobile", "Integrations"]
@@ -1020,7 +1020,7 @@ export const AidePageClient = () => {
                 Vous ne trouvez pas la reponse a votre question ?
               </p>
               <a
-                href="mailto:contact@seido-app.com"
+                href="mailto:info@seido-app.com"
                 className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-1"
               >
                 Contactez notre equipe — reponse sous 24h <ArrowRight className="h-3 w-3" />

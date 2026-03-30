@@ -69,7 +69,7 @@ export default async function HomePage() {
               vatID: 'BE0775691974',
               contactPoint: {
                 '@type': 'ContactPoint',
-                email: 'contact@seido-app.com',
+                email: 'info@seido-app.com',
                 contactType: 'customer service',
                 availableLanguage: ['French', 'English', 'Dutch'],
               },

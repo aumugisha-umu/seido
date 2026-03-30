@@ -255,10 +255,10 @@ export function BetaAccessGate() {
               <p className="text-white/60 text-sm">
                 Une question ?{' '}
                 <a
-                  href="mailto:contact@seido-app.com"
+                  href="mailto:info@seido-app.com"
                   className="text-brand-primary hover:text-brand-primary/80 underline transition-colors"
                 >
-                  contact@seido-app.com
+                  info@seido-app.com
                 </a>
               </p>
               <span className="text-white/40 hidden sm:inline">|</span>

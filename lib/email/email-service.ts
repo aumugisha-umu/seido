@@ -94,12 +94,13 @@ async function sendEmailWithRetry(options: SendEmailOptions): Promise<EmailSendR
   for (let attempt = 1; attempt <= RETRY_CONFIG.maxAttempts; attempt++) {
     try {
       const { data, error } = await resend.emails.send({
-        from: EMAIL_CONFIG.from,
+        from: options.from || EMAIL_CONFIG.from,
         to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text,
         tags: options.tags,
+        replyTo: options.replyTo,
         // Attacher le logo avec CID (Content-ID) pour affichage inline
         attachments: logoAttachment ? [logoAttachment] : undefined,
       })
@@ -276,6 +277,8 @@ export const emailService = {
         : 'Bienvenue sur SEIDO — Votre espace de gestion vous attend',
       html,
       text,
+      from: EMAIL_CONFIG.adminFrom,
+      replyTo: EMAIL_CONFIG.adminReplyTo,
       tags: [
         { name: 'category', value: 'auth' },
         { name: 'type', value: props.isRenewal ? 'admin-invitation-renewal' : 'admin-invitation' },
@@ -393,6 +396,8 @@ export const emailService = {
       subject: `Votre essai SEIDO a été prolongé de ${props.daysAdded} jours`,
       html,
       text,
+      from: EMAIL_CONFIG.adminFrom,
+      replyTo: EMAIL_CONFIG.adminReplyTo,
       tags: [
         { name: 'category', value: 'admin' },
         { name: 'type', value: 'trial-extended' },

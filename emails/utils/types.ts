@@ -192,6 +192,10 @@ export interface SendEmailOptions {
   text?: string
   /** Tags pour Resend analytics */
   tags?: Array<{ name: string; value: string }>
+  /** Override sender address (defaults to EMAIL_CONFIG.from) */
+  from?: string
+  /** Reply-to address (defaults to from address) */
+  replyTo?: string
 }
 
 /**

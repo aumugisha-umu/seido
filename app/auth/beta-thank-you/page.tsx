@@ -83,8 +83,8 @@ export default function BetaThankYouPage() {
                 <p className="flex items-start">
                   <span className="text-brand-primary mr-2 ml-0.5 font-bold">?</span>
                   <span>Des questions ? Écrivez-nous à{' '}
-                    <a href="mailto:contact@seido-app.com" className="text-brand-primary hover:text-brand-primary/80 underline transition-colors">
-                      contact@seido-app.com
+                    <a href="mailto:info@seido-app.com" className="text-brand-primary hover:text-brand-primary/80 underline transition-colors">
+                      info@seido-app.com
                     </a>
                   </span>
                 </p>

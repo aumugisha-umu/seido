@@ -799,8 +799,8 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     <Mail className="w-8 h-8 text-blue-400 flex-shrink-0" />
                                     <div>
                                         <h3 className="landing-body font-semibold text-white mb-1">Email</h3>
-                                        <a href="mailto:contact@seido-app.com" className="landing-body-sm text-white/60 hover:text-blue-400 transition-colors">
-                                            contact@seido-app.com
+                                        <a href="mailto:info@seido-app.com" className="landing-body-sm text-white/60 hover:text-blue-400 transition-colors">
+                                            info@seido-app.com
                                         </a>
                                     </div>
                                 </div>
@@ -878,7 +878,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                 Vous avez d'autres questions ?
                             </p>
                             <a
-                                href="mailto:contact@seido-app.com"
+                                href="mailto:info@seido-app.com"
                                 className="inline-flex items-center gap-2 landing-body text-purple-400 hover:text-purple-300 font-medium transition-colors"
                             >
                                 Contactez notre équipe
@@ -986,7 +986,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         <div>
                             <p className="landing-body font-semibold text-white mb-3">Contact</p>
                             <ul className="space-y-2 landing-caption text-white/60">
-                                <li><a href="mailto:contact@seido-app.com" className="hover:text-white transition-colors">contact@seido-app.com</a></li>
+                                <li><a href="mailto:info@seido-app.com" className="hover:text-white transition-colors">info@seido-app.com</a></li>
                                 <li>Bruxelles, Belgique</li>
                                 <li className="flex items-center gap-2 pt-2">
                                     <Shield className="w-3 h-3 text-green-400" />

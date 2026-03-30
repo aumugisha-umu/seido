@@ -306,7 +306,6 @@ Multi-channel AI triage for gestionnaire dashboard. 3 channels (WhatsApp, Phone,
 ---
 
 ## Files Recently Modified
-### 2026-03-30 07:12:04 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/seido-app/emails/utils/types.ts`
-- `C:/Users/arthu/Desktop/Coding/seido-app/lib/email/resend-client.ts`
-- `C:/Users/arthu/Desktop/Coding/seido-app/lib/email/email-service.ts`
+### 2026-03-30 09:05:24 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/seido-app/app/sw.ts`
+- `C:/Users/arthu/Desktop/Coding/seido-app/components/pwa-register.tsx`

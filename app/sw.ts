@@ -78,10 +78,11 @@ const serwist = new Serwist({
         networkTimeoutSeconds: 30,
       }),
     },
-    {
-      matcher: ({ url }: { url: URL }) => url.pathname.startsWith('/_next/static/'),
-      handler: new NetworkOnly(),
-    },
+    // NOTE: /_next/static/ is NOT listed here on purpose — content-hashed files are
+    // handled by defaultCache (CacheFirst). Adding NetworkOnly here breaks CSS after
+    // deployments: cached HTML references old hashes → 404 → unstyled page.
+    //
+    // Next.js images — NetworkFirst with 24h cache
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith('/_next/image'),
       handler: new NetworkFirst({

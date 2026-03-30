@@ -140,7 +140,8 @@
       "WebFetch(domain:myponto.com)",
       "WebFetch(domain:www.isabelgroup.eu)",
       "WebFetch(domain:www.ipi.be)",
-      "WebFetch(domain:github.blog)"
+      "WebFetch(domain:github.blog)",
+      "Bash(sed 's/<[^>]*>//g')"
     ],
     "deny": [],
     "ask": []

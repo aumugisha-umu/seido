@@ -128,9 +128,9 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             </h1>
 
                             <p className="landing-subtitle text-white/65 mb-6 md:mb-8 max-w-2xl leading-relaxed">
-                                Chaque demande déclenche une boucle qui prenait des jours.<br/>
-                                SEIDO centralise et automatise, vous décidez en quelques clics.<br/>
-                                <strong className="text-white/95 font-semibold">De 10h à 1h par personne, par semaine.</strong>
+                                Chaque demande déclenche des échanges qui n'en finissent pas.<br/>
+                                SEIDO caote les échanges, organise et automatise, vous décidez en quelques clics.<br/>
+                                <strong className="text-white/95 font-semibold">Gagnez juqu'à 10h/personne/semaine, tout en traintant les demandes 24/7.</strong>
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-4 mb-4 md:mb-6 max-w-2xl">

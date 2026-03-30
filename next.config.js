@@ -31,6 +31,10 @@ const nextConfig = {
     ]
   },
 
+  // Version skew detection — forces hard reload when deployment changes
+  // Prevents stale JS/CSS after rolling deployments on Vercel
+  deploymentId: process.env.VERCEL_GIT_COMMIT_SHA || 'local',
+
   // Security and cache headers for all routes
   async headers() {
     return [
@@ -41,6 +45,20 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable'
+          }
+        ]
+      },
+      {
+        // Service worker must never be cached — browser must always check for updates
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate'
+          },
+          {
+            key: 'Content-Type',
+            value: 'application/javascript; charset=utf-8'
           }
         ]
       },

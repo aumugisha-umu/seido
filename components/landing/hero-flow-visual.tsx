@@ -90,6 +90,7 @@ const ANIMATION_DELAYS = {
   sources: [350, 500, 750, 600, 900, 700, 1050],
   flowLines: 1300,
   flowDots: 1500,
+  convergenceDot: 6900, // after 3 loops of 1.8s + flowDots delay (1500 + 5400)
   aiNode: 1700,
   flowDown: 2200,
   flowDotDown: 2400,
@@ -127,6 +128,7 @@ export const HeroFlowVisual = memo(function HeroFlowVisual() {
     ANIMATION_DELAYS.sources.forEach((d, i) => t(() => showElement(`[data-src="${i}"]`), d))
     t(() => showAll('[data-flow-line]'), ANIMATION_DELAYS.flowLines)
     t(() => showAll('[data-flow-dot]'), ANIMATION_DELAYS.flowDots)
+    t(() => showElement('[data-convergence-dot]'), ANIMATION_DELAYS.convergenceDot)
     t(() => showElement('[data-ai-node]'), ANIMATION_DELAYS.aiNode)
     t(() => showElement('[data-flow-down]'), ANIMATION_DELAYS.flowDown)
     t(() => showElement('[data-flow-dot-down]'), ANIMATION_DELAYS.flowDotDown)
@@ -211,6 +213,14 @@ export const HeroFlowVisual = memo(function HeroFlowVisual() {
             }}
           />
         ))}
+
+        {/* Convergence dot — appears at junction after flow dots finish */}
+        <div
+          data-animate
+          data-convergence-dot
+          className="hero-convergence-dot absolute w-2.5 h-2.5 rounded-full bg-violet-400 shadow-[0_0_8px_rgba(139,92,246,0.5)]"
+          style={{ left: CONV.x - 5, top: CONV.y - 5 }}
+        />
       </div>
 
       {/* ─── AI Node ─── */}

@@ -306,5 +306,6 @@ Multi-channel AI triage for gestionnaire dashboard. 3 channels (WhatsApp, Phone,
 ---
 
 ## Files Recently Modified
-### 2026-03-30 10:12:32 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/seido-app/components/landing/hero-flow-visual.tsx`
+### 2026-03-30 11:40:37 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/umumentum-ai-starter-kit/.claude/skills/sp-evaluate/SKILL.md`
+- `C:/Users/arthu/Desktop/Coding/umumentum-ai-starter-kit/.claude/skills/sp-simplify/SKILL.md`

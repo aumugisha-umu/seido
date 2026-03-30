@@ -72,6 +72,33 @@ Now engage the user. **Informed by Phase 0-1 findings.**
 - Cover: architecture, components, data flow, error handling, testing
 - Be ready to go back and clarify if something doesn't make sense
 
+**Quality by Design (proactive — embed during design, not after):**
+
+Before finalizing the design, evaluate it through the 3 evaluation axes and flag risks upfront:
+
+| Axis | Proactive Questions to Answer in Design |
+|------|----------------------------------------|
+| **Security (40%)** | Which endpoints need `getServerAuthContext`? Any new tables needing RLS? Team isolation via `team_members`? Input validation boundaries? |
+| **Patterns (30%)** | What existing utils/components can be reused? (grep `lib/utils/`, `components/ui/`, adjacent files) Any risk of N+1 queries? Will this exceed 500 lines per file? |
+| **Design Quality (30%)** | Empty states defined? Loading skeletons matching final layout? Role-aware differentiation (gestionnaire/prestataire/locataire)? Mobile-first for prestataire? |
+
+Include a **"Risks & Reuse"** section in every design doc:
+```markdown
+## Risks & Reuse (Quality by Design)
+### Reuse candidates
+- [existing util/component] → extend for [this use case]
+### Security considerations
+- [RLS/auth/team isolation needs]
+### Anti-patterns to avoid
+- [specific pitfalls from AGENTS.md learnings]
+### Design quality checklist
+- [ ] Empty states defined
+- [ ] Loading skeletons specified
+- [ ] Role-aware (3 roles × this feature)
+```
+
+This section replaces the need for a post-hoc `/evaluate` or `/simplify` call — the criteria are addressed during design.
+
 ## Phase 3: After the Design
 
 **Documentation:**

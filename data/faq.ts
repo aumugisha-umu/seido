@@ -60,6 +60,18 @@ export const faq: FAQItem[] = [
     question: "Puis-je inviter mes prestataires et locataires gratuitement ?",
     answer: "Oui, complètement gratuit ! Invitez autant de prestataires et locataires que vous voulez, sans frais supplémentaires. Vous payez uniquement pour vos biens gérés. Vos prestataires et locataires créent leur compte gratuitement et accèdent uniquement aux interventions qui les concernent. Win-win.",
     category: 'pricing'
+  },
+  {
+    id: 9,
+    question: "SEIDO centralise quels canaux de communication ?",
+    answer: "SEIDO capte les demandes entrantes quel que soit leur canal d'origine : email, WhatsApp, SMS, appel téléphonique ou signalement direct via le portail locataire. L'IA de SEIDO classe automatiquement chaque demande, l'associe au bon bien, et vous présente uniquement celles qui nécessitent votre décision. Les demandes de suivi (statut, documents) sont traitées directement par le portail sans intervention de votre part.",
+    category: 'general'
+  },
+  {
+    id: 10,
+    question: "En quoi l'IA de SEIDO est-elle différente d'un chatbot ?",
+    answer: "Un chatbot répond à des questions prédéfinies. L'IA de SEIDO fait du triage intelligent : elle identifie la nature de chaque demande entrante (urgence, information, signalement de sinistre, demande de document), l'associe au bien et au locataire concernés, et décide si la demande mérite votre attention ou si elle peut être traitée automatiquement. C'est la différence entre un filtre anti-spam et un assistant qui comprend le contexte de votre portefeuille.",
+    category: 'general'
   }
 ]
 

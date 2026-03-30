@@ -99,12 +99,37 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
     const [billingInterval, setBillingInterval] = useState<BillingInterval>('year')
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white selection:bg-purple-500 selection:text-white">
+        <div className="relative min-h-screen bg-slate-950 text-white selection:bg-purple-500 selection:text-white">
             {/* Background Gradients */}
-            <div className="fixed inset-0 z-0 pointer-events-none">
+            {/* Background Gradients — fixed */}
+            <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[120px]" />
                 <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[800px] h-[800px] bg-blue-900/20 rounded-full blur-[100px]" />
+            </div>
+
+            {/* Ambient floating particles — absolute, scrolls with page */}
+            <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
+                {(() => {
+                    const colors = ['bg-green-400', 'bg-red-400', 'bg-purple-400', 'bg-amber-400', 'bg-cyan-400', 'bg-violet-400']
+                    const COUNT = 200
+                    // Deterministic pseudo-random using golden ratio for even distribution
+                    const PHI = 1.618033988749
+                    return Array.from({ length: COUNT }, (_, i) => {
+                        const x = ((i * PHI * 37.1) % 94) + 3      // 3-97%
+                        const y = ((i * PHI * 23.7) % 97) + 1      // 1-98%
+                        const delay = ((i * PHI * 2.3) % 6).toFixed(1)
+                        const color = colors[i % colors.length]
+                        const size = i % 5 === 0 ? 'w-1.5 h-1.5' : 'w-1 h-1'
+                        return (
+                            <div
+                                key={i}
+                                className={`absolute rounded-full ${color} ${size} hero-ambient-float`}
+                                style={{ left: `${x.toFixed(1)}%`, top: `${y.toFixed(1)}%`, animationDelay: `${delay}s` }}
+                            />
+                        )
+                    })
+                })()}
             </div>
 
             {/* Navigation Header - Shared Component */}
@@ -123,14 +148,14 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     La gestion locative
                                 </span>
                                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-300 to-cyan-300">
-                                    en toute sérénité
+                                    simplifiée par l'IA
                                 </span>
                             </h1>
 
                             <p className="landing-subtitle text-white/65 mb-6 md:mb-8 max-w-2xl leading-relaxed">
-                                Chaque demande déclenche des échanges qui n'en finissent pas.<br/>
-                                SEIDO caote les échanges, organise et automatise, vous décidez en quelques clics.<br/>
-                                <strong className="text-white/95 font-semibold">Gagnez juqu'à 10h/personne/semaine, tout en traintant les demandes 24/7.</strong>
+                                WhatsApp, email, téléphone, SMS... chaque demande arrive par un canal différent.<br/>
+                                SEIDO les centralise, les traite, et vous présente ce qui demande votre décision.<br/>
+                                <strong className="text-white/95 font-semibold">Gagnez jusqu'à 10h par personne et par semaine, sans rien laisser passer.</strong>
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-4 mb-4 md:mb-6 max-w-2xl">
@@ -163,7 +188,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                 </div>
                                 <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                     <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                    <span className="landing-caption text-white/80">Portail locataires et prestataires</span>
+                                    <span className="landing-caption text-white/80">Communications centralisées</span>
                                 </div>
                             </div>
 
@@ -194,14 +219,103 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
 
             {/* Combined Problem Section: Costs & Causes */}
             <section className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-problem">
-                {/* Part 1: The Hidden Costs */}
+                {/* Part 1: The Causes — concrete pain first, then abstract costs */}
                 <FadeIn>
-                    <div className="text-center mb-12">
+                    <div className="max-w-4xl mx-auto text-center mb-12">
+                        <h2 className="landing-h2 text-white mb-4">
+                            Le même film, chaque matin
+                        </h2>
+                        <p className="landing-subtitle text-white/60">
+                            Un appel. Un email. Un WhatsApp. À vous de tout reconstituer.
+                        </p>
+                    </div>
+                </FadeIn>
+
+                {/* Loop Flow Diagram — glassmorphism style */}
+                {(() => {
+                    const loopSteps = [
+                        { icon: Phone, label: 'Demande', sublabel: 'WhatsApp, email, appel', ariaLabel: 'Demande entrante multicanal' },
+                        { icon: Search, label: 'Recherche', sublabel: 'Quel bien ? Quel bail ?', ariaLabel: "Recherche d'information" },
+                        { icon: Send, label: 'Transmission', sublabel: 'Vous faites le relais', ariaLabel: 'Transmission manuelle' },
+                        { icon: Clock, label: 'Attente', sublabel: 'Silence radio', ariaLabel: 'Attente de réponse' },
+                        { icon: RefreshCw, label: 'Relance', sublabel: 'Vous relancez', ariaLabel: 'Relance manuelle' },
+                        { icon: RotateCcw, label: 'Encore', sublabel: 'Prochain canal...', ariaLabel: 'Recommencer sur un autre canal' },
+                    ]
+                    const isPain = (i: number) => i >= 3
+                    return (
+                        <div className="max-w-5xl mx-auto">
+                            {/* Desktop: horizontal flow */}
+                            <FadeIn>
+                                <div className="hidden md:block">
+                                    <div className="flex items-start justify-between gap-2">
+                                        {loopSteps.map((step, i) => (
+                                            <FadeIn key={i} delay={i * 80} className="flex items-start flex-1">
+                                                <div className="flex flex-col items-center text-center flex-1">
+                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 backdrop-blur-sm transition-colors ${isPain(i) ? 'bg-red-500/10 border border-red-500/20 shadow-[0_0_12px_rgba(239,68,68,0.1)]' : 'bg-white/[0.06] border border-white/8'}`} role="img" aria-label={step.ariaLabel}>
+                                                        <step.icon className={`w-6 h-6 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} aria-hidden="true" />
+                                                    </div>
+                                                    <span className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isPain(i) ? 'text-red-400' : 'text-white/80'}`}>
+                                                        {step.label}
+                                                    </span>
+                                                    <span className="text-xs text-white/40">{step.sublabel}</span>
+                                                </div>
+                                                {i < loopSteps.length - 1 && (
+                                                    <div className="flex items-center pt-6 -mx-1">
+                                                        <div className={`w-8 h-px ${isPain(i + 1) ? 'bg-gradient-to-r from-red-500/30 to-red-500/10' : 'bg-gradient-to-r from-white/15 to-white/5'}`} />
+                                                    </div>
+                                                )}
+                                            </FadeIn>
+                                        ))}
+                                    </div>
+                                    {/* Return arc — gradient instead of dashed */}
+                                    <div className="relative mx-8 mt-4 mb-2">
+                                        <div className="h-10 rounded-b-3xl border-b border-l border-r border-red-500/20 bg-gradient-to-t from-red-500/[0.04] to-transparent" />
+                                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 backdrop-blur-sm">
+                                            <span className="text-xs font-bold text-red-400">× 50 fois par jour</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </FadeIn>
+
+                            {/* Mobile: vertical flow */}
+                            <FadeIn>
+                                <div className="md:hidden">
+                                    <div className="relative pl-10">
+                                        <div className="absolute left-4 top-0 bottom-16 w-px bg-gradient-to-b from-white/15 via-white/10 to-red-500/20" />
+                                        {loopSteps.map((step, i) => (
+                                            <div key={i} className="relative flex items-start gap-4 mb-6">
+                                                <div className={`absolute -left-6 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 backdrop-blur-sm ${isPain(i) ? 'bg-red-500/10 border border-red-500/20' : 'bg-white/[0.06] border border-white/8'}`} role="img" aria-label={step.ariaLabel}>
+                                                    <step.icon className={`w-5 h-5 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} aria-hidden="true" />
+                                                </div>
+                                                <div className="pt-1">
+                                                    <span className={`text-sm font-semibold ${isPain(i) ? 'text-red-400' : 'text-white/80'}`}>
+                                                        {step.label}
+                                                    </span>
+                                                    <span className="text-xs text-white/40 ml-2">{step.sublabel}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="relative -left-6 mt-2 mb-2">
+                                            <div className="w-10 h-8 rounded-bl-2xl border-b border-l border-red-500/20 bg-gradient-to-tr from-red-500/[0.04] to-transparent" />
+                                            <div className="mt-2 inline-block px-4 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 backdrop-blur-sm">
+                                                <span className="text-xs font-bold text-red-400">× 50 fois par jour</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </FadeIn>
+                        </div>
+                    )
+                })()}
+
+                {/* Part 2: The Hidden Costs — now rationalized by the pain shown above */}
+                <FadeIn>
+                    <div className="text-center mb-12 mt-16">
                         <h2 id="heading-problem" className="landing-h2 text-white mb-4">
-                            Le vrai coût des boucles mal gérées
+                            Le vrai coût du chaos quotidien
                         </h2>
                     </div>
-                </FadeIn >
+                </FadeIn>
 
                 <div className="grid md:grid-cols-3 gap-8 text-center mb-8">
                     <FadeIn delay={0}>
@@ -231,117 +345,21 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 </div>
 
                 <FadeIn delay={300}>
-                    <p className="text-center text-sm leading-relaxed text-white/40 max-w-2xl mx-auto italic mb-16">
+                    <p className="text-center text-sm leading-relaxed text-white/40 max-w-2xl mx-auto italic">
                         Sur base d'un gestionnaire avec 100 biens en gestion et un taux horaire brut de 45€ (moyenne belge, source Federia/IPI)
                     </p>
                 </FadeIn>
-
-                {/* Part 2: The Causes (Pain Points) */}
-                <FadeIn>
-                    <div className="max-w-4xl mx-auto text-center mb-12">
-                        <h2 className="landing-h2 text-white mb-4">
-                            Le même schéma, en boucle, chaque jour
-                        </h2>
-                        <p className="landing-subtitle text-white/60">
-                            Appel, email, WhatsApp — puis la recherche commence.
-                        </p>
-                    </div>
-                </FadeIn>
-
-                {/* Loop Flow Diagram */}
-                {(() => {
-                    const loopSteps = [
-                        { icon: Phone, label: 'Déclencheur', sublabel: 'Appel / email / WhatsApp', ariaLabel: 'Appel ou email reçu' },
-                        { icon: Search, label: 'Recherche', sublabel: "Où est l'info ?", ariaLabel: "Recherche d'information" },
-                        { icon: Send, label: 'Transmission', sublabel: 'Vous transmettez', ariaLabel: 'Transmission du message' },
-                        { icon: Clock, label: 'Attente', sublabel: 'Silence radio', ariaLabel: 'Attente de réponse' },
-                        { icon: RefreshCw, label: 'Relance', sublabel: 'Vous relancez', ariaLabel: 'Relance manuelle' },
-                        { icon: RotateCcw, label: 'Recommence', sublabel: 'Retour case départ', ariaLabel: 'Retour au début' },
-                    ]
-                    const isPain = (i: number) => i >= 3
-                    return (
-                        <div className="max-w-5xl mx-auto">
-                            {/* Desktop: horizontal flow */}
-                            <FadeIn>
-                                <div className="hidden md:block">
-                                    {/* Steps row */}
-                                    <div className="flex items-start justify-between gap-2">
-                                        {loopSteps.map((step, i) => (
-                                            <div key={i} className="flex items-start flex-1">
-                                                {/* Step */}
-                                                <div className="flex flex-col items-center text-center flex-1">
-                                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-3 transition-colors ${isPain(i) ? 'bg-red-500/15 border border-red-500/30' : 'bg-white/10 border border-white/10'}`} role="img" aria-label={step.ariaLabel}>
-                                                        <step.icon className={`w-6 h-6 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} aria-hidden="true" />
-                                                    </div>
-                                                    <span className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isPain(i) ? 'text-red-400' : 'text-white/80'}`}>
-                                                        {step.label}
-                                                    </span>
-                                                    <span className="text-xs text-white/40">{step.sublabel}</span>
-                                                </div>
-                                                {/* Connector */}
-                                                {i < loopSteps.length - 1 && (
-                                                    <div className="flex items-center pt-6 -mx-1">
-                                                        <div className={`w-6 border-t-2 border-dashed ${isPain(i + 1) ? 'border-red-500/40' : 'border-white/20'}`} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {/* Return arc below */}
-                                    <div className="relative mx-8 mt-4 mb-2">
-                                        <div className="h-10 border-b-2 border-l-2 border-r-2 border-dashed border-red-500/40 rounded-b-3xl" />
-                                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30">
-                                            <span className="text-xs font-bold text-red-400">× 50 fois par jour</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </FadeIn>
-
-                            {/* Mobile: vertical flow */}
-                            <FadeIn>
-                                <div className="md:hidden">
-                                    <div className="relative pl-10">
-                                        {/* Vertical rail */}
-                                        <div className="absolute left-4 top-0 bottom-16 w-0.5 bg-gradient-to-b from-white/20 via-white/20 to-red-500/40" />
-                                        {loopSteps.map((step, i) => (
-                                            <div key={i} className="relative flex items-start gap-4 mb-6">
-                                                {/* Node on rail */}
-                                                <div className={`absolute -left-6 w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${isPain(i) ? 'bg-red-500/15 border border-red-500/30' : 'bg-white/10 border border-white/10'}`} role="img" aria-label={step.ariaLabel}>
-                                                    <step.icon className={`w-5 h-5 ${isPain(i) ? 'text-red-400' : 'text-white/70'}`} aria-hidden="true" />
-                                                </div>
-                                                {/* Text */}
-                                                <div className="pt-1">
-                                                    <span className={`text-sm font-semibold ${isPain(i) ? 'text-red-400' : 'text-white/80'}`}>
-                                                        {step.label}
-                                                    </span>
-                                                    <span className="text-xs text-white/40 ml-2">{step.sublabel}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {/* Return arc */}
-                                        <div className="relative -left-6 mt-2 mb-2">
-                                            <div className="w-10 h-8 border-b-2 border-l-2 border-dashed border-red-500/40 rounded-bl-2xl" />
-                                            <div className="mt-2 inline-block px-3 py-1 rounded-full bg-red-500/15 border border-red-500/30">
-                                                <span className="text-xs font-bold text-red-400">× 50 fois par jour</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </FadeIn>
-                        </div>
-                    )
-                })()}
             </section >
 
-            {/* SEIDO Experience Section - Moved here after pain points */}
+            {/* SEIDO Experience Section */}
             < section id="features" className="relative z-10 container mx-auto px-4 py-24" aria-labelledby="heading-features" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 id="heading-features" className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
-                            Chaque étape de la boucle, court-circuitée
+                            Tous vos canaux entrants. Une seule interface pour agir.
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            Recherche, transmission, attente, relance — SEIDO les élimine une par une. Voici comment.
+                            WhatsApp, email, téléphone, SMS — SEIDO capte tout, classe tout, vous présente uniquement ce qui mérite votre attention.
                         </p>
                     </div>
                 </FadeIn>
@@ -377,7 +395,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                         <span><strong className="line-through text-red-400/60 mr-1">Relance</strong> <strong>→ Devis en 2 clics</strong> — demander, comparer, valider. Sans email.</span>
                                     </li>
                                 </ul>
-                                <p className="mt-6 text-sm leading-relaxed text-white/40">+ tableaux de bord, chat intégré, pilotage prestataires — chaque boucle se ferme en quelques clics.</p>
+                                <p className="mt-6 text-sm leading-relaxed text-white/40">+ tableaux de bord, chat intégré, pilotage prestataires — toutes vos demandes traitées depuis un seul écran.</p>
                             </div>
                         </div>
                     </FadeIn>
@@ -387,7 +405,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn delay={100}>
                     <div className="text-center max-w-3xl mx-auto mb-8">
                         <h3 className="landing-h3 text-white mb-3">
-                            Chacun coupe sa part de la boucle
+                            Chacun agit dans son propre espace
                         </h3>
                         <p className="landing-subtitle text-white/60">
                             Le prestataire met à jour. Le locataire suit. Vous n&apos;avez plus à relayer.
@@ -405,7 +423,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     <Wrench className="w-8 h-8 text-green-400" />
                                     <div>
                                         <h3 className="landing-h4 text-white">Le Portail Prestataire</h3>
-                                        <p className="text-sm leading-relaxed text-green-400/80">Coupe les étapes 3 à 5 : transmission, attente, relance.</p>
+                                        <p className="text-sm leading-relaxed text-green-400/80">Zéro appel. Zéro email. Le prestataire gère tout depuis son portail.</p>
                                     </div>
                                 </div>
                                 <p className="landing-body-sm text-white/60 mb-5">Le prestataire agit et met à jour — vous n&apos;êtes plus le relais.</p>
@@ -439,7 +457,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     <Home className="w-8 h-8 text-orange-400" />
                                     <div>
                                         <h3 className="landing-h4 text-white">Le Portail Locataire</h3>
-                                        <p className="text-sm leading-relaxed text-orange-400/80">Coupe les étapes 1 et 6 : le déclencheur est structuré, plus de recommencement.</p>
+                                        <p className="text-sm leading-relaxed text-orange-400/80">Le locataire signale via le portail. Fini les appels improvisés.</p>
                                     </div>
                                 </div>
                                 <p className="landing-body-sm text-white/60 mb-5">Le locataire signale proprement et suit tout seul — il n&apos;a plus besoin de rappeler.</p>
@@ -454,11 +472,11 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-orange-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Validation de fin</strong> — la boucle se ferme. Pas de &quot;retour case départ&quot;.</span>
+                                        <span><strong>Validation de fin</strong> — demande traitée, tout le monde est notifié. Point final..</span>
                                     </li>
                                 </ul>
                                 <div className="mt-5 pt-4 border-t border-white/10">
-                                    <p className="text-sm leading-relaxed text-white/40">→ Plus de cycle : signaler → résolu, point final</p>
+                                    <p className="text-sm leading-relaxed text-white/40">→ Signalement structuré, traitement tracé, clôture confirmée.</p>
                                 </div>
                             </div>
                         </div>
@@ -469,10 +487,10 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn delay={300}>
                     <div className="text-center max-w-3xl mx-auto mt-16 mb-12">
                         <h3 className="landing-h3 text-white mb-3">
-                            Ce qui rend la coupure possible
+                            Opérationnel dès le premier jour
                         </h3>
                         <p className="landing-body text-white/60">
-                            Pas de formation. Pas de migration complexe. Vous coupez la boucle dès le premier jour.
+                            Import CSV inclus. Zéro formation. Vos premiers dossiers traités dans les 24h.
                         </p>
                     </div>
                 </FadeIn>
@@ -483,7 +501,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         {
                             icon: Zap,
                             title: "Opérationnel ce soir",
-                            desc: "Import CSV, invitations en masse. La boucle se coupe dès demain.",
+                            desc: "Import CSV, invitations en masse. Vos demandes centralisées dès demain.",
                             color: "text-yellow-400",
                             bg: "bg-yellow-400/10"
                         },
@@ -497,7 +515,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         {
                             icon: Smartphone,
                             title: "Bureau dans la poche",
-                            desc: "Validez un devis depuis n'importe où. La boucle n'attend plus votre bureau.",
+                            desc: "Validez un devis depuis n'importe où. Vos décisions ne dépendent plus de votre bureau.",
                             color: "text-blue-400",
                             bg: "bg-blue-400/10"
                         },
@@ -510,7 +528,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         }
                     ].map((feature, i) => (
                         <FadeIn key={i} delay={i * 100} className="h-full">
-                            <div className="group h-full p-8 rounded-3xl border border-white/5 bg-white/5 hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-500/10">
+                            <div className="group h-full p-8 rounded-3xl border border-white/8 bg-white/5 hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-500/10">
                                 <div className={`w-14 h-14 rounded-2xl ${feature.bg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
                                     <feature.icon className={`w-7 h-7 ${feature.color}`} />
                                 </div>
@@ -569,6 +587,18 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 </FadeIn>
             </section >
 
+            {/* CTA intermédiaire — après démonstration de la solution */}
+            <FadeIn>
+              <div className="text-center py-12">
+                <Link href="/auth/signup">
+                  <Button size="lg" className="h-14 px-10 text-lg bg-white text-black hover:bg-white/90 rounded-full transition-all hover:scale-105 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+                    Essayer gratuitement — 1 mois offert
+                  </Button>
+                </Link>
+                <p className="landing-caption text-white/40 mt-3">Sans carte bancaire · Vos vraies données</p>
+              </div>
+            </FadeIn>
+
             {/* Upcoming Features - Roadmap */}
             < section className="relative z-10 container mx-auto px-4 py-24 bg-slate-800/30" aria-labelledby="heading-roadmap" >
                 <FadeIn>
@@ -581,7 +611,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                             Une plateforme qui évolue avec vous
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            Chaque étape raccourcit vos boucles. Jusqu&apos;à ce qu&apos;elles se ferment presque toutes seules.
+                            Centraliser d'abord. Automatiser ensuite. Anticiper enfin. SEIDO grandit avec vous.
                         </p>
                     </div>
                 </FadeIn>
@@ -605,9 +635,9 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         {
                             icon: Sparkles,
                             title: "Anticiper",
-                            desc: "Plus notre système apprend de vos habitudes, plus il vous libère du temps. Chaque boucle traitée rend la suivante plus rapide.",
+                            desc: "Plus notre système apprend de vos habitudes, plus il vous libère du temps. Chaque demande traitée rend la suivante plus rapide.",
                             tags: ["Bientôt"],
-                            tagStyle: "bg-white/5 border-white/10 text-white/40"
+                            tagStyle: "bg-violet-500/10 border-violet-500/20 text-violet-400"
                         }
                     ].map((item, i) => (
                         <FadeIn key={i} delay={i * 100} className="h-full">
@@ -617,8 +647,41 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                 </div>
 
                                 <div className="relative z-10 flex flex-col h-full">
-                                    <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 ring-1 ring-white/20">
+                                    <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-4 ring-1 ring-white/20">
                                         <item.icon className="w-6 h-6 text-white" />
+                                    </div>
+
+                                    {/* Micro-animation per card */}
+                                    <div className="h-8 mb-4 flex items-center justify-start">
+                                        {i === 0 && (
+                                            /* Centraliser: 5 dots converging inward */
+                                            <svg width="80" height="24" viewBox="0 0 80 24" className="text-green-400/60">
+                                                {[0, 16, 32, 48, 64].map((x, j) => (
+                                                    <circle key={j} cx={x + 8} cy="12" r="3" fill="currentColor" className="animate-pulse" style={{ animationDelay: `${j * 200}ms`, animationDuration: '2s' }} />
+                                                ))}
+                                                <line x1="8" y1="12" x2="72" y2="12" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 4" className="opacity-40" />
+                                            </svg>
+                                        )}
+                                        {i === 1 && (
+                                            /* Automatiser: expanding pulse ring */
+                                            <svg width="40" height="24" viewBox="0 0 40 24" className="text-blue-400/60">
+                                                <circle cx="20" cy="12" r="4" fill="currentColor" />
+                                                <circle cx="20" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="0.5" className="animate-ping" style={{ animationDuration: '2.5s' }} />
+                                                <circle cx="20" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="0.5" className="animate-ping opacity-50" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }} />
+                                            </svg>
+                                        )}
+                                        {i === 2 && (
+                                            /* Anticiper: 3 lines radiating outward */
+                                            <svg width="60" height="24" viewBox="0 0 60 24" className="text-violet-400/60">
+                                                <circle cx="6" cy="12" r="3" fill="currentColor" />
+                                                {[4, 12, 20].map((y, j) => (
+                                                    <line key={j} x1="12" y1="12" x2="56" y2={y} stroke="currentColor" strokeWidth="0.5" className="animate-pulse" style={{ animationDelay: `${j * 300}ms`, animationDuration: '2s' }} />
+                                                ))}
+                                                {[4, 12, 20].map((y, j) => (
+                                                    <circle key={`d-${j}`} cx="56" cy={y} r="2" fill="currentColor" className="animate-pulse" style={{ animationDelay: `${j * 300 + 150}ms`, animationDuration: '2s' }} />
+                                                ))}
+                                            </svg>
+                                        )}
                                     </div>
 
                                     <h3 className="landing-h4 text-white mb-4">{item.title}</h3>
@@ -765,7 +828,7 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                         variant="dark"
                         lotCount={lotCount}
                         billingInterval={billingInterval}
-                        className="max-w-4xl mx-auto"
+                        className="mx-auto"
                     />
                 </FadeIn>
 
@@ -937,11 +1000,12 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                 <FadeIn>
                     <div className="max-w-4xl mx-auto relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 blur-[100px]" />
+
                         <p className="landing-h1 text-white mb-6 relative z-10">
                             Et si lundi prochain était différent ?
                         </p>
                         <p className="landing-subtitle text-white/60 mb-4 relative z-10">
-                            Des boucles plus courtes. Des décisions plus rapides. Zéro engagement.
+                            Moins de canaux à gérer. Des décisions plus rapides. Zéro engagement.
                         </p>
                         <p className="landing-body text-green-400 mb-10 relative z-10 font-medium">
                             1 mois gratuit, sans carte bancaire
@@ -975,9 +1039,9 @@ export function LandingPage({ latestArticles = [] }: LandingPageProps) {
                                 />
                             </div>
                             <p className="text-sm leading-relaxed text-white/40 mb-4">
-                                Moins de boucles. Plus de temps.
+                                Tous vos canaux. Un seul endroit.
                             </p>
-                            <p className="text-sm leading-relaxed text-white/40 text-xs">
+                            <p className="text-xs leading-relaxed text-white/40">
                                 © {new Date().getFullYear()} SEIDO. Tous droits réservés.
                             </p>
                         </div>

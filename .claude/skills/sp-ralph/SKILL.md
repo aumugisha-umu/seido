@@ -154,13 +154,21 @@ Acceptance Criteria:
 - [ ] Typecheck passes
 ```
 
-#### 5b. Read Context
+#### 5b. Read Context + Proactive Quality Check
 1. Read `AGENTS.md` — check applicable learnings
 2. Read relevant existing codebase files
 3. Check `systemPatterns.md` for patterns
+4. **Proactive pitfall scan (Quality by Design):**
+   - If story creates new function/component → grep `lib/utils/`, `components/ui/`, adjacent files for reusable existing code. If 80%+ overlap found → extend it, don't create new.
+   - If story touches server action/API → verify `getServerAuthContext` pattern planned
+   - If story renders list/table → flag N+1 risk, plan `Promise.all` batching
+   - If story has UI → confirm empty state + loading skeleton is in acceptance criteria
+   - If AGENTS.md has a learning for this domain → note the pitfall to avoid
+
+This replaces the need for a separate `/simplify` or `/evaluate` call later — the criteria are checked BEFORE writing.
 
 #### 5c. Implement
-- **BEFORE writing:** Apply "Code Craftsmanship Standards > Before Writing Code" — search for existing utilities/components to reuse
+- **BEFORE writing:** Apply "Code Craftsmanship Standards > Before Writing Code" — search for existing utilities/components to reuse (informed by 5b findings)
 - **Logic stories:** TDD — write failing test → implement → pass
 - **UI stories:** Implement component → typecheck
 - **Schema stories:** Migration → `npm run supabase:types`
@@ -221,7 +229,7 @@ The evaluator scores against 3 axes: Security (40%), Patterns (30%), Design Qual
 **If passed (score >= 7.0, no axis < 5.0):** Proceed to Step 7.
 **If failed:** Read evaluator feedback, fix issues, re-run evaluator. Max 2 retries before asking user.
 
-### Step 7: Final Quality Gate
+### Step 7: Final Quality Gate + Auto-Simplify
 
 ```bash
 npm run lint         # ESLint
@@ -229,7 +237,13 @@ npm test             # All tests
 ```
 
 Review changed files through 4 lenses (Security, Performance, Patterns, Tests).
-Apply craftsmanship self-check (`.claude/skills/sp-simplify/craftsmanship-standards.md`).
+
+**Auto-invoke sp-simplify** on all changed files (targeted mode, not full audit):
+- This catches code reuse misses, redundant state, parameter sprawl, and efficiency issues
+- Runs in the same context (not a separate agent) to keep it fast
+- Fix any issues found before proceeding
+- Do NOT ask "Want to run simplify?" — just do it as part of Step 7
+
 If blockers → fix → re-run. Loop until zero blockers.
 
 ### Step 8: Final Report

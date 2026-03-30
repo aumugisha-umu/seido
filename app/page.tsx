@@ -7,10 +7,10 @@ import { getLatestArticles } from '@/lib/blog'
 
 export const metadata: Metadata = {
   title: 'Logiciel Gestion Locative Belgique — De 10h à 1h/semaine | SEIDO',
-  description: 'SEIDO centralise toutes vos données, documents et interactions immobilières. Fermez vos boucles de gestion en quelques clics. Essai gratuit 1 mois.',
+  description: 'Logiciel de gestion locative belge tout-en-un. Centralisez WhatsApp, email et appels locataires. Triage IA automatique. Essai gratuit 1 mois, sans carte.',
   openGraph: {
     title: 'Logiciel Gestion Locative Belgique — De 10h à 1h/semaine | SEIDO',
-    description: 'SEIDO centralise toutes vos données, documents et interactions immobilières. Fermez vos boucles de gestion en quelques clics. Essai gratuit 1 mois.',
+    description: 'Logiciel de gestion locative belge tout-en-un. Centralisez WhatsApp, email et appels locataires. Triage IA automatique. Essai gratuit 1 mois, sans carte.',
     images: ['/images/preview_image.webp'],
     type: 'website',
     url: 'https://www.seido-app.com',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Logiciel Gestion Locative Belgique — De 10h à 1h/semaine | SEIDO',
-    description: 'SEIDO centralise toutes vos données, documents et interactions immobilières. Fermez vos boucles de gestion en quelques clics. Essai gratuit 1 mois.',
+    description: 'Logiciel de gestion locative belge tout-en-un. Centralisez WhatsApp, email et appels locataires. Triage IA automatique. Essai gratuit 1 mois, sans carte.',
     images: ['/images/preview_image.webp'],
   },
   alternates: {
@@ -96,13 +96,14 @@ export default async function HomePage() {
                 bestRating: '5',
               },
               featureList: [
-                'Gestion interventions multi-statut',
+                'Centralisation multicanal (WhatsApp, email, téléphone, SMS)',
+                'Triage IA automatique des demandes locataires',
+                'Gestion interventions 9 statuts avec workflow complet',
                 'Portail locataire self-service',
-                'Portail prestataire',
-                'Gestion documents (GED)',
-                'Notifications push PWA',
-                'Communication multi-canal',
-                'Gestion multi-equipe',
+                'Portail prestataire avec devis et planification',
+                'Assistant IA vocal et WhatsApp',
+                'Gestion documents et emails connectés',
+                'Conforme RGPD — Hébergement EU (Frankfurt)',
               ],
             },
             {

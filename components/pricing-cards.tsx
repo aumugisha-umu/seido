@@ -92,8 +92,8 @@ export function PricingCards({
         {/* Badges */}
         <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex gap-2">
           <span className={cn(
-            "px-3 py-1 rounded-full text-xs font-medium tracking-wider uppercase border",
-            colors.badgeBg, isLight ? 'border-border' : 'border-white/10', colors.body
+            "px-3 py-1 rounded-full text-xs font-medium tracking-wider uppercase border whitespace-nowrap",
+            isLight ? 'bg-muted border-border text-muted-foreground' : 'bg-slate-800 border-white/15 text-white/70'
           )}>
             Après essai gratuit
           </span>

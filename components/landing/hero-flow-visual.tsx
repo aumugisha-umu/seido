@@ -2,44 +2,100 @@
 
 import { memo, useEffect, useRef, useCallback } from 'react'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
-import { Wrench, Check, FileText, Clock } from 'lucide-react'
+import { Wrench, Bell, AlertTriangle, FileText, XCircle } from 'lucide-react'
 import Image from 'next/image'
 
+// ─── Layout constants ───────────────────────────────────────
+const CONTAINER_W = 460
+const BADGE_H = 44
+const FLOW_ZONE_H = 265 // 4 badge rows + flow gap to AI convergence
+
+// ─── Input badges: 7 items, 4 rows (1-2-2-2 quinconce) ─────
 const SOURCE_BADGES = [
-  { id: 'wa', icon: '💬', text: 'Fuite sdb', bg: 'bg-green-500/[0.06]', border: 'border-green-500/[0.08]', iconBg: 'bg-green-500/15', textColor: 'text-green-400/70' },
-  { id: 'em', icon: '📧', text: 'Devis plomberie', bg: 'bg-red-500/[0.06]', border: 'border-red-500/[0.08]', iconBg: 'bg-red-500/15', textColor: 'text-red-400/70' },
-  { id: 'ph', icon: '📞', text: '3 appels', bg: 'bg-purple-500/[0.06]', border: 'border-purple-500/[0.08]', iconBg: 'bg-purple-500/15', textColor: 'text-purple-400/70' },
-  { id: 'sm', icon: '📱', text: 'Chauffage panne', bg: 'bg-amber-400/[0.06]', border: 'border-amber-400/[0.08]', iconBg: 'bg-amber-400/15', textColor: 'text-amber-400/70' },
+  // Row 0 (1 badge, centered — face-to-face)
+  { id: 'f2f', icon: '🗣️', text: 'Visite Apt 2A',
+    bg: 'bg-cyan-500/[0.06]', border: 'border-cyan-500/[0.08]', iconBg: 'bg-cyan-500/15', textColor: 'text-cyan-400/70',
+    pos: { top: 0, left: 160, rotate: 1 }, approxW: 142,
+    lineColor: 'rgba(6,182,212,0.3)', dotColor: 'rgb(6,182,212)' },
+  // Row 1 (2 badges, spread wide)
+  { id: 'wa1', icon: '💬', text: 'Fuite sdb',
+    bg: 'bg-green-500/[0.06]', border: 'border-green-500/[0.08]', iconBg: 'bg-green-500/15', textColor: 'text-green-400/70',
+    pos: { top: 56, left: 15, rotate: -3 }, approxW: 135,
+    lineColor: 'rgba(34,197,94,0.3)', dotColor: 'rgb(34,197,94)' },
+  { id: 'em1', icon: '📧', text: 'Relance devis',
+    bg: 'bg-red-500/[0.06]', border: 'border-red-500/[0.08]', iconBg: 'bg-red-500/15', textColor: 'text-red-400/70',
+    pos: { top: 56, left: 275, rotate: 2.5 }, approxW: 155,
+    lineColor: 'rgba(239,68,68,0.25)', dotColor: 'rgb(239,68,68)' },
+  // Row 2 (2 badges, quinconce offset)
+  { id: 'ph', icon: '📞', text: '3 appels',
+    bg: 'bg-purple-500/[0.06]', border: 'border-purple-500/[0.08]', iconBg: 'bg-purple-500/15', textColor: 'text-purple-400/70',
+    pos: { top: 112, left: 65, rotate: -2 }, approxW: 125,
+    lineColor: 'rgba(168,85,247,0.3)', dotColor: 'rgb(168,85,247)' },
+  { id: 'sm', icon: '📲', text: 'Panne chauffage',
+    bg: 'bg-amber-400/[0.06]', border: 'border-amber-400/[0.08]', iconBg: 'bg-amber-400/15', textColor: 'text-amber-400/70',
+    pos: { top: 112, left: 240, rotate: 3 }, approxW: 170,
+    lineColor: 'rgba(251,191,36,0.25)', dotColor: 'rgb(251,191,36)' },
+  // Row 3 (2 badges, back to wide spread)
+  { id: 'wa2', icon: '💬', text: 'Bruit voisinage',
+    bg: 'bg-green-500/[0.06]', border: 'border-green-500/[0.08]', iconBg: 'bg-green-500/15', textColor: 'text-green-400/70',
+    pos: { top: 168, left: 5, rotate: -4 }, approxW: 162,
+    lineColor: 'rgba(34,197,94,0.25)', dotColor: 'rgb(34,197,94)' },
+  { id: 'em2', icon: '📧', text: 'Sinistre Apt 3B',
+    bg: 'bg-red-500/[0.06]', border: 'border-red-500/[0.08]', iconBg: 'bg-red-500/15', textColor: 'text-red-400/70',
+    pos: { top: 168, left: 265, rotate: 1.5 }, approxW: 158,
+    lineColor: 'rgba(239,68,68,0.2)', dotColor: 'rgb(239,68,68)' },
 ] as const
 
-const DETAIL_ROWS = [
-  { icon: 'done', label: 'Prestataire assigné', value: 'Marc Dufour' },
-  { icon: 'done', label: 'Locataire notifié', value: 'Emma Dubois' },
-  { icon: 'pending', label: 'Rdv confirmé', value: 'Lundi 14h' },
-] as const
+// Computed: center-bottom of each badge → start of flow line
+const FLOW_STARTS = SOURCE_BADGES.map(b => ({
+  x: Math.round(b.pos.left + b.approxW / 2),
+  y: b.pos.top + BADGE_H,
+}))
 
-const CONTEXT_CHIPS = [
-  { icon: '📄', text: 'Bail Apt 3B', type: 'doc' as const },
-  { icon: '👤', text: 'Plombier habituel', type: 'contact' as const },
-  { icon: '🔧', text: '2 interventions passées', type: 'history' as const },
-] as const
+// Convergence point (center-bottom of flow zone, just above AI node)
+const CONV = { x: Math.round(CONTAINER_W / 2), y: FLOW_ZONE_H }
 
-const CHIP_STYLES = {
-  doc: { bg: 'bg-blue-500/[0.06]', border: 'border-blue-500/10', iconBg: 'bg-blue-500/[0.12]', text: 'text-blue-400/70' },
-  contact: { bg: 'bg-emerald-400/[0.06]', border: 'border-emerald-400/10', iconBg: 'bg-emerald-400/[0.12]', text: 'text-emerald-400/70' },
-  history: { bg: 'bg-amber-400/[0.06]', border: 'border-amber-400/10', iconBg: 'bg-amber-400/[0.12]', text: 'text-amber-400/70' },
-} as const
+// SVG path strings for offset-path CSS
+const FLOW_PATHS = FLOW_STARTS.map(pt =>
+  `M ${pt.x} ${pt.y} L ${CONV.x} ${CONV.y}`
+)
+
+const DOT_DELAYS = ['0s', '0.3s', '0.6s', '0.9s', '1.2s', '0.2s', '0.8s']
+
+// ─── Output cards (3 organized results from AI) ─────────────
+const OUTPUT_CARDS = [
+  { id: 'intervention', icon: Wrench,
+    iconColor: 'text-blue-400', iconBg: 'bg-blue-400/10',
+    title: 'Intervention', subtitle: 'Fuite salle de bain',
+    status: 'Planifiée', statusBg: 'bg-blue-400/[0.12]', statusColor: 'text-blue-400',
+    detail: 'Marc Dufour · Lun 14h' },
+  { id: 'rappel', icon: Bell,
+    iconColor: 'text-amber-400', iconBg: 'bg-amber-400/10',
+    title: 'Rappel', subtitle: 'Relance devis plomberie',
+    status: 'Dans 3 jours', statusBg: 'bg-amber-400/[0.12]', statusColor: 'text-amber-400',
+    detail: 'Plombier habituel' },
+  { id: 'sinistre', icon: AlertTriangle,
+    iconColor: 'text-red-400', iconBg: 'bg-red-400/10',
+    title: 'Sinistre', subtitle: 'Dégât des eaux',
+    status: 'Déclaré', statusBg: 'bg-red-400/[0.12]', statusColor: 'text-red-400',
+    detail: 'Apt 3B · Assurance notifiée' },
+  { id: 'rejet', icon: XCircle,
+    iconColor: 'text-zinc-400', iconBg: 'bg-zinc-400/10',
+    title: 'Rejetée', subtitle: 'Ampoule salon',
+    status: 'Rejetée', statusBg: 'bg-zinc-500/[0.12]', statusColor: 'text-zinc-400',
+    detail: 'Charge locative' },
+] as const
 
 const ANIMATION_DELAYS = {
-  sources: [600, 750, 900, 1050],
+  sources: [350, 500, 750, 600, 900, 700, 1050],
   flowLines: 1300,
   flowDots: 1500,
+  convergenceDot: 6900, // after 3 loops of 1.8s + flowDots delay (1500 + 5400)
   aiNode: 1700,
   flowDown: 2200,
   flowDotDown: 2400,
-  outputCard: 2600,
-  rows: [3200, 3500, 3800],
-  chips: [4100, 4300, 4500],
+  outputCards: [2700, 2950, 3200, 3450],
+  aiBadge: 3600,
 } as const
 
 export const HeroFlowVisual = memo(function HeroFlowVisual() {
@@ -72,12 +128,12 @@ export const HeroFlowVisual = memo(function HeroFlowVisual() {
     ANIMATION_DELAYS.sources.forEach((d, i) => t(() => showElement(`[data-src="${i}"]`), d))
     t(() => showAll('[data-flow-line]'), ANIMATION_DELAYS.flowLines)
     t(() => showAll('[data-flow-dot]'), ANIMATION_DELAYS.flowDots)
+    t(() => showElement('[data-convergence-dot]'), ANIMATION_DELAYS.convergenceDot)
     t(() => showElement('[data-ai-node]'), ANIMATION_DELAYS.aiNode)
     t(() => showElement('[data-flow-down]'), ANIMATION_DELAYS.flowDown)
     t(() => showElement('[data-flow-dot-down]'), ANIMATION_DELAYS.flowDotDown)
-    t(() => showElement('[data-output-card]'), ANIMATION_DELAYS.outputCard)
-    ANIMATION_DELAYS.rows.forEach((d, i) => t(() => showElement(`[data-row="${i}"]`), d))
-    ANIMATION_DELAYS.chips.forEach((d, i) => t(() => showElement(`[data-chip="${i}"]`), d))
+    ANIMATION_DELAYS.outputCards.forEach((d, i) => t(() => showElement(`[data-output="${i}"]`), d))
+    t(() => showElement('[data-ai-badge]'), ANIMATION_DELAYS.aiBadge)
 
     return () => timers.forEach(clearTimeout)
   }, [prefersReducedMotion, showElement, showAll])
@@ -85,14 +141,21 @@ export const HeroFlowVisual = memo(function HeroFlowVisual() {
   return (
     <div ref={containerRef} className="flex flex-col items-center gap-0 relative py-4">
 
-      {/* ─── Niveau 3: Input source badges ─── */}
-      <div className="grid grid-cols-2 gap-3 w-[380px] mb-6">
+      {/* ─── Top zone: badges (staggered quinconce) + SVG flow lines ─── */}
+      <div className="relative mb-0" style={{ width: CONTAINER_W, height: FLOW_ZONE_H }}>
+
+        {/* Badges — 3 rows, quinconce layout */}
         {SOURCE_BADGES.map((src, i) => (
           <div
             key={src.id}
             data-animate
             data-src={i}
-            className={`hero-animate-drop flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-medium backdrop-blur-sm border ${src.bg} ${src.border}`}
+            className={`hero-animate-drop absolute flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-medium backdrop-blur-sm border ${src.bg} ${src.border}`}
+            style={{
+              top: src.pos.top,
+              left: src.pos.left,
+              '--hero-rotate': `${src.pos.rotate}deg`,
+            } as React.CSSProperties}
           >
             <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-base shrink-0 ${src.iconBg}`}>
               {src.icon}
@@ -100,41 +163,67 @@ export const HeroFlowVisual = memo(function HeroFlowVisual() {
             <span className={`${src.textColor} truncate`}>{src.text}</span>
           </div>
         ))}
-      </div>
 
-      {/* ─── Flow lines (sources → AI) ─── */}
-      <div className="relative w-[140px] h-10 mb-0">
-        {[
-          { left: '20%', gradient: 'from-green-500/30 to-violet-500/15' },
-          { left: '40%', gradient: 'from-red-500/25 to-violet-500/15' },
-          { left: '60%', gradient: 'from-purple-500/30 to-violet-500/15' },
-          { left: '80%', gradient: 'from-amber-400/25 to-violet-500/15' },
-        ].map((line, i) => (
-          <div
-            key={`line-${i}`}
-            data-animate
-            data-flow-line
-            className={`hero-animate-fade absolute w-px h-full bg-gradient-to-b ${line.gradient}`}
-            style={{ left: line.left }}
-          />
-        ))}
-        {[
-          { left: '20%', color: 'bg-green-500', delay: '0s' },
-          { left: '40%', color: 'bg-red-500', delay: '0.4s' },
-          { left: '60%', color: 'bg-purple-500', delay: '0.8s' },
-          { left: '80%', color: 'bg-amber-400', delay: '1.2s' },
-        ].map((dot, i) => (
+        {/* SVG flow lines: badge center-bottom → convergence point */}
+        <svg
+          className="absolute inset-0 pointer-events-none"
+          viewBox={`0 0 ${CONTAINER_W} ${FLOW_ZONE_H}`}
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            {SOURCE_BADGES.map((src, i) => (
+              <linearGradient
+                key={`grad-${i}`}
+                id={`flowGrad${i}`}
+                x1={FLOW_STARTS[i].x} y1={FLOW_STARTS[i].y}
+                x2={CONV.x} y2={CONV.y}
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0%" stopColor={src.lineColor} />
+                <stop offset="100%" stopColor="rgba(139,92,246,0.15)" />
+              </linearGradient>
+            ))}
+          </defs>
+          {FLOW_STARTS.map((pt, i) => (
+            <line
+              key={`line-${i}`}
+              data-animate
+              data-flow-line
+              className="hero-animate-fade"
+              x1={pt.x} y1={pt.y}
+              x2={CONV.x} y2={CONV.y}
+              stroke={`url(#flowGrad${i})`}
+              strokeWidth={1}
+            />
+          ))}
+        </svg>
+
+        {/* Flow dots — path-following via offset-path CSS */}
+        {SOURCE_BADGES.map((src, i) => (
           <div
             key={`dot-${i}`}
             data-animate
             data-flow-dot
-            className={`hero-animate-fade absolute w-1 h-1 rounded-full ${dot.color} hero-flow-dot-active`}
-            style={{ left: dot.left, animationDelay: dot.delay }}
+            className="hero-flow-svg-dot absolute top-0 left-0 w-1.5 h-1.5 rounded-full"
+            style={{
+              backgroundColor: src.dotColor,
+              offsetPath: `path('${FLOW_PATHS[i]}')`,
+              animationDelay: DOT_DELAYS[i],
+            }}
           />
         ))}
+
+        {/* Convergence dot — appears at junction after flow dots finish */}
+        <div
+          data-animate
+          data-convergence-dot
+          className="hero-convergence-dot absolute w-2.5 h-2.5 rounded-full bg-violet-400 shadow-[0_0_8px_rgba(139,92,246,0.5)]"
+          style={{ left: CONV.x - 5, top: CONV.y - 5 }}
+        />
       </div>
 
-      {/* ─── Niveau 2: AI Node ─── */}
+      {/* ─── AI Node ─── */}
       <div
         data-animate
         data-ai-node
@@ -152,7 +241,7 @@ export const HeroFlowVisual = memo(function HeroFlowVisual() {
         </div>
         <div>
           <div className="text-sm font-semibold text-violet-400/80 tracking-wide">SEIDO AI</div>
-          <div className="text-xs text-white/40 mt-0.5">Analyse et organise</div>
+          <div className="text-xs text-white/40 mt-0.5">Votre assistant personnel</div>
         </div>
       </div>
 
@@ -160,7 +249,7 @@ export const HeroFlowVisual = memo(function HeroFlowVisual() {
       <div
         data-animate
         data-flow-down
-        className="hero-animate-fade relative w-px h-9 bg-gradient-to-b from-violet-500/20 to-blue-400/15"
+        className="hero-animate-fade relative w-px h-7 bg-gradient-to-b from-violet-500/20 to-blue-400/15"
       >
         <div
           data-animate
@@ -170,83 +259,43 @@ export const HeroFlowVisual = memo(function HeroFlowVisual() {
         />
       </div>
 
-      {/* ─── Niveau 1: Output intervention card ─── */}
+      {/* ─── Output: 3 organized result cards ─── */}
+      <div className="flex gap-2.5 mt-1">
+        {OUTPUT_CARDS.map((card, i) => {
+          const Icon = card.icon
+          const isRejected = card.id === 'rejet'
+          return (
+            <div
+              key={card.id}
+              data-animate
+              data-output={i}
+              className={`hero-animate-slide-up w-[120px] border rounded-xl p-3 backdrop-blur-2xl shadow-[0_8px_24px_rgba(0,0,0,0.2),0_0_0_1px_rgba(255,255,255,0.03)] ${
+                isRejected ? 'bg-zinc-900/25 border-zinc-500/8' : 'bg-slate-900/60 border-blue-400/10'
+              }`}
+            >
+              <div className="flex items-center gap-1.5 mb-2">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${card.iconBg}`}>
+                  <Icon className={`w-3.5 h-3.5 ${card.iconColor}`} />
+                </div>
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-md ${card.statusBg} ${card.statusColor}`}>
+                  {card.status}
+                </span>
+              </div>
+              <div className={`text-xs font-bold leading-tight ${isRejected ? 'text-white/40 line-through' : 'text-white/85'}`}>{card.subtitle}</div>
+              <div className="text-xs text-white/40 mt-1">{card.detail}</div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* AI created badge */}
       <div
         data-animate
-        data-output-card
-        className="hero-animate-slide-up w-[420px] bg-slate-900/60 border border-blue-400/10 rounded-2xl p-5 px-6 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.25),0_0_0_1px_rgba(255,255,255,0.03)]"
+        data-ai-badge
+        className="hero-animate-fade inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg bg-violet-500/[0.08] border border-violet-500/10 text-xs font-medium text-violet-400/60"
       >
-        {/* Card header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-400/10 flex items-center justify-center">
-              <Wrench className="w-5 h-5 text-blue-400" />
-            </div>
-            <div>
-              <div className="text-base font-bold text-white/90">Fuite salle de bain</div>
-              <div className="text-sm text-white/40 mt-0.5">Résidence Les Marronniers · Apt 3B</div>
-            </div>
-          </div>
-          <span className="text-xs font-semibold px-3 py-1 rounded-lg bg-blue-400/[0.12] text-blue-400">
-            Planifiée
-          </span>
-        </div>
-
-        {/* Detail rows */}
-        <div className="flex flex-col gap-2.5 pt-3 border-t border-white/[0.06]">
-          {DETAIL_ROWS.map((row, i) => (
-            <div
-              key={i}
-              data-animate
-              data-row={i}
-              className="hero-animate-slide-left flex items-center gap-2.5"
-            >
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                row.icon === 'done' ? 'bg-emerald-400/[0.12]' : 'bg-amber-400/[0.12]'
-              }`}>
-                {row.icon === 'done' ? (
-                  <Check className="w-3 h-3 text-emerald-400" strokeWidth={3} />
-                ) : (
-                  <Clock className="w-3 h-3 text-amber-400" strokeWidth={2.5} />
-                )}
-              </div>
-              <span className="text-sm text-white/60">
-                <strong className="text-white/80 font-semibold">{row.label}</strong> · {row.value}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Context enrichment chips */}
-        <div className="flex flex-col gap-2 pt-3 mt-1 border-t border-white/[0.06]">
-          <div className="text-xs font-semibold text-blue-400/50 tracking-wider uppercase">
-            Contexte existant rattaché
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {CONTEXT_CHIPS.map((chip, i) => {
-              const styles = CHIP_STYLES[chip.type]
-              return (
-                <div
-                  key={i}
-                  data-animate
-                  data-chip={i}
-                  className={`hero-animate-slide-right inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border ${styles.bg} ${styles.border}`}
-                >
-                  <span className={`w-5 h-5 rounded flex items-center justify-center text-xs shrink-0 ${styles.iconBg}`}>
-                    {chip.icon}
-                  </span>
-                  <span className={styles.text}>{chip.text}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* AI created badge */}
-        <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg bg-violet-500/[0.08] border border-violet-500/10 text-xs font-medium text-violet-400/60">
-          <FileText className="w-3.5 h-3.5" />
-          Créé automatiquement par l&apos;assistant IA
-        </div>
+        <FileText className="w-3.5 h-3.5" />
+        Créé automatiquement par l&apos;assistant IA
       </div>
     </div>
   )

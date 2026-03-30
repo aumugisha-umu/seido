@@ -79,6 +79,29 @@ If a PRD exists, reference it:
 
 ---
 
+## Quality by Design — Per-Task Proactive Checklist
+
+Every task in the plan MUST include a **"Pitfall guard"** section — a 2-3 line micro-checklist derived from the 3 evaluation axes + craftsmanship standards. This prevents issues from reaching the reactive gates (evaluate, quality-gate, simplify).
+
+```markdown
+### Task N: [Component Name]
+
+**Pitfall guard:**
+- Reuse: grep `lib/utils/`, `components/ui/` for [relevant pattern] before creating
+- Security: [auth/RLS need if applicable, or "N/A"]
+- Anti-pattern: [specific risk — e.g., "N+1 on list query → use Promise.all", or "N/A"]
+```
+
+**Rules for writing pitfall guards:**
+- If the task creates a **new function/component**: MUST include a reuse grep target
+- If the task touches **server actions or API routes**: MUST flag auth pattern (`getServerAuthContext`)
+- If the task renders **a list or table**: flag N+1 risk + pagination need
+- If the task creates **UI with empty state possible**: flag empty state requirement
+- If AGENTS.md has a **learning related to this task's domain**: cite it (e.g., "Learning #084: RLS silent fail")
+- If none apply: write `Pitfall guard: N/A — pure config/wiring`
+
+---
+
 ## Bite-Sized Task Granularity
 
 **Step 0 per task: Reuse search** — search codebase for existing utilities/components that overlap with this task before specifying new code.
@@ -122,9 +145,32 @@ Expected: PASS
 - Exact commands with expected output
 - DRY, YAGNI, TDD, frequent commits
 
+## Plan Review Gate (auto — before handoff)
+
+After writing the plan but BEFORE presenting execution options, **automatically review the plan** through the 3 evaluation axes. This catches design-level issues before any code is written.
+
+**Self-review checklist (run silently, fix inline):**
+
+| Axis | Check | Action if Missing |
+|------|-------|-------------------|
+| **Security** | Every task touching server actions/API routes has auth pattern in its steps | Add `getServerAuthContext` step |
+| **Security** | New DB tables have RLS policy task | Add RLS task after migration |
+| **Patterns** | Every task creating new functions has a reuse grep in Step 0 | Add specific grep targets |
+| **Patterns** | No task exceeds M size (> 6 files, > 300 lines) | Split the task |
+| **Design** | UI tasks specify empty states and loading states | Add to acceptance criteria |
+| **Design** | Multi-role features cover gestionnaire + prestataire + locataire views | Add per-role criteria |
+| **Simplify** | No two tasks create overlapping utilities | Merge or extract shared task |
+| **Simplify** | Tasks reuse existing SEIDO patterns (repository, service, server action) | Reference existing file as template |
+
+If any check fails, fix the plan inline — don't flag it to the user as a separate review step.
+
+**When the plan involves 5+ tasks or crosses 3+ domains:** Auto-invoke `sp-evaluate` in `plan` mode (pass the plan doc as input) to get a second-opinion score. If score < 7.0, revise before presenting to user.
+
+---
+
 ## Execution Handoff
 
-After saving the plan:
+After saving and reviewing the plan:
 
 **"Plan complete. Two execution options:**
 1. **Subagent-Driven (this session)** - Use sp-subagent-driven-development
